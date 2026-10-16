@@ -22,3 +22,18 @@ test('AC-02: contributes.configuration に work_dir の設定項目があり、�
   assert.ok(prop, 'devpipe.workDir の設定項目があること');
   assert.equal(prop.default, 'docs-internal/pipeline');
 });
+
+test('パッケージ：.vsix にできる宣言（publisher・main・パッケージ前のビルド）がある', () => {
+  const manifest = readManifest();
+  assert.equal(typeof manifest.publisher, 'string');
+  assert.ok(manifest.publisher.length > 0);
+  assert.equal(manifest.main, './out/extension.cjs');
+  assert.match(manifest.scripts?.['vscode:prepublish'] ?? '', /build/);
+  assert.match(manifest.scripts?.package ?? '', /vsce package/);
+});
+
+test('パッケージ：.vscodeignore でソースと node_modules を同梱しない（ビルド済みの out/ だけを載せる）', () => {
+  const ignore = readFileSync(new URL('../.vscodeignore', import.meta.url), 'utf8').split(/\r?\n/);
+  for (const entry of ['src/**', 'node_modules/**']) assert.ok(ignore.includes(entry), entry);
+  assert.ok(!ignore.includes('out/**'));
+});

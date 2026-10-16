@@ -5,7 +5,7 @@ devpipe が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物
 
 ## 使い方
 
-```
+```bash
 cd tools/devpipe-vscode
 npm install          # 型検査とビルドの道具（テストだけなら不要）
 npm test             # node:test（Node 22 以上）
@@ -14,6 +14,17 @@ npm run build        # out/extension.cjs
 ```
 
 VSCode でこのフォルダを開き、F5（拡張機能の開発ホスト）で起動する。コマンドパレットの「devpipe: 実行を見る」でパネルが開く。
+
+### 普段の VSCode に入れる
+
+```bash
+npm install
+npm run package                                        # devpipe-vscode.vsix（ビルドもここで走る）
+code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-insiders
+```
+
+入れたら「開発者: ウィンドウの再読み込み」をしてから、コマンドパレットで「devpipe: 実行を見る」。
+直したら同じ手順で入れ直す（version を上げなくても `--force` で上書きされる）。外すときは `code --uninstall-extension nok.devpipe-vscode`。
 
 | 設定 | 既定 | 意味 |
 | :--- | :--- | :--- |

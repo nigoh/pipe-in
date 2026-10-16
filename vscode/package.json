@@ -3,6 +3,8 @@
   "displayName": "devpipe",
   "description": "devpipe の実行を VSCode の中で図として見る",
   "version": "0.0.0",
+  "publisher": "nok",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "main": "./out/extension.cjs",
@@ -31,11 +33,14 @@
   "scripts": {
     "test": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p .",
-    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.cjs"
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.cjs",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license -o devpipe-vscode.vsix"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.24",
     "typescript": "^5.7"
   }
