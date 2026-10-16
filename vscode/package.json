@@ -4,10 +4,39 @@
   "description": "devpipe の実行を VSCode の中で図として見る",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "main": "./out/extension.cjs",
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "vscode": "^1.90.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "devpipe.showRun",
+        "title": "devpipe: 実行を見る"
+      }
+    ],
+    "configuration": {
+      "title": "devpipe",
+      "properties": {
+        "devpipe.workDir": {
+          "type": "string",
+          "default": "docs-internal/pipeline",
+          "description": "devpipe の work_dir。ワークスペースの最初のフォルダからの相対パス"
+        }
+      }
+    }
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\""
+    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.24",
+    "typescript": "^5.7"
   }
 }
