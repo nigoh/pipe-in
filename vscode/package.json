@@ -4,6 +4,8 @@
   "description": "devpipe の実行を VSCode の中で図として見る",
   "version": "0.0.0",
   "publisher": "nok",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/nigoh/devpipe" },
   "license": "UNLICENSED",
   "private": true,
   "type": "module",

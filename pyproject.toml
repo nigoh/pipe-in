@@ -3,6 +3,7 @@ name = "devpipe"
 version = "0.2.0"
 description = "要件 → 要件定義 → 設計 → テスト先行 → 実装 → 検証 を Claude Agent SDK で繋ぐパイプライン"
 requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = ["claude-agent-sdk>=0.2.159,<0.3"]
 
 [project.optional-dependencies]
