@@ -1,10 +1,9 @@
 // テスト用の記録（state.json・段のログ・記録の写し）を文字列として作る小さな関数。
 // devpipe が work_dir に書く形（要件定義書「devpipe が今書いている記録」）に合わせる。
-import type { Stage } from '../domain/stage.ts';
 import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
 
 /** 段のログの始まりの行（`Prompt`）。 */
-export function promptLine(stage: Stage): string {
+export function promptLine(stage: string): string {
   return JSON.stringify({ _type: 'Prompt', stage, resume: null, prompt: `${stage} の依頼文` });
 }
 
@@ -38,7 +37,7 @@ export function logText(lines: string[]): string {
 
 /** state.json の runs に入る「段の実行」の要素（devpipe の `Pipeline._run_stage` が書く形）。 */
 export function stageRunEntry(p: {
-  stage: Stage;
+  stage: string;
   seq: number;
   attempt?: number | null;
   isError?: boolean;
@@ -132,13 +131,24 @@ export function stateJson(p: {
   totalCostUsd?: number;
   /** devpipe 0.2 の usage_summary。省くと古い記録と同じく持たない */
   usageSummary?: unknown;
+  /** 以下は devpipe がパイプを持つようになってからの項目。省くとその前の記録と同じく持たない */
+  pipe?: string;
+  /** 段の並び（{name, label, output?, review?} の配列） */
+  stages?: unknown;
+  pendingReview?: unknown;
+  warnings?: unknown;
+  updatedAt?: string;
 }): string {
   return JSON.stringify({
     started_at: '2026-10-16T00:00:00',
-    updated_at: '2026-10-16T00:00:00',
+    updated_at: p.updatedAt ?? '2026-10-16T00:00:00',
+    ...(p.pipe === undefined ? {} : { pipe: p.pipe }),
+    ...(p.stages === undefined ? {} : { stages: p.stages }),
     final: p.final ?? null,
     total_cost_usd: p.totalCostUsd ?? 0,
     ...(p.usageSummary === undefined ? {} : { usage_summary: p.usageSummary }),
+    ...(p.pendingReview === undefined ? {} : { pending_review: p.pendingReview }),
+    ...(p.warnings === undefined ? {} : { warnings: p.warnings }),
     runs: p.runs ?? [],
   });
 }
@@ -152,3 +162,19 @@ export function snapshot(p: Partial<WorkDirSnapshot> = {}): WorkDirSnapshot {
     artifacts: p.artifacts ?? {},
   };
 }
+
+/** パイプ diagrams の段の並び（state.json の stages）。output・review まで持つ今の形。 */
+export const DIAGRAMS_STAGES = [
+  { name: 'survey', label: 'ソースの調査', output: '01_survey.md', review: true },
+  { name: 'draw', label: '図を描く', output: '02_diagrams.md', review: true },
+  { name: 'verify', label: '図とソースの突き合わせ', output: '03_verify.md', review: false },
+];
+
+/** 開発フローの段の並び（state.json の stages）。 */
+export const DEV_STAGES = [
+  { name: 'requirements', label: '要件定義', output: '01_requirements.md', review: true },
+  { name: 'design', label: '設計', output: '02_design.md', review: true },
+  { name: 'red', label: 'テスト先行', output: '03_red_tests.md', review: true },
+  { name: 'implement', label: '実装', output: '04_implementation.md', review: false },
+  { name: 'test', label: '検証', output: '05_test_report.md', review: false },
+];

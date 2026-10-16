@@ -1,7 +1,7 @@
 // 実行の記録：devpipe の state.json を読んだもの。記録の形の知識はここに閉じる。
 import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
-import { isStage } from './stage.ts';
+import { STAGES, isStage, isStageName } from './stage.ts';
 import type { Stage } from './stage.ts';
 
 export type ReviewAction = 'approved' | 'revise' | 'quit';
@@ -77,7 +77,31 @@ export interface UsageSummary {
   rateLimits: RateWindow[];
 }
 
+/** 段の並びの1つ（state.json の stages）。output・review はそれを書く前の記録では null。 */
+export interface StageDef {
+  name: Stage;
+  label: string;
+  /** 段の成果物のファイル名。ファイル名として読めないもの（パスの区切りを含む・. で始まる）は null */
+  output: string | null;
+  /** このあとに人の確認を取るか */
+  review: boolean | null;
+}
+
+/** 人の確認で止まっているときの段と文書（state.json の pending_review）。 */
+export interface PendingReview {
+  stage: Stage;
+  /** 確認する文書のパス（プロジェクトからの相対） */
+  doc: string;
+}
+
 export interface RunRecord {
+  /** パイプの名前（開発フローは 'dev'）。パイプを持つ前の記録では null */
+  pipe: string | null;
+  /** 段の並び。パイプを持つ前の記録では null */
+  stages: StageDef[] | null;
+  pendingReview: PendingReview | null;
+  warnings: string[];
+  updatedAt: string | null;
   stageRuns: StageRun[];
   reviews: Review[];
   redResults: RedResult[];
@@ -91,6 +115,11 @@ export interface RunRecord {
 }
 
 export const EMPTY_RUN_RECORD: RunRecord = {
+  pipe: null,
+  stages: null,
+  pendingReview: null,
+  warnings: [],
+  updatedAt: null,
   stageRuns: [],
   reviews: [],
   redResults: [],
@@ -103,7 +132,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
 
 /** EMPTY_RUN_RECORD の写し（配列は新しく作る。読み取りの途中で足していくため）。 */
 function emptyRecord(): RunRecord {
-  return { ...EMPTY_RUN_RECORD, stageRuns: [], reviews: [], redResults: [], verdicts: [] };
+  return { ...EMPTY_RUN_RECORD, warnings: [], stageRuns: [], reviews: [], redResults: [], verdicts: [] };
 }
 
 const REVIEW_ACTIONS: readonly string[] = ['approved', 'revise', 'quit'];
@@ -139,19 +168,27 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.totalCostUsd = num(data.total_cost_usd);
   record.startedAt = strOrNull(data.started_at);
   record.usage = parseUsageSummary(data.usage_summary);
+  record.pipe = strOrNull(data.pipe);
+  record.updatedAt = strOrNull(data.updated_at);
+  record.stages = parseStages(data.stages);
+  record.pendingReview = parsePendingReview(data.pending_review);
+  record.warnings = Array.isArray(data.warnings) ? data.warnings.filter((w): w is string => typeof w === 'string') : [];
   if (!Array.isArray(data.runs)) return record;
+
+  // 段の並びを持たない記録はパイプを持つ前の開発フローのものなので、開発の5段だけを受け付ける
+  const knownStage: (value: unknown) => value is Stage = record.stages === null ? isStage : isStageName;
 
   for (const entry of data.runs) {
     if (!isJsonObject(entry)) continue;
-    classifyRunEntry(entry, record);
+    classifyRunEntry(entry, record, knownStage);
   }
   return record;
 }
 
 /** runs の要素1つを見分けて record に足す（上から順に最初に当てはまるもの。どれでもなければ捨てる）。 */
-function classifyRunEntry(entry: JsonObject, record: RunRecord): void {
+function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (value: unknown) => value is Stage): void {
   const stage = entry.stage;
-  if (typeof entry.seq === 'number' && isStage(stage)) {
+  if (typeof entry.seq === 'number' && knownStage(stage)) {
     record.stageRuns.push({
       stage,
       seq: entry.seq,
@@ -165,7 +202,7 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord): void {
     });
     return;
   }
-  if (typeof entry.review === 'string' && REVIEW_ACTIONS.includes(entry.review) && isStage(stage)) {
+  if (typeof entry.review === 'string' && REVIEW_ACTIONS.includes(entry.review) && knownStage(stage)) {
     record.reviews.push({ stage, action: entry.review as ReviewAction, feedback: strOrNull(entry.feedback) });
     return;
   }
@@ -183,6 +220,40 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord): void {
     record.redResults.push({ status: result.status as RedResult['status'], summary: str(result.summary) });
   }
   // command_check を持つ要素・知らない形の要素は捨てる
+}
+
+// ---- 段の並び・確認待ち（パイプを持つようになってからの記録） --------------------------
+
+/** 記録の置き場所の中のファイル名だけを通す（パスの区切り・. で始まるもの・: を含むものは null）。 */
+function fileNameOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || value === '' || value.startsWith('.')) return null;
+  return /[/\\:]/.test(value) ? null : value;
+}
+
+function parseStages(value: unknown): StageDef[] | null {
+  if (!Array.isArray(value)) return null;
+  const stages: StageDef[] = [];
+  for (const s of value) {
+    if (!isJsonObject(s) || !isStageName(s.name)) continue;
+    stages.push({
+      name: s.name,
+      label: typeof s.label === 'string' && s.label !== '' ? s.label : s.name,
+      output: fileNameOrNull(s.output),
+      review: typeof s.review === 'boolean' ? s.review : null,
+    });
+  }
+  return stages;
+}
+
+/** 開発フローの記録か。段の並びがない（パイプを持つ前の）記録と、段が開発の5段そのものの記録（kind = "dev" のパイプも）。 */
+export function isDevRecord(record: RunRecord): boolean {
+  const names = record.stages?.map((s) => s.name);
+  return names === undefined || (names.length === STAGES.length && names.every((n, i) => n === STAGES[i]));
+}
+
+function parsePendingReview(value: unknown): PendingReview | null {
+  if (!isJsonObject(value) || !isStageName(value.stage) || typeof value.doc !== 'string') return null;
+  return { stage: value.stage, doc: value.doc };
 }
 
 // ---- 使用量（devpipe 0.2 の metrics・usage_summary） ----------------------------

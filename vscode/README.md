@@ -31,6 +31,19 @@ code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-in
 | :--- | :--- | :--- |
 | `devpipe.workDir` | `docs/pipeline` | work_dir。ワークスペースの最初のフォルダからの相対パス |
 
+### パイプの実行を見る
+
+`devpipe --pipe <名前>` で流したパイプの記録（`<work_dir>/<パイプ名>/`）も見られる。
+
+- work_dir の直下（開発フロー）と、`state.json` を持つ直下のフォルダ（パイプ）を探し、いちばん新しく更新された実行を見る。ステータスバーもその実行を出す。
+- 実行が2つ以上あると、パネルの上に実行を選ぶボタンが出る。押すとパネルを閉じるまでその実行を見る。
+- パイプの図は `state.json` の段の並び（`stages`）から作る：依頼メモ → 段 →（確認）→ … → 完了。差し戻しがないので判定の節はない。
+- 成果物は「依頼メモ・各段の成果物・まとめ」。開けるのはこの一覧にあるものだけ。
+- 確認で止まっている（`--pause`）ときは、パネルの帯とステータスバーに「〈段〉の確認を待っている」と確認する文書を出す。
+- `state.json` の注意（`warnings`）は、パネルの「注意」の節に出す。
+
+段の成果物と確認の有無（`stages` の `output`・`review`）を記録に残すようになる前のパイプの記録では、確認の節は確認の記録がある段のあとにだけ出し、成果物は依頼メモとまとめだけを出す。
+
 ### 使用量
 
 devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの）では、パネルの右下に「使用量」の節が出る。
@@ -51,5 +64,5 @@ devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの�
 | 基盤 | `src/infra/` | `WorkDirSource` の実装（`node:fs/promises`） |
 | 入口 | `src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。`vscode` を import してよいのはここだけ（`src/architecture.test.ts` が検査する） |
 
-- devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary` も）・`stageLog.ts`・`artifacts.ts` の中だけに置く。形が変わったらここを直す。
+- devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary`、段の並びの `stages`、`pending_review`・`warnings` も）・`stageLog.ts`・`artifacts.ts`・`runs.ts`（実行の候補）の中だけに置く。形が変わったらここを直す。
 - 色はすべて `var(--vscode-*)`。外部の読み込みはしない。ログから来た文字は必ず `escapeHtml` を通す。

@@ -1,6 +1,5 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
-import { STAGE_LABELS } from '../domain/stage.ts';
 import { WAITING_MESSAGE } from '../domain/pipelineView.ts';
 import type { PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import type { ArtifactEntry } from '../domain/artifacts.ts';
@@ -10,6 +9,12 @@ import { renderFlowSvg } from './flowSvg.ts';
 import { USAGE_STYLE, renderUsage } from './usageHtml.ts';
 
 export { escapeHtml };
+
+/** 実行を選ぶボタン。choices は見つかった候補（2つ以上のときだけ出す）、selected は今見ている候補の id。 */
+export interface RunPicker {
+  choices: { id: string; label: string }[];
+  selected: string;
+}
 
 const STYLE = `
 body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
@@ -56,9 +61,14 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 .artifacts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .artifact { font: inherit; padding: 2px 6px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-textLink-foreground); cursor: pointer; }
 .artifact:disabled { color: var(--vscode-descriptionForeground); cursor: default; }
+.runs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.run { font: inherit; padding: 2px 8px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); cursor: pointer; }
+.run[aria-pressed="true"] { border-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground, transparent); color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)); }
+.banner-msg.is-waiting { color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
+.warnings { margin: 0; padding-left: 1.2em; color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 `;
 
-// render を受けたら本体を差し替え、ターミナルが末尾近くなら末尾まで送る。ボタンで openArtifact、読み込み後に ready を送る。
+// render を受けたら本体を差し替え、ターミナルが末尾近くなら末尾まで送る。ボタンで openArtifact・selectRun、読み込み後に ready を送る。
 const SCRIPT = `
 (function () {
   const vscode = acquireVsCodeApi();
@@ -75,6 +85,8 @@ const SCRIPT = `
   root.addEventListener('click', function (event) {
     const button = event.target.closest('button[data-artifact]');
     if (button && !button.disabled) vscode.postMessage({ type: 'openArtifact', name: button.getAttribute('data-artifact') });
+    const run = event.target.closest('button[data-run]');
+    if (run) vscode.postMessage({ type: 'selectRun', id: run.getAttribute('data-run') });
   });
   follow(true);
   vscode.postMessage({ type: 'ready' });
@@ -82,7 +94,7 @@ const SCRIPT = `
 `;
 
 /** パネルの HTML 全体。CSP・スタイル・小さなスクリプトと、renderViewBody(view) を本体に入れる。 */
-export function renderPanelHtml(view: PipelineView, nonce: string): string {
+export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunPicker): string {
   const n = escapeHtml(nonce);
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -94,19 +106,20 @@ export function renderPanelHtml(view: PipelineView, nonce: string): string {
 <style nonce="${n}">${STYLE}${USAGE_STYLE}</style>
 </head>
 <body>
-<div class="root">${renderViewBody(view)}</div>
+<div class="root">${renderViewBody(view, picker)}</div>
 <script nonce="${n}">${SCRIPT}</script>
 </body>
 </html>`;
 }
 
 /** 本体だけ（描き直しのとき、これをパネルに送って差し替える）。 */
-export function renderViewBody(view: PipelineView): string {
-  return `${renderBanner(view)}
+export function renderViewBody(view: PipelineView, picker?: RunPicker): string {
+  return `${renderRunPicker(picker)}${renderBanner(view)}
 <div class="layout">
 ${renderFlowSvg(view.nodes)}
 <div class="right">
-${renderTerminal(view.terminal)}
+${renderWarnings(view.warnings)}
+${renderTerminal(view, view.terminal)}
 ${renderArtifacts(view.artifacts)}
 ${renderUsage(view.usage)}
 </div>
@@ -127,7 +140,10 @@ function renderBanner(view: PipelineView): string {
   } else if (view.runningStage !== null && view.terminal.source !== null) {
     const src = view.terminal.source;
     const attempt = src.attempt === null ? '' : `（${src.attempt} 回目）`;
-    msg = `<p class="banner-msg is-running">${escapeHtml(`いま：${STAGE_LABELS[src.stage]}${attempt}`)}</p>`;
+    msg = `<p class="banner-msg is-running">${escapeHtml(`いま：${stageLabel(view, src.stage)}${attempt}`)}</p>`;
+  } else if (view.pendingReview !== null) {
+    const { label, doc } = view.pendingReview;
+    msg = `<p class="banner-msg is-waiting">${escapeHtml(`${label}の確認を待っている：${doc}`)}</p>`;
   } else if (view.waiting) {
     msg = `<p class="banner-msg">${escapeHtml(WAITING_MESSAGE)}</p>`;
   } else {
@@ -144,12 +160,31 @@ function renderItem(item: OutputItem): string {
   return `<div class="line">${escapeHtml(item.text)}</div>`;
 }
 
-function renderTerminal(terminal: TerminalView): string {
+function stageLabel(view: PipelineView, stage: string): string {
+  return view.stageLabels[stage] ?? stage;
+}
+
+function renderRunPicker(picker: RunPicker | undefined): string {
+  if (picker === undefined || picker.choices.length < 2) return '';
+  const buttons = picker.choices.map(
+    (c) =>
+      `<button type="button" class="run" data-run="${escapeHtml(c.id)}" aria-pressed="${c.id === picker.selected ? 'true' : 'false'}">${escapeHtml(c.label)}</button>`,
+  );
+  return `<nav class="runs" aria-label="見る実行">${buttons.join('')}</nav>`;
+}
+
+function renderWarnings(warnings: string[]): string {
+  if (warnings.length === 0) return '';
+  const items = warnings.map((w) => `<li>${escapeHtml(w)}</li>`);
+  return `<section><h2 class="terminal-title">注意</h2><ul class="warnings">${items.join('')}</ul></section>`;
+}
+
+function renderTerminal(view: PipelineView, terminal: TerminalView): string {
   const source = terminal.source;
   const title =
     source === null
       ? '出力（ログなし）'
-      : `出力：${STAGE_LABELS[source.stage]}${source.attempt === null ? '' : `（${source.attempt} 回目）`}`;
+      : `出力：${stageLabel(view, source.stage)}${source.attempt === null ? '' : `（${source.attempt} 回目）`}`;
   return `<section><h2 class="terminal-title">${escapeHtml(title)}</h2><div class="terminal">${terminal.items.map(renderItem).join('')}</div></section>`;
 }
 

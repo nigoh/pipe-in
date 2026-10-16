@@ -6,19 +6,15 @@ import { escapeHtml } from './escape.ts';
 
 type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final';
 
-const SHAPES: Readonly<Record<NodeId, Shape>> = {
-  input: 'doc',
-  requirements: 'stage',
-  'review:requirements': 'review',
-  design: 'stage',
-  'review:design': 'review',
-  red: 'stage',
-  'review:red': 'review',
-  implement: 'stage',
-  test: 'stage',
-  verdict: 'verdict',
-  final: 'final',
-};
+const REVIEW_PREFIX = 'review:';
+
+/** 節の形は id で決まる（依頼メモ・確認・判定・完了。ほかは段）。 */
+function shapeOf(id: NodeId): Shape {
+  if (id === 'input') return 'doc';
+  if (id === 'verdict') return 'verdict';
+  if (id === 'final') return 'final';
+  return id.startsWith(REVIEW_PREFIX) ? 'review' : 'stage';
+}
 
 const HEIGHTS: Readonly<Record<Shape, number>> = { doc: 30, stage: 50, review: 30, verdict: 46, final: 32 };
 
@@ -44,7 +40,7 @@ interface Placed {
 function place(nodes: PipelineNode[]): Placed[] {
   let y = TOP;
   return nodes.map((node) => {
-    const shape = SHAPES[node.id];
+    const shape = shapeOf(node.id);
     const h = HEIGHTS[shape];
     const placed = { node, shape, y, h };
     y += h + GAP;
@@ -124,10 +120,10 @@ function loop(id: string, hot: boolean, d: string, label: string, labelAttrs: st
 function renderLoops(placed: Placed[]): string {
   const at = (id: NodeId) => placed.find((p) => p.node.id === id);
   const loops: string[] = [];
-  for (const stage of ['requirements', 'design', 'red'] as const) {
-    const review = at(`review:${stage}`);
+  for (const review of placed.filter((p) => p.shape === 'review')) {
+    const stage = review.node.id.slice(REVIEW_PREFIX.length);
     const target = at(stage);
-    if (!review || !target) continue;
+    if (!target) continue;
     const n = review.node.reviseCount ?? 0;
     const y1 = mid(review);
     const y2 = mid(target);
@@ -157,7 +153,7 @@ const DEFS = `<defs>
 <marker id="mk-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head is-hot" d="M0,0 L10,5 L0,10 z"/></marker>
 </defs>`;
 
-/** 11個の節（NODE_ORDER の順）を、縦の流れ図にする。 */
+/** 節（開発フローは NODE_ORDER の11個、パイプは段の並び）を、縦の流れ図にする。 */
 export function renderFlowSvg(nodes: PipelineNode[]): string {
   const placed = place(nodes);
   const last = placed.at(-1);

@@ -9,7 +9,8 @@ export interface StageLogName {
   attempt: number | null;
 }
 
-const LOG_NAME = /^(\d+)_(requirements|design|red|implement|test)(?:_(\d+))?\.jsonl$/;
+// 段の名前は英小文字・数字・-（_ を含まない）なので、回の数（_2）と混ざらない
+const LOG_NAME = /^(\d+)_([a-z0-9][a-z0-9-]*)(?:_(\d+))?\.jsonl$/;
 
 /** '07_implement_2.jsonl' → { seq: 7, stage: 'implement', attempt: 2 }。合わなければ null。パスではなくファイル名だけを渡す。 */
 export function parseStageLogName(fileName: string): StageLogName | null {
@@ -17,7 +18,7 @@ export function parseStageLogName(fileName: string): StageLogName | null {
   if (!m) return null;
   return {
     seq: Number.parseInt(m[1], 10),
-    stage: m[2] as Stage,
+    stage: m[2],
     attempt: m[3] === undefined ? null : Number.parseInt(m[3], 10),
   };
 }

@@ -1,5 +1,4 @@
 // 図の状態 → ステータスバーのボタンの文字と説明（純粋）。文字の $(…) は VSCode の組み込みアイコン。
-import { STAGE_LABELS } from '../domain/stage.ts';
 import { NO_RECORDS_MESSAGE, WAITING_MESSAGE } from '../domain/pipelineView.ts';
 import type { PipelineView } from '../domain/pipelineView.ts';
 import { formatPercent } from './usageHtml.ts';
@@ -37,8 +36,15 @@ export function statusBarLabel(view: PipelineView): StatusBarLabel {
   }
   if (view.runningStage !== null && view.terminal.source !== null) {
     const src = view.terminal.source;
-    const now = `${STAGE_LABELS[src.stage]}${src.attempt === null ? '' : `（${src.attempt} 回目）`}`;
+    const now = `${view.stageLabels[src.stage] ?? src.stage}${src.attempt === null ? '' : `（${src.attempt} 回目）`}`;
     return { text: `$(sync~spin) devpipe: ${now}`, tooltip: `devpipe：${now}が動いている・${cost}\n${CLICK}` };
+  }
+  if (view.pendingReview !== null) {
+    const { label, doc } = view.pendingReview;
+    return {
+      text: `$(comment-discussion) devpipe: ${label}の確認待ち`,
+      tooltip: `devpipe：${label}の確認を待っている（${doc}）・${cost}\n${CLICK}`,
+    };
   }
   if (view.waiting) {
     return { text: '$(clock) devpipe: 待ち', tooltip: `devpipe：${WAITING_MESSAGE}・${cost}\n${CLICK}` };

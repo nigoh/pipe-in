@@ -1,5 +1,4 @@
 // 使用量の図の状態 → パネルの「使用量」の節の HTML（純粋）。ログから来た文字は escapeHtml を通す。
-import { STAGE_LABELS } from '../domain/stage.ts';
 import type { UsageRow, UsageView } from '../domain/pipelineView.ts';
 import type { RateWindow, TokenCounts } from '../domain/runRecord.ts';
 import { escapeHtml } from './escape.ts';
@@ -38,7 +37,7 @@ function tokenCells(t: TokenCounts | null): string {
 }
 
 function stageLabel(row: UsageRow): string {
-  return `${STAGE_LABELS[row.stage]}${row.attempt === null ? '' : `（${row.attempt} 回目）`}`;
+  return `${row.label}${row.attempt === null ? '' : `（${row.attempt} 回目）`}`;
 }
 
 const TOKEN_HEAD = '<th>入力</th><th>キャッシュ書込</th><th>キャッシュ読込</th><th>出力</th><th>うち thinking</th>';

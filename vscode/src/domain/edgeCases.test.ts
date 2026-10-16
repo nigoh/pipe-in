@@ -86,7 +86,6 @@ test('AC-06/07 追加: 名前の形に合わないものは null', () => {
   for (const name of [
     'foo.jsonl',
     '03_red.json',
-    '03_unknown.jsonl',
     'logs/03_red.jsonl',
     '03_red_.jsonl',
     'red.jsonl',
