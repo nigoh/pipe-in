@@ -23,7 +23,8 @@ npm run package                                        # devpipe-vscode.vsix（�
 code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-insiders
 ```
 
-入れたら「開発者: ウィンドウの再読み込み」をしてから、コマンドパレットで「devpipe: 実行を見る」。
+入れたら「開発者: ウィンドウの再読み込み」をする。ウィンドウ下のステータスバーに `devpipe` のボタンが出て、押すとパネルが開く
+（コマンドパレットの「devpipe: 実行を見る」でも同じ）。ボタンの文字は記録に合わせて変わる（動いている段・待ち・合格／不合格など）。
 直したら同じ手順で入れ直す（version を上げなくても `--force` で上書きされる）。外すときは `code --uninstall-extension nok.devpipe-vscode`。
 
 | 設定 | 既定 | 意味 |

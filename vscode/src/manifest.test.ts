@@ -37,3 +37,8 @@ test('パッケージ：.vscodeignore でソースと node_modules を同梱し�
   for (const entry of ['src/**', 'node_modules/**']) assert.ok(ignore.includes(entry), entry);
   assert.ok(!ignore.includes('out/**'));
 });
+
+test('ステータスバー：起動の後すぐ動き出す（ボタンをいつも出すため）', () => {
+  const manifest = readManifest();
+  assert.ok((manifest.activationEvents ?? []).includes('onStartupFinished'));
+});

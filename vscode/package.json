@@ -12,11 +12,15 @@
     "node": ">=22",
     "vscode": "^1.90.0"
   },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "devpipe.showRun",
-        "title": "devpipe: 実行を見る"
+        "title": "devpipe: 実行を見る",
+        "icon": "$(circuit-board)"
       }
     ],
     "configuration": {
