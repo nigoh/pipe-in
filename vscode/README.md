@@ -31,6 +31,16 @@ code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-in
 | :--- | :--- | :--- |
 | `devpipe.workDir` | `docs-internal/pipeline` | work_dir。ワークスペースの最初のフォルダからの相対パス |
 
+### 使用量
+
+devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの）では、パネルの右下に「使用量」の節が出る。
+
+- 段の実行ごとと合計の、入力・キャッシュ書き込み・キャッシュ読み込み・出力・うち thinking のトークン数と、キャッシュ再利用率
+- モデル別の出力トークンと費用
+- 5時間枠・7日枠の使用率の推移（開始 → 終了。途中で枠が戻ったときは最大値も）
+
+ステータスバーの説明にも、利用枠の今の使用率が出る。古い記録では節を出さない（今までどおり）。
+
 ## 層の決まり
 
 | 層 | パス | 置くもの |
@@ -41,6 +51,6 @@ code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-in
 | 基盤 | `src/infra/` | `WorkDirSource` の実装（`node:fs/promises`） |
 | 入口 | `src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。`vscode` を import してよいのはここだけ（`src/architecture.test.ts` が検査する） |
 
-- devpipe の記録の形の知識は `runRecord.ts`・`stageLog.ts`・`artifacts.ts` の中だけに置く。形が変わったらここを直す。
+- devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary` も）・`stageLog.ts`・`artifacts.ts` の中だけに置く。形が変わったらここを直す。
 - 色はすべて `var(--vscode-*)`。外部の読み込みはしない。ログから来た文字は必ず `escapeHtml` を通す。
 - 設計は `docs-internal/pipeline/02_design.md`、言葉は `docs-internal/domain/用語集.md` の「開発の道具（devpipe）」。

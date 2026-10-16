@@ -16,6 +16,9 @@ export interface StageRun {
   costUsd: number;
   durationSec: number;
   isError: boolean;
+  /** devpipe 0.2 の metrics から。古い記録では null */
+  tokens: TokenCounts | null;
+  cacheReuseRate: number | null;
 }
 export interface Review {
   stage: Stage;
@@ -32,6 +35,48 @@ export interface Verdict {
   summary: string;
 }
 
+/** トークン数（devpipe の Tokens のうち、表に出すもの）。 */
+export interface TokenCounts {
+  /** キャッシュを使わない入力 */
+  input: number;
+  cacheWrite: number;
+  cacheRead: number;
+  output: number;
+  /** 出力のうち考える過程の分 */
+  thinking: number;
+}
+export interface ModelUsage {
+  model: string;
+  tokens: TokenCounts;
+  costUsd: number;
+}
+/** 利用枠1つの、パイプラインの間の使用率（0〜1）。 */
+export interface RateWindow {
+  /** 記録上の名前（five_hour など） */
+  name: string;
+  /** 言葉の名前（5時間枠 など。知らない枠は name のまま） */
+  label: string;
+  first: number | null;
+  last: number | null;
+  peak: number | null;
+  /** 使用率が下がった＝途中で枠が戻った */
+  resetSeen: boolean;
+  /** 枠が戻る時刻（UNIX 秒） */
+  resetsAt: number | null;
+}
+/** パイプライン全体の使用量（state.json の usage_summary）。 */
+export interface UsageSummary {
+  tokens: TokenCounts;
+  cacheReuseRate: number;
+  durationApiMs: number;
+  /** 段の既定のモデル */
+  models: string[];
+  /** 費用の高い順 */
+  byModel: ModelUsage[];
+  /** 5時間枠・7日枠・知らない枠の順 */
+  rateLimits: RateWindow[];
+}
+
 export interface RunRecord {
   stageRuns: StageRun[];
   reviews: Review[];
@@ -41,6 +86,8 @@ export interface RunRecord {
   final: string | null;
   totalCostUsd: number;
   startedAt: string | null;
+  /** devpipe 0.2 から。古い記録では null */
+  usage: UsageSummary | null;
 }
 
 export const EMPTY_RUN_RECORD: RunRecord = {
@@ -51,6 +98,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   final: null,
   totalCostUsd: 0,
   startedAt: null,
+  usage: null,
 };
 
 /** EMPTY_RUN_RECORD の写し（配列は新しく作る。読み取りの途中で足していくため）。 */
@@ -90,6 +138,7 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.final = strOrNull(data.final);
   record.totalCostUsd = num(data.total_cost_usd);
   record.startedAt = strOrNull(data.started_at);
+  record.usage = parseUsageSummary(data.usage_summary);
   if (!Array.isArray(data.runs)) return record;
 
   for (const entry of data.runs) {
@@ -112,6 +161,7 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord): void {
       costUsd: num(entry.cost_usd),
       durationSec: num(entry.duration_sec),
       isError: entry.is_error === true,
+      ...stageRunUsage(entry.metrics),
     });
     return;
   }
@@ -133,4 +183,76 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord): void {
     record.redResults.push({ status: result.status as RedResult['status'], summary: str(result.summary) });
   }
   // command_check を持つ要素・知らない形の要素は捨てる
+}
+
+// ---- 使用量（devpipe 0.2 の metrics・usage_summary） ----------------------------
+
+const RATE_WINDOW_LABELS: Readonly<Record<string, string>> = { five_hour: '5時間枠', seven_day: '7日枠' };
+const RATE_WINDOW_ORDER: readonly string[] = ['five_hour', 'seven_day'];
+
+function parseTokens(value: unknown): TokenCounts {
+  const t = isJsonObject(value) ? value : {};
+  return {
+    input: num(t.input),
+    cacheWrite: num(t.cache_write),
+    cacheRead: num(t.cache_read),
+    output: num(t.output),
+    thinking: num(t.thinking),
+  };
+}
+
+function cacheReuseRate(value: unknown): number {
+  return isJsonObject(value) ? num(value.cache_reuse_rate) : 0;
+}
+
+function stageRunUsage(metrics: unknown): Pick<StageRun, 'tokens' | 'cacheReuseRate'> {
+  if (!isJsonObject(metrics) || !isJsonObject(metrics.tokens)) return { tokens: null, cacheReuseRate: null };
+  return { tokens: parseTokens(metrics.tokens), cacheReuseRate: cacheReuseRate(metrics.tokens) };
+}
+
+function parseRateWindow(name: string, value: unknown): RateWindow | null {
+  if (!isJsonObject(value)) return null;
+  return {
+    name,
+    label: RATE_WINDOW_LABELS[name] ?? name,
+    first: numOrNull(value.first),
+    last: numOrNull(value.last),
+    peak: numOrNull(value.peak),
+    resetSeen: value.reset_seen === true,
+    resetsAt: numOrNull(value.resets_at),
+  };
+}
+
+function rateOrder(name: string): number {
+  const i = RATE_WINDOW_ORDER.indexOf(name);
+  return i === -1 ? RATE_WINDOW_ORDER.length : i;
+}
+
+/** usage_summary を読む。ない・オブジェクトでないなら null。中の読めない値は 0・空にする。 */
+function parseUsageSummary(value: unknown): UsageSummary | null {
+  if (!isJsonObject(value)) return null;
+  const byModel: ModelUsage[] = [];
+  if (isJsonObject(value.by_model)) {
+    for (const [model, mu] of Object.entries(value.by_model)) {
+      if (!isJsonObject(mu)) continue;
+      byModel.push({ model, tokens: parseTokens(mu.tokens), costUsd: num(mu.cost_usd) });
+    }
+  }
+  byModel.sort((a, b) => b.costUsd - a.costUsd);
+  const rateLimits: RateWindow[] = [];
+  if (isJsonObject(value.rate_limits)) {
+    for (const [name, w] of Object.entries(value.rate_limits)) {
+      const window = parseRateWindow(name, w);
+      if (window) rateLimits.push(window);
+    }
+  }
+  rateLimits.sort((a, b) => rateOrder(a.name) - rateOrder(b.name));
+  return {
+    tokens: parseTokens(value.tokens),
+    cacheReuseRate: cacheReuseRate(value.tokens),
+    durationApiMs: num(value.duration_api_ms),
+    models: Array.isArray(value.models) ? value.models.filter((m): m is string => typeof m === 'string') : [],
+    byModel,
+    rateLimits,
+  };
 }

@@ -2,7 +2,7 @@
 import { buildArtifactList, isArtifactReady } from './artifacts.ts';
 import type { ArtifactEntry, ArtifactName } from './artifacts.ts';
 import { parseRunRecord } from './runRecord.ts';
-import type { RunRecord, StageRun } from './runRecord.ts';
+import type { RunRecord, StageRun, TokenCounts, UsageSummary } from './runRecord.ts';
 import type { Stage } from './stage.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
@@ -108,6 +108,31 @@ export interface PipelineView {
   waiting: boolean;
   /** FR-14 */
   noRecords: { message: string; workDir: string } | null;
+  /** 使用量（devpipe 0.2 から）。usage_summary のない記録では null */
+  usage: UsageView | null;
+}
+
+/** 使用量の表の1行：段の実行1回分。metrics のない古い段の実行は tokens が null。 */
+export interface UsageRow {
+  seq: number;
+  stage: Stage;
+  attempt: number | null;
+  tokens: TokenCounts | null;
+  cacheReuseRate: number | null;
+}
+
+export interface UsageView {
+  summary: UsageSummary;
+  /** 通し番号の順 */
+  rows: UsageRow[];
+}
+
+function buildUsage(record: RunRecord): UsageView | null {
+  if (record.usage === null) return null;
+  const rows = [...record.stageRuns]
+    .sort((a, b) => a.seq - b.seq)
+    .map(({ seq, stage, attempt, tokens, cacheReuseRate }) => ({ seq, stage, attempt, tokens, cacheReuseRate }));
+  return { summary: record.usage, rows };
 }
 
 interface ReadLog {
@@ -235,5 +260,6 @@ export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
     artifacts: buildArtifactList(snapshot.artifacts),
     waiting: record.final === null && runningStage === null && record.stageRuns.length >= 1,
     noRecords,
+    usage: buildUsage(record),
   };
 }

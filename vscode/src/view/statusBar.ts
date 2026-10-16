@@ -2,6 +2,7 @@
 import { STAGE_LABELS } from '../domain/stage.ts';
 import { NO_RECORDS_MESSAGE, WAITING_MESSAGE } from '../domain/pipelineView.ts';
 import type { PipelineView } from '../domain/pipelineView.ts';
+import { formatPercent } from './usageHtml.ts';
 
 export interface StatusBarLabel {
   text: string;
@@ -19,8 +20,14 @@ const FINALS: Readonly<Record<string, [string, string]>> = {
 
 const CLICK = 'クリックでパネルを開く';
 
+/** 利用枠の今の使用率（「・5時間枠 2%・7日枠 15%」）。使用量のない記録では空。 */
+function rateNow(view: PipelineView): string {
+  const windows = view.usage?.summary.rateLimits ?? [];
+  return windows.map((w) => `・${w.label} ${formatPercent(w.last)}`).join('');
+}
+
 export function statusBarLabel(view: PipelineView): StatusBarLabel {
-  const cost = `合計 $${view.totalCostUsd.toFixed(3)}`;
+  const cost = `合計 $${view.totalCostUsd.toFixed(3)}${rateNow(view)}`;
   if (view.noRecords) {
     return { text: '$(circuit-board) devpipe', tooltip: `devpipe：${NO_RECORDS_MESSAGE}（${view.noRecords.workDir}）\n${CLICK}` };
   }

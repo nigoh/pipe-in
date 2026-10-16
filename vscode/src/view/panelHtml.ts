@@ -7,6 +7,7 @@ import type { ArtifactEntry } from '../domain/artifacts.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
 import { escapeHtml } from './escape.ts';
 import { renderFlowSvg } from './flowSvg.ts';
+import { USAGE_STYLE, renderUsage } from './usageHtml.ts';
 
 export { escapeHtml };
 
@@ -90,7 +91,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>devpipe</title>
-<style nonce="${n}">${STYLE}</style>
+<style nonce="${n}">${STYLE}${USAGE_STYLE}</style>
 </head>
 <body>
 <div class="root">${renderViewBody(view)}</div>
@@ -107,6 +108,7 @@ ${renderFlowSvg(view.nodes)}
 <div class="right">
 ${renderTerminal(view.terminal)}
 ${renderArtifacts(view.artifacts)}
+${renderUsage(view.usage)}
 </div>
 </div>`;
 }

@@ -45,6 +45,8 @@ export function stageRunEntry(p: {
   numTurns?: number;
   costUsd?: number;
   durationSec?: number;
+  /** devpipe 0.2 の metrics（StageMetrics.to_dict の形）。省くと古い記録と同じく持たない */
+  metrics?: object;
 }): object {
   return {
     stage: p.stage,
@@ -60,16 +62,83 @@ export function stageRunEntry(p: {
     result: '',
     session_id: 's',
     errors: [],
+    ...(p.metrics === undefined ? {} : { metrics: p.metrics }),
+  };
+}
+
+/** トークン数（devpipe の Tokens を dict にした形）。 */
+export function tokensDict(p: { input?: number; cacheWrite?: number; cacheRead?: number; output?: number; thinking?: number }): object {
+  const input = p.input ?? 0;
+  const cacheWrite = p.cacheWrite ?? 0;
+  const cacheRead = p.cacheRead ?? 0;
+  const total = input + cacheWrite + cacheRead;
+  return {
+    input,
+    cache_write: cacheWrite,
+    cache_write_1h: cacheWrite,
+    cache_write_5m: 0,
+    cache_read: cacheRead,
+    output: p.output ?? 0,
+    thinking: p.thinking ?? 0,
+    web_search: 0,
+    web_fetch: 0,
+    cache_reuse_rate: total === 0 ? 0 : Math.round((cacheRead / total) * 1e4) / 1e4,
+  };
+}
+
+/** 段の実行の metrics（devpipe の StageMetrics.to_dict の形）。 */
+export function stageMetricsDict(p: { tokens?: object; model?: string } = {}): object {
+  return {
+    model: p.model ?? 'claude-opus-5-5',
+    claude_code_version: '2.1.301',
+    api_key_source: 'none',
+    permission_mode: 'default',
+    cost_basis: 'list',
+    tokens: p.tokens ?? tokensDict({}),
+    by_model: {},
+    duration_api_ms: 1000,
+    stop_reason: 'end_turn',
+    terminal_reason: 'completed',
+    permission_denials: [],
+    rate_limits: {},
+    overage_status: null,
+  };
+}
+
+/** state.json の usage_summary（devpipe の summarize_runs の形）。前回の本物の実行の数字に近いもの。 */
+export function usageSummaryDict(): object {
+  return {
+    tokens: tokensDict({ input: 122, cacheWrite: 550460, cacheRead: 5224407, output: 126952, thinking: 23628 }),
+    by_model: {
+      'claude-haiku-5-5': { tokens: tokensDict({ input: 6676, output: 1206, thinking: 1085 }), cost_usd: 0.001 },
+      'claude-opus-5-5': {
+        tokens: tokensDict({ input: 122, cacheWrite: 550460, cacheRead: 5224407, output: 126952, thinking: 23628 }),
+        cost_usd: 7.988,
+      },
+    },
+    models: ['claude-opus-5-5'],
+    rate_limits: {
+      seven_day: { first: 0.14, last: 0.15, resets_at: 1792591200, peak: 0.15, reset_seen: false },
+      five_hour: { first: 0.12, last: 0.02, resets_at: 1792170000, peak: 0.13, reset_seen: true },
+    },
+    duration_api_ms: 1133000,
   };
 }
 
 /** state.json の中身。 */
-export function stateJson(p: { runs?: object[]; final?: string | null; totalCostUsd?: number }): string {
+export function stateJson(p: {
+  runs?: object[];
+  final?: string | null;
+  totalCostUsd?: number;
+  /** devpipe 0.2 の usage_summary。省くと古い記録と同じく持たない */
+  usageSummary?: unknown;
+}): string {
   return JSON.stringify({
     started_at: '2026-10-16T00:00:00',
     updated_at: '2026-10-16T00:00:00',
     final: p.final ?? null,
     total_cost_usd: p.totalCostUsd ?? 0,
+    ...(p.usageSummary === undefined ? {} : { usage_summary: p.usageSummary }),
     runs: p.runs ?? [],
   });
 }
