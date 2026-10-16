@@ -1,0 +1,39 @@
+# devpipe の設定例。対象プロジェクトの直下に置くと自動で読み込みます（--config で別の場所も指定可）。
+
+[pipeline]
+# 要件定義書・設計書・テスト報告などを置くフォルダ（プロジェクトからの相対パス）
+work_dir = "docs/pipeline"
+
+# テストが不合格のとき、実装へ差し戻す最大回数（3 なら実装は最大4回）
+max_retries = 3
+
+# テストの段のあとに、判定の裏付けとして実行するコマンド。
+# 書いておくと、テスト担当が「合格」と言ってもこのコマンドが失敗すれば不合格になります。
+# test_command = "pytest -q"
+test_timeout_sec = 1800
+
+# テストファイルとみなす追加のパターン（実装の段は書けず、テストの段だけが書ける）
+# extra_test_globs = ["e2e/*", "src/**/fixtures/*"]
+
+# 段ごとのモデルと上限。model は "opus" / "sonnet" / "haiku" か、モデルIDを指定します。
+# 省略するとClaude Codeの既定のモデルを使います。
+[stages.requirements]
+# model = "opus"
+max_turns = 40
+# max_budget_usd = 1.0
+
+[stages.design]
+# model = "opus"
+max_turns = 60
+
+[stages.red]
+# model = "sonnet"
+max_turns = 100
+
+[stages.implement]
+# model = "sonnet"
+max_turns = 150
+
+[stages.test]
+# model = "sonnet"
+max_turns = 100

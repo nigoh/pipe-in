@@ -1,0 +1,20 @@
+[pipeline]
+work_dir = "docs/pipeline"
+max_retries = 2
+test_command = "python3 -m pytest -q"
+[stages.requirements]
+model = "sonnet"
+max_turns = 20
+max_budget_usd = 0.6
+[stages.design]
+model = "sonnet"
+max_turns = 25
+max_budget_usd = 0.6
+[stages.implement]
+model = "sonnet"
+max_turns = 40
+max_budget_usd = 1.0
+[stages.test]
+model = "sonnet"
+max_turns = 40
+max_budget_usd = 1.0
