@@ -1,12 +1,12 @@
 # devpipe-vscode
 
-devpipe（`tools/devpipe`）の実行を、VSCode の中でパイプライン図とターミナル風の出力として見るプラグイン。
+[devpipe](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見るプラグイン。
 devpipe が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物の Markdown）を読むだけで、何も書かない。
 
 ## 使い方
 
 ```bash
-cd tools/devpipe-vscode
+cd vscode
 npm install          # 型検査とビルドの道具（テストだけなら不要）
 npm test             # node:test（Node 22 以上）
 npm run typecheck
