@@ -1,4 +1,11 @@
-"""パイプを作る・見る・検査するコマンド:  devpipe-gen list / new <名前> --from <ひな形> / check <名前>"""
+"""パイプを作る・見る・検査するコマンド:
+
+  devpipe-gen list / new <名前> --from <ひな形> / design <名前> --purpose "目的" / check <名前>
+
+パイプは対象の .devpipe/pipes/devpipe-<名前>/ に作る（--pipes-dir か DEVPIPE_PIPES_DIR があればそこ）。
+探すときは、対象の .devpipe/pipes/ → 今までの場所（DEVPIPE_PIPES_DIR か devpipe の pipes/）の順。
+guard-hook は、Claude Code のプラグイン（plugin/hooks/hooks.json）から呼ぶフック。
+"""
 
 from __future__ import annotations
 
@@ -25,21 +32,34 @@ def _templates() -> list[Path]:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser(prog="devpipe-gen", description="devpipe のパイプ（pipes/devpipe-<名前>/）を作る・見る・検査します。")
+    p = argparse.ArgumentParser(prog="devpipe-gen", description="devpipe のパイプ（<対象>/.devpipe/pipes/devpipe-<名前>/）を作る・見る・検査します。")
     sub = p.add_subparsers(dest="command", required=True)
 
     def common(sp: argparse.ArgumentParser, *, project: bool) -> None:
-        sp.add_argument("--pipes-dir", type=Path, help=f"パイプを置くフォルダ（既定: devpipe の pipes/。{pd.PIPES_DIR_ENV} でも変えられる）")
+        sp.add_argument(
+            "--pipes-dir",
+            type=Path,
+            help=f"パイプを置くフォルダ。指定するとそこだけを使う（既定: 作るのは {pd.PIPES_DIR_ENV} か対象の .devpipe/pipes/、"
+            "探すのは対象の .devpipe/pipes/ → 今までの場所）",
+        )
         if project:
             sp.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
 
-    common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=False)
+    common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=True)
+    sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder の操作を絞る）")
 
-    new = sub.add_parser("new", help="ひな形から pipes/devpipe-<名前>/ を作る")
+    new = sub.add_parser("new", help="ひな形から .devpipe/pipes/devpipe-<名前>/ を作る")
     new.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
     new.add_argument("--from", dest="template", required=True, help="もとにするひな形（devpipe-gen list で一覧）")
     new.add_argument("--force", action="store_true", help="同じ名前のパイプがあっても作り直す")
     common(new, project=True)
+
+    ds = sub.add_parser("design", help="目的から段を組んで .devpipe/pipes/devpipe-<名前>/ を作る（Claude が対象を読んで設計する。利用料がかかる）")
+    ds.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
+    ds.add_argument("--purpose", required=True, help="何のためのパイプか（例: 仕様書から API の文書を作り、ソースと突き合わせたい）")
+    ds.add_argument("--model", help="設計に使うモデル（既定: Claude Code の既定）")
+    ds.add_argument("--force", action="store_true", help="同じ名前のパイプがあっても作り直す")
+    common(ds, project=True)
 
     ck = sub.add_parser("check", help="パイプの定義を検査する")
     ck.add_argument("name", help="パイプの名前かフォルダのパス")
@@ -61,17 +81,19 @@ def _label(pipe_dir: Path) -> str:
         return "（読めません）"
 
 
-def cmd_list(pipes_dir: Path) -> int:
+def cmd_list(dirs: list[Path]) -> int:
     print("ひな形（devpipe-gen new <名前> --from <ひな形> で使う）:\n")
     for t in _templates():
         print(f"  {t.name:<12}  {_label(t)}")
-    pipes = pd.list_pipes(pipes_dir)
-    print(f"\n作ったパイプ（devpipe --pipe <名前> で流す）: {pipes_dir}\n")
-    if not pipes:
-        print("  （まだありません）")
-    for d in pipes:
-        name = d.name.removeprefix(pd.PREFIX)
-        print(f"  {name:<12}  {_label(d)}")
+    print("\n作ったパイプ（devpipe --pipe <名前> で流す。同じ名前なら上の場所が先）:")
+    for pipes_dir in dirs:
+        pipes = pd.list_pipes(pipes_dir)
+        print(f"\n  {pipes_dir}\n")
+        if not pipes:
+            print("    （まだありません）")
+        for d in pipes:
+            name = d.name.removeprefix(pd.PREFIX)
+            print(f"    {name:<12}  {_label(d)}")
     return 0
 
 
@@ -85,8 +107,8 @@ def _report(pipe: pd.PipeDef, errors: list[str]) -> int:
     return 0
 
 
-def cmd_check(pipes_dir: Path, project: Path, name: str) -> int:
-    path = pd.find_pipe(name, pipes_dir)
+def cmd_check(pipes_dir: Path | None, project: Path, name: str) -> int:
+    path = pd.find_pipe(name, pipes_dir, project=project)
     if path is None:
         print(f"✗ パイプ「{name}」が見つかりません（devpipe-gen list で一覧を出せます）")
         return 1
@@ -151,12 +173,23 @@ def cmd_new(pipes_dir: Path, project: Path, name: str, template_name: str, force
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parse_args(sys.argv[1:] if argv is None else argv)
-    pipes_dir = (args.pipes_dir or pd.default_pipes_dir()).expanduser()
-    if args.command == "list":
-        return cmd_list(pipes_dir)
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["guard-hook"]:
+        # 道具を呼ぶたびに動くので、引数の解釈もせずにすぐ答える
+        from .guard_hook import main as hook_main
+
+        return hook_main()
+    args = _parse_args(argv)
+    given = args.pipes_dir.expanduser() if args.pipes_dir else None
     project = _project(args.project)
+    if args.command == "list":
+        return cmd_list(pd.pipes_dirs(project, given))
     if args.command == "check":
-        return cmd_check(pipes_dir, project, args.name)
+        return cmd_check(given, project, args.name)
+    pipes_dir = pd.new_pipes_dir(project, given)
+    if args.command == "design":
+        from .design import design_pipe
+
+        return design_pipe(project, args.name, args.purpose, pipes_dir=pipes_dir, force=args.force, model=args.model)
     return cmd_new(pipes_dir, project, args.name, args.template, args.force)
 

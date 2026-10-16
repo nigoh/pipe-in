@@ -1,6 +1,6 @@
 # devpipe のパイプ：ソースを読んで図を作る（フロー図・シーケンス図・状態遷移図・クラス図）
 #
-# 段の並び・書き込める範囲・確認の有無はここで、各段への指示は prompts/ のファイルで決めます。
+# 段の並び・書き込める範囲・確認の有無・検証はここで、各段への指示は prompts/ のファイルで決めます。
 
 [pipe]
 kind = "linear"
@@ -31,3 +31,8 @@ label = "図とソースの突き合わせ"
 output = "03_verify.md"
 access = "read"
 prompt_file = "prompts/03_verify.md"
+# 図とソースが合っていなければ、直す点を添えて「図を描く」段へ戻す（2回まで）
+[stages.check]
+verdict = true
+on_fail = "draw"
+max_retries = 2

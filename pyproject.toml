@@ -25,7 +25,7 @@ package-dir = { "devpipe_generator" = "generator" }
 [tool.setuptools.package-data]
 "devpipe.dev" = ["prompts/*.md"]
 "devpipe.pipe" = ["*.md"]
-"devpipe_generator" = ["templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
+"devpipe_generator" = ["*.md", "templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -42,3 +42,18 @@ test('ステータスバー：起動の後すぐ動き出す（ボタンをい�
   const manifest = readManifest();
   assert.ok((manifest.activationEvents ?? []).includes('onStartupFinished'));
 });
+
+test('AC-34: 作図台のコマンドと、pipes/ の場所の設定がある', () => {
+  const manifest = readManifest();
+  const commands = manifest.contributes?.commands ?? [];
+  assert.equal(commands.filter((c: any) => c?.command === 'devpipe.editPipe' && c?.title === 'devpipe: パイプを作図する').length, 1);
+  const prop = manifest.contributes?.configuration?.properties?.['devpipe.pipesDir'];
+  assert.ok(prop, 'devpipe.pipesDir の設定項目があること');
+  assert.equal(prop.default, '', '空なら .devpipe/pipes → pipes の順に自動で決める');
+});
+
+test('AC-34: パネルの中で動く作図台のスクリプトも、ビルドで out/ に束ねる', () => {
+  const manifest = readManifest();
+  assert.match(manifest.scripts?.build ?? '', /src\/webview\/pipeEditor\.ts/);
+  assert.match(manifest.scripts?.build ?? '', /out\/pipeEditor\.js/);
+});

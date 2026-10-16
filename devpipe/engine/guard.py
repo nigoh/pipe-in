@@ -11,11 +11,13 @@ import re
 from collections.abc import Callable, Collection
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
-# どの段でも使ってよい、読むだけ・手元の整理だけの道具
-ALWAYS_ALLOWED = {"Read", "Glob", "Grep", "Skill", "ToolSearch", "TodoWrite"}
+# どの段でも使ってよい、読むだけ・手元の整理だけの道具。
+# StructuredOutput は、SDK が構造化出力（段の判定・分岐の選択など）を返すのに使う道具で、何も書かない。
+ALWAYS_ALLOWED = {"Read", "Glob", "Grep", "Skill", "ToolSearch", "TodoWrite", "StructuredOutput"}
 
 # どの段でも実行させない Bash コマンド
 DANGEROUS_BASH: list[tuple[str, str]] = [
@@ -44,6 +46,20 @@ def is_test_path(rel: str, extra_globs: list[str] | None = None) -> bool:
     return any(fnmatch.fnmatch(rel, g) for g in (extra_globs or []))
 
 
+def _listed(tool_name: str, allowed_tools: Collection[str]) -> bool:
+    """allowed_tools にあるか。MCP の道具だけは、サーバー単位の指定（mcp__<サーバー>）でも許す。"""
+    if tool_name in ALWAYS_ALLOWED or tool_name in allowed_tools:
+        return True
+    if tool_name.startswith("mcp__"):
+        return any(a.startswith("mcp__") and a.count("__") == 1 and tool_name.startswith(a + "__") for a in allowed_tools)
+    return False
+
+
+def _host_allowed(url: str, domains: Collection[str]) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
 def _deny(reason: str) -> dict[str, Any]:
     return {
         "hookSpecificOutput": {
@@ -63,15 +79,21 @@ def check_tool(
     allow_bash: bool,
     write_scope_hint: str,
     allowed_tools: Collection[str] | None = None,
+    fetch_domains: Collection[str] | None = None,
 ) -> str | None:
     """拒否する場合はその理由を返す。許可なら None。
 
     allowed_tools を渡すと、そこと ALWAYS_ALLOWED にないツール（PowerShell・MCP・サブエージェントなど）は
     すべて止める。書き込みの範囲や危ない操作の判定は Bash と書き込み系のツールにしか掛けていないため、
-    それ以外の道から同じことをされないようにする。
+    それ以外の道から同じことをされないようにする。MCP は、段が明示したサーバー（mcp__<サーバー>）の道具だけを通す。
+    fetch_domains を渡すと、WebFetch はそのドメイン（とその下）だけに限る。
     """
-    if allowed_tools is not None and tool_name not in ALWAYS_ALLOWED and tool_name not in allowed_tools:
+    if allowed_tools is not None and not _listed(tool_name, allowed_tools):
         return f"この段では {tool_name} を使えません"
+    if tool_name == "WebFetch" and fetch_domains is not None:
+        url = str(tool_input.get("url", ""))
+        if not _host_allowed(url, fetch_domains):
+            return f"この段で取得できるのは {', '.join(fetch_domains)} だけです（{url} は対象外）"
     if tool_name == "Bash":
         if not allow_bash:
             return "この段では Bash を使えません"
@@ -105,6 +127,7 @@ def make_guard_hook(
     allow_bash: bool,
     write_scope_hint: str,
     allowed_tools: Collection[str] | None = None,
+    fetch_domains: Collection[str] | None = None,
     on_deny: Callable[[str, str], None] | None = None,
 ):
     async def guard(input_data: dict[str, Any], tool_use_id: str | None, context: Any) -> dict[str, Any]:
@@ -118,6 +141,7 @@ def make_guard_hook(
             allow_bash=allow_bash,
             write_scope_hint=write_scope_hint,
             allowed_tools=allowed_tools,
+            fetch_domains=fetch_domains,
         )
         if reason:
             if on_deny:

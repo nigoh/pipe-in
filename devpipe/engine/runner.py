@@ -58,11 +58,42 @@ def _to_jsonable(msg: Any) -> Any:
     return {"_type": type(msg).__name__, "repr": repr(msg)}
 
 
+def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str, Any]:
+    """段の設定から、ClaudeAgentOptions に渡す値を作る（hooks を除く）。SDK を import せずに確かめられるように、
+    サブエージェントはただの dict のまま返す（run_stage_sdk で AgentDefinition にする）。書かれていない設定は入れない。"""
+    sc = cfg.stage(spec.name)
+    opts: dict[str, Any] = {
+        "system_prompt": {"type": "preset", "preset": "claude_code", "append": spec.system_append},
+        "cwd": str(cfg.project_dir),
+        "permission_mode": spec.permission_mode or "default",
+        "allowed_tools": spec.allowed_tools,
+        "disallowed_tools": spec.disallowed_tools,
+        "model": sc.model or spec.model,
+        "max_turns": sc.max_turns or spec.max_turns,
+        "max_budget_usd": sc.max_budget_usd or spec.max_budget_usd,
+        "output_format": spec.output_format,
+        "resume": resume,
+        "setting_sources": cfg.setting_sources,
+    }
+    if spec.max_thinking_tokens:
+        opts["max_thinking_tokens"] = spec.max_thinking_tokens
+    if spec.fallback_model:
+        opts["fallback_model"] = spec.fallback_model
+    if spec.add_dirs:
+        opts["add_dirs"] = list(spec.add_dirs)
+    if spec.agents:
+        opts["agents"] = {name: dict(a) for name, a in spec.agents.items()}
+    if spec.mcp_servers:
+        opts["mcp_servers"] = {name: dict(m) for name, m in spec.mcp_servers.items()}
+    return opts
+
+
 async def run_stage_sdk(
     spec: StageSpec, prompt: str, cfg: Config, *, resume: str | None, log_name: str
 ) -> StageRun:
     # 重い import はここで（テストでは SDK なしでも動くように）
     from claude_agent_sdk import (
+        AgentDefinition,
         AssistantMessage,
         ClaudeAgentOptions,
         ClaudeSDKClient,
@@ -85,23 +116,16 @@ async def run_stage_sdk(
         allow_bash=spec.allow_bash,
         write_scope_hint=spec.write_scope_hint,
         allowed_tools=spec.allowed_tools,
+        fetch_domains=spec.fetch_domains,
         on_deny=on_deny,
     )
-    sc = cfg.stage(spec.name)
+    opts = sdk_options(spec, cfg, resume=resume)
+    if "agents" in opts:
+        opts["agents"] = {name: AgentDefinition(**a) for name, a in opts["agents"].items()}
     options = ClaudeAgentOptions(
-        system_prompt={"type": "preset", "preset": "claude_code", "append": spec.system_append},
-        cwd=str(cfg.project_dir),
-        permission_mode="default",
-        allowed_tools=spec.allowed_tools,
-        disallowed_tools=spec.disallowed_tools,
-        # すべてのツールに掛ける（段で許していないツールはガードが止める）
+        **opts,
+        # すべてのツールに掛ける（段で許していないツールはガードが止める）。サブエージェントの道具の呼び出しにも掛かる
         hooks={"PreToolUse": [HookMatcher(matcher=None, hooks=[guard])]},
-        model=sc.model or spec.model,
-        max_turns=sc.max_turns or spec.max_turns,
-        max_budget_usd=sc.max_budget_usd or spec.max_budget_usd,
-        output_format=spec.output_format,
-        resume=resume,
-        setting_sources=cfg.setting_sources,
     )
 
     log_dir = cfg.work_dir / "logs"

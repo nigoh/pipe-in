@@ -166,6 +166,42 @@ def test_find_pipe_by_name_or_path(tmp_path):
     assert definition().load_pipe(other).name == "mine"
 
 
+def test_find_pipe_prefers_project_pipes(tmp_path, monkeypatch):
+    """AC-13: 対象の .devpipe/pipes/ を先に見て、無ければ今までの場所を見る。"""
+    shared = tmp_path / "shared"
+    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(shared))
+    project = tmp_path / "app"
+    mine = make_pipe(project / ".devpipe" / "pipes", "pics")
+    make_pipe(shared, "pics")
+    only_shared = make_pipe(shared, "old")
+    assert definition().find_pipe("pics", project=project) == mine
+    assert definition().find_pipe("old", project=project) == only_shared
+    assert definition().find_pipe("nothing", project=project) is None
+    assert definition().pipes_dirs(project=project) == [project / ".devpipe" / "pipes", shared]
+
+
+def test_find_pipe_explicit_dir_only(tmp_path, monkeypatch):
+    """AC-13: --pipes-dir を指定したときはそこだけを見る。"""
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+    project = tmp_path / "app"
+    make_pipe(project / ".devpipe" / "pipes", "pics")
+    explicit = tmp_path / "explicit"
+    assert definition().find_pipe("pics", explicit, project=project) is None
+    d = make_pipe(explicit, "pics")
+    assert definition().find_pipe("pics", explicit, project=project) == d
+    assert definition().pipes_dirs(project=project, pipes_dir=explicit) == [explicit]
+
+
+def test_new_pipes_dir_order(tmp_path, monkeypatch):
+    """AC-15: 作る場所は --pipes-dir → DEVPIPE_PIPES_DIR → 対象の .devpipe/pipes/。"""
+    project = tmp_path / "app"
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+    assert definition().new_pipes_dir(project) == project / ".devpipe" / "pipes"
+    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "env"))
+    assert definition().new_pipes_dir(project) == tmp_path / "env"
+    assert definition().new_pipes_dir(project, tmp_path / "given") == tmp_path / "given"
+
+
 def test_default_pipes_dir_can_be_overridden(tmp_path, monkeypatch):
     monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "my-pipes"))
     assert definition().default_pipes_dir() == tmp_path / "my-pipes"

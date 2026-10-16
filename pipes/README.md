@@ -1,6 +1,8 @@
 # pipes/
 
-devpipe で流す **パイプ** を置くフォルダです。1つのパイプが1つのフォルダ（`devpipe-<名前>/`）になります。
+devpipe で流す **パイプ** の、今までの置き場所です。1つのパイプが1つのフォルダ（`devpipe-<名前>/`）になります。
+
+今は、パイプは対象プロジェクトの `.devpipe/pipes/` に作ります。このフォルダは、`--pipes-dir pipes` を付けたときや、前の版で作ったパイプのために残しています（対象の `.devpipe/pipes/` に無い名前は、ここも探します）。
 
 ```
 pipes/
@@ -13,8 +15,8 @@ pipes/
 ## 作る・流す
 
 ```bash
-devpipe-gen list                                              # ひな形と、ここにあるパイプの一覧
-devpipe-gen new diagrams --from diagrams --project ~/src/myapp  # pipes/devpipe-diagrams/ を作る
+devpipe-gen list --project ~/src/myapp                        # ひな形と、作ったパイプの一覧
+devpipe-gen new diagrams --from diagrams --project ~/src/myapp  # ~/src/myapp/.devpipe/pipes/devpipe-diagrams/ を作る
 devpipe-gen check diagrams --project ~/src/myapp              # 定義の誤りを調べる
 devpipe --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"
 ```

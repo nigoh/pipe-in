@@ -40,6 +40,18 @@ def python_project(tmp_path: Path) -> Path:
     return project
 
 
+@pytest.fixture(autouse=True)
+def no_repo_pipes(tmp_path, monkeypatch):
+    """どのテストも、devpipe のリポジトリの本物の pipes/ には書かない（今までの場所を仮のフォルダに向ける）。"""
+    from devpipe.pipe import definition as pd
+
+    def fake_default() -> Path:
+        env = __import__("os").environ.get(pd.PIPES_DIR_ENV)
+        return Path(env) if env else tmp_path / "repo-pipes"
+
+    monkeypatch.setattr(pd, "default_pipes_dir", fake_default)
+
+
 def gen(tmp_path: Path, *args: str) -> int:
     return gen_cli().main([*args, "--pipes-dir", str(tmp_path / "pipes")])
 
@@ -151,6 +163,41 @@ def test_list_shows_templates_and_pipes(tmp_path, capsys):
     assert "pics" in out
 
 
+def test_new_defaults_to_project_pipes(tmp_path, monkeypatch):
+    """AC-15: 置き場所の指定がなければ、対象の .devpipe/pipes/ に作り、check もそこから探す。"""
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+    project = python_project(tmp_path)
+    assert gen_cli().main(["new", "pics", "--from", "diagrams", "--project", str(project)]) == 0
+    assert (project / ".devpipe/pipes/devpipe-pics/pipe.toml").is_file()
+    assert gen_cli().main(["check", "pics", "--project", str(project)]) == 0
+
+
+def test_new_respects_pipes_dir_and_env(tmp_path, monkeypatch):
+    """AC-15: --pipes-dir か DEVPIPE_PIPES_DIR があれば、そちらに作る。"""
+    project = python_project(tmp_path)
+    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "env"))
+    assert gen_cli().main(["new", "a", "--from", "diagrams", "--project", str(project)]) == 0
+    assert (tmp_path / "env/devpipe-a/pipe.toml").is_file()
+    assert gen(tmp_path, "new", "b", "--from", "diagrams", "--project", str(project)) == 0
+    assert (tmp_path / "pipes/devpipe-b/pipe.toml").is_file()
+    assert not (project / ".devpipe").exists()
+
+
+def test_list_shows_project_and_shared_pipes(tmp_path, monkeypatch, capsys):
+    """AC-16: list --project は、対象の .devpipe/pipes/ と今までの場所の両方を出す。"""
+    project = python_project(tmp_path)
+    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
+    assert gen_cli().main(["new", "old", "--from", "diagrams", "--project", str(project)]) == 0
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR")
+    assert gen_cli().main(["new", "mine", "--from", "diagrams", "--project", str(project)]) == 0
+    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
+    capsys.readouterr()
+    assert gen_cli().main(["list", "--project", str(project)]) == 0
+    out = capsys.readouterr().out
+    assert "mine" in out and "old" in out
+    assert ".devpipe" in out
+
+
 @pytest.mark.parametrize("name", TEMPLATES)
 def test_templates_make_valid_pipes(tmp_path, name):
     tdir = gen_cli().templates_dir() / name
@@ -178,3 +225,143 @@ def test_render_template_comments_out_missing_values():
     out = render_template(text, {"test_command": None, "source_dirs": '`src/` と "lib"'})
     assert out.splitlines()[0].startswith("#")
     assert 'prompt = "`src/` と \\"lib\\" を読む"' in out  # TOML の文字列として壊れない
+
+
+# ---- FR-06 環境の検出を広げる ------------------------------------------------------
+
+
+DETECT_CASES = {
+    "maven": ({"pom.xml": "<project/>"}, "mvn -q test", "java"),
+    "gradle-wrapper": ({"build.gradle": "", "gradlew": ""}, "./gradlew test", "java"),
+    "gradle-kts": ({"build.gradle.kts": ""}, "gradle test", "java"),
+    "rspec": ({"Gemfile": "source 'https://rubygems.org'", "spec/a_spec.rb": ""}, "bundle exec rspec", "ruby"),
+    "rake": ({"Gemfile": ""}, "bundle exec rake test", "ruby"),
+    "composer": ({"composer.json": json.dumps({"scripts": {"test": "phpunit"}})}, "composer test", "php"),
+    "phpunit": ({"composer.json": "{}", "phpunit.xml": ""}, "vendor/bin/phpunit", "php"),
+    "dotnet": ({"App.csproj": "<Project/>"}, "dotnet test", "dotnet"),
+    "deno": ({"deno.json": "{}"}, "deno test", "deno"),
+    "pnpm": ({"package.json": json.dumps({"scripts": {"test": "vitest"}}), "pnpm-lock.yaml": ""}, "pnpm test", "node"),
+    "yarn": ({"package.json": json.dumps({"scripts": {"test": "jest"}}), "yarn.lock": ""}, "yarn test", "node"),
+    "bun": ({"package.json": json.dumps({"scripts": {"test": "bun test"}}), "bun.lockb": ""}, "bun test", "node"),
+    "uv": ({"pyproject.toml": '[project]\nname="x"\ndependencies=["pytest"]\n', "uv.lock": ""}, "uv run pytest -q", "python"),
+    "poetry": ({"pyproject.toml": '[tool.poetry]\nname="x"\n[tool.poetry.group.dev.dependencies]\npytest="*"\n', "poetry.lock": ""}, "poetry run pytest -q", "python"),
+    "make": ({"Makefile": "build:\n\tcc main.c\ntest:\n\t./run_tests\n"}, "make test", None),
+}
+
+
+@pytest.mark.parametrize("case", list(DETECT_CASES))
+def test_detect_more_environments(tmp_path, case):
+    files, command, language = DETECT_CASES[case]
+    for rel, text in files.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text, encoding="utf-8")
+    env = detect_mod().detect(tmp_path)
+    assert env.test_command == command
+    if language:
+        assert language in env.languages
+
+
+def test_detect_makefile_without_test_target(tmp_path):
+    (tmp_path / "Makefile").write_text("build:\n\tcc main.c\n", encoding="utf-8")
+    assert detect_mod().detect(tmp_path).test_command is None
+
+
+# ---- FR-07 目的から段を組む（devpipe-gen design） -------------------------------------
+
+
+def design_mod():
+    from devpipe_generator import design
+
+    return design
+
+
+def good_design() -> dict:
+    return {
+        "label": "API の \"仕様\" を書く",
+        "description": "ソースから API の一覧と使い方を書く",
+        "input": "optional",
+        "stages": [
+            {"name": "survey", "label": "API の洗い出し", "output": "01_survey.md", "access": "read",
+             "review": True, "prompt": '`src/` を読み、API を洗い出してください。\n"""三重の引用符""" や \ も書ける'},
+            {"name": "write", "label": "API の文書", "output": "02_api.md", "access": "docs", "docs_dir": "docs/api",
+             "writes": ["docs/api/*.md"], "prompt": "API の文書を書いてください。"},
+            {"name": "check", "label": "突き合わせ", "output": "03_check.md", "access": "read",
+             "prompt": "文書とソースを突き合わせてください。",
+             "check": {"verdict": True, "on_fail": "write", "max_retries": 2}},
+        ],
+    }
+
+
+class DesignRunner:
+    def __init__(self, designs: list):
+        self.designs = list(designs)
+        self.calls: list[tuple[object, str, str | None]] = []
+
+    async def __call__(self, spec, prompt, cfg, *, resume, log_name):
+        from devpipe.engine.runner import StageRun
+
+        self.calls.append((spec, prompt, resume))
+        return StageRun(stage=spec.name, session_id="d-1", structured=self.designs.pop(0), cost_usd=0.05, num_turns=3)
+
+
+def design(tmp_path: Path, runner, *, name: str = "apidoc", force: bool = False) -> int:
+    project = python_project(tmp_path)
+    return design_mod().design_pipe(
+        project, name, "API の文書を作りたい", pipes_dir=tmp_path / "pipes", runner=runner, force=force
+    )
+
+
+def test_design_writes_valid_pipe(tmp_path):
+    r = DesignRunner([good_design()])
+    assert design(tmp_path, r) == 0
+    d = tmp_path / "pipes/devpipe-apidoc"
+    pipe = definition().load_pipe(d)
+    assert [s.name for s in pipe.stages] == ["survey", "write", "check"]
+    assert pipe.label == 'API の "仕様" を書く'
+    assert '"""三重の引用符"""' in pipe.stages[0].prompt_text()
+    assert pipe.stages[0].prompt_file is not None  # 指示は prompts/ のファイルに分ける
+    assert pipe.stages[1].writes == ["docs/api/*.md"]
+    assert pipe.stages[2].check.verdict and pipe.stages[2].check.on_fail == "write"
+    assert definition().check_pipe(pipe, tmp_path / "shop") == []
+    assert "devpipe --pipe apidoc" in (d / "README.md").read_text(encoding="utf-8")
+    spec, prompt, resume = r.calls[0]
+    assert spec.can_write("docs/x.md") is False and "Write" not in spec.allowed_tools and not spec.allow_bash
+    assert spec.output_format["type"] == "json_schema"
+    assert "API の文書を作りたい" in prompt and "pytest -q" in prompt and resume is None
+
+
+def test_design_asks_again_when_invalid(tmp_path):
+    bad = good_design()
+    bad["stages"][1]["name"] = "survey"
+    r = DesignRunner([bad, good_design()])
+    assert design(tmp_path, r) == 0
+    assert len(r.calls) == 2
+    _, prompt2, resume2 = r.calls[1]
+    assert resume2 == "d-1" and "重複" in prompt2
+
+
+def test_design_gives_up_without_writing(tmp_path):
+    bad = good_design()
+    bad["stages"] = []
+    r = DesignRunner([bad, bad, bad])
+    assert design(tmp_path, r) != 0
+    assert len(r.calls) == 3
+    assert not (tmp_path / "pipes/devpipe-apidoc").exists()
+
+
+def test_design_refuses_existing_pipe(tmp_path):
+    (tmp_path / "pipes/devpipe-apidoc").mkdir(parents=True)
+    (tmp_path / "pipes/devpipe-apidoc/pipe.toml").write_text("# 手で作った\n", encoding="utf-8")
+    r = DesignRunner([good_design()])
+    assert design(tmp_path, r) != 0
+    assert r.calls == []
+    assert "手で作った" in (tmp_path / "pipes/devpipe-apidoc/pipe.toml").read_text(encoding="utf-8")
+
+
+def test_design_cli_needs_purpose(tmp_path, capsys):
+    with pytest.raises(SystemExit) as e:
+        gen(tmp_path, "design", "--help")
+    assert e.value.code == 0 and "--purpose" in capsys.readouterr().out
+    with pytest.raises(SystemExit) as e:
+        gen(tmp_path, "design", "apidoc", "--project", str(tmp_path))
+    assert e.value.code == 2  # --purpose がない

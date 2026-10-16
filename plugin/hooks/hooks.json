@@ -1,0 +1,18 @@
+{
+  "description": "pipe-builder が書けるのをパイプのフォルダの決まったファイルだけに、Bash を devpipe-gen list / new / check だけに絞る（ほかのエージェントには何もしない）",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "devpipe-gen",
+            "args": ["guard-hook"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 """コマンドラインの入口:  devpipe --project ./myapp --input request.md
 
---pipe <名前かパス> で、pipes/devpipe-<名前>/ のパイプを流す（パイプを作るのは devpipe-gen）。
+--pipe <名前かパス> で、<対象>/.devpipe/pipes/devpipe-<名前>/（なければ今までの pipes/）のパイプを流す（パイプを作るのは devpipe-gen）。
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--config", type=Path, help="設定ファイル（既定: プロジェクト直下の pipeline.toml）")
     p.add_argument(
         "--pipe",
-        help="流すパイプの名前（pipes/devpipe-<名前>/）かフォルダのパス。省くと組み込みの開発フロー。一覧は devpipe-gen list",
+        help="流すパイプの名前（<対象>/.devpipe/pipes/devpipe-<名前>/ を先に、次に今までの pipes/ を探す）かフォルダのパス。省くと組み込みの開発フロー。一覧は devpipe-gen list",
     )
     p.add_argument(
         "--from",
@@ -80,7 +80,7 @@ def _warn_if_dirty(project: Path) -> None:
 
 
 def _load_pipe(name_or_path: str, project: Path) -> pd.PipeDef:
-    path = pd.find_pipe(name_or_path)
+    path = pd.find_pipe(name_or_path, project=project.expanduser().resolve())
     if path is None:
         raise SystemExit(f"パイプ「{name_or_path}」が見つかりません（devpipe-gen list で一覧を出せます）")
     try:

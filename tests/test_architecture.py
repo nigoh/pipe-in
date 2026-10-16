@@ -1,4 +1,4 @@
-"""依存の向きの検査：devpipe_generator → devpipe.pipe / devpipe.dev → devpipe.engine → devpipe.usage。
+"""依存の向きの検査：devpipe_generator → devpipe.pipe → devpipe.engine → devpipe.usage（devpipe.dev → devpipe.engine）。
 
 逆向きの import があると落ちる。共通の仕組み（engine）が、特定のパイプや入口を知らないようにするため。
 """
@@ -19,7 +19,8 @@ RULES = [
     ("devpipe/dev", "devpipe.dev", ["devpipe.pipe", "devpipe.cli", "devpipe_generator"]),
     ("devpipe/pipe", "devpipe.pipe", ["devpipe.dev", "devpipe.cli", "devpipe_generator"]),
     ("devpipe", "devpipe", ["devpipe_generator"]),
-    ("generator", "devpipe_generator", ["devpipe.cli", "devpipe.dev", "devpipe.engine"]),
+    # design が段を1つ流すため、ジェネレーターは engine を使ってよい（入口と開発フローには頼らない）
+    ("generator", "devpipe_generator", ["devpipe.cli", "devpipe.dev"]),
 ]
 
 
@@ -80,3 +81,14 @@ def test_rule_catches_reverse_import(tmp_path, monkeypatch):
     monkeypatch.setattr(__import__(__name__), "ROOT", tmp_path)
     found = _violations("devpipe/engine", "devpipe.engine", ["devpipe.dev", "devpipe.pipe"])
     assert any("devpipe.dev" in f for f in found) and any("devpipe.pipe" in f for f in found)
+
+
+def test_guard_hook_uses_only_stdlib():
+    """AC-19: フックは道具を呼ぶたびに動くので、devpipe や SDK を読み込まない（標準ライブラリだけ）。"""
+    import sys
+
+    path = ROOT / "generator" / "guard_hook.py"
+    assert path.is_file()
+    targets = {t.split(".")[0] for t in _imports(path, "devpipe_generator.guard_hook") if t}
+    outside = sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
+    assert outside == []

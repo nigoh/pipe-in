@@ -26,3 +26,8 @@ Thumbs.db
 # 作ったパイプ（対象プロジェクトの事情が入りやすい）。README だけ追跡する
 /pipes/*
 !/pipes/README.md
+# このリポジトリを対象にして作ったパイプ（.devpipe/pipes/）も載せない
+/.devpipe/
+
+# Playwright（MCP）で画面を確かめたときのスクリーンショット
+.playwright-mcp/

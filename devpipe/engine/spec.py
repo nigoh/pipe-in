@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .config import Config
@@ -31,6 +31,15 @@ class StageSpec:
     # state.json の stages に残し、VSCode の拡張が図と成果物の一覧を作るのに使う。
     output: str | None = None
     review: bool = False
+    # WebFetch を許すドメイン（None は制限なし。WebFetch を許すかは allowed_tools で決める）
+    fetch_domains: list[str] | None = None
+    # Agent SDK の設定（パイプの段が書いたもの。開発フローでは使わない）
+    permission_mode: str | None = None
+    max_thinking_tokens: int | None = None
+    fallback_model: str | None = None
+    add_dirs: list[str] = field(default_factory=list)
+    agents: dict[str, dict[str, Any]] = field(default_factory=dict)
+    mcp_servers: dict[str, dict[str, Any]] = field(default_factory=dict)
     # 段の既定。pipeline.toml の [stages.<段>] に書いたほうが優先される。
     model: str | None = None
     max_turns: int | None = None

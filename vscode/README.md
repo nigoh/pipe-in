@@ -1,7 +1,8 @@
 # devpipe-vscode
 
-[devpipe](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見るプラグイン。
-devpipe が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物の Markdown）を読むだけで、何も書かない。
+[devpipe](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見るプラグイン。パイプを組み立てる作図台もある。
+devpipe が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物の Markdown）は読むだけで、何も書かない。
+書くのは、作図台で「保存」を押したときの `.devpipe/pipes/devpipe-<名前>/`（無ければ `pipes/`）の中（`pipe.toml`・`prompts/*.md`・`layout.json`・無いときの `README.md`）だけ。
 
 ## 使い方
 
@@ -54,15 +55,34 @@ devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの�
 
 ステータスバーの説明にも、利用枠の今の使用率が出る。古い記録では節を出さない（今までどおり）。
 
+### パイプ作図台
+
+コマンドパレットの「devpipe: パイプを作図する」で、ワークスペースの `.devpipe/pipes/`（無くて `pipes/` があればそこ）のパイプを選ぶか、新しく作る。
+
+- 左の棚から、形で見分けるブロックを置く（ドラッグなら離した所に、押すか Enter なら真ん中の近くの空いた所に）。長方形は調べる、二重枠は任せる（サブエージェント）、下が波の紙は文書と図、両端に線はテスト、角を落とした形はコード、六角形は確かめる、ひし形は仕分け、平行四辺形は外を見る、緑の大きな枠は並列。
+- ブロックの右のプラグを引っぱり、ほかのブロックの左のコンセントに差してつなぐ。右のブロックなら次の段、仕分けからなら分岐、左（前）のブロックなら差し戻し、自分ならやり直し。ケーブルは段をよけて通り、重ならない。
+- 差さっているプラグ（ケーブルの先）は掴んで抜き差しできる。ほかのブロックの上で離すと差し直し（次の段・分岐・差し戻しの種類はそのまま。合わない先は理由を出して元に戻す）、何もない所で離すと抜ける。
+- ブロックを押すと、右で「Claude への1回分の依頼」を組み立てる：渡すもの・頼むこと・モデル・書ける範囲・Bash・Web・ターン、返すもの（成果物・判定・人の確認・分岐の選択肢・戻す先）、Agent SDK の設定（許可のモード・考える量・予備のモデル・この段の決まり・追加で読めるフォルダ・サブエージェント・MCP サーバー）。「Claude に届く指示を見る」で、devpipe が送る文面を確かめられる。
+- 「検査」は `devpipe-gen check` と同じ決まり。「書き出し」で、保存するファイルの中身を下見できる。保存は「保存」か Ctrl+S。
+- ブロックの位置と形は `layout.json` に残る（devpipe は読まない）。無いパイプは、開いたときに自動で並べる。
+- 作図台で読めない書き方（インラインの表など）や、開発フローのパイプ（`kind = "dev"`）は、理由を出して開かない。
+- 段を動かして中心が並列の枠に入ると、その段は並列になる（入った・出たときは下に知らせが出る）。
+
+| 設定 | 既定 | 意味 |
+| :--- | :--- | :--- |
+| `devpipe.pipesDir` | （空） | 作図台で読み書きするパイプの置き場所。ワークスペースの最初のフォルダからの相対パスか、絶対パス。空なら `.devpipe/pipes`（無くて `pipes` があれば `pipes`） |
+
 ## 層の決まり
 
 | 層 | パス | 置くもの |
 | :--- | :--- | :--- |
-| ドメイン | `src/domain/` | 段・実行の記録・段のログ・成果物・図の状態。純粋な関数だけ（ファイル・時計・`vscode` に触れない） |
-| アプリケーション | `src/app/` | 口 `WorkDirSource`、`refreshView`、`resolveWorkDir` |
+| ドメイン | `src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道（`pipeWires.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（ファイル・時計・`vscode` に触れない） |
+| アプリケーション | `src/app/` | 口 `WorkDirSource`、`refreshView`、`resolveWorkDir`、作図台の口 `PipeStore` と読み込み・保存（`pipeEditor.ts`） |
 | 画面 | `src/view/` | 図の状態 → HTML の文字列、パネルとの受け渡しの形 |
-| 基盤 | `src/infra/` | `WorkDirSource` の実装（`node:fs/promises`） |
+| 基盤 | `src/infra/` | `WorkDirSource` の実装（`node:fs/promises`）、`PipeStore` の実装（`fsPipes.ts`。置き場所の中の `devpipe-<名前>/` の決まったファイルだけ） |
+| パネルの中 | `src/webview/` | 作図台の画面の操作（`out/pipeEditor.js` に束ねる）。判断は domain の関数に任せる |
 | 入口 | `src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。`vscode` を import してよいのはここだけ（`src/architecture.test.ts` が検査する） |
 
 - devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary`、段の並びの `stages`、`pending_review`・`warnings` も）・`stageLog.ts`・`artifacts.ts`・`runs.ts`（実行の候補）の中だけに置く。形が変わったらここを直す。
 - 色はすべて `var(--vscode-*)`。外部の読み込みはしない。ログから来た文字は必ず `escapeHtml` を通す。
+- パネルの CSP はインラインの `style="…"` 属性を捨てる。作図台の HTML の文字列には書かず、位置や大きさは描いたあとに `el.style.*` で入れ、決まった見た目はクラスにする（`src/webview/csp.test.ts` が検査する）。確認用のページ（`npm run preview`）も同じ CSP のまま作る。

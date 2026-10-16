@@ -4,3 +4,5 @@ tsconfig.json
 package-lock.json
 *.vsix
 .gitignore
+scripts/**
+out/preview/**
