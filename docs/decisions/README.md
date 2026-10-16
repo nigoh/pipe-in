@@ -6,6 +6,7 @@
 | --- | --- |
 | [D0001](D0001-plugin-pipe-build.md) | パイプを会話で作る・直すプラグイン（/devpipe:pipe-build と pipe-builder）と、対象の .devpipe/pipes/ |
 | [D0002](D0002-dev-rules.md) | 開発のルール（docs/development/）と、それを守らせるテスト |
+| [D0003](D0003-rebase-on-main-change.md) | main が進んだら、機能のブランチを載せ直す |
 
 ## ひな形
 

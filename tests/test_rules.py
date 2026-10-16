@@ -214,3 +214,30 @@ def test_development_docs_exist():
     pipe_in = (ROOT / ".claude/skills/pipe-in/SKILL.md").read_text(encoding="utf-8")
     for word in ["docs/development/", "docs/decisions/", "worktree", "Dnnnn-AC-"]:
         assert word in pipe_in, word
+
+
+# ---- D0003-AC-01〜02: main が進んだら載せ直す ---------------------------------------------
+
+
+def test_workflow_documents_rebase():
+    """D0003-AC-01: workflow.md に、載せ直す時と方法・main へは早送りで入れること・worktree の注意がある。"""
+    text = (DEVELOPMENT / "workflow.md").read_text(encoding="utf-8")
+    for word in [
+        "git rebase --autostash main",
+        "git merge --ff-only",
+        "段の区切り",
+        "検証の段の前",
+        "main に入れる直前",
+        "載せ直したら",
+        "push したブランチ",
+        "python -m devpipe",
+        "stash しない",
+    ]:
+        assert word in text, word
+
+
+def test_pipe_in_rebases_when_main_moves():
+    """D0003-AC-02: /pipe-in は段の区切りで main が進んだかを見て、検証の前と入れる前には必ず載せ直す。"""
+    text = (ROOT / ".claude/skills/pipe-in/SKILL.md").read_text(encoding="utf-8")
+    for word in ["git log --oneline HEAD..main", "git rebase --autostash main", "検証の段の前", "--ff-only"]:
+        assert word in text, word

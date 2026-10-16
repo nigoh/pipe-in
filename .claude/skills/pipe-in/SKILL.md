@@ -20,7 +20,18 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
   今の作業フォルダが main のままなら、`git worktree add ../devpipe-<名前> -b feat/<名前>` で切り、以降はそのフォルダで作業する（切ったことを伝える）。`docs/pipeline/` の記録も、その worktree の中にできる。
   すでに機能のブランチの worktree にいるなら、そのまま進める。
-- `git status` で、ほかの作業の変更が残っていないかを見る。残っていれば、進める前に人に伝える。
+- main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
+- worktree の中では、直したコードを確かめるのに `python -m devpipe …`・`python -m pytest` を使う（`devpipe-gen` などのコマンドは main のコードを動かす）。拡張を触るなら、その worktree で `npm --prefix vscode ci` をする。
+
+## main が進んだら載せ直す
+
+並列で動かしているので、作業のあいだに main が進む。やり方は `docs/development/workflow.md` の「3. 載せ直す」。
+
+- **段の区切り**（各段が終わって、人に確認を取る前）に `git log --oneline HEAD..main` を見る。コミットがあれば、何が入ったかを会話に書き、`git rebase --autostash main` で載せ直す。
+- **検証の段の前**と、**main に入れる直前**には、必ず載せ直す。
+- ぶつかったら、worktree の中で両方の意図を残すように合わせる。迷うときは人に聞く（`--auto` でも聞く）。
+- 載せ直したら、触った側のテストを流し直す。テスト先行より後なら、承認されたテストが新しい main の上でも同じ理由で赤（または緑）のままかを確かめ、意味が変わっていたらその段に戻る。
+- 合わせたこと・main に合わせて直したことは、決定の記録に短く書く。
 - 決定の記録の番号 `Dnnnn` を決める（`docs/decisions/` の次の番号）。受け入れ基準の ID は `Dnnnn-AC-xx` にする（`docs/development/specs.md`）。
 
 ## 役割の分け方
@@ -37,7 +48,7 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - サブエージェントは人に質問できない。決めきれない点は成果物に書いて返してくるので、メインが人に聞く。
 - サブエージェントへの指示には、段の名前・要件メモ・決定の記録の番号 `Dnnnn`・前の段の成果物の場所（`docs/pipeline/0N_*.md`）・人からの直してほしい点（あれば）・差し戻しなら不合格の中身を入れる。サブエージェントはこの会話を見ていない。
-- サブエージェントは、段に合わせて `docs/development/` の決まりを読む（要件定義は `specs.md`、設計は `design.md`、テスト先行は `testing.md`、実装は `design.md` と `workflow.md` の「3. そろえる」）。指示にもその文書を書く。
+- サブエージェントは、段に合わせて `docs/development/` の決まりを読む（要件定義は `specs.md`、設計は `design.md`、テスト先行は `testing.md`、実装は `design.md` と `workflow.md` の「4. そろえる」）。指示にもその文書を書く。
 - フックが止めたら、その理由がサブエージェントに返る。範囲を広げたくなったら、サブエージェントの仕事の分け方を見直す（フックや定義を緩めるのは、人に理由を言って承認されてから）。
 - 新しいモジュールが要るのにテスト先行で空の形が無いときは、メインが空の形（何もしない関数）を置いてから、テスト先行の段をやり直す。
 
@@ -106,11 +117,12 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - `record begin implement --attempt N`（1 から。差し戻しのたびに増やす）→ `pipe-in-coder` に任せる → `record done implement`。
 - テストへの異議が 04 に書かれていたら、検証の段で人の判断を仰ぐ。
-- 文書がそろっているか（`docs/development/workflow.md` の「3. そろえる」）を 04 で確かめる。足りなければ、同じ段で直してもらう。
+- 文書がそろっているか（`docs/development/workflow.md` の「4. そろえる」）を 04 で確かめる。足りなければ、同じ段で直してもらう。
 - ここでは確認を取らず、そのまま検証へ進む。
 
 ### 5. 検証（`pipe-in-verifier` とメイン）
 
+- 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
 - 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
   1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams のページができる）
@@ -125,4 +137,5 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 合格なら、メインが決定の記録 `docs/decisions/Dnnnn-<名前>.md` を書き、`docs/decisions/README.md` の表に1行足す（形は `docs/development/specs.md`。`tests/test_rules.py` が検査するので、書いたらもう一度流す）。決めたことと理由・受け入れたリスク・確かめたこと（手で・実機で確かめていないものは「まだ」）を書く。`docs/pipeline/` の中身をそのまま貼らない（セッション ID や手元のパスが入っている）。
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
-  **コミット・push は、人に言われるまでしない。**
+  **コミット・main に入れる・push は、人に言われるまでしない。**
+- main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら worktree とブランチを片付ける。

@@ -12,7 +12,7 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 - `.claude/`・`.git/`・`.env`・ほかの段の記録（docs/pipeline/ の 04_implementation.md 以外）も書けない。
 - Bash で使えるのは：`python -m pytest …`・`pytest …`・`npm --prefix vscode test`・`npm --prefix vscode run typecheck`・`npm --prefix vscode run build`。依存を足すコマンドは使えない（足す必要があれば親に理由を返す）。
 - CLAUDE.md の決まりを守る：依存の向き、拡張は work_dir を読むだけ、`vscode` を import するのは src/extension.ts だけ、外から来た文字は escapeHtml、コメントと文書は日本語で平易に。
-- 置き場所・層は `docs/development/design.md` に沿う。文書をそろえる（`docs/development/workflow.md` の「3. そろえる」）：使い方なら README.md・vscode/README.md・`.claude/skills/pipe-help/SKILL.md`、置き場所なら `docs/development/design.md` の表（`.claude/` はフックで書けないので、要るなら 04 に書いて親に頼む）。
+- 置き場所・層は `docs/development/design.md` に沿う。文書をそろえる（`docs/development/workflow.md` の「4. そろえる」）：使い方なら README.md・vscode/README.md・`.claude/skills/pipe-help/SKILL.md`、置き場所なら `docs/development/design.md` の表（`.claude/` はフックで書けないので、要るなら 04 に書いて親に頼む）。
 - 秘密・ユーザー名入りの絶対パス・手元の事情を書かない。
 
 04_implementation.md に書くもの：変えたファイルと理由、流したテストと結果、テストへの異議（あれば）。
