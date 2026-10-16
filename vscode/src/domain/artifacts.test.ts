@@ -25,11 +25,11 @@ test('AC-34: 7件が 00〜05・99 の順に並び、01 は「ある」、02（�
 });
 
 test('AC-35: 01_requirements.md を開く求めは、work_dir 直下のそのパスになる', () => {
-  const w = path.resolve('/ws/docs-internal/pipeline');
+  const w = path.resolve('/ws/docs/pipeline');
   assert.equal(resolveArtifactPath(w, '01_requirements.md'), path.join(w, '01_requirements.md'));
 });
 
 test('AC-36: ../secret.md を開く求めは拒否され、パスは返らない', () => {
-  const w = path.resolve('/ws/docs-internal/pipeline');
+  const w = path.resolve('/ws/docs/pipeline');
   assert.equal(resolveArtifactPath(w, '../secret.md'), null);
 });

@@ -204,7 +204,7 @@ test('AC-34 追加: 7件すべての名前とラベルがあり、中身のな�
 });
 
 test('AC-36 追加: 7つの名前以外（state.json・ログ・絶対パス・大文字違い・前後の空白・../ の混ざり）は拒否', () => {
-  const w = path.resolve('/w/docs-internal/pipeline');
+  const w = path.resolve('/w/docs/pipeline');
   for (const name of [
     'state.json',
     'logs/01_requirements.jsonl',

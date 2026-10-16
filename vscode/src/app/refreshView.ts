@@ -19,9 +19,9 @@ export async function refreshView(source: WorkDirSource, workDirForDisplay: stri
   return buildPipelineView(snapshot);
 }
 
-export const DEFAULT_WORK_DIR = 'docs-internal/pipeline';
+export const DEFAULT_WORK_DIR = 'docs/pipeline';
 
-/** 設定値を、ワークスペースの最初のフォルダからの絶対パスにする。設定が空なら既定の 'docs-internal/pipeline'。 */
+/** 設定値を、ワークスペースの最初のフォルダからの絶対パスにする。設定が空なら既定の 'docs/pipeline'。 */
 export function resolveWorkDir(workspaceRoot: string, setting: string | undefined): string {
   const value = setting?.trim() ? setting.trim() : DEFAULT_WORK_DIR;
   return path.resolve(workspaceRoot, value);

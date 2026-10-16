@@ -2,9 +2,7 @@
 
 要件メモから **要件定義 → 設計 → テスト先行 → 実装 → 検証** までを、Claude Agent SDK（Python）で順に実行するパイプラインです。テスト駆動（赤 → 緑 → 整理）とドメイン駆動の設計を前提にしています。
 
-> **nok_site での使い方**は、スキル `feature-pipeline`（`.claude/skills/feature-pipeline/SKILL.md`）にまとめてあります。
-> 起動は `bash tools/devpipe/feature.sh --input request.md --test-cmd "<テストコマンド>"`、設定は `nok.pipeline.toml` です。
-> 守る原則は `.claude/rules/dev-principles.md`、言葉と境界の地図は `docs-internal/domain/` にあります。
+実行の進み具合を VSCode のパネルで図として見るプラグインは [`vscode/`](vscode/README.md) にあります。
 
 - 要件定義・設計・テスト先行のあとに、人が内容を確認します（承認 / 修正を依頼 / 中止）。
 - テスト先行の段は、製品コードより先に受け入れ基準（AC）ごとのテストを書き、落ちることを確かめます。テストのない AC が残れば差し戻します。

@@ -29,7 +29,7 @@ code --install-extension devpipe-vscode.vsix --force   # Insiders なら code-in
 
 | 設定 | 既定 | 意味 |
 | :--- | :--- | :--- |
-| `devpipe.workDir` | `docs-internal/pipeline` | work_dir。ワークスペースの最初のフォルダからの相対パス |
+| `devpipe.workDir` | `docs/pipeline` | work_dir。ワークスペースの最初のフォルダからの相対パス |
 
 ### 使用量
 
@@ -53,4 +53,3 @@ devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの�
 
 - devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary` も）・`stageLog.ts`・`artifacts.ts` の中だけに置く。形が変わったらここを直す。
 - 色はすべて `var(--vscode-*)`。外部の読み込みはしない。ログから来た文字は必ず `escapeHtml` を通す。
-- 設計は `docs-internal/pipeline/02_design.md`、言葉は `docs-internal/domain/用語集.md` の「開発の道具（devpipe）」。

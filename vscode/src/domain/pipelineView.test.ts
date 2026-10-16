@@ -342,10 +342,10 @@ test('AC-40: final PASSED・動いている段なし → 待ちの表示が無�
 });
 
 test('AC-41: state.json・段のログ・00_input.md がないとき、「記録がありません」と work_dir のパスを出す', () => {
-  const view = buildPipelineView(snapshot({ workDir: '/w/docs-internal/pipeline' }));
+  const view = buildPipelineView(snapshot({ workDir: '/w/docs/pipeline' }));
   assert.ok(view.noRecords, '記録なしの表示が有効であること');
   assert.equal(view.noRecords.message, '記録がありません');
-  assert.equal(view.noRecords.workDir, '/w/docs-internal/pipeline');
+  assert.equal(view.noRecords.workDir, '/w/docs/pipeline');
 });
 
 test('確認の省略：確認の記録がないまま先の段が動いたら、その確認は「省略」（--yes など）', () => {

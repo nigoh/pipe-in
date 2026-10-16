@@ -28,7 +28,7 @@
       "properties": {
         "devpipe.workDir": {
           "type": "string",
-          "default": "docs-internal/pipeline",
+          "default": "docs/pipeline",
           "description": "devpipe の work_dir。ワークスペースの最初のフォルダからの相対パス"
         }
       }

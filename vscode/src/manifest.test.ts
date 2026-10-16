@@ -16,11 +16,11 @@ test('AC-01: contributes.commands に「devpipe: 実行を見る」のコマン�
   assert.equal(matched.length, 1);
 });
 
-test('AC-02: contributes.configuration に work_dir の設定項目があり、既定値が docs-internal/pipeline', () => {
+test('AC-02: contributes.configuration に work_dir の設定項目があり、既定値が docs/pipeline', () => {
   const manifest = readManifest();
   const prop = manifest.contributes?.configuration?.properties?.['devpipe.workDir'];
   assert.ok(prop, 'devpipe.workDir の設定項目があること');
-  assert.equal(prop.default, 'docs-internal/pipeline');
+  assert.equal(prop.default, 'docs/pipeline');
 });
 
 test('パッケージ：.vsix にできる宣言（publisher・main・パッケージ前のビルド）がある', () => {

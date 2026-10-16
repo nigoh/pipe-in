@@ -28,7 +28,7 @@ test('AC-42/43 追加: 待ち・最終の結果（PASSED／失敗）・記録な
     waiting: buildPipelineView(snapshot({ stateJson: stateJson({ runs: [stageRunEntry({ stage: 'requirements', seq: 1 })] }) })),
     passed: buildPipelineView(snapshot({ stateJson: stateJson({ final: 'PASSED', totalCostUsd: 1.25 }) })),
     failed: buildPipelineView(snapshot({ stateJson: stateJson({ final: 'TEST_FAILED' }) })),
-    noRecords: buildPipelineView(snapshot({ workDir: 'D:/repo/docs-internal/pipeline' })),
+    noRecords: buildPipelineView(snapshot({ workDir: 'D:/repo/docs/pipeline' })),
     allArtifacts: buildPipelineView(
       snapshot({
         artifacts: {
@@ -103,9 +103,9 @@ test('FR-13/14 追加: 待ちの表示・記録なしの表示・合計の費用
   );
   assert.match(waiting, /次を待っている（人の確認かもしれない）/);
   assert.match(waiting, /\$1\.250/);
-  const noRec = renderViewBody(buildPipelineView(snapshot({ workDir: '/w/docs-internal/pipeline' })));
+  const noRec = renderViewBody(buildPipelineView(snapshot({ workDir: '/w/docs/pipeline' })));
   assert.match(noRec, /記録がありません/);
-  assert.match(noRec, /\/w\/docs-internal\/pipeline/);
+  assert.match(noRec, /\/w\/docs\/pipeline/);
 });
 
 test('FR-08/10 追加: 修正の依頼・差し戻しの回数と段の数値が本体に出る', () => {

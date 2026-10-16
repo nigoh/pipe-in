@@ -7,11 +7,11 @@ import type { WorkDirSource } from './refreshView.ts';
 import { buildPipelineView } from '../domain/pipelineView.ts';
 import { snapshot, stateJson } from '../test/fixtures.ts';
 
-test('FR-01: 既定の work_dir は docs-internal/pipeline で、設定が空・空白・未設定なら既定を使う', () => {
+test('FR-01: 既定の work_dir は docs/pipeline で、設定が空・空白・未設定なら既定を使う', () => {
   const root = path.resolve('/ws');
-  assert.equal(DEFAULT_WORK_DIR, 'docs-internal/pipeline');
+  assert.equal(DEFAULT_WORK_DIR, 'docs/pipeline');
   for (const setting of [undefined, '', '   ']) {
-    assert.equal(resolveWorkDir(root, setting), path.resolve(root, 'docs-internal/pipeline'));
+    assert.equal(resolveWorkDir(root, setting), path.resolve(root, 'docs/pipeline'));
   }
 });
 
@@ -24,8 +24,8 @@ test('FR-02/14: 口が例外を投げても、例外を出さず記録なしの�
   const source: WorkDirSource = {
     read: () => Promise.reject(new Error('boom')),
   };
-  const view = await refreshView(source, '/ws/docs-internal/pipeline');
-  assert.deepEqual(view.noRecords, { message: '記録がありません', workDir: '/ws/docs-internal/pipeline' });
+  const view = await refreshView(source, '/ws/docs/pipeline');
+  assert.deepEqual(view.noRecords, { message: '記録がありません', workDir: '/ws/docs/pipeline' });
   assert.equal(view.nodes.length, 11);
 });
 
