@@ -1,0 +1,35 @@
+# 依存の更新と脆弱性の修正を Dependabot に出してもらう。
+# 小さい版の上げはまとめて1つの PR にし、大きい版の上げは個別に出す（ビルドが通るかを確かめてから入れる）。
+version: 2
+updates:
+  # devpipe 本体（pyproject.toml）
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    commit-message:
+      prefix: "chore(devpipe)"
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+
+  # VSCode 拡張（vscode/package.json）
+  - package-ecosystem: npm
+    directory: /vscode
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    commit-message:
+      prefix: "chore(devpipe-vscode)"
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+    ignore:
+      # 拡張が動く VSCode の下限（engines.vscode）と揃えておく型なので、勝手に上げない
+      - dependency-name: "@types/vscode"
+        update-types: [version-update:semver-major, version-update:semver-minor]
