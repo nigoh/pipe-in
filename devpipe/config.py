@@ -33,6 +33,8 @@ class Config:
     test_command: str | None = None
     test_timeout_sec: int = 1800
     auto_approve: bool = False
+    # 確認の段で入力を待たず、記録に「確認待ち」を残して止まる（チャットなど、対話できない所から動かすとき）
+    pause_for_review: bool = False
     extra_test_globs: list[str] = field(default_factory=list)
     stages: dict[str, StageConfig] = field(default_factory=dict)
     # ドメインの文書（用語集・コンテキストの地図など）を積み上げるフォルダ。設計の段だけが書ける。
@@ -63,6 +65,7 @@ def load_config(
     max_retries: int | None = None,
     test_command: str | None = None,
     auto_approve: bool = False,
+    pause_for_review: bool = False,
 ) -> Config:
     project_dir = project_dir.expanduser().resolve()
     if not project_dir.is_dir():
@@ -105,6 +108,7 @@ def load_config(
         test_command=test_command or p.get("test_command"),
         test_timeout_sec=int(p.get("test_timeout_sec", 1800)),
         auto_approve=auto_approve,
+        pause_for_review=pause_for_review,
         extra_test_globs=list(p.get("extra_test_globs", [])),
         stages=stages,
         domain_dir=domain_dir,

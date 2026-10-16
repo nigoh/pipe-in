@@ -439,3 +439,129 @@ def test_usage_report_mentions_reset():
         "five_hour": {"first": 0.12, "last": 0.02, "peak": 0.13, "reset_seen": True, "resets_at": None}}}
     text = "\n".join(usage_sections([{"seq": 1, "stage": "design", "metrics": metrics}], STAGE_LABELS))
     assert "12% → 2%" in text and "途中で枠が戻りました" in text and "最大 13%" in text
+
+
+# ---- 確認で止めて、あとから答える（チャットから動かすとき） ---------------
+
+
+def paused_cfg(tmp_path: Path, **kw):
+    return load_config(tmp_path, None, pause_for_review=True, **kw)
+
+
+def state_of(tmp_path: Path) -> dict:
+    import json
+
+    return json.loads((tmp_path / "docs/pipeline" / st.STATE).read_text(encoding="utf-8"))
+
+
+def review(tmp_path: Path, runner, decision: Decision, **kw) -> Exit:
+    return asyncio.run(Pipeline(paused_cfg(tmp_path, **kw), runner=runner).review(decision))
+
+
+def test_pause_stops_at_first_review(tmp_path):
+    r = FakeRunner([])
+    assert run(Pipeline(paused_cfg(tmp_path), runner=r)) == Exit.AWAITING_REVIEW
+    assert r.names() == ["requirements"]
+    s = state_of(tmp_path)
+    assert s["final"] is None  # 終わってはいない（VSCode のパネルでは「次を待っている」）
+    assert s["pending_review"]["stage"] == "requirements"
+    assert s["pending_review"]["session_id"] == "s-1"
+    assert s["pending_review"]["doc"].endswith(st.REQUIREMENTS)
+
+
+def test_review_approve_goes_to_next_review(tmp_path):
+    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    r = FakeRunner([])
+    assert review(tmp_path, r, Decision("approve")) == Exit.AWAITING_REVIEW
+    assert r.names() == ["design"]
+    s = state_of(tmp_path)
+    assert s["pending_review"]["stage"] == "design"
+    # 前の呼び出しの記録は消えずに続く
+    assert [h["stage"] for h in s["runs"] if "seq" in h] == ["requirements", "design"]
+    assert [h["seq"] for h in s["runs"] if "seq" in h] == [1, 2]
+    assert {"stage": "requirements", "review": "approved"} in s["runs"]
+
+
+def test_review_revise_resumes_same_session(tmp_path):
+    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    r = FakeRunner([])
+    assert review(tmp_path, r, Decision("revise", "AC を細かくして")) == Exit.AWAITING_REVIEW
+    assert r.names() == ["requirements"]
+    assert r.calls[0][1] == "s-1" and "AC を細かくして" in r.calls[0][2]
+    s = state_of(tmp_path)
+    assert s["pending_review"]["stage"] == "requirements"
+    assert {"stage": "requirements", "review": "revise", "feedback": "AC を細かくして"} in s["runs"]
+
+
+def test_review_quit_stops(tmp_path):
+    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    r = FakeRunner([])
+    assert review(tmp_path, r, Decision("quit")) == Exit.STOPPED_BY_HUMAN
+    assert r.names() == []
+    s = state_of(tmp_path)
+    assert s["final"] == "STOPPED_BY_HUMAN"
+    assert s.get("pending_review") is None
+
+
+def test_review_through_to_pass(tmp_path):
+    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    assert review(tmp_path, FakeRunner([]), Decision("approve")) == Exit.AWAITING_REVIEW  # → 設計
+    assert review(tmp_path, FakeRunner([]), Decision("approve")) == Exit.AWAITING_REVIEW  # → テスト先行
+    assert state_of(tmp_path)["pending_review"]["stage"] == "red"
+    r = FakeRunner(["fail", "pass"])
+    assert review(tmp_path, r, Decision("approve")) == Exit.PASSED
+    assert r.names() == ["implement", "test", "implement", "test"]
+    s = state_of(tmp_path)
+    assert s["final"] == "PASSED" and s.get("pending_review") is None
+    assert round(s["total_cost_usd"], 2) == 0.07  # 3 回の呼び出しをまたいだ合計
+    summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
+    assert "| 7 | 検証" in summary
+
+
+def test_red_warning_survives_pause(tmp_path):
+    shell = lambda c, d, t: ShellResult(0, "ok")  # noqa: E731
+    run(Pipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell))
+    review(tmp_path, FakeRunner([]), Decision("approve"))
+    p = Pipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell)
+    assert asyncio.run(p.review(Decision("approve"))) == Exit.AWAITING_REVIEW  # テスト先行で止まる
+    assert any("赤になっていません" in w for w in state_of(tmp_path)["warnings"])
+
+
+def test_review_without_pending_is_error(tmp_path):
+    with pytest.raises(SystemExit):
+        review(tmp_path, FakeRunner([]), Decision("approve"))
+    run(Pipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"])))  # 最後まで流れた記録
+    with pytest.raises(SystemExit):
+        review(tmp_path, FakeRunner([]), Decision("approve"))
+
+
+def test_cli_review_needs_feedback_for_revise(tmp_path):
+    from devpipe.__main__ import main
+
+    with pytest.raises(SystemExit):
+        main(["--project", str(tmp_path), "--review", "revise"])
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--review", "approve", "--from", "design"],
+        ["--review", "approve", "--yes"],
+        ["--feedback", "x"],
+        ["--pause", "--yes", "--text", "x"],
+    ],
+)
+def test_cli_rejects_mixed_review_args(tmp_path, argv):
+    from devpipe.__main__ import main
+
+    with pytest.raises(SystemExit) as e:
+        main(["--project", str(tmp_path), *argv])
+    assert isinstance(e.value.code, str)  # 引数の誤りの説明（argparse の 2 ではない）
+
+
+def test_cli_review_without_pending_explains(tmp_path):
+    from devpipe.__main__ import main
+
+    with pytest.raises(SystemExit) as e:
+        main(["--project", str(tmp_path), "--review", "approve"])
+    assert "確認待ち" in str(e.value.code)

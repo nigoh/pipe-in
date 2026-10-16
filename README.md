@@ -68,6 +68,21 @@ devpipe --project ~/src/myapp --from test        # 検証だけやり直す
 - `r`：修正してほしい点を書く（空行で終わり）。同じ会話のまま直させて、もう一度確認します
 - `q`：中止
 
+### 確認で止めて、あとから答える（チャットから動かすとき）
+
+対話できない所（Claude Code のチャット、CI など）から動かすときは `--pause` を付けます。確認の段まで流したら、入力を待たずに `state.json` の `pending_review`（段・文書・会話の ID）を残して止まります（終了コード 5）。文書を読んで、`--review` で答えると続きから流れます。
+
+```bash
+devpipe --project ~/src/myapp --input request.md --pause --test-cmd "pytest -q"   # 要件定義のあとで止まる
+devpipe --project ~/src/myapp --review approve --test-cmd "pytest -q"             # 承認 → 設計のあとで止まる
+devpipe --project ~/src/myapp --review revise --feedback "AC-03 を分けて"          # 同じ会話のまま直させ、また止まる
+devpipe --project ~/src/myapp --review quit                                       # 中止
+```
+
+- 記録（`state.json` の `runs`・段のログの番号・費用の合計・注意）は、呼び出しをまたいで続きます。
+- `--test-cmd`・`--max-retries` は記録に残らないので、`--review` のたびに同じものを渡してください。
+- 止まっている間の `final` は空のままです（VSCode のパネルでは「次を待っている」と出ます）。
+
 ## 作られるファイル
 
 対象プロジェクトの `docs/pipeline/` に置かれます（`work_dir` で変更可）。
@@ -81,7 +96,7 @@ devpipe --project ~/src/myapp --from test        # 検証だけやり直す
 | `04_implementation.md` | 実装の記録（回ごとに追記） | 実装 |
 | `05_test_report.md` | 検証報告（AC ごとの結果） | 検証 |
 | `99_summary.md` | 全体の結果、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
-| `state.json` | 実行の記録（機械向け）。段ごとの `metrics` と、全体の `usage_summary` を含む | パイプライン |
+| `state.json` | 実行の記録（機械向け）。段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
 `examples/truncate/` に、小さなプロジェクトで実際に流した結果があります（要件メモから合格まで、4段で約2分・約$0.85）。これはテスト先行の段を足す前（v0.1）の結果なので、ファイル名と段の数が今と違います。
@@ -164,6 +179,7 @@ model = "sonnet"
 | 2 | 確認の段階で中止した |
 | 3 | 段の実行が失敗した（文書が作られない、上限に達した、テストのない AC が残ったなど） |
 | 4 | テストを実行できなかった（環境の問題など。差し戻しはしない） |
+| 5 | 人の確認を待っている（`--pause` のとき。`--review` で続ける） |
 | 130 | Ctrl+C で中断（`--from` で再開できます） |
 
 ## 中身を直したいとき

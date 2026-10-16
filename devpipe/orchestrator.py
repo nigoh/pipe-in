@@ -26,6 +26,7 @@ class Exit(IntEnum):
     STOPPED_BY_HUMAN = 2
     STAGE_ERROR = 3
     BLOCKED = 4
+    AWAITING_REVIEW = 5
 
 
 EXIT_MESSAGES = {
@@ -34,6 +35,7 @@ EXIT_MESSAGES = {
     Exit.STOPPED_BY_HUMAN: "確認の段階で中止しました",
     Exit.STAGE_ERROR: "段の実行が途中で失敗しました",
     Exit.BLOCKED: "テストを実行できませんでした（環境などの問題）",
+    Exit.AWAITING_REVIEW: "人の確認を待っています",
 }
 
 
@@ -124,6 +126,8 @@ class Pipeline:
         self.history: list[dict[str, Any]] = []
         self.warnings: list[str] = []
         self.seq = 0
+        # 確認で止まっているときの {段・文書・会話の ID}。--review で続きから再開する。
+        self.pending: dict[str, Any] | None = None
         self.started_at = datetime.now().isoformat(timespec="seconds")
 
     # ---- 共通 ---------------------------------------------------------
@@ -139,9 +143,12 @@ class Pipeline:
         state = {
             "started_at": self.started_at,
             "updated_at": datetime.now().isoformat(timespec="seconds"),
-            "final": final.name if final is not None else None,
+            # 確認待ちは終わりではないので final は空のまま（pending_review を見る）
+            "final": final.name if final is not None and final != Exit.AWAITING_REVIEW else None,
             "total_cost_usd": self.total_cost,
             "usage_summary": summarize_runs([h.get("metrics") for h in self.history if "seq" in h]),
+            "pending_review": self.pending,
+            "warnings": self.warnings,
             "runs": self.history,
         }
         self.doc(st.STATE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -170,14 +177,22 @@ class Pipeline:
 
     # ---- 要件定義・設計（人の確認つき） ---------------------------------
 
-    async def _doc_stage(self, stage: str, prompt: str, doc_name: str) -> Exit | None:
-        run = await self._run(stage, prompt)
+    def _pause(self, stage: str, doc_name: str, run: StageRun) -> Exit:
+        self.pending = {"stage": stage, "doc": self.cfg.rel(self.doc(doc_name)), "session_id": run.session_id}
+        return Exit.AWAITING_REVIEW
+
+    async def _doc_stage(
+        self, stage: str, prompt: str, doc_name: str, *, resume: str | None = None, note: str = ""
+    ) -> Exit | None:
+        run = await self._run(stage, prompt, resume=resume, note=note)
         while True:
             if run.is_error or not self._doc_ready(doc_name):
                 print(f"  ✗ {STAGE_LABELS[stage]}の文書 {self.cfg.rel(self.doc(doc_name))} を作れませんでした")
                 return Exit.STAGE_ERROR
             if self.cfg.auto_approve:
                 return None
+            if self.cfg.pause_for_review:
+                return self._pause(stage, doc_name, run)
             decision = self.ask(stage, self.doc(doc_name))
             if decision.action == "approve":
                 self.history.append({"stage": stage, "review": "approved"})
@@ -211,8 +226,8 @@ class Pipeline:
             print(f"  ⚠ {msg}", flush=True)
         self._save_state()
 
-    async def _red_stage(self) -> Exit | None:
-        run = await self._run("red", st.red_prompt(self.cfg))
+    async def _red_stage(self, prompt: str | None = None, *, resume: str | None = None, note: str = "") -> Exit | None:
+        run = await self._run("red", prompt or st.red_prompt(self.cfg), resume=resume, note=note)
         asked_missing = False
         while True:
             result = parse_red(run)
@@ -239,6 +254,8 @@ class Pipeline:
             self._check_red_command()
             if self.cfg.auto_approve:
                 return None
+            if self.cfg.pause_for_review:
+                return self._pause("red", st.RED, run)
             decision = self.ask("red", self.doc(st.RED))
             if decision.action == "approve":
                 self.history.append({"stage": "red", "review": "approved"})
@@ -318,20 +335,71 @@ class Pipeline:
             self.doc(st.INPUT).write_text(input_text.strip() + "\n", encoding="utf-8")
         self._check_prereq(from_stage)
 
-        start = STAGES.index(from_stage)
+        result = await self._stages_from(STAGES.index(from_stage), skip_first_impl=(from_stage == "test"))
+        return self._finish(result)
+
+    async def review(self, decision: Decision) -> Exit:
+        """確認で止まった実行に答えて、続きを流す（--pause で止めたあとの --review）。"""
+        pending = self._load_pending()
+        stage = pending["stage"]
+        self.pending = None
+        start = STAGES.index(stage)
+        if decision.action == "approve":
+            self.history.append({"stage": stage, "review": "approved"})
+            self._save_state()
+            result = await self._stages_from(start + 1)
+        elif decision.action == "revise":
+            self.history.append({"stage": stage, "review": "revise", "feedback": decision.feedback})
+            first = (st.revise_prompt(self.cfg, stage, decision.feedback), pending["session_id"])
+            result = await self._stages_from(start, first=first)
+        else:
+            self.history.append({"stage": stage, "review": "quit"})
+            result = Exit.STOPPED_BY_HUMAN
+        return self._finish(result)
+
+    def _load_pending(self) -> dict[str, Any]:
+        path = self.doc(st.STATE)
+        data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        pending = data.get("pending_review")
+        if not pending:
+            raise SystemExit(f"確認待ちの実行がありません（{self.cfg.rel(path)}）。--pause で流したあとに --review を使ってください")
+        self.history = list(data.get("runs", []))
+        self.warnings = list(data.get("warnings", []))
+        self.started_at = data.get("started_at", self.started_at)
+        self.seq = max((h["seq"] for h in self.history if "seq" in h), default=0)
+        return pending
+
+    async def _stages_from(
+        self, start: int, *, first: tuple[str, str] | None = None, skip_first_impl: bool = False
+    ) -> Exit:
+        """start 番目の段から最後まで。first を渡すと、最初の段をその指示と会話の続きで動かす（修正の依頼）。"""
+
+        def opts(i: int, prompt: str) -> dict[str, Any]:
+            if first is not None and i == start:
+                return {"prompt": first[0], "resume": first[1], "note": "指摘を反映"}
+            return {"prompt": prompt}
+
         result: Exit | None = None
         if start <= 0:
-            result = await self._doc_stage("requirements", st.requirements_prompt(self.cfg), st.REQUIREMENTS)
+            o = opts(0, st.requirements_prompt(self.cfg))
+            result = await self._doc_stage("requirements", o.pop("prompt"), st.REQUIREMENTS, **o)
         if result is None and start <= 1:
-            result = await self._doc_stage("design", st.design_prompt(self.cfg), st.DESIGN)
+            o = opts(1, st.design_prompt(self.cfg))
+            result = await self._doc_stage("design", o.pop("prompt"), st.DESIGN, **o)
         if result is None and start <= 2:
-            result = await self._red_stage()
+            o = opts(2, st.red_prompt(self.cfg))
+            result = await self._red_stage(o.pop("prompt"), **o)
         if result is None:
-            result = await self._build_and_test(skip_first_impl=(from_stage == "test"))
+            result = await self._build_and_test(skip_first_impl=skip_first_impl)
+        return result
 
+    def _finish(self, result: Exit) -> Exit:
         self._save_state(result)
         self._write_summary(result)
         print(f"\n■ {EXIT_MESSAGES[result]}（合計 ${self.total_cost:.3f}）")
+        if result == Exit.AWAITING_REVIEW and self.pending:
+            print(f"  確認する文書: {self.pending['doc']}")
+            print('  続き: --review approve ／ --review revise --feedback "直してほしい点" ／ --review quit')
         print(f"  まとめ: {self.cfg.rel(self.doc(st.SUMMARY))}")
         return result
 
