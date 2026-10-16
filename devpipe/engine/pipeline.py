@@ -216,6 +216,12 @@ class BasePipeline:
     def _load_pending(self) -> dict[str, Any]:
         path = self.doc(STATE)
         data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        if data.get("driver") == "pipe-in":
+            # /pipe-in（devpipe record）の記録には会話の続きがないので、ここから SDK で流さない
+            raise SystemExit(
+                f"この記録（{self.cfg.rel(path)}）は Claude Code の /pipe-in が書いたものです。"
+                "続きは /pipe-in の会話で進めてください（devpipe --review では流せません）"
+            )
         pending = data.get("pending_review")
         if not pending:
             raise SystemExit(f"確認待ちの実行がありません（{self.cfg.rel(path)}）。--pause で流したあとに --review を使ってください")

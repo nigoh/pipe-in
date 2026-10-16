@@ -24,7 +24,7 @@ npm run preview               # 画面の確認用のページ（out/preview/）
 
 変更したら、触った側のテストを流してから終える。Python と拡張の両方に触れたら両方流す。
 
-機能を足すときは `/pipe-in <要件メモ>` を使う（`.claude/skills/pipe-in/`）。要件定義 → 設計 → テスト先行 → 実装 → 検証 をこの会話の中で順に進め、段の区切りで止まって確認を取る。止まらずに最後まで進めるのは `/pipe-in --auto <要件メモ>` のときだけ。
+機能を足すときは `/pipe-in <要件メモ>` を使う（`.claude/skills/pipe-in/`）。要件定義 → 設計 → テスト先行 → 実装 → 検証 を、段ごとにサブエージェント（`.claude/agents/pipe-in-*`）へ任せて順に進め、段の区切りで止まって確認を取る。サブエージェントの書ける範囲は `.claude/hooks/pipe_in_guard.py` が止める。進み具合は `python -m devpipe record` で `docs/pipeline/` に記録され、VSCode の拡張で見られる。止まらずに最後まで進めるのは `/pipe-in --auto <要件メモ>` のときだけ。
 使いかたの一覧は `/pipe-help`（`.claude/skills/pipe-help/`）。
 devpipe で流すパイプ（図を作る・仕様とソースの突き合わせなど）を作る・直すときは、プラグインのスキル `/devpipe:pipe-build <目的か直したい点>`（`plugin/`。入れ方は README の「Claude Code のプラグイン」。このリポジトリでも `/plugin marketplace add ./` → `/plugin install devpipe@devpipe` で入れて使う）。
 

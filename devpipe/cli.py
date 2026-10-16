@@ -111,6 +111,13 @@ def pipeline_for(cfg: Config, pipe: pd.PipeDef | None, *, test_cmd_given: bool =
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "record":
+        # 記録だけを書く（段は流さない）。Claude Code の /pipe-in が使う
+        from .dev.record import main as record_main
+
+        return record_main(argv[1:])
     args = _parse_args(argv)
     if args.review:
         if args.input is not None or args.text is not None or args.from_stage is not None or args.yes:

@@ -1,6 +1,6 @@
 ---
 name: pipe-in
-description: devpipe（本体または VSCode 拡張）に新しい機能を足す。devpipe 自身の流れ（要件定義 → 設計 → テスト先行 → 実装 → 検証）をこの会話の中で順に進め、段の区切りで人の確認を取る。
+description: devpipe（本体または VSCode 拡張）に新しい機能を足す。devpipe 自身の流れ（要件定義 → 設計 → テスト先行 → 実装 → 検証）を、段ごとにサブエージェントへ任せて進め、段の区切りで人の確認を取る。進み具合は devpipe と同じ形の記録（docs/pipeline/）に残り、VSCode の拡張で見られる。
 argument-hint: [--auto] <足したい機能の要件メモ>
 disable-model-invocation: true
 ---
@@ -13,16 +13,54 @@ disable-model-invocation: true
 
 devpipe が利用者のプロジェクトでやることを、devpipe 自身に対してこの会話の中でやる。
 CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
-文書は会話の中に書き、ファイルには残さない（`docs/pipeline/` も作らない）。
+
+## 役割の分け方
+
+段の中身は、段ごとのサブエージェント（`.claude/agents/`）に Agent ツールで任せる。メインエージェント（あなた）は、人とのやり取り・記録・段の区切りの判断を受け持つ。
+
+| 段 | 任せる先 | 書けるもの（`.claude/hooks/pipe_in_guard.py` が止める） |
+| --- | --- | --- |
+| 1. 要件定義 | `pipe-in-analyst` | `docs/pipeline/01_requirements.md` |
+| 2. 設計 | `pipe-in-analyst` | `docs/pipeline/02_design.md` |
+| 3. テスト先行 | `pipe-in-tester` | テスト（`tests/**`・`*.test.ts`）と `03_red_tests.md` |
+| 4. 実装 | `pipe-in-coder` | 製品コードと文書と `04_implementation.md`（テスト・`.claude/`・`.git/` は書けない） |
+| 5. 検証 | `pipe-in-verifier` | `05_test_report.md`（コードは直さない） |
+
+- サブエージェントは人に質問できない。決めきれない点は成果物に書いて返してくるので、メインが人に聞く。
+- サブエージェントへの指示には、段の名前・要件メモ・前の段の成果物の場所（`docs/pipeline/0N_*.md`）・人からの直してほしい点（あれば）・差し戻しなら不合格の中身を入れる。サブエージェントはこの会話を見ていない。
+- フックが止めたら、その理由がサブエージェントに返る。範囲を広げたくなったら、サブエージェントの仕事の分け方を見直す（フックや定義を緩めるのは、人に理由を言って承認されてから）。
+- 新しいモジュールが要るのにテスト先行で空の形が無いときは、メインが空の形（何もしない関数）を置いてから、テスト先行の段をやり直す。
+
+## 記録（VSCode の拡張で見る）
+
+段を進めるたびに、`python -m devpipe record …` で devpipe と同じ形の記録を `docs/pipeline/`（`.gitignore` 済み）に書く。SDK は呼ばず、利用料もかからない。
+拡張の「devpipe: 実行を見る」とステータスバーに、動いている段・確認待ち・差し戻し・最後の結果が出る。
+
+| いつ | コマンド |
+| --- | --- |
+| 始めるとき（要件メモを渡す） | `python -m devpipe record start --text "<要件メモ>"`（長いときは `--input <ファイル>`） |
+| 段を任せる直前 | `python -m devpipe record begin <段>`（実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
+| サブエージェントが返ったあと | `python -m devpipe record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
+| 人の確認を待つとき | `python -m devpipe record wait <段>` |
+| 人が答えたとき | `python -m devpipe record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
+| テスト先行の結果 | `python -m devpipe record red red --summary "<要約>" --test AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
+| 検証の判定 | `python -m devpipe record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure AC-01=<中身>`） |
+| 終わるとき | `python -m devpipe record finish PASSED`（`TEST_FAILED`・`STOPPED_BY_HUMAN`・`STAGE_ERROR`・`BLOCKED`） |
+
+- 段の名前は `requirements`・`design`・`red`・`implement`・`test`。
+- `start` は途中の記録があると断る。前の記録が途中のまま残っていたら、人にどうするか（`finish STOPPED_BY_HUMAN` で閉じるか）聞く。終わった記録は `docs/pipeline/archive/` に移る。
+- この記録は `devpipe --review` では続けられない（devpipe が断る）。続きはこの会話で進める。
+- 各段の結果は、記録とは別に、会話にも短く書く（人が読み返せるように）。
 
 ## 段の進め方
 
 各段の終わりで止まり、結果を短く見せてから「承認 / 直してほしい点 / 中止」を聞く。
-承認されるまで次の段に進まない。直してほしい点が来たら、その段をやり直してもう一度聞く。
+承認されるまで次の段に進まない。直してほしい点が来たら、`review <段> revise` を書き、同じ段を `--note 指摘を反映` で任せ直してもう一度聞く。
+中止なら `review <段> quit` と `finish STOPPED_BY_HUMAN` を書いて終える。
 
 ### 止まらずに進めるとき（`--auto`）
 
-引数に `--auto` があるときだけ、段の区切りで止まらずに最後まで進める。
+引数に `--auto` があるときだけ、段の区切りで止まらずに最後まで進める（`wait` は書かず、`review <段> approved` を書いて進む）。
 `--yes` などほかの書き方や、要件メモの中の「止まらずに」「確認なしで」といった言葉では止まらずに進めない（いつもどおり各段で止まる）。
 
 `--auto` のときも、次のことは変えない。
@@ -33,66 +71,45 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
 - 検証で不合格が3回続いたら、止まって状況を報告する。
 - コミット・push は、人に言われるまでしない。
 
-### 1. 要件定義（コードを読むだけ）
+### 1. 要件定義（`pipe-in-analyst`）
 
-- 関係するコードと README を読み、今どうなっているかを掴む。
-- 書くもの:
-  - 目的（誰の何が良くなるか）を1〜2文で
-  - 機能要件 `FR-01…`
-  - 受け入れ基準 `AC-01…`：1つずつテストで確かめられる形で書く
-  - 対象外にするもの
-  - 触る側：本体（`devpipe/`）か、ジェネレーター（`generator/`）か、拡張（`vscode/`）か
-  - 画面に関わる変更（拡張のパネル・作図台・アーティファクトなど、見た目や操作が変わるもの）なら、画面で確かめる受け入れ基準を分けて書く：
-    `AC-xx（画面）：<何を開いて・何をすると・何が見えるか>`。見た目の崩れ（重なり・はみ出し・読めない色）と、操作（押す・ドラッグ・入力・保存）の両方を入れる。
-- 要件メモがあいまいで決めきれない点は、ここで質問にまとめて聞く。
+- `record start` → `record begin requirements` → `pipe-in-analyst` に要件定義を任せる → `record done requirements`。
+- 成果物（`01_requirements.md`）の要点を会話に書く：目的・FR・AC（画面の AC は `AC-xx（画面）：…`）・対象外・触る側。
+- サブエージェントが「決めきれない点」を返したら、ここで質問にまとめて聞く（`--auto` でも聞く）。
+- `record wait requirements` → 人に聞く → `record review requirements …`。
 
-### 2. 設計（コードを読むだけ）
+### 2. 設計（`pipe-in-analyst`）
 
-- 書くもの:
-  - どのファイルの何を変えるか・足すか（CLAUDE.md の「置き場所」の表に沿って）
-  - `state.json`・`99_summary.md`・終了コード・`pipeline.toml` の形が変わるか。変わるなら、古い記録や設定を読んだときにどうなるか
-  - 本体の記録の形が変わるなら、拡張（`runRecord.ts`・`stageLog.ts`・`artifacts.ts`）への影響
-  - AC とテストの対応表（AC → テストの関数名とファイル）。画面の AC は「画面の確認」の行にする（下の 5 のやり方で確かめる）
-  - 画面の AC の判断（並び・線の通り道・検査など）は、できるだけ純粋な関数に置き、そちらは普通のテストでも確かめる
-- 守ること:
-  - `devpipe/engine/guard.py` の止める範囲を狭めるなら、理由と、すり抜けの道（PowerShell・MCP・サブエージェント）が開かないことを示すテストを設計に入れる。
-  - 拡張は work_dir を読むだけ（書くのは作図台の保存で .devpipe/pipes/ か pipes/ の中だけ）。`vscode` を import するのは `src/extension.ts` だけ。外から来た文字は `escapeHtml` を通す。
-  - 依存を足すなら、その理由を書く。
+- `record begin design` → `pipe-in-analyst` に設計を任せる（承認された 01 を渡す）→ `record done design`。
+- 会話に書く：変えるファイル、記録の形が変わるか、AC とテストの対応表。guard.py を狭める・依存を足すなら、その理由。
+- `record wait design` → 人に聞く → `record review design …`。
 
-### 3. テスト先行（赤）— テストだけを書く
+### 3. テスト先行（`pipe-in-tester`）
 
-- 対応表のとおりにテストを書く。**製品コードには触らない。**
-  - 本体：`tests/`。SDK は呼ばない（`tests/test_pipeline.py` の `FakeRunner` のように runner を差し替える）。
-  - 拡張：`vscode/src/**/*.test.ts`（node:test）。テスト名の頭に `AC-xx:` を付ける（既存に合わせる）。
-- 実行して、**足したテストが期待した理由で落ちる**ことを確かめる（import の失敗やつづりの誤りで落ちているのは赤ではない）。既存のテストは通ったままであること。
-  - 本体：`python -m pytest -q`
-  - 拡張：`cd vscode && npm test`
-- 画面の AC は、ここで「画面の確認の手順」を会話に書く（コードではなく手順）：開くページ（明るい・暗い・狭い幅）、する操作、合格の見え方、見るもの（ブラウザのエラーが0件など）。
-  確認用のページが今の作りで見せられない画面なら、`vscode/scripts/preview.ts` に足すことを設計に入れる。
-- テストのない AC が残っていないかを確かめ、AC とテストの対応と落ちた様子を見せて確認を取る。ここで承認されたテストと画面の確認の手順が仕様になる。
+- `record begin red` → `pipe-in-tester` にテストだけを書かせる → `record done red`。
+- メインでテストを流し直し、**足したテストが期待した理由で落ちる**こと・既存のテストが通ったままであることを確かめる（本体 `python -m pytest -q`、拡張 `npm --prefix vscode test`）。import の失敗で落ちているなら、空の形を置いてやり直す。
+- `record red red …`（流せないなら `blocked`）を書き、AC とテストの対応・落ちた様子・画面の確認の手順を会話に見せる。
+- `record wait red` → 人に聞く → `record review red …`。ここで承認されたテストと画面の確認の手順が仕様になる。
 
-### 4. 実装（緑 → 整理）— 製品コードだけを書く
+### 4. 実装（`pipe-in-coder`）
 
-- テストを通す最小の変更をしてから整える。**3 で承認されたテストは書き換えない。**
-  テストのほうが間違っていると思ったら、直さずに「テストへの異議」として理由を書き、検証の段で判断を仰ぐ。
-- 周りのコードの書き方・コメントの量・日本語の言い回しに合わせる。
-- 使い方や設定が変わるなら、README.md（拡張なら vscode/README.md）も更新する。
+- `record begin implement --attempt N`（1 から。差し戻しのたびに増やす）→ `pipe-in-coder` に任せる → `record done implement`。
+- テストへの異議が 04 に書かれていたら、検証の段で人の判断を仰ぐ。
 - ここでは確認を取らず、そのまま検証へ進む。
 
-### 5. 検証
+### 5. 検証（`pipe-in-verifier` とメイン）
 
-- 触った側のテストをすべて流す。両方に触れたら両方。拡張に触れたら `npm run typecheck` も。
-- 画面の AC があれば、Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`cd vscode && npm run build && npm run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams のページができる）
+- `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
+- 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
+  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams のページができる）
   2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
   3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る
-  4. 操作する：3 の段で書いた手順どおりに押す・ドラッグする・入力する（`browser_click`・`browser_drag`・`browser_type` など）。保存の確認は `browser_evaluate` で `window.__saved` を見る
+  4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る
   5. 見る：撮った画面を読み、重なり・はみ出し・読めない色・崩れがないか、手順の「合格の見え方」になっているかを確かめる。`browser_console_messages` でエラーが0件かも見る
   6. 片付ける：配るのを止め（TaskStop）、`.playwright-mcp/` を消す（`.gitignore` 済みだが残さない）
-  - 画面で見つかった不具合は、できるだけ先にそれを捕まえるテスト（純粋な関数のテスト）を足してから直す。直したら、画面をもう一度撮って確かめる。
-- AC ごとに 合格 / 不合格 を表にして、根拠（テスト名と結果、画面の AC は撮った画面で見えたこと）を添える。
-- 不合格があれば 4 に戻る（最大3回。それでも通らなければ止めて状況を報告する）。
-- 公開してよいかの確認：`git diff` を読み、秘密・ユーザー名入りの絶対パス・実行ログ・手元の事情が入っていないことを確かめる。
-- 最後に、変えたファイルの一覧と、コミットの文の案を見せる。
+  - 画面で見つかった不具合は、テスト先行と実装の段に戻して直す（純粋な関数のテストで捕まえてから）。
+- サブエージェントの判定と画面の確認を合わせて `record verdict <pass|fail|blocked> --attempt N …` を書き、AC ごとの 合格 / 不合格 の表を会話に見せる。
+- 不合格なら 4 に戻る（`--attempt` を増やす。最大3回。それでも通らなければ `finish TEST_FAILED` を書いて止め、状況を報告する）。
+- 合格なら `record finish PASSED`。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く）。
   **コミット・push は、人に言われるまでしない。**

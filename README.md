@@ -83,6 +83,23 @@ devpipe --project ~/src/myapp --review quit                                     
 - `--test-cmd`・`--max-retries` は記録に残らないので、`--review` のたびに同じものを渡してください。
 - 止まっている間の `final` は空のままです（VSCode のパネルでは「次を待っている」と出ます）。
 
+### 記録だけを書く（`devpipe record`）
+
+段を流さずに、開発フローと同じ形の記録（`state.json`・段のログ・`99_summary.md`）だけを書きます。SDK は呼ばず、利用料もかかりません。Claude Code の `/pipe-in` が、会話の中で進めた段を VSCode の拡張で見られるように使います。
+
+```bash
+devpipe record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
+devpipe record begin requirements                 # 段を始める（拡張に「動いている」と出る）
+devpipe record done requirements --summary "…"    # 段を閉じる
+devpipe record wait requirements                  # 確認待ち
+devpipe record review requirements approved       # revise --feedback "…" / quit
+devpipe record red red --summary "…"              # テスト先行の結果
+devpipe record verdict pass --attempt 1 --summary "…"
+devpipe record finish PASSED
+```
+
+- 記録には `"driver": "pipe-in"` が入り、`devpipe --review` はこの記録の続きを流しません。
+
 ## パイプ（目的に合わせた段の並び）
 
 上の開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます。

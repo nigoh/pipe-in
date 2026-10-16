@@ -22,7 +22,7 @@ disable-model-invocation: true
 
 | コマンド | すること |
 | --- | --- |
-| `/pipe-in <要件メモ>` | devpipe に機能を足す。要件定義 → 設計 → テスト先行 → 実装 → 検証 を順に進め、段ごとに止まって確認を取る |
+| `/pipe-in <要件メモ>` | devpipe に機能を足す。要件定義 → 設計 → テスト先行 → 実装 → 検証 を段ごとにサブエージェントへ任せて進め、段ごとに止まって確認を取る。進み具合は VSCode の「devpipe: 実行を見る」で見られる |
 | `/pipe-in --auto <要件メモ>` | 同じことを、段の区切りで止まらずに最後まで進める（決めきれない点や、利用料のかかる実行の前では止まる。コミットはしない） |
 | `/devpipe:pipe-build <目的か直したい点>` | パイプ（段の並び）を会話で作る・直す。プラグイン（`/plugin marketplace add ./` → `/plugin install devpipe@devpipe`）を入れて使う。どのプロジェクトでも使える |
 | `/pipe-help [知りたいこと]` | この一覧。知りたいことを付けると、そこだけ詳しく |
@@ -35,6 +35,7 @@ disable-model-invocation: true
 | 確認なしで最後まで流す | `devpipe --project <対象> --input request.md --yes` |
 | チャットから流す（確認で止めて、あとで答える） | `devpipe ... --pause` → `devpipe --project <対象> --review approve` ／ `--review revise --feedback "…"` ／ `--review quit` |
 | 途中から再開する | `devpipe --project <対象> --from design`（パイプでは段の名前） |
+| 記録だけを書く（段は流さない。/pipe-in が使う） | `devpipe record start --text "…"` → `begin <段>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`devpipe record --help`） |
 | パイプを流す | `devpipe --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける） |
 
 ### devpipe-gen（パイプを作る）

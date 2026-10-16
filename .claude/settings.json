@@ -32,5 +32,19 @@
       "Read(~/.npmrc)",
       "Read(~/.pypirc)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/pipe_in_guard.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
   }
 }
