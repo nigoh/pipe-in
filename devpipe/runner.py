@@ -11,6 +11,7 @@ from typing import Any, Protocol
 
 from .config import STAGE_LABELS, Config
 from .guard import make_guard_hook
+from .metrics import StageMetrics
 from .stages import StageSpec
 
 
@@ -27,6 +28,7 @@ class StageRun:
     duration_sec: float = 0.0
     denials: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    metrics: StageMetrics = field(default_factory=StageMetrics)
 
 
 class StageRunner(Protocol):
@@ -82,6 +84,7 @@ async def run_stage_sdk(
         can_write=spec.can_write,
         allow_bash=spec.allow_bash,
         write_scope_hint=spec.write_scope_hint,
+        allowed_tools=spec.allowed_tools,
         on_deny=on_deny,
     )
     sc = cfg.stage(spec.name)
@@ -91,7 +94,8 @@ async def run_stage_sdk(
         permission_mode="default",
         allowed_tools=spec.allowed_tools,
         disallowed_tools=spec.disallowed_tools,
-        hooks={"PreToolUse": [HookMatcher(matcher="Bash|Write|Edit|MultiEdit|NotebookEdit", hooks=[guard])]},
+        # すべてのツールに掛ける（段で許していないツールはガードが止める）
+        hooks={"PreToolUse": [HookMatcher(matcher=None, hooks=[guard])]},
         model=sc.model,
         max_turns=sc.max_turns,
         max_budget_usd=sc.max_budget_usd,
@@ -110,7 +114,9 @@ async def run_stage_sdk(
         async with ClaudeSDKClient(options=options) as client:
             await client.query(prompt)
             async for msg in client.receive_response():
-                log.write(json.dumps(_to_jsonable(msg), ensure_ascii=False, default=str) + "\n")
+                line = json.dumps(_to_jsonable(msg), ensure_ascii=False, default=str)
+                log.write(line + "\n")
+                run.metrics.feed(json.loads(line))  # ログと同じ形から集める
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):

@@ -15,7 +15,9 @@ from typing import Any
 from . import stages as st
 from .checkpoint import Decision, ask_human
 from .config import STAGE_LABELS, STAGES, Config
+from .metrics import summarize_runs
 from .runner import StageRun, StageRunner, run_stage_sdk
+from .usage_report import usage_sections
 
 
 class Exit(IntEnum):
@@ -139,6 +141,7 @@ class Pipeline:
             "updated_at": datetime.now().isoformat(timespec="seconds"),
             "final": final.name if final is not None else None,
             "total_cost_usd": self.total_cost,
+            "usage_summary": summarize_runs([h.get("metrics") for h in self.history if "seq" in h]),
             "runs": self.history,
         }
         self.doc(st.STATE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -151,7 +154,7 @@ class Pipeline:
         log_name = f"{self.seq:02d}_{stage}" + (f"_{attempt}" if attempt else "")
         run = await self.runner(self.specs[stage], prompt, self.cfg, resume=resume, log_name=log_name)
         entry = {k: v for k, v in asdict(run).items() if k not in ("structured",)}
-        entry.update({"seq": self.seq, "attempt": attempt, "note": note})
+        entry.update({"seq": self.seq, "attempt": attempt, "note": note, "metrics": run.metrics.to_dict()})
         self.history.append(entry)
         self._save_state()
         status = "失敗" if run.is_error else "完了"
@@ -370,7 +373,13 @@ class Pipeline:
             for h in verdicts:
                 v = h["verdict"]
                 lines.append(f"- {h['attempt']} 回目: {v['status']} — {v['summary']}")
+        lines += usage_sections(self.history, STAGE_LABELS)
         denials = [d for h in self.history for d in h.get("denials", [])]
+        denials += [
+            f"{tool}: 許可されずに止まりました"
+            for h in self.history
+            for tool in (h.get("metrics") or {}).get("permission_denials", [])
+        ]
         if denials:
             lines += ["", "## 止めた操作", ""] + [f"- {d}" for d in denials]
         self.doc(st.SUMMARY).write_text("\n".join(lines) + "\n", encoding="utf-8")

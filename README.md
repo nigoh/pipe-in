@@ -80,8 +80,8 @@ devpipe --project ~/src/myapp --from test        # 検証だけやり直す
 | `03_red_tests.md` | テスト先行の記録（AC とテストの対応、落ちたことの確認） | テスト先行 |
 | `04_implementation.md` | 実装の記録（回ごとに追記） | 実装 |
 | `05_test_report.md` | 検証報告（AC ごとの結果） | 検証 |
-| `99_summary.md` | 全体の結果、段ごとのターン数・費用・時間 | パイプライン |
-| `state.json` | 実行の記録（機械向け） | パイプライン |
+| `99_summary.md` | 全体の結果、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
+| `state.json` | 実行の記録（機械向け）。段ごとの `metrics` と、全体の `usage_summary` を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
 `examples/truncate/` に、小さなプロジェクトで実際に流した結果があります（要件メモから合格まで、4段で約2分・約$0.85）。これはテスト先行の段を足す前（v0.1）の結果なので、ファイル名と段の数が今と違います。
@@ -108,7 +108,22 @@ devpipe --project ~/src/myapp --from test        # 検証だけやり直す
 
 `git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得。
 
-止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `devpipe/guard.py` の PreToolUse フックで、自動承認したツールにも効きます。
+また、段ごとに許したツール（`devpipe/stages.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+
+止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `devpipe/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
+
+### まとめに出る使用量
+
+各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`devpipe/metrics.py`、表は `devpipe/usage_report.py`）。
+
+| 節 | 中身 |
+|---|---|
+| トークンの内訳 | 段ごとの入力・キャッシュ書き込み・キャッシュ読み込み・出力・うち thinking・キャッシュ再利用率・API 待ち時間と合計 |
+| モデル別 | モデルごとのトークンと費用 |
+| 環境 | 使われたモデル、Claude Code の版、認証の出どころ、許可のモード、費用の根拠、途中で止まった段 |
+| 利用枠 | 5時間枠・7日枠の使用率（開始 → 終了。途中で枠が戻ったときは最大値も）、枠が戻る時刻、超過利用の可否 |
+
+費用は定価での見積もり（`costBasis: list`）です。サブスクリプションでログインしている場合は、利用枠の使用率のほうが実際の負担に近い値です。
 
 ## 設定（pipeline.toml）
 

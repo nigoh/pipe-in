@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import fnmatch
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+
+# どの段でも使ってよい、読むだけ・手元の整理だけの道具
+ALWAYS_ALLOWED = {"Read", "Glob", "Grep", "Skill", "ToolSearch", "TodoWrite"}
 
 # どの段でも実行させない Bash コマンド
 DANGEROUS_BASH: list[tuple[str, str]] = [
@@ -59,8 +62,16 @@ def check_tool(
     can_write: Callable[[str], bool],
     allow_bash: bool,
     write_scope_hint: str,
+    allowed_tools: Collection[str] | None = None,
 ) -> str | None:
-    """拒否する場合はその理由を返す。許可なら None。"""
+    """拒否する場合はその理由を返す。許可なら None。
+
+    allowed_tools を渡すと、そこと ALWAYS_ALLOWED にないツール（PowerShell・MCP・サブエージェントなど）は
+    すべて止める。書き込みの範囲や危ない操作の判定は Bash と書き込み系のツールにしか掛けていないため、
+    それ以外の道から同じことをされないようにする。
+    """
+    if allowed_tools is not None and tool_name not in ALWAYS_ALLOWED and tool_name not in allowed_tools:
+        return f"この段では {tool_name} を使えません"
     if tool_name == "Bash":
         if not allow_bash:
             return "この段では Bash を使えません"
@@ -93,6 +104,7 @@ def make_guard_hook(
     can_write: Callable[[str], bool],
     allow_bash: bool,
     write_scope_hint: str,
+    allowed_tools: Collection[str] | None = None,
     on_deny: Callable[[str, str], None] | None = None,
 ):
     async def guard(input_data: dict[str, Any], tool_use_id: str | None, context: Any) -> dict[str, Any]:
@@ -105,6 +117,7 @@ def make_guard_hook(
             can_write=can_write,
             allow_bash=allow_bash,
             write_scope_hint=write_scope_hint,
+            allowed_tools=allowed_tools,
         )
         if reason:
             if on_deny:

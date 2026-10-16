@@ -23,6 +23,8 @@ STATE = "state.json"
 READ_TOOLS = ["Read", "Glob", "Grep"]
 EDIT_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
 NO_WEB = ["WebFetch", "WebSearch"]
+# Bash と同じことができるのにガードの判定を通らない道。ガードでも止めるが、最初から使えなくしておく。
+NO_SHELL_BYPASS = ["PowerShell"]
 
 TEST_VERDICT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -129,7 +131,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         "requirements": StageSpec(
             name="requirements",
             allowed_tools=READ_TOOLS + EDIT_TOOLS,
-            disallowed_tools=["Bash"] + NO_WEB,
+            disallowed_tools=["Bash"] + NO_WEB + NO_SHELL_BYPASS,
             allow_bash=False,
             can_write=lambda rel: in_work(rel, REQUIREMENTS),
             write_scope_hint=f"{work}/{REQUIREMENTS}",
@@ -138,7 +140,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         "design": StageSpec(
             name="design",
             allowed_tools=READ_TOOLS + EDIT_TOOLS,
-            disallowed_tools=["Bash"] + NO_WEB,
+            disallowed_tools=["Bash"] + NO_WEB + NO_SHELL_BYPASS,
             allow_bash=False,
             can_write=design_can_write,
             write_scope_hint=design_hint,
@@ -147,7 +149,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         "red": StageSpec(
             name="red",
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
-            disallowed_tools=NO_WEB,
+            disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
             can_write=test_writer(RED),
             write_scope_hint=f"テストファイルと {work}/{RED}",
@@ -157,7 +159,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         "implement": StageSpec(
             name="implement",
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
-            disallowed_tools=NO_WEB,
+            disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
             can_write=impl_can_write,
             write_scope_hint=f"製品コードと {work}/{IMPLEMENTATION}（テストファイルは除く）",
@@ -166,7 +168,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         "test": StageSpec(
             name="test",
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
-            disallowed_tools=NO_WEB,
+            disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
             can_write=test_writer(TEST_REPORT),
             write_scope_hint=f"テストファイルと {work}/{TEST_REPORT}",
