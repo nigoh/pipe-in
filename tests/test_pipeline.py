@@ -7,12 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from devpipe import stages as st
-from devpipe.checkpoint import Decision, ask_human
-from devpipe.config import load_config
-from devpipe.guard import check_tool, is_test_path
-from devpipe.orchestrator import Exit, Pipeline, ShellResult
-from devpipe.runner import StageRun
+from devpipe.dev import specs as st
+from devpipe.engine.checkpoint import Decision, ask_human
+from devpipe.engine.config import load_config
+from devpipe.engine.guard import check_tool, is_test_path
+from devpipe.dev.pipeline import DevPipeline
+from devpipe.engine.pipeline import Exit, ShellResult
+from devpipe.engine.runner import StageRun
 
 
 class FakeRunner:
@@ -72,7 +73,7 @@ def run(p: Pipeline, text: str | None = "ログイン画面を作る", frm: str 
 
 def test_all_pass(tmp_path):
     r = FakeRunner(["pass"])
-    res = run(Pipeline(make_cfg(tmp_path), runner=r))
+    res = run(DevPipeline(make_cfg(tmp_path), runner=r))
     assert res == Exit.PASSED
     assert r.names() == FLOW + ["implement", "test"]
     summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
@@ -81,7 +82,7 @@ def test_all_pass(tmp_path):
 
 def test_retry_then_pass(tmp_path):
     r = FakeRunner(["fail", "fail", "pass"])
-    res = run(Pipeline(make_cfg(tmp_path), runner=r))
+    res = run(DevPipeline(make_cfg(tmp_path), runner=r))
     assert res == Exit.PASSED
     assert r.names() == FLOW + ["implement", "test"] * 3
     # 2回目以降の実装には不合格の内容が渡る
@@ -91,14 +92,14 @@ def test_retry_then_pass(tmp_path):
 
 def test_retry_limit(tmp_path):
     r = FakeRunner(["fail"] * 4)
-    res = run(Pipeline(make_cfg(tmp_path), runner=r))
+    res = run(DevPipeline(make_cfg(tmp_path), runner=r))
     assert res == Exit.TEST_FAILED
     assert r.names().count("implement") == 4  # 初回 + 差し戻し3回
 
 
 def test_blocked_stops_without_retry(tmp_path):
     r = FakeRunner(["blocked"])
-    res = run(Pipeline(make_cfg(tmp_path), runner=r))
+    res = run(DevPipeline(make_cfg(tmp_path), runner=r))
     assert res == Exit.BLOCKED
     assert r.names().count("implement") == 1
 
@@ -106,7 +107,7 @@ def test_blocked_stops_without_retry(tmp_path):
 def test_human_revise_then_approve(tmp_path):
     answers = iter([Decision("revise", "未確定事項を減らして"), Decision("approve"), Decision("approve"), Decision("approve")])
     r = FakeRunner(["pass"])
-    p = Pipeline(make_cfg(tmp_path, auto_approve=False), runner=r, ask=lambda s, d: next(answers))
+    p = DevPipeline(make_cfg(tmp_path, auto_approve=False), runner=r, ask=lambda s, d: next(answers))
     assert run(p) == Exit.PASSED
     assert r.names()[:3] == ["requirements", "requirements", "design"]
     # 修正の依頼は同じ会話を再開して渡す
@@ -115,7 +116,7 @@ def test_human_revise_then_approve(tmp_path):
 
 def test_human_quit(tmp_path):
     r = FakeRunner([])
-    p = Pipeline(make_cfg(tmp_path, auto_approve=False), runner=r, ask=lambda s, d: Decision("quit"))
+    p = DevPipeline(make_cfg(tmp_path, auto_approve=False), runner=r, ask=lambda s, d: Decision("quit"))
     assert run(p) == Exit.STOPPED_BY_HUMAN
     assert r.names() == ["requirements"]
 
@@ -124,7 +125,7 @@ def test_command_check_overrides_pass(tmp_path):
     r = FakeRunner(["pass", "pass"])
     # 1つ目はテスト先行のあとの「赤」の確認
     results = iter([ShellResult(1, "1 failed"), ShellResult(1, "1 failed"), ShellResult(0, "ok")])
-    p = Pipeline(make_cfg(tmp_path, test_command="pytest -q"), runner=r, shell=lambda c, d, t: next(results))
+    p = DevPipeline(make_cfg(tmp_path, test_command="pytest -q"), runner=r, shell=lambda c, d, t: next(results))
     assert run(p) == Exit.PASSED
     assert r.names().count("implement") == 2
 
@@ -136,13 +137,13 @@ def test_resume_from_test(tmp_path):
     (w / st.DESIGN).write_text("x", encoding="utf-8")
     (w / st.RED).write_text("x", encoding="utf-8")
     r = FakeRunner(["fail", "pass"])
-    assert run(Pipeline(make_cfg(tmp_path), runner=r), None, "test") == Exit.PASSED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=r), None, "test") == Exit.PASSED
     assert r.names() == ["test", "implement", "test"]
 
 
 def test_resume_needs_docs(tmp_path):
     with pytest.raises(SystemExit):
-        run(Pipeline(make_cfg(tmp_path), runner=FakeRunner([])), None, "implement")
+        run(DevPipeline(make_cfg(tmp_path), runner=FakeRunner([])), None, "implement")
 
 
 def test_missing_verdict_is_blocked(tmp_path):
@@ -155,7 +156,7 @@ def test_missing_verdict_is_blocked(tmp_path):
                 r.subtype = "error_max_turns"
             return r
 
-    assert run(Pipeline(make_cfg(tmp_path), runner=NoVerdict(["pass"]))) == Exit.BLOCKED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=NoVerdict(["pass"]))) == Exit.BLOCKED
 
 
 # ---- 書き込み制限 ----------------------------------------------------------
@@ -252,7 +253,7 @@ class TwoAcRunner(FakeRunner):
 
 def test_red_comes_before_implement(tmp_path):
     r = FakeRunner(["pass"])
-    run(Pipeline(make_cfg(tmp_path), runner=r))
+    run(DevPipeline(make_cfg(tmp_path), runner=r))
     assert r.names().index("red") < r.names().index("implement")
     impl_prompt = [c for c in r.calls if c[0] == "implement"][0][2]
     assert st.RED in impl_prompt
@@ -260,13 +261,13 @@ def test_red_comes_before_implement(tmp_path):
 
 def test_red_blocked_stops(tmp_path):
     r = FakeRunner([], reds=[red_verdict("AC-01", status="blocked")])
-    assert run(Pipeline(make_cfg(tmp_path), runner=r)) == Exit.BLOCKED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=r)) == Exit.BLOCKED
     assert "implement" not in r.names()
 
 
 def test_red_missing_ac_is_asked_again(tmp_path):
     r = TwoAcRunner(["pass"], reds=[red_verdict("AC-01"), red_verdict("AC-01", "AC-02")])
-    assert run(Pipeline(make_cfg(tmp_path), runner=r)) == Exit.PASSED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=r)) == Exit.PASSED
     reds = [c for c in r.calls if c[0] == "red"]
     assert len(reds) == 2
     assert reds[1][1] is not None and "AC-02" in reds[1][2]  # 同じ会話で、抜けた AC を伝える
@@ -274,13 +275,13 @@ def test_red_missing_ac_is_asked_again(tmp_path):
 
 def test_red_missing_ac_twice_is_error(tmp_path):
     r = TwoAcRunner([], reds=[red_verdict("AC-01"), red_verdict("AC-01")])
-    assert run(Pipeline(make_cfg(tmp_path), runner=r)) == Exit.STAGE_ERROR
+    assert run(DevPipeline(make_cfg(tmp_path), runner=r)) == Exit.STAGE_ERROR
     assert "implement" not in r.names()
 
 
 def test_red_already_green_is_warned(tmp_path):
     r = FakeRunner(["pass"])
-    p = Pipeline(make_cfg(tmp_path, test_command="pytest -q"), runner=r, shell=lambda c, d, t: ShellResult(0, "ok"))
+    p = DevPipeline(make_cfg(tmp_path, test_command="pytest -q"), runner=r, shell=lambda c, d, t: ShellResult(0, "ok"))
     assert run(p) == Exit.PASSED
     summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
     assert "赤になっていません" in summary
@@ -293,7 +294,7 @@ def test_red_is_reviewed_by_human(tmp_path):
         seen.append(stage)
         return Decision("approve")
 
-    run(Pipeline(make_cfg(tmp_path, auto_approve=False), runner=FakeRunner(["pass"]), ask=ask))
+    run(DevPipeline(make_cfg(tmp_path, auto_approve=False), runner=FakeRunner(["pass"]), ask=ask))
     assert seen == ["requirements", "design", "red"]
 
 
@@ -303,7 +304,7 @@ def test_resume_from_implement_needs_red(tmp_path):
     (w / st.REQUIREMENTS).write_text("x", encoding="utf-8")
     (w / st.DESIGN).write_text("x", encoding="utf-8")
     with pytest.raises(SystemExit):
-        run(Pipeline(make_cfg(tmp_path), runner=FakeRunner([])), None, "implement")
+        run(DevPipeline(make_cfg(tmp_path), runner=FakeRunner([])), None, "implement")
 
 
 def test_red_stage_writes_only_tests(tmp_path):
@@ -378,7 +379,7 @@ def test_powershell_is_disallowed_up_front(tmp_path, stage):
 
 
 def test_guard_hook_denies_powershell(tmp_path):
-    from devpipe.guard import make_guard_hook
+    from devpipe.engine.guard import make_guard_hook
 
     cfg = make_cfg(tmp_path)
     spec = st.build_specs(cfg)["implement"]
@@ -397,7 +398,7 @@ def test_guard_hook_denies_powershell(tmp_path):
 
 
 def test_summary_has_usage_sections(tmp_path):
-    from devpipe.metrics import StageMetrics
+    from devpipe.usage.metrics import StageMetrics
 
     class WithMetrics(FakeRunner):
         async def __call__(self, spec, prompt, cfg, *, resume, log_name):
@@ -414,7 +415,7 @@ def test_summary_has_usage_sections(tmp_path):
             r.metrics = m
             return r
 
-    assert run(Pipeline(make_cfg(tmp_path), runner=WithMetrics(["pass"]))) == Exit.PASSED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=WithMetrics(["pass"]))) == Exit.PASSED
     summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
     for heading in ("## トークンの内訳", "## モデル別", "## 環境", "## 利用枠"):
         assert heading in summary, heading
@@ -426,14 +427,14 @@ def test_summary_has_usage_sections(tmp_path):
 
 
 def test_summary_without_metrics_still_works(tmp_path):
-    assert run(Pipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"]))) == Exit.PASSED
+    assert run(DevPipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"]))) == Exit.PASSED
     summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
     assert "テストまで合格しました" in summary and "## トークンの内訳" not in summary
 
 
 def test_usage_report_mentions_reset():
-    from devpipe.config import STAGE_LABELS
-    from devpipe.usage_report import usage_sections
+    from devpipe.dev.specs import STAGE_LABELS
+    from devpipe.usage.report import usage_sections
 
     metrics = {"tokens": {"output": 1}, "rate_limits": {
         "five_hour": {"first": 0.12, "last": 0.02, "peak": 0.13, "reset_seen": True, "resets_at": None}}}
@@ -455,12 +456,12 @@ def state_of(tmp_path: Path) -> dict:
 
 
 def review(tmp_path: Path, runner, decision: Decision, **kw) -> Exit:
-    return asyncio.run(Pipeline(paused_cfg(tmp_path, **kw), runner=runner).review(decision))
+    return asyncio.run(DevPipeline(paused_cfg(tmp_path, **kw), runner=runner).review(decision))
 
 
 def test_pause_stops_at_first_review(tmp_path):
     r = FakeRunner([])
-    assert run(Pipeline(paused_cfg(tmp_path), runner=r)) == Exit.AWAITING_REVIEW
+    assert run(DevPipeline(paused_cfg(tmp_path), runner=r)) == Exit.AWAITING_REVIEW
     assert r.names() == ["requirements"]
     s = state_of(tmp_path)
     assert s["final"] is None  # 終わってはいない（VSCode のパネルでは「次を待っている」）
@@ -470,7 +471,7 @@ def test_pause_stops_at_first_review(tmp_path):
 
 
 def test_review_approve_goes_to_next_review(tmp_path):
-    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
     r = FakeRunner([])
     assert review(tmp_path, r, Decision("approve")) == Exit.AWAITING_REVIEW
     assert r.names() == ["design"]
@@ -483,7 +484,7 @@ def test_review_approve_goes_to_next_review(tmp_path):
 
 
 def test_review_revise_resumes_same_session(tmp_path):
-    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
     r = FakeRunner([])
     assert review(tmp_path, r, Decision("revise", "AC を細かくして")) == Exit.AWAITING_REVIEW
     assert r.names() == ["requirements"]
@@ -494,7 +495,7 @@ def test_review_revise_resumes_same_session(tmp_path):
 
 
 def test_review_quit_stops(tmp_path):
-    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
     r = FakeRunner([])
     assert review(tmp_path, r, Decision("quit")) == Exit.STOPPED_BY_HUMAN
     assert r.names() == []
@@ -504,7 +505,7 @@ def test_review_quit_stops(tmp_path):
 
 
 def test_review_through_to_pass(tmp_path):
-    run(Pipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
     assert review(tmp_path, FakeRunner([]), Decision("approve")) == Exit.AWAITING_REVIEW  # → 設計
     assert review(tmp_path, FakeRunner([]), Decision("approve")) == Exit.AWAITING_REVIEW  # → テスト先行
     assert state_of(tmp_path)["pending_review"]["stage"] == "red"
@@ -520,9 +521,9 @@ def test_review_through_to_pass(tmp_path):
 
 def test_red_warning_survives_pause(tmp_path):
     shell = lambda c, d, t: ShellResult(0, "ok")  # noqa: E731
-    run(Pipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell))
+    run(DevPipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell))
     review(tmp_path, FakeRunner([]), Decision("approve"))
-    p = Pipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell)
+    p = DevPipeline(paused_cfg(tmp_path, test_command="pytest -q"), runner=FakeRunner([]), shell=shell)
     assert asyncio.run(p.review(Decision("approve"))) == Exit.AWAITING_REVIEW  # テスト先行で止まる
     assert any("赤になっていません" in w for w in state_of(tmp_path)["warnings"])
 
@@ -530,13 +531,13 @@ def test_red_warning_survives_pause(tmp_path):
 def test_review_without_pending_is_error(tmp_path):
     with pytest.raises(SystemExit):
         review(tmp_path, FakeRunner([]), Decision("approve"))
-    run(Pipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"])))  # 最後まで流れた記録
+    run(DevPipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"])))  # 最後まで流れた記録
     with pytest.raises(SystemExit):
         review(tmp_path, FakeRunner([]), Decision("approve"))
 
 
 def test_cli_review_needs_feedback_for_revise(tmp_path):
-    from devpipe.__main__ import main
+    from devpipe.cli import main
 
     with pytest.raises(SystemExit):
         main(["--project", str(tmp_path), "--review", "revise"])
@@ -552,7 +553,7 @@ def test_cli_review_needs_feedback_for_revise(tmp_path):
     ],
 )
 def test_cli_rejects_mixed_review_args(tmp_path, argv):
-    from devpipe.__main__ import main
+    from devpipe.cli import main
 
     with pytest.raises(SystemExit) as e:
         main(["--project", str(tmp_path), *argv])
@@ -560,7 +561,7 @@ def test_cli_rejects_mixed_review_args(tmp_path, argv):
 
 
 def test_cli_review_without_pending_explains(tmp_path):
-    from devpipe.__main__ import main
+    from devpipe.cli import main
 
     with pytest.raises(SystemExit) as e:
         main(["--project", str(tmp_path), "--review", "approve"])

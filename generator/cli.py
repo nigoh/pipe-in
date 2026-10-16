@@ -1,0 +1,162 @@
+"""パイプを作る・見る・検査するコマンド:  devpipe-gen list / new <名前> --from <ひな形> / check <名前>"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import sys
+from pathlib import Path
+
+from devpipe.pipe import definition as pd
+
+from .detect import detect
+from .render import render_template, template_values
+
+RENDERED_SUFFIXES = {".toml": True, ".md": False}  # 拡張子 → TOML として埋めるか
+
+
+def templates_dir() -> Path:
+    return Path(__file__).resolve().parent / "templates"
+
+
+def _templates() -> list[Path]:
+    d = templates_dir()
+    return sorted(p for p in d.iterdir() if (p / pd.PIPE_FILE).is_file()) if d.is_dir() else []
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(prog="devpipe-gen", description="devpipe のパイプ（pipes/devpipe-<名前>/）を作る・見る・検査します。")
+    sub = p.add_subparsers(dest="command", required=True)
+
+    def common(sp: argparse.ArgumentParser, *, project: bool) -> None:
+        sp.add_argument("--pipes-dir", type=Path, help=f"パイプを置くフォルダ（既定: devpipe の pipes/。{pd.PIPES_DIR_ENV} でも変えられる）")
+        if project:
+            sp.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
+
+    common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=False)
+
+    new = sub.add_parser("new", help="ひな形から pipes/devpipe-<名前>/ を作る")
+    new.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
+    new.add_argument("--from", dest="template", required=True, help="もとにするひな形（devpipe-gen list で一覧）")
+    new.add_argument("--force", action="store_true", help="同じ名前のパイプがあっても作り直す")
+    common(new, project=True)
+
+    ck = sub.add_parser("check", help="パイプの定義を検査する")
+    ck.add_argument("name", help="パイプの名前かフォルダのパス")
+    common(ck, project=True)
+    return p.parse_args(argv)
+
+
+def _project(path: Path) -> Path:
+    project = path.expanduser().resolve()
+    if not project.is_dir():
+        raise SystemExit(f"プロジェクトのフォルダが見つかりません: {project}")
+    return project
+
+
+def _label(pipe_dir: Path) -> str:
+    try:
+        return pd.load_pipe(pipe_dir).label
+    except pd.PipeError:
+        return "（読めません）"
+
+
+def cmd_list(pipes_dir: Path) -> int:
+    print("ひな形（devpipe-gen new <名前> --from <ひな形> で使う）:\n")
+    for t in _templates():
+        print(f"  {t.name:<12}  {_label(t)}")
+    pipes = pd.list_pipes(pipes_dir)
+    print(f"\n作ったパイプ（devpipe --pipe <名前> で流す）: {pipes_dir}\n")
+    if not pipes:
+        print("  （まだありません）")
+    for d in pipes:
+        name = d.name.removeprefix(pd.PREFIX)
+        print(f"  {name:<12}  {_label(d)}")
+    return 0
+
+
+def _report(pipe: pd.PipeDef, errors: list[str]) -> int:
+    if errors:
+        print(f"✗ パイプ「{pipe.name}」に誤りがあります:")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    print(f"✓ パイプ「{pipe.name}」: 問題ありません")
+    return 0
+
+
+def cmd_check(pipes_dir: Path, project: Path, name: str) -> int:
+    path = pd.find_pipe(name, pipes_dir)
+    if path is None:
+        print(f"✗ パイプ「{name}」が見つかりません（devpipe-gen list で一覧を出せます）")
+        return 1
+    try:
+        pipe = pd.load_pipe(path)
+    except pd.PipeError as e:
+        print(f"✗ {e}")
+        return 1
+    return _report(pipe, pd.check_pipe(pipe, project))
+
+
+def _write_from_template(template: Path, dest: Path, values: dict[str, str | None]) -> None:
+    for src in sorted(template.rglob("*")):
+        if not src.is_file() or "__pycache__" in src.parts:
+            continue
+        out = dest / src.relative_to(template)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if src.suffix in RENDERED_SUFFIXES:
+            text = render_template(src.read_text(encoding="utf-8"), values, toml=RENDERED_SUFFIXES[src.suffix])
+            out.write_text(text, encoding="utf-8")
+        else:
+            shutil.copyfile(src, out)
+
+
+def cmd_new(pipes_dir: Path, project: Path, name: str, template_name: str, force: bool) -> int:
+    if not pd.is_valid_name(name):
+        print(f"✗ パイプの名前「{name}」は使えません（英小文字・数字・- だけ。logs は不可）")
+        return 1
+    template = templates_dir() / template_name
+    if not pd.is_valid_name(template_name) or not (template / pd.PIPE_FILE).is_file():
+        names = ", ".join(t.name for t in _templates())
+        print(f"✗ ひな形「{template_name}」はありません（{names}）")
+        return 1
+    dest = pipes_dir / f"{pd.PREFIX}{name}"
+    if dest.exists():
+        if not force:
+            print(f"✗ {dest} はもうあります。作り直すなら --force を付けてください")
+            return 1
+        if not (dest / pd.PIPE_FILE).is_file():
+            print(f"✗ {dest} はパイプのフォルダではないため、作り直しません")
+            return 1
+        shutil.rmtree(dest)
+
+    env = detect(project)
+    _write_from_template(template, dest, template_values(env, name))
+    print(f"✓ {dest} を作りました（ひな形: {template_name}）")
+    print(
+        f"  見つけた環境: 言語 {', '.join(env.languages) or '不明'}・テスト {env.test_command or 'なし'}・"
+        f"ソース {', '.join(env.source_dirs)}・文書 {', '.join(env.docs_dirs) or 'なし'}"
+    )
+    try:
+        pipe = pd.load_pipe(dest)
+    except pd.PipeError as e:
+        print(f"✗ {e}")
+        return 1
+    result = _report(pipe, pd.check_pipe(pipe, project))
+    if result == 0:
+        print("\n中身は自由に直せます（段の並び・権限・確認は pipe.toml、指示は prompts/）。直したら devpipe-gen check で確かめてください。")
+        need = {"required": ' --text "依頼メモ"', "optional": ' [--text "依頼メモ"]'}.get(pipe.input, "")
+        print(f"流す: devpipe --pipe {name} --project <対象のフォルダ>{need}")
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
+    pipes_dir = (args.pipes_dir or pd.default_pipes_dir()).expanduser()
+    if args.command == "list":
+        return cmd_list(pipes_dir)
+    project = _project(args.project)
+    if args.command == "check":
+        return cmd_check(pipes_dir, project, args.name)
+    return cmd_new(pipes_dir, project, args.name, args.template, args.force)
+

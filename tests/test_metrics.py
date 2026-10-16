@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from devpipe.metrics import StageMetrics, summarize_runs
+from devpipe.usage.metrics import StageMetrics, summarize_runs
 
 INIT = {
     "_type": "SystemMessage",

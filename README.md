@@ -4,6 +4,8 @@
 
 実行の進み具合を VSCode のパネルで図として見るプラグインは [`vscode/`](vscode/README.md) にあります。
 
+開発のほかにも、段の並びを自分で決めた **パイプ** をジェネレーターで作って流せます（ソースから図を作る、仕様とソースを突き合わせて QA の観点を出す、など）。→ [パイプ](#パイプ目的に合わせた段の並び)
+
 - 要件定義・設計・テスト先行のあとに、人が内容を確認します（承認 / 修正を依頼 / 中止）。
 - テスト先行の段は、製品コードより先に受け入れ基準（AC）ごとのテストを書き、落ちることを確かめます。テストのない AC が残れば差し戻します。
 - 検証が不合格なら、検証報告を添えて実装へ差し戻します（既定で最大3回）。
@@ -24,9 +26,9 @@
 ## インストール
 
 ```bash
-cd dev-pipeline
+cd devpipe
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e .     # devpipe と devpipe-gen が入る
 ```
 
 ## 使い方
@@ -81,6 +83,76 @@ devpipe --project ~/src/myapp --review quit                                     
 - `--test-cmd`・`--max-retries` は記録に残らないので、`--review` のたびに同じものを渡してください。
 - 止まっている間の `final` は空のままです（VSCode のパネルでは「次を待っている」と出ます）。
 
+## パイプ（目的に合わせた段の並び）
+
+上の開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます。
+パイプは1つのフォルダ（`pipes/devpipe-<名前>/`）で、**ジェネレーター**（`devpipe-gen`）がひな形から作ります。
+
+```
+generator/                 ジェネレーター（環境の検出・ひな形・パイプの生成と検査）
+└─ templates/              ひな形（dev / diagrams / spec-qa）
+pipes/                     作ったパイプ（1パイプ＝1フォルダ。.gitignore 済み）
+└─ devpipe-diagrams/
+   ├─ pipe.toml            段の並び・書き込める範囲・確認の有無
+   ├─ prompts/             段ごとの指示文
+   └─ README.md            何をするパイプか・流し方
+```
+
+```bash
+devpipe-gen list                                                # ひな形と、作ったパイプの一覧
+devpipe-gen new diagrams --from diagrams --project ~/src/myapp  # pipes/devpipe-diagrams/ を作る
+devpipe-gen check diagrams --project ~/src/myapp                # 定義の誤りを調べる
+devpipe --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"
+```
+
+Claude Code では `/pipe-craft <目的>` で、目的を聞きながら作れます。
+
+- `devpipe-gen new` は対象のファイル（`pyproject.toml`・`package.json`・`go.mod`・`Cargo.toml`、`src/`・`docs/` など）を見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
+- 同じ名前のパイプがあれば作りません（`--force` で作り直し）。
+- パイプは devpipe のリポジトリの `pipes/` に置きます（clone して `pip install -e .` で使う前提）。`DEVPIPE_PIPES_DIR` か `--pipes-dir` で変えられます。
+- `pipes/` の中身は `.gitignore` 済みです。指示文に対象プロジェクトの事情が入りやすいためです。共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
+
+### ひな形
+
+| 名前 | 段 | 作るもの |
+|---|---|---|
+| `dev` | 要件定義 → 設計 → テスト先行 → 実装 → 検証 | 上の開発フローそのもの。テストのコマンドを環境から埋める |
+| `diagrams` | ソースの調査 → 図を描く → 図とソースの突き合わせ | フロー図・シーケンス図・状態遷移図・クラス図（Mermaid）|
+| `spec-qa` | 仕様とソースの対応 → 食い違いと検討事項 → QA の観点とテストケース | 対応表・食い違いの一覧・テストケース案。どの段もコードは書かない |
+
+### 定義の書き方（`pipe.toml`）
+
+```toml
+[pipe]
+kind = "linear"            # "linear"（下の段を順に流す）か "dev"（組み込みの開発フロー）
+label = "ソースから図を作る"
+input = "optional"         # 依頼メモが required / optional / none
+
+[[stages]]
+name = "survey"            # 英小文字・数字・-
+label = "ソースの調査"
+output = "01_survey.md"    # 成果物（記録の置き場所の中のファイル名）
+access = "read"            # 書き込める範囲の型（下の表）
+review = true              # この段のあとで人の確認を取る
+prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短ければ prompt = "..." で直接書いてもよい
+# bash = true              # Bash を使わせる（危ない操作はいつも止める）
+# model = "sonnet" / max_turns = 100 / max_budget_usd = 1.0
+```
+
+| access | 書き込める範囲 |
+|---|---|
+| `read` | 自分の成果物だけ |
+| `docs` | 自分の成果物と `docs_dir` の下（`docs_dir` はプロジェクトの中） |
+| `tests` | 自分の成果物とテストファイル |
+| `code` | 自分の成果物と製品コード（テストファイルは除く） |
+
+- 段は定義の順に流れ、各段には依頼メモと前の段の成果物の場所が渡されます。差し戻しはありません（前へ進むだけ）。
+- 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
+- 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
+- Web・PowerShell・MCP などは使えず、`protected_paths` とパイプのフォルダはどの段も書けません。定義でこれを緩めることはできません。
+- `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。
+
+## 作られるファイル
 ## 作られるファイル
 
 対象プロジェクトの `docs/pipeline/` に置かれます（`work_dir` で変更可）。
@@ -94,7 +166,7 @@ devpipe --project ~/src/myapp --review quit                                     
 | `04_implementation.md` | 実装の記録（回ごとに追記） | 実装 |
 | `05_test_report.md` | 検証報告（AC ごとの結果） | 検証 |
 | `99_summary.md` | 全体の結果、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
-| `state.json` | 実行の記録（機械向け）。段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
+| `state.json` | 実行の記録（機械向け）。段の並び（`stages`：名前・表示名・成果物・確認の有無）、段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
 `examples/truncate/` に、小さなプロジェクトで実際に流した結果があります（要件メモから合格まで、4段で約2分・約$0.85）。これはテスト先行の段を足す前（v0.1）の結果なので、ファイル名と段の数が今と違います。
@@ -121,13 +193,13 @@ devpipe --project ~/src/myapp --review quit                                     
 
 `git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得。
 
-また、段ごとに許したツール（`devpipe/stages.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+また、段ごとに許したツール（`devpipe/dev/specs.py`・`devpipe/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
 
-止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `devpipe/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
+止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `devpipe/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
 
 ### まとめに出る使用量
 
-各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`devpipe/metrics.py`、表は `devpipe/usage_report.py`）。
+各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`devpipe/usage/metrics.py`、表は `devpipe/usage/report.py`）。
 
 | 節 | 中身 |
 |---|---|
@@ -184,11 +256,14 @@ model = "sonnet"
 
 | やりたいこと | 場所 |
 |---|---|
-| 各段への指示（文書の構成、守ること） | `devpipe/prompts/*.md` |
-| 段の順番、確認、差し戻しの流れ | `devpipe/orchestrator.py` |
-| 段ごとのツールと書き込み範囲 | `devpipe/stages.py` |
-| 止める操作 | `devpipe/guard.py` の `DANGEROUS_BASH` |
-| SDK の呼び出し | `devpipe/runner.py` |
+| 開発フローの各段への指示（文書の構成、守ること） | `devpipe/dev/prompts/*.md` |
+| 開発フローの段の順番、確認、差し戻しの流れ | `devpipe/dev/pipeline.py` |
+| 開発フローの段ごとのツールと書き込み範囲 | `devpipe/dev/specs.py` |
+| どのパイプにも共通の流れ（記録・確認・まとめ） | `devpipe/engine/pipeline.py` |
+| 止める操作 | `devpipe/engine/guard.py` の `DANGEROUS_BASH` |
+| SDK の呼び出し | `devpipe/engine/runner.py` |
+| パイプの読み込み・検査・流れ・権限の型 | `devpipe/pipe/` |
+| パイプの生成・環境の検出・ひな形 | `generator/`（`devpipe-gen`）・`generator/templates/` |
 
 テストは `pip install -e '.[dev]' && pytest` で実行できます。SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめます。
 

@@ -1,0 +1,33 @@
+# devpipe のパイプ：ソースを読んで図を作る（フロー図・シーケンス図・状態遷移図・クラス図）
+#
+# 段の並び・書き込める範囲・確認の有無はここで、各段への指示は prompts/ のファイルで決めます。
+
+[pipe]
+kind = "linear"
+label = "ソースから図を作る（フロー図・シーケンス図・状態遷移図・クラス図）"
+description = "ソースを調べ、Mermaid で図を描き、図とソースが合っているかを確かめる"
+input = "optional"  # 依頼メモで、図にしたい範囲や観点を伝えられる
+
+[[stages]]
+name = "survey"
+label = "ソースの調査"
+output = "01_survey.md"
+access = "read"
+review = true
+prompt_file = "prompts/01_survey.md"
+
+[[stages]]
+name = "draw"
+label = "図を描く"
+output = "02_diagrams.md"
+access = "docs"
+docs_dir = "{{diagrams_dir}}"
+review = true
+prompt_file = "prompts/02_draw.md"
+
+[[stages]]
+name = "verify"
+label = "図とソースの突き合わせ"
+output = "03_verify.md"
+access = "read"
+prompt_file = "prompts/03_verify.md"

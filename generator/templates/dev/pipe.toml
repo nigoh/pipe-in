@@ -1,0 +1,13 @@
+# devpipe のパイプ：開発（要件定義 → 設計 → テスト先行 → 実装 → 検証）
+#
+# 段の並び・差し戻し・テスト先行の検査は devpipe に組み込みです。ここで変えられるのはテストのコマンドだけで、
+# 段ごとのモデルや上限は、対象プロジェクトの pipeline.toml の [stages.<段>] で決めます。
+
+[pipe]
+kind = "dev"
+label = "開発（要件定義 → 設計 → テスト先行 → 実装 → 検証）"
+description = "要件メモから、テスト先行で機能を作り、検証に通るまで実装へ差し戻す"
+input = "required"
+
+# 検証の段のあとに、判定の裏付けとして実行するコマンド（--test-cmd が優先、pipeline.toml より優先）
+test_command = "{{test_command}}"

@@ -10,17 +10,22 @@ dependencies = ["claude-agent-sdk>=0.2.159,<0.3"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-devpipe = "devpipe.__main__:main"
+devpipe = "devpipe.cli:main"
+devpipe-gen = "devpipe_generator.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["devpipe", "devpipe.prompts"]
+# エンジン（devpipe/）と、ジェネレーター（generator/ を devpipe_generator という名前で入れる）
+packages = ["devpipe", "devpipe.engine", "devpipe.usage", "devpipe.dev", "devpipe.pipe", "devpipe_generator"]
+package-dir = { "devpipe_generator" = "generator" }
 
 [tool.setuptools.package-data]
-"devpipe.prompts" = ["*.md"]
+"devpipe.dev" = ["prompts/*.md"]
+"devpipe.pipe" = ["*.md"]
+"devpipe_generator" = ["templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

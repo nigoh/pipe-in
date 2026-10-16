@@ -1,4 +1,4 @@
-"""要件定義・設計・テスト先行のあとに、人が内容を確認する。"""
+"""確認ありの段のあとに、人が内容を確認する（承認 / 修正を依頼 / 中止）。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-
-from .config import STAGE_LABELS
 
 
 @dataclass
@@ -30,16 +28,15 @@ def _read_feedback(read: Callable[[str], str]) -> str:
     return "\n".join(lines)
 
 
-def ask_human(stage: str, doc: Path, *, read: Callable[[str], str] = input) -> Decision:
+def ask_human(stage: str, doc: Path, *, read: Callable[[str], str] = input, label: str | None = None) -> Decision:
     try:
-        return _ask(stage, doc, read)
+        return _ask(stage, doc, read, label or stage)
     except EOFError:
         print("\n  入力を読めなかったため中止します（確認を省くなら --yes）。")
         return Decision("quit")
 
 
-def _ask(stage: str, doc: Path, read: Callable[[str], str]) -> Decision:
-    label = STAGE_LABELS[stage]
+def _ask(stage: str, doc: Path, read: Callable[[str], str], label: str) -> Decision:
     text = doc.read_text(encoding="utf-8") if doc.exists() else ""
     lines = text.splitlines()
     print()

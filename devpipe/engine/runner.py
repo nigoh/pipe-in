@@ -9,10 +9,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from .config import STAGE_LABELS, Config
+from .config import Config
 from .guard import make_guard_hook
-from .metrics import StageMetrics
-from .stages import StageSpec
+from ..usage.metrics import StageMetrics
+from .spec import StageSpec
 
 
 @dataclass
@@ -73,7 +73,7 @@ async def run_stage_sdk(
     )
 
     run = StageRun(stage=spec.name)
-    label = STAGE_LABELS[spec.name]
+    label = spec.label
 
     def on_deny(tool: str, reason: str) -> None:
         run.denials.append(f"{tool}: {reason}")
@@ -96,9 +96,9 @@ async def run_stage_sdk(
         disallowed_tools=spec.disallowed_tools,
         # すべてのツールに掛ける（段で許していないツールはガードが止める）
         hooks={"PreToolUse": [HookMatcher(matcher=None, hooks=[guard])]},
-        model=sc.model,
-        max_turns=sc.max_turns,
-        max_budget_usd=sc.max_budget_usd,
+        model=sc.model or spec.model,
+        max_turns=sc.max_turns or spec.max_turns,
+        max_budget_usd=sc.max_budget_usd or spec.max_budget_usd,
         output_format=spec.output_format,
         resume=resume,
         setting_sources=cfg.setting_sources,

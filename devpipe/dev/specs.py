@@ -1,30 +1,36 @@
-"""各段の定義（使えるツール、書き込める範囲、指示文）とプロンプトの組み立て。"""
+"""開発フローの5段の定義（使えるツール、書き込める範囲、指示文）とプロンプトの組み立て。"""
 
 from __future__ import annotations
 
-import fnmatch
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from importlib import resources
 from typing import Any
 
-from .config import Config
-from .guard import is_test_path
+from ..engine.config import Config
+from ..engine.guard import is_test_path
+from ..engine.pipeline import INPUT, STATE, SUMMARY
+from ..engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec, protect
 
-INPUT = "00_input.md"
+__all__ = ["INPUT", "STATE", "SUMMARY"]  # 開発フローの記録のファイル名として、ここからも引けるようにする
+
+STAGES: tuple[str, ...] = ("requirements", "design", "red", "implement", "test")
+
+STAGE_LABELS: dict[str, str] = {
+    "requirements": "要件定義",
+    "design": "設計",
+    "red": "テスト先行",
+    "implement": "実装",
+    "test": "検証",
+}
+
+# 段ごとの既定のターン数（pipeline.toml の [stages.<段>] max_turns が優先）
+DEFAULT_MAX_TURNS = {"requirements": 40, "design": 60, "red": 100, "implement": 150, "test": 100}
+
 REQUIREMENTS = "01_requirements.md"
 DESIGN = "02_design.md"
 RED = "03_red_tests.md"
 IMPLEMENTATION = "04_implementation.md"
 TEST_REPORT = "05_test_report.md"
-SUMMARY = "99_summary.md"
-STATE = "state.json"
-
-READ_TOOLS = ["Read", "Glob", "Grep"]
-EDIT_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
-NO_WEB = ["WebFetch", "WebSearch"]
-# Bash と同じことができるのにガードの判定を通らない道。ガードでも止めるが、最初から使えなくしておく。
-NO_SHELL_BYPASS = ["PowerShell"]
 
 TEST_VERDICT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -77,21 +83,8 @@ RED_RESULT_SCHEMA: dict[str, Any] = {
 }
 
 
-@dataclass
-class StageSpec:
-    name: str
-    allowed_tools: list[str]
-    disallowed_tools: list[str]
-    allow_bash: bool
-    can_write: Callable[[str], bool]
-    write_scope_hint: str
-    system_append: str
-    output_format: dict[str, Any] | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
-
-
 def _prompt_text(name: str) -> str:
-    return resources.files("devpipe").joinpath(f"prompts/{name}.md").read_text(encoding="utf-8")
+    return resources.files("devpipe.dev").joinpath(f"prompts/{name}.md").read_text(encoding="utf-8")
 
 
 def build_specs(cfg: Config) -> dict[str, StageSpec]:
@@ -130,6 +123,10 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
     specs = {
         "requirements": StageSpec(
             name="requirements",
+            label=STAGE_LABELS["requirements"],
+            output=REQUIREMENTS,
+            review=True,
+            max_turns=DEFAULT_MAX_TURNS["requirements"],
             allowed_tools=READ_TOOLS + EDIT_TOOLS,
             disallowed_tools=["Bash"] + NO_WEB + NO_SHELL_BYPASS,
             allow_bash=False,
@@ -139,6 +136,10 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         ),
         "design": StageSpec(
             name="design",
+            label=STAGE_LABELS["design"],
+            output=DESIGN,
+            review=True,
+            max_turns=DEFAULT_MAX_TURNS["design"],
             allowed_tools=READ_TOOLS + EDIT_TOOLS,
             disallowed_tools=["Bash"] + NO_WEB + NO_SHELL_BYPASS,
             allow_bash=False,
@@ -148,6 +149,10 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         ),
         "red": StageSpec(
             name="red",
+            label=STAGE_LABELS["red"],
+            output=RED,
+            review=True,
+            max_turns=DEFAULT_MAX_TURNS["red"],
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
             disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
@@ -158,6 +163,9 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         ),
         "implement": StageSpec(
             name="implement",
+            label=STAGE_LABELS["implement"],
+            output=IMPLEMENTATION,
+            max_turns=DEFAULT_MAX_TURNS["implement"],
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
             disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
@@ -167,6 +175,9 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
         ),
         "test": StageSpec(
             name="test",
+            label=STAGE_LABELS["test"],
+            output=TEST_REPORT,
+            max_turns=DEFAULT_MAX_TURNS["test"],
             allowed_tools=READ_TOOLS + EDIT_TOOLS + ["Bash"],
             disallowed_tools=NO_WEB + NO_SHELL_BYPASS,
             allow_bash=True,
@@ -176,18 +187,7 @@ def build_specs(cfg: Config) -> dict[str, StageSpec]:
             output_format={"type": "json_schema", "schema": TEST_VERDICT_SCHEMA},
         ),
     }
-    if cfg.protected_paths:
-        for spec in specs.values():
-            spec.can_write = _unless_protected(spec.can_write, cfg.protected_paths)
-            spec.write_scope_hint += f"（{', '.join(cfg.protected_paths)} はどの段も変更できません）"
-    return specs
-
-
-def _unless_protected(can_write: Callable[[str], bool], globs: list[str]) -> Callable[[str], bool]:
-    def wrapped(rel: str) -> bool:
-        return not any(fnmatch.fnmatch(rel, g) for g in globs) and can_write(rel)
-
-    return wrapped
+    return protect(specs, cfg)
 
 
 # ---- 各段への依頼文 -------------------------------------------------------
