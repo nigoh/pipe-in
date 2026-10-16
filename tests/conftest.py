@@ -23,3 +23,48 @@ except ImportError:
         module = importlib.util.module_from_spec(spec)
         sys.modules["devpipe_generator"] = module
         spec.loader.exec_module(module)
+
+
+# ---- テストがリポジトリの実物を変えていないかの見張り（docs/development/testing.md） ----------
+#
+# テストは tmp_path の中だけに書く。リポジトリの pipes/・.devpipe/・docs/pipeline/ に書いたら、
+# テストがすべて通っていても、最後に失敗にする（前に、テストが本物の pipes/ にパイプを作ったことがあるため）。
+
+WATCHED = ("pipes", ".devpipe", "docs/pipeline")
+
+
+def snapshot(root: Path) -> dict[str, tuple[int, int]]:
+    """見張るフォルダの中のファイル → （大きさ, 更新の時刻）。"""
+    found: dict[str, tuple[int, int]] = {}
+    for name in WATCHED:
+        base = root / name
+        if not base.is_dir():
+            continue
+        for p in base.rglob("*"):
+            if p.is_file() and "__pycache__" not in p.parts:
+                st = p.stat()
+                found[p.relative_to(root).as_posix()] = (st.st_size, st.st_mtime_ns)
+    return found
+
+
+def changes(before: dict[str, tuple[int, int]], after: dict[str, tuple[int, int]]) -> list[str]:
+    """足された・消された・変わったファイル。"""
+    return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+
+
+def pytest_sessionstart(session) -> None:
+    session.config._devpipe_watch = snapshot(ROOT)
+
+
+def pytest_sessionfinish(session, exitstatus) -> None:
+    before = getattr(session.config, "_devpipe_watch", None)
+    if before is None:
+        return
+    changed = changes(before, snapshot(ROOT))
+    if changed:
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        lines = "\n".join(f"  - {c}" for c in changed)
+        message = f"テストがリポジトリの実物を変えました（tmp_path に書いてください）:\n{lines}"
+        if reporter:
+            reporter.write_line(message, red=True)
+        session.exitstatus = 1

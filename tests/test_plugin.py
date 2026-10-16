@@ -23,7 +23,7 @@ def frontmatter(path: Path) -> tuple[dict[str, str], str]:
     return fields, m.group(2)
 
 
-# ---- AC-01: マーケットプレイスとプラグイン ----------------------------------------------
+# ---- D0001-AC-01: マーケットプレイスとプラグイン ----------------------------------------------
 
 
 def test_marketplace_points_to_plugin():
@@ -35,7 +35,7 @@ def test_marketplace_points_to_plugin():
     assert manifest["name"] == "devpipe"
 
 
-# ---- AC-02: スキル --------------------------------------------------------------------
+# ---- D0001-AC-02: スキル --------------------------------------------------------------------
 
 
 def test_skill_frontmatter_and_sections():
@@ -47,7 +47,7 @@ def test_skill_frontmatter_and_sections():
         assert word in body, word
 
 
-# ---- AC-03: エージェント --------------------------------------------------------------
+# ---- D0001-AC-03: エージェント --------------------------------------------------------------
 
 
 def test_agent_tools_and_ignored_fields():
@@ -61,7 +61,7 @@ def test_agent_tools_and_ignored_fields():
         assert word in body, word
 
 
-# ---- AC-04: フック --------------------------------------------------------------------
+# ---- D0001-AC-04: フック --------------------------------------------------------------------
 
 
 def test_hooks_call_guard_hook_without_shell():
@@ -72,7 +72,7 @@ def test_hooks_call_guard_hook_without_shell():
     assert {"type": "command", "command": "devpipe-gen", "args": ["guard-hook"]}.items() <= commands[0].items()
 
 
-# ---- AC-05: /pipe-craft は残っていない -------------------------------------------------
+# ---- D0001-AC-05: /pipe-craft は残っていない -------------------------------------------------
 
 
 def test_pipe_craft_is_gone():

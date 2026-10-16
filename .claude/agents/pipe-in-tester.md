@@ -9,8 +9,10 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 
 - 書けるのはテスト（`tests/**`・`vscode/src/**/*.test.ts`・`vscode/src/test/**`）と `docs/pipeline/03_red_tests.md` だけ。製品コードを書こうとするとフックが止める。
 - Bash で使えるのはテストを流すコマンドだけ：`python -m pytest …`・`pytest …`・`npm --prefix vscode test`。コマンドをつなぐ記号（; & | > $ など）は使えない。
-- 本体のテストは SDK を呼ばない形で書く（tests/test_pipeline.py の FakeRunner のように runner を差し替える）。拡張のテストは名前の頭に `AC-xx:` を付ける。
-- 足したテストが **期待した理由で落ちる** ことを確かめる。import の失敗やつづりの誤りで落ちているのは赤ではない。新しいモジュールが要るときは、親に「空の形（何もしない関数）を置いてほしい」と返す（自分では製品コードを書けない）。
+- 書く前に `docs/development/testing.md`（偽物の使い方・やってはいけないこと・赤の確かめ方・名前と粒度）を読む。
+- 本体のテストは SDK を呼ばない形で書く（tests/test_pipeline.py の FakeRunner のように runner を差し替える）。テストの名前（拡張）か docstring（Python）の頭に `Dnnnn-AC-xx:` を付ける。
+- リポジトリの実物（`pipes/`・`.devpipe/`・`docs/pipeline/`）に書くテストにしない。ファイルは `tmp_path`・`mkdtemp` の中に作る（`tests/conftest.py` が見張っていて、書いたら失敗になる）。
+- 足したテストが **期待した理由で落ちる** ことを確かめる。足したテストのファイルだけを流し、失敗を1件ずつ、出力を切らずに読む。構文・つづり・補助の誤りで落ちているのは赤ではない。今の作りのままで通るテストは、そう書く。新しいモジュールが要るときは、親に「空の形（何もしない関数）を置いてほしい」と返す（自分では製品コードを書けない）。
 - 既存のテストは通ったままであること。
 - 画面の AC があれば、03_red_tests.md に「画面の確認の手順」（開くページ・する操作・合格の見え方・見るもの）を書く。
 

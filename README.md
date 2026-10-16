@@ -397,6 +397,8 @@ model = "sonnet"
 
 テストは `pip install -e '.[dev]' && pytest` で実行できます。SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめます。
 
+直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](docs/development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](docs/decisions/) にあります。
+
 ## 注意
 
 - 費用は SDK が返す概算です。実際の請求とはずれることがあります。

@@ -12,7 +12,16 @@ disable-model-invocation: true
 （空なら、何を足したいかを一言で聞いてから始める）
 
 devpipe が利用者のプロジェクトでやることを、devpipe 自身に対してこの会話の中でやる。
-CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
+開発のルール（`docs/development/`）と CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
+段の成果物（`docs/pipeline/`）は手元の作業の記録で、追跡しない。追跡して残すのは、検証の段で書く決定の記録（`docs/decisions/`）だけ。
+
+## 0. 始める前に
+
+- 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
+  今の作業フォルダが main のままなら、`git worktree add ../devpipe-<名前> -b feat/<名前>` で切り、以降はそのフォルダで作業する（切ったことを伝える）。`docs/pipeline/` の記録も、その worktree の中にできる。
+  すでに機能のブランチの worktree にいるなら、そのまま進める。
+- `git status` で、ほかの作業の変更が残っていないかを見る。残っていれば、進める前に人に伝える。
+- 決定の記録の番号 `Dnnnn` を決める（`docs/decisions/` の次の番号）。受け入れ基準の ID は `Dnnnn-AC-xx` にする（`docs/development/specs.md`）。
 
 ## 役割の分け方
 
@@ -27,7 +36,8 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
 | 5. 検証 | `pipe-in-verifier` | `05_test_report.md`（コードは直さない） |
 
 - サブエージェントは人に質問できない。決めきれない点は成果物に書いて返してくるので、メインが人に聞く。
-- サブエージェントへの指示には、段の名前・要件メモ・前の段の成果物の場所（`docs/pipeline/0N_*.md`）・人からの直してほしい点（あれば）・差し戻しなら不合格の中身を入れる。サブエージェントはこの会話を見ていない。
+- サブエージェントへの指示には、段の名前・要件メモ・決定の記録の番号 `Dnnnn`・前の段の成果物の場所（`docs/pipeline/0N_*.md`）・人からの直してほしい点（あれば）・差し戻しなら不合格の中身を入れる。サブエージェントはこの会話を見ていない。
+- サブエージェントは、段に合わせて `docs/development/` の決まりを読む（要件定義は `specs.md`、設計は `design.md`、テスト先行は `testing.md`、実装は `design.md` と `workflow.md` の「3. そろえる」）。指示にもその文書を書く。
 - フックが止めたら、その理由がサブエージェントに返る。範囲を広げたくなったら、サブエージェントの仕事の分け方を見直す（フックや定義を緩めるのは、人に理由を言って承認されてから）。
 - 新しいモジュールが要るのにテスト先行で空の形が無いときは、メインが空の形（何もしない関数）を置いてから、テスト先行の段をやり直す。
 
@@ -43,8 +53,8 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
 | サブエージェントが返ったあと | `python -m devpipe record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
 | 人の確認を待つとき | `python -m devpipe record wait <段>` |
 | 人が答えたとき | `python -m devpipe record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
-| テスト先行の結果 | `python -m devpipe record red red --summary "<要約>" --test AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
-| 検証の判定 | `python -m devpipe record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure AC-01=<中身>`） |
+| テスト先行の結果 | `python -m devpipe record red red --summary "<要約>" --test Dnnnn-AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
+| 検証の判定 | `python -m devpipe record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure Dnnnn-AC-01=<中身>`） |
 | 終わるとき | `python -m devpipe record finish PASSED`（`TEST_FAILED`・`STOPPED_BY_HUMAN`・`STAGE_ERROR`・`BLOCKED`） |
 
 - 段の名前は `requirements`・`design`・`red`・`implement`・`test`。
@@ -74,20 +84,21 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
 ### 1. 要件定義（`pipe-in-analyst`）
 
 - `record start` → `record begin requirements` → `pipe-in-analyst` に要件定義を任せる → `record done requirements`。
-- 成果物（`01_requirements.md`）の要点を会話に書く：目的・FR・AC（画面の AC は `AC-xx（画面）：…`）・対象外・触る側。
+- 成果物（`01_requirements.md`）の要点を会話に書く：目的・FR・AC（`Dnnnn-AC-xx`。画面の AC は `Dnnnn-AC-xx（画面）：…`、手で・実機で確かめるものは `（手で）`・`（実機）`）・対象外・触る側。
 - サブエージェントが「決めきれない点」を返したら、ここで質問にまとめて聞く（`--auto` でも聞く）。
 - `record wait requirements` → 人に聞く → `record review requirements …`。
 
 ### 2. 設計（`pipe-in-analyst`）
 
 - `record begin design` → `pipe-in-analyst` に設計を任せる（承認された 01 を渡す）→ `record done design`。
-- 会話に書く：変えるファイル、記録の形が変わるか、AC とテストの対応表。guard.py を狭める・依存を足すなら、その理由。
+- 会話に書く：変えるファイル（`docs/development/design.md` の置き場所の表と層に沿って）、記録・設定・パイプ・置き場所の形が変わるか（古いものをどう扱うか）、AC とテストの対応表。guard.py・guard_hook.py・pipe_in_guard.py を狭める・依存を足すなら、その理由。
 - `record wait design` → 人に聞く → `record review design …`。
 
 ### 3. テスト先行（`pipe-in-tester`）
 
 - `record begin red` → `pipe-in-tester` にテストだけを書かせる → `record done red`。
-- メインでテストを流し直し、**足したテストが期待した理由で落ちる**こと・既存のテストが通ったままであることを確かめる（本体 `python -m pytest -q`、拡張 `npm --prefix vscode test`）。import の失敗で落ちているなら、空の形を置いてやり直す。
+- メインでテストを流し直し、**足したテストが期待した理由で落ちる**こと・既存のテストが通ったままであることを確かめる（本体 `python -m pytest -q`、拡張 `npm --prefix vscode test`）。やり方は `docs/development/testing.md` の「赤の確かめ方」：足したテストのファイルだけを流し、失敗を1件ずつ、出力を切らずに読む。構文・つづり・補助の誤りで落ちているのは赤ではない。import の失敗で落ちているなら、空の形を置いてやり直す。今の作りのままで通るテストは、そう書く。
+- テストの名前（拡張）か docstring（Python）の頭に `Dnnnn-AC-xx:` が付いているか、リポジトリの実物（`pipes/`・`.devpipe/`・`docs/pipeline/` の記録の外）に書いていないかも見る。
 - `record red red …`（流せないなら `blocked`）を書き、AC とテストの対応・落ちた様子・画面の確認の手順を会話に見せる。
 - `record wait red` → 人に聞く → `record review red …`。ここで承認されたテストと画面の確認の手順が仕様になる。
 
@@ -95,6 +106,7 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
 
 - `record begin implement --attempt N`（1 から。差し戻しのたびに増やす）→ `pipe-in-coder` に任せる → `record done implement`。
 - テストへの異議が 04 に書かれていたら、検証の段で人の判断を仰ぐ。
+- 文書がそろっているか（`docs/development/workflow.md` の「3. そろえる」）を 04 で確かめる。足りなければ、同じ段で直してもらう。
 - ここでは確認を取らず、そのまま検証へ進む。
 
 ### 5. 検証（`pipe-in-verifier` とメイン）
@@ -110,6 +122,7 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
   - 画面で見つかった不具合は、テスト先行と実装の段に戻して直す（純粋な関数のテストで捕まえてから）。
 - サブエージェントの判定と画面の確認を合わせて `record verdict <pass|fail|blocked> --attempt N …` を書き、AC ごとの 合格 / 不合格 の表を会話に見せる。
 - 不合格なら 4 に戻る（`--attempt` を増やす。最大3回。それでも通らなければ `finish TEST_FAILED` を書いて止め、状況を報告する）。
-- 合格なら `record finish PASSED`。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
-  形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く）。
+- 合格なら、メインが決定の記録 `docs/decisions/Dnnnn-<名前>.md` を書き、`docs/decisions/README.md` の表に1行足す（形は `docs/development/specs.md`。`tests/test_rules.py` が検査するので、書いたらもう一度流す）。決めたことと理由・受け入れたリスク・確かめたこと（手で・実機で確かめていないものは「まだ」）を書く。`docs/pipeline/` の中身をそのまま貼らない（セッション ID や手元のパスが入っている）。
+- `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
+  形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
   **コミット・push は、人に言われるまでしない。**

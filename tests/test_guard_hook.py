@@ -37,7 +37,7 @@ def pipe_file(tmp_path: Path, rel: str) -> str:
     return str(tmp_path / ".devpipe" / "pipes" / "devpipe-x" / rel)
 
 
-# ---- AC-06: ほかのエージェントには何もしない -----------------------------------------
+# ---- D0001-AC-06: ほかのエージェントには何もしない -----------------------------------------
 
 
 @pytest.mark.parametrize("agent_type", [None, "Explore", "general-purpose", "devpipe:other", "pipe-builder-x"])
@@ -47,7 +47,7 @@ def test_other_agents_pass(tmp_path, agent_type):
     assert decide(tmp_path, "PowerShell", {"command": "Remove-Item x"}, agent_type) is None
 
 
-# ---- AC-07: パイプのフォルダの決まったファイルには書ける ---------------------------------
+# ---- D0001-AC-07: パイプのフォルダの決まったファイルには書ける ---------------------------------
 
 
 @pytest.mark.parametrize("agent_type", ["devpipe:pipe-builder", "pipe-builder"])
@@ -67,7 +67,7 @@ def test_builder_can_read(tmp_path, tool):
     assert decide(tmp_path, tool, {"file_path": str(tmp_path / "src/app.py"), "pattern": "*"}) is None
 
 
-# ---- AC-08: それ以外の場所には書けない ------------------------------------------------
+# ---- D0001-AC-08: それ以外の場所には書けない ------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -97,7 +97,7 @@ def test_builder_write_without_path_is_denied(tmp_path):
     assert decide(tmp_path, "Write", {"content": "x"})
 
 
-# ---- AC-09: Bash は devpipe-gen の list / new / check だけ -----------------------------
+# ---- D0001-AC-09: Bash は devpipe-gen の list / new / check だけ -----------------------------
 
 
 @pytest.mark.parametrize(
@@ -139,7 +139,7 @@ def test_builder_bash_denies_others(tmp_path, command):
     assert decide(tmp_path, "Bash", {"command": command}), command
 
 
-# ---- AC-10: ほかの道具は止める（すり抜けの道） -------------------------------------------
+# ---- D0001-AC-10: ほかの道具は止める（すり抜けの道） -------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -159,7 +159,7 @@ def test_builder_other_tools_denied(tmp_path, tool, tool_input):
     assert decide(tmp_path, tool, tool_input), tool
 
 
-# ---- AC-11: DEVPIPE_PIPES_DIR の下にも書ける -------------------------------------------
+# ---- D0001-AC-11: DEVPIPE_PIPES_DIR の下にも書ける -------------------------------------------
 
 
 def test_builder_can_write_env_pipes_dir(tmp_path):
@@ -170,7 +170,7 @@ def test_builder_can_write_env_pipes_dir(tmp_path):
     assert decide(tmp_path, "Write", {"file_path": str(shared / "other.md")}, pipes_env=str(shared))
 
 
-# ---- AC-12・入出力：壊れた入力は止める。止めるときは deny の JSON を出す ---------------------
+# ---- D0001-AC-12・入出力：壊れた入力は止める。止めるときは deny の JSON を出す ---------------------
 
 
 def run_main(monkeypatch, text: str) -> tuple[int, str]:

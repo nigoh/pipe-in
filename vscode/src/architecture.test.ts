@@ -51,3 +51,49 @@ test('AC-44: src/ の記録の読み取り・図の状態の組み立てのモ�
     [],
   );
 });
+
+// ---- D0002-AC-07: 層ごとに使ってよい node: の部品（docs/development/design.md の「拡張の層」） ----
+
+const LAYER_NODE_IMPORTS: Record<string, string[]> = {
+  domain: ['node:path'],
+  app: ['node:path'],
+  view: [],
+  webview: [],
+  infra: ['node:fs', 'node:fs/promises', 'node:os', 'node:path'],
+};
+
+/** 層の決まりに合わない import（「ファイル → 読み込んだもの」）。テストと test/ の補助は見ない */
+export function layerViolations(files: { rel: string; source: string }[]): string[] {
+  const out: string[] = [];
+  for (const { rel, source } of files) {
+    const layer = rel.split('/')[0]!;
+    const allowed = LAYER_NODE_IMPORTS[layer];
+    if (!allowed || rel.endsWith('.test.ts')) continue;
+    for (const m of source.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g)) {
+      const target = m[1]!;
+      const external = !target.startsWith('.');
+      if (external && !allowed.includes(target)) out.push(`${rel} → ${target}`);
+    }
+  }
+  return out;
+}
+
+test('D0002-AC-07: 層ごとに、使ってよい node: の部品だけを使う（外のパッケージも使わない）', () => {
+  const files = targets().map((file) => ({
+    rel: path.relative(SRC, file).split(path.sep).join('/'),
+    source: readFileSync(file, 'utf8'),
+  }));
+  assert.deepEqual(layerViolations(files), []);
+});
+
+test('D0002-AC-07: 層の検査そのものが、決まりに合わない import を見つける', () => {
+  const found = layerViolations([
+    { rel: 'domain/a.ts', source: "import { readFile } from 'node:fs/promises';\nimport path from 'node:path';" },
+    { rel: 'view/b.ts', source: "import path from 'node:path';" },
+    { rel: 'webview/c.ts', source: "import x from 'some-package';" },
+    { rel: 'infra/d.ts', source: "import { spawn } from 'node:child_process';" },
+    { rel: 'app/e.ts', source: "import { x } from '../domain/x.ts';" },
+    { rel: 'domain/f.test.ts', source: "import { readFile } from 'node:fs';" },
+  ]);
+  assert.deepEqual(found, ['domain/a.ts → node:fs/promises', 'view/b.ts → node:path', 'webview/c.ts → some-package', 'infra/d.ts → node:child_process']);
+});

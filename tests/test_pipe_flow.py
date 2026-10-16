@@ -433,7 +433,7 @@ def test_structured_output_tool_is_never_denied(tmp_path):
         assert reason is None, name
 
 
-# ---- AC-14: devpipe --pipe は対象の .devpipe/pipes/ から読む ---------------------------
+# ---- D0001-AC-14: devpipe --pipe は対象の .devpipe/pipes/ から読む ---------------------------
 
 
 def test_cli_loads_pipe_from_project(tmp_path, monkeypatch):

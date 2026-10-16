@@ -74,15 +74,5 @@ devpipe 0.2 以降の記録（`state.json` に `usage_summary` があるもの�
 
 ## 層の決まり
 
-| 層 | パス | 置くもの |
-| :--- | :--- | :--- |
-| ドメイン | `src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道（`pipeWires.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（ファイル・時計・`vscode` に触れない） |
-| アプリケーション | `src/app/` | 口 `WorkDirSource`、`refreshView`、`resolveWorkDir`、作図台の口 `PipeStore` と読み込み・保存（`pipeEditor.ts`） |
-| 画面 | `src/view/` | 図の状態 → HTML の文字列、パネルとの受け渡しの形 |
-| 基盤 | `src/infra/` | `WorkDirSource` の実装（`node:fs/promises`）、`PipeStore` の実装（`fsPipes.ts`。置き場所の中の `devpipe-<名前>/` の決まったファイルだけ） |
-| パネルの中 | `src/webview/` | 作図台の画面の操作（`out/pipeEditor.js` に束ねる）。判断は domain の関数に任せる |
-| 入口 | `src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。`vscode` を import してよいのはここだけ（`src/architecture.test.ts` が検査する） |
-
-- devpipe の記録の形の知識は `runRecord.ts`（使用量の `metrics`・`usage_summary`、段の並びの `stages`、`pending_review`・`warnings` も）・`stageLog.ts`・`artifacts.ts`・`runs.ts`（実行の候補）の中だけに置く。形が変わったらここを直す。
-- 色はすべて `var(--vscode-*)`。外部の読み込みはしない。ログから来た文字は必ず `escapeHtml` を通す。
-- パネルの CSP はインラインの `style="…"` 属性を捨てる。作図台の HTML の文字列には書かず、位置や大きさは描いたあとに `el.style.*` で入れ、決まった見た目はクラスにする（`src/webview/csp.test.ts` が検査する）。確認用のページ（`npm run preview`）も同じ CSP のまま作る。
+層（domain・app・view・infra・webview・入口）ごとに置くものと、使ってよい部品は、リポジトリの `docs/development/design.md` の「拡張の層」にまとめてある（`src/architecture.test.ts` が検査する）。
+`vscode` を import してよいのは `src/extension.ts` だけ。ログから来た文字は必ず `escapeHtml` を通し、パネルの中ではインラインの `style="…"` 属性を使わない（`src/webview/csp.test.ts` が検査する）。

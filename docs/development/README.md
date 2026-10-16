@@ -1,0 +1,30 @@
+# devpipe の開発のルール
+
+devpipe（本体・ジェネレーター・プラグイン・VSCode 拡張）を直したり機能を足したりするときの決まりです。
+人も Claude Code も、ここに従って進めます。Claude Code で進めるときは `/pipe-in <要件メモ>` が、この決まりどおりに段を進めます。
+
+## どれを読むか
+
+| こんなとき | 読むもの |
+| --- | --- |
+| はじめて触る・迷ったとき | [principles.md](principles.md)（原則） |
+| 何を作るかを決める | [specs.md](specs.md)（仕様の書き方・決定の記録・AC の ID） |
+| どこに何を置くか・形を変える | [design.md](design.md)（層・依存の向き・置き場所・互換・依存を足す基準） |
+| テストを書く | [testing.md](testing.md)（テストの種類・偽物・やってはいけないこと・赤の確かめ方） |
+| 始めてから終えるまで | [workflow.md](workflow.md)（ブランチと worktree・段の進め方・文書をそろえる・コミット） |
+| 前に何をなぜ決めたか | [../decisions/](../decisions/)（機能ごとの決定の記録） |
+
+## テストで守らせている決まり
+
+文書だけでは守れないので、検査できるものはテストにしてあります。決まりを変えるときは、テストも一緒に変えます。
+
+| 決まり | 検査するテスト |
+| --- | --- |
+| 依存の向き（本体・ジェネレーター） | `tests/test_architecture.py` |
+| プラグインの pipe-builder・/pipe-in のサブエージェントが書ける場所と Bash | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
+| 拡張の層ごとに使ってよい部品・`vscode` を import するのは入口だけ | `vscode/src/architecture.test.ts` |
+| パネルの CSP（インラインの style を使わない） | `vscode/src/webview/csp.test.ts` |
+| 手元の事情（ユーザー名の入ったパス・メールアドレス）と秘密のファイルを載せない | `tests/test_rules.py` |
+| 決定の記録の形・テストの AC の ID が記録にある | `tests/test_rules.py` |
+| CLAUDE.md と design.md の置き場所の表が実物と食い違わない | `tests/test_rules.py` |
+| テストがリポジトリの実物（`pipes/`・`.devpipe/`・`docs/pipeline/`）を変えない | `tests/conftest.py`（テストが通っても、最後に失敗にする） |

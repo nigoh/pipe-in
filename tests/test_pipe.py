@@ -167,7 +167,7 @@ def test_find_pipe_by_name_or_path(tmp_path):
 
 
 def test_find_pipe_prefers_project_pipes(tmp_path, monkeypatch):
-    """AC-13: 対象の .devpipe/pipes/ を先に見て、無ければ今までの場所を見る。"""
+    """D0001-AC-13: 対象の .devpipe/pipes/ を先に見て、無ければ今までの場所を見る。"""
     shared = tmp_path / "shared"
     monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(shared))
     project = tmp_path / "app"
@@ -181,7 +181,7 @@ def test_find_pipe_prefers_project_pipes(tmp_path, monkeypatch):
 
 
 def test_find_pipe_explicit_dir_only(tmp_path, monkeypatch):
-    """AC-13: --pipes-dir を指定したときはそこだけを見る。"""
+    """D0001-AC-13: --pipes-dir を指定したときはそこだけを見る。"""
     monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
     project = tmp_path / "app"
     make_pipe(project / ".devpipe" / "pipes", "pics")
@@ -193,7 +193,7 @@ def test_find_pipe_explicit_dir_only(tmp_path, monkeypatch):
 
 
 def test_new_pipes_dir_order(tmp_path, monkeypatch):
-    """AC-15: 作る場所は --pipes-dir → DEVPIPE_PIPES_DIR → 対象の .devpipe/pipes/。"""
+    """D0001-AC-15: 作る場所は --pipes-dir → DEVPIPE_PIPES_DIR → 対象の .devpipe/pipes/。"""
     project = tmp_path / "app"
     monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
     assert definition().new_pipes_dir(project) == project / ".devpipe" / "pipes"

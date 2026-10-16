@@ -47,7 +47,7 @@ test('AC-31: pipes/ の外や、決まった名前以外には書かない', asy
   }
 });
 
-test('AC-18: .devpipe/pipes を根にしても、決まったファイルだけを読み書きする', async () => {
+test('D0001-AC-18: .devpipe/pipes を根にしても、決まったファイルだけを読み書きする', async () => {
   const project = await mkdtemp(path.join(tmpdir(), 'app-'));
   try {
     const root = path.join(project, '.devpipe', 'pipes');

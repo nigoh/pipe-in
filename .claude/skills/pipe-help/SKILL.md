@@ -58,6 +58,7 @@ disable-model-invocation: true
 
 ### もっと詳しく
 
+- 開発のルール（原則・仕様・設計・テスト・進め方）：docs/development/、決めたことの記録：docs/decisions/
 - devpipe 全体：README.md（パイプの書き方・検証と差し戻し・分岐と並列・Agent SDK の設定・終了コード）
 - VSCode 拡張と作図台：vscode/README.md
 - パイプの置き場所とプラグイン：README.md の「パイプ」「Claude Code のプラグイン」

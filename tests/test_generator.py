@@ -164,7 +164,7 @@ def test_list_shows_templates_and_pipes(tmp_path, capsys):
 
 
 def test_new_defaults_to_project_pipes(tmp_path, monkeypatch):
-    """AC-15: 置き場所の指定がなければ、対象の .devpipe/pipes/ に作り、check もそこから探す。"""
+    """D0001-AC-15: 置き場所の指定がなければ、対象の .devpipe/pipes/ に作り、check もそこから探す。"""
     monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
     project = python_project(tmp_path)
     assert gen_cli().main(["new", "pics", "--from", "diagrams", "--project", str(project)]) == 0
@@ -173,7 +173,7 @@ def test_new_defaults_to_project_pipes(tmp_path, monkeypatch):
 
 
 def test_new_respects_pipes_dir_and_env(tmp_path, monkeypatch):
-    """AC-15: --pipes-dir か DEVPIPE_PIPES_DIR があれば、そちらに作る。"""
+    """D0001-AC-15: --pipes-dir か DEVPIPE_PIPES_DIR があれば、そちらに作る。"""
     project = python_project(tmp_path)
     monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "env"))
     assert gen_cli().main(["new", "a", "--from", "diagrams", "--project", str(project)]) == 0
@@ -184,7 +184,7 @@ def test_new_respects_pipes_dir_and_env(tmp_path, monkeypatch):
 
 
 def test_list_shows_project_and_shared_pipes(tmp_path, monkeypatch, capsys):
-    """AC-16: list --project は、対象の .devpipe/pipes/ と今までの場所の両方を出す。"""
+    """D0001-AC-16: list --project は、対象の .devpipe/pipes/ と今までの場所の両方を出す。"""
     project = python_project(tmp_path)
     monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
     assert gen_cli().main(["new", "old", "--from", "diagrams", "--project", str(project)]) == 0

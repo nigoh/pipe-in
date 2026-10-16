@@ -84,7 +84,7 @@ def test_rule_catches_reverse_import(tmp_path, monkeypatch):
 
 
 def test_guard_hook_uses_only_stdlib():
-    """AC-19: フックは道具を呼ぶたびに動くので、devpipe や SDK を読み込まない（標準ライブラリだけ）。"""
+    """D0001-AC-19: フックは道具を呼ぶたびに動くので、devpipe や SDK を読み込まない（標準ライブラリだけ）。"""
     import sys
 
     path = ROOT / "generator" / "guard_hook.py"
