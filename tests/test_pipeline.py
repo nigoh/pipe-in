@@ -169,6 +169,7 @@ def guard_for(tmp_path, stage):
         return check_tool(
             tool, inp, project_dir=cfg.project_dir, can_write=spec.can_write,
             allow_bash=spec.allow_bash, write_scope_hint=spec.write_scope_hint,
+            allowed_tools=spec.allowed_tools,
         )
 
     return check
@@ -348,3 +349,93 @@ def test_protected_paths_are_read_only_for_every_stage(tmp_path):
         assert not spec.can_write("src/architecture.test.ts"), name
         assert not spec.can_write("rules/a/b.md"), name
     assert specs["red"].can_write("src/other.test.ts")
+
+
+# ---- 段ごとに許したツール以外は止める ------------------------------------------
+
+ALL_STAGES = ["requirements", "design", "red", "implement", "test"]
+
+
+@pytest.mark.parametrize("stage", ALL_STAGES)
+@pytest.mark.parametrize(
+    "tool",
+    ["PowerShell", "mcp__vercel__create_deployment", "mcp__playwright__browser_navigate", "Task", "Agent",
+     "Workflow", "CronCreate", "RemoteTrigger", "SendMessage", "EnterWorktree", "WebFetch", "WebSearch"],
+)
+def test_unlisted_tools_are_denied(tmp_path, stage, tool):
+    assert guard_for(tmp_path, stage)(tool, command="git push") is not None
+
+
+@pytest.mark.parametrize("stage", ALL_STAGES)
+@pytest.mark.parametrize("tool", ["Read", "Glob", "Grep", "Skill", "ToolSearch", "TodoWrite"])
+def test_read_only_helpers_are_allowed(tmp_path, stage, tool):
+    assert guard_for(tmp_path, stage)(tool, file_path="src/app.py", pattern="x") is None
+
+
+@pytest.mark.parametrize("stage", ALL_STAGES)
+def test_powershell_is_disallowed_up_front(tmp_path, stage):
+    assert "PowerShell" in st.build_specs(make_cfg(tmp_path))[stage].disallowed_tools
+
+
+def test_guard_hook_denies_powershell(tmp_path):
+    from devpipe.guard import make_guard_hook
+
+    cfg = make_cfg(tmp_path)
+    spec = st.build_specs(cfg)["implement"]
+    denied: list[str] = []
+    hook = make_guard_hook(
+        project_dir=cfg.project_dir, can_write=spec.can_write, allow_bash=spec.allow_bash,
+        write_scope_hint=spec.write_scope_hint, allowed_tools=spec.allowed_tools,
+        on_deny=lambda t, r: denied.append(t),
+    )
+    out = asyncio.run(hook({"tool_name": "PowerShell", "tool_input": {"command": "git push"}}, None, None))
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert denied == ["PowerShell"]
+
+
+# ---- まとめに費用・トークン・環境・利用枠を出す --------------------------------
+
+
+def test_summary_has_usage_sections(tmp_path):
+    from devpipe.metrics import StageMetrics
+
+    class WithMetrics(FakeRunner):
+        async def __call__(self, spec, prompt, cfg, *, resume, log_name):
+            r = await super().__call__(spec, prompt, cfg, resume=resume, log_name=log_name)
+            m = StageMetrics()
+            m.feed({"_type": "SystemMessage", "subtype": "init",
+                    "data": {"model": "claude-opus-5-5", "claude_code_version": "2.1.301", "apiKeySource": "none"}})
+            m.feed({"_type": "RateLimitEvent", "rate_limit_info": {"raw": {"unifiedWindows": {
+                "five_hour": {"utilization": 0.01 * len(self.calls), "resetsAt": 1792170000}}}}})
+            m.feed({"_type": "ResultMessage", "duration_api_ms": 1000, "usage": {
+                "input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 900,
+                "output_tokens": 50, "output_tokens_details": {"thinking_tokens": 5}},
+                "model_usage": {"claude-opus-5-5": {"inputTokens": 10, "outputTokens": 50, "costUSD": 0.01}}})
+            r.metrics = m
+            return r
+
+    assert run(Pipeline(make_cfg(tmp_path), runner=WithMetrics(["pass"]))) == Exit.PASSED
+    summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
+    for heading in ("## トークンの内訳", "## モデル別", "## 環境", "## 利用枠"):
+        assert heading in summary, heading
+    assert "claude-opus-5-5" in summary and "2.1.301" in summary
+    assert "89.1%" in summary  # キャッシュの再利用率 900 / (10 + 100 + 900)
+    assert "1% → 5%" in summary  # 5時間枠の使用率の推移（1段目の始め → 最後の段の終わり）
+    state = (tmp_path / "docs/pipeline" / st.STATE).read_text(encoding="utf-8")
+    assert '"metrics"' in state and '"usage_summary"' in state
+
+
+def test_summary_without_metrics_still_works(tmp_path):
+    assert run(Pipeline(make_cfg(tmp_path), runner=FakeRunner(["pass"]))) == Exit.PASSED
+    summary = (tmp_path / "docs/pipeline" / st.SUMMARY).read_text(encoding="utf-8")
+    assert "テストまで合格しました" in summary and "## トークンの内訳" not in summary
+
+
+def test_usage_report_mentions_reset():
+    from devpipe.config import STAGE_LABELS
+    from devpipe.usage_report import usage_sections
+
+    metrics = {"tokens": {"output": 1}, "rate_limits": {
+        "five_hour": {"first": 0.12, "last": 0.02, "peak": 0.13, "reset_seen": True, "resets_at": None}}}
+    text = "\n".join(usage_sections([{"seq": 1, "stage": "design", "metrics": metrics}], STAGE_LABELS))
+    assert "12% → 2%" in text and "途中で枠が戻りました" in text and "最大 13%" in text

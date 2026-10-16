@@ -1,23 +1,14 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
 import { STAGE_LABELS } from '../domain/stage.ts';
-import { NODE_STATUS_LABELS, WAITING_MESSAGE } from '../domain/pipelineView.ts';
-import type { PipelineNode, PipelineView, TerminalView } from '../domain/pipelineView.ts';
+import { WAITING_MESSAGE } from '../domain/pipelineView.ts';
+import type { PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import type { ArtifactEntry } from '../domain/artifacts.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
+import { escapeHtml } from './escape.ts';
+import { renderFlowSvg } from './flowSvg.ts';
 
-const ESCAPES: Readonly<Record<string, string>> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&apos;',
-};
-
-/** & < > " ' を名前の文字参照にする（数値の文字参照 &#..; は使わない）。 */
-export function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ESCAPES[c]);
-}
+export { escapeHtml };
 
 const STYLE = `
 body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
@@ -25,21 +16,37 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 .banner-msg { margin: 0; }
 .banner-msg.is-failed { color: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .banner-msg.is-done { color: var(--vscode-charts-green); }
+.banner-msg.is-running { color: var(--vscode-charts-blue); }
 .cost { color: var(--vscode-descriptionForeground); white-space: nowrap; }
-.layout { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 12px; }
-.nodes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.node { padding: 6px 8px; border: 1px solid var(--vscode-panel-border); border-left-width: 4px; }
-.node-head { display: flex; justify-content: space-between; gap: 8px; }
-.node-status { font-size: 0.9em; }
-.node-detail { margin-top: 2px; font-size: 0.85em; color: var(--vscode-descriptionForeground); }
-.is-pending { border-left-color: var(--vscode-descriptionForeground); }
-.is-pending .node-status { color: var(--vscode-descriptionForeground); }
-.is-running { border-left-color: var(--vscode-charts-blue); }
-.is-running .node-status { color: var(--vscode-charts-blue); }
-.is-done { border-left-color: var(--vscode-charts-green); }
-.is-done .node-status { color: var(--vscode-charts-green); }
-.is-failed { border-left-color: var(--vscode-charts-red, var(--vscode-errorForeground)); }
-.is-failed .node-status { color: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.layout { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
+.flow { display: block; width: 100%; height: auto; }
+.flow text { fill: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: 12px; }
+.flow .is-strong { font-weight: 600; }
+.flow .node-detail, .flow .edge-label { fill: var(--vscode-descriptionForeground); font-size: 10.5px; }
+.flow .node-status { font-size: 11px; }
+.flow .shape { fill: var(--vscode-editor-background); stroke: var(--vscode-descriptionForeground); stroke-width: 1.2; }
+.flow .shape.is-doc { stroke-dasharray: 4 3; }
+.flow .edge { stroke: var(--vscode-descriptionForeground); stroke-width: 1.2; }
+.flow .head { fill: var(--vscode-descriptionForeground); }
+.flow .head.is-hot { fill: var(--vscode-charts-blue); }
+.flow .loop-path { fill: none; stroke: var(--vscode-descriptionForeground); stroke-width: 1.2; stroke-dasharray: 5 4; opacity: 0.7; }
+.flow .loop-label { fill: var(--vscode-descriptionForeground); font-size: 10.5px; }
+.flow .loop.is-hot .loop-path { stroke: var(--vscode-charts-blue); stroke-width: 2; opacity: 1; }
+.flow .loop.is-hot .loop-label { fill: var(--vscode-charts-blue); font-weight: 600; }
+.flow .is-pending .node-status { fill: var(--vscode-descriptionForeground); }
+.flow .is-running .shape { stroke: var(--vscode-charts-blue); stroke-width: 2.4; }
+.flow .is-running .node-status { fill: var(--vscode-charts-blue); }
+.flow .is-done .shape { stroke: var(--vscode-charts-green); stroke-width: 1.6; }
+.flow .is-done .node-status { fill: var(--vscode-charts-green); }
+.flow .is-failed .shape { stroke: var(--vscode-charts-red, var(--vscode-errorForeground)); stroke-width: 2; }
+.flow .is-failed .node-status { fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.flow .is-skipped .shape { stroke-dasharray: 4 3; }
+.flow .is-skipped text { opacity: 0.6; }
+@media (prefers-reduced-motion: no-preference) {
+  .flow .is-running .shape { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { stroke-opacity: 0.35; } }
+}
 .right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .terminal-title { margin: 0 0 4px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
 .terminal { margin: 0; padding: 8px; height: 50vh; overflow: auto; background: var(--vscode-terminal-background, var(--vscode-editor-background)); color: var(--vscode-terminal-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-panel-border); font-family: var(--vscode-editor-font-family); }
@@ -96,7 +103,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string): string {
 export function renderViewBody(view: PipelineView): string {
   return `${renderBanner(view)}
 <div class="layout">
-<ol class="nodes">${view.nodes.map(renderNode).join('')}</ol>
+${renderFlowSvg(view.nodes)}
 <div class="right">
 ${renderTerminal(view.terminal)}
 ${renderArtifacts(view.artifacts)}
@@ -115,24 +122,16 @@ function renderBanner(view: PipelineView): string {
   } else if (view.final !== null) {
     const cls = view.final === 'PASSED' ? 'is-done' : 'is-failed';
     msg = `<p class="banner-msg ${cls}">最終の結果：${escapeHtml(view.final)}</p>`;
+  } else if (view.runningStage !== null && view.terminal.source !== null) {
+    const src = view.terminal.source;
+    const attempt = src.attempt === null ? '' : `（${src.attempt} 回目）`;
+    msg = `<p class="banner-msg is-running">${escapeHtml(`いま：${STAGE_LABELS[src.stage]}${attempt}`)}</p>`;
   } else if (view.waiting) {
     msg = `<p class="banner-msg">${escapeHtml(WAITING_MESSAGE)}</p>`;
   } else {
     msg = '<p class="banner-msg"></p>';
   }
   return `<div class="banner">${msg}<span class="cost">合計 ${formatCost(view.totalCostUsd)}</span></div>`;
-}
-
-function renderNode(node: PipelineNode): string {
-  const details: string[] = [];
-  if (node.reviseCount !== null && node.reviseCount > 0) details.push(`修正の依頼 ${node.reviseCount} 回`);
-  if (node.sendBackCount !== null && node.sendBackCount > 0) details.push(`差し戻し ${node.sendBackCount} 回`);
-  if (node.metrics) {
-    const m = node.metrics;
-    details.push(`${m.numTurns} ターン・${formatCost(m.costUsd)}・${m.durationSec}s`);
-  }
-  const detail = details.length > 0 ? `<div class="node-detail">${escapeHtml(details.join(' / '))}</div>` : '';
-  return `<li class="node is-${node.status}"><div class="node-head"><span class="node-label">${escapeHtml(node.label)}</span><span class="node-status">${escapeHtml(NODE_STATUS_LABELS[node.status])}</span></div>${detail}</li>`;
 }
 
 function renderItem(item: OutputItem): string {

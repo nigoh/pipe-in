@@ -19,12 +19,13 @@ export interface WorkDirSnapshot {
   artifacts: Partial<Record<ArtifactName, string>>;
 }
 
-export type NodeStatus = 'pending' | 'running' | 'done' | 'failed';
+export type NodeStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 export const NODE_STATUS_LABELS: Readonly<Record<NodeStatus, string>> = {
   pending: 'まだ',
   running: '動いている',
   done: '完了',
   failed: '失敗',
+  skipped: '省略',
 };
 
 export type NodeId =
@@ -160,16 +161,35 @@ function stageNode(stage: Stage, record: RunRecord, runningStage: Stage | null):
   return makeNode(stage, status, extra);
 }
 
-function reviewNode(id: NodeId, stage: Stage, record: RunRecord): PipelineNode {
+/** 確認のあとに続く段。どれかが動いていれば、その確認は通り過ぎている。 */
+const STAGES_AFTER_REVIEW: Readonly<Record<'requirements' | 'design' | 'red', readonly Stage[]>> = {
+  requirements: ['design', 'red', 'implement', 'test'],
+  design: ['red', 'implement', 'test'],
+  red: ['implement', 'test'],
+};
+
+function reviewNode(id: NodeId, stage: 'requirements' | 'design' | 'red', record: RunRecord): PipelineNode {
   const reviews = record.reviews.filter((r) => r.stage === stage);
   const last = reviews.at(-1)?.action;
-  const status: NodeStatus = last === 'approved' ? 'done' : last === 'quit' ? 'failed' : 'pending';
+  // 確認の記録がないまま先の段が動いた＝確認を省いた（--yes、--from で前回の続きから）
+  const passed = record.stageRuns.some((r) => STAGES_AFTER_REVIEW[stage].includes(r.stage));
+  const status: NodeStatus =
+    last === 'approved' ? 'done' : last === 'quit' ? 'failed' : last === undefined && passed ? 'skipped' : 'pending';
   return makeNode(id, status, { reviseCount: reviews.filter((r) => r.action === 'revise').length });
 }
 
-function verdictNode(record: RunRecord): PipelineNode {
-  const last = record.verdicts.at(-1)?.status;
-  const status: NodeStatus = last === undefined ? 'pending' : last === 'pass' ? 'done' : 'failed';
+function verdictNode(record: RunRecord, runningStage: Stage | null): PipelineNode {
+  const last = record.verdicts.at(-1);
+  // 差し戻しのやり直し（実装・検証が動いている、または前回の判定より後の回の実装がある）なら、前回の判定はもう古い
+  const latestImplement = record.stageRuns
+    .filter((r) => r.stage === 'implement')
+    .reduce((max, r) => Math.max(max, r.attempt ?? 0), 0);
+  const retrying =
+    runningStage === 'implement' ||
+    runningStage === 'test' ||
+    (last !== undefined && last.attempt !== null && latestImplement > last.attempt);
+  const status: NodeStatus =
+    last === undefined || retrying ? 'pending' : last.status === 'pass' ? 'done' : 'failed';
   return makeNode('verdict', status);
 }
 
@@ -189,7 +209,7 @@ function buildNodes(snapshot: WorkDirSnapshot, record: RunRecord, runningStage: 
     reviewNode('review:red', 'red', record),
     stageNode('implement', record, runningStage),
     stageNode('test', record, runningStage),
-    verdictNode(record),
+    verdictNode(record, runningStage),
     finalNode(record),
   ];
 }

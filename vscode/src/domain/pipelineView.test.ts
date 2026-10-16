@@ -347,3 +347,52 @@ test('AC-41: state.json・段のログ・00_input.md がないとき、「記録
   assert.equal(view.noRecords.message, '記録がありません');
   assert.equal(view.noRecords.workDir, '/w/docs-internal/pipeline');
 });
+
+test('確認の省略：確認の記録がないまま先の段が動いたら、その確認は「省略」（--yes など）', () => {
+  const view = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({
+        runs: [
+          stageRunEntry({ stage: 'requirements', seq: 1 }),
+          { stage: 'requirements', review: 'approved' },
+          stageRunEntry({ stage: 'design', seq: 2 }),
+          stageRunEntry({ stage: 'red', seq: 3 }),
+        ],
+      }),
+    }),
+  );
+  assert.equal(node(view, 'review:requirements').status, 'done');
+  assert.equal(node(view, 'review:design').status, 'skipped');
+  // テスト先行のあとの段はまだ動いていないので、確認は省略ではなく「まだ」
+  assert.equal(node(view, 'review:red').status, 'pending');
+});
+
+test('判定のやり直し：差し戻して実装をもう一度動かしたら、前回の不合格は消して判定を「まだ」に戻す', () => {
+  const runs = [
+    stageRunEntry({ stage: 'implement', seq: 1, attempt: 1 }),
+    stageRunEntry({ stage: 'test', seq: 2, attempt: 1 }),
+    { stage: 'test', attempt: 1, verdict: { status: 'fail', summary: 'x', failures: [], commands: [] } },
+  ];
+  const failed = buildPipelineView(snapshot({ stateJson: stateJson({ runs }) }));
+  assert.equal(node(failed, 'verdict').status, 'failed');
+
+  const retrying = buildPipelineView(
+    snapshot({ stateJson: stateJson({ runs: [...runs, stageRunEntry({ stage: 'implement', seq: 3, attempt: 2 })] }) }),
+  );
+  assert.equal(node(retrying, 'verdict').status, 'pending');
+});
+
+test('判定のやり直し：検証の段が動いている間も、判定は「まだ」', () => {
+  const view = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({
+        runs: [
+          stageRunEntry({ stage: 'test', seq: 1, attempt: 1 }),
+          { stage: 'test', attempt: 1, verdict: { status: 'fail', summary: 'x', failures: [], commands: [] } },
+        ],
+      }),
+      stageLogs: [{ fileName: '02_test_2.jsonl', text: logText([promptLine('test')]) }],
+    }),
+  );
+  assert.equal(node(view, 'verdict').status, 'pending');
+});

@@ -147,9 +147,9 @@ test('FR-06 追加: 節の状態は文字でも出て、状態ごとにクラス
     ['is-pending', 'まだ'],
   ]) {
     assert.match(body, new RegExp(`class="node ${cls}"`), cls);
-    assert.match(body, new RegExp(`<span class="node-status">${label}</span>`), label);
+    assert.match(body, new RegExp(`class="node-status"[^>]*>[^<]*${label}</text>`), label);
   }
-  assert.equal((body.match(/<li class="node /g) ?? []).length, 11);
+  assert.equal((body.match(/<g class="node /g) ?? []).length, 11);
 });
 
 test('FR-11 追加: 「ある」成果物だけが押せるボタン（data-artifact）、「まだない」は disabled', () => {
