@@ -1,6 +1,6 @@
 ---
 name: pipe-help
-description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・プラグインの /pipe-in:pipe-build）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
+description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-audit・/pipe-advise・プラグインの /pipe-in:pipe-build）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
 argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
@@ -24,6 +24,8 @@ disable-model-invocation: true
 | --- | --- |
 | `/pipe-in <要件メモ>` | pipe-in に機能を足す。要件定義 → 設計 → テスト先行 → 実装 → 検証 を段ごとにサブエージェントへ任せて進め、段ごとに止まって確認を取る。進み具合は VSCode の「pipe-in: 実行を見る」で見られる |
 | `/pipe-in --auto <要件メモ>` | 同じことを、段の区切りで止まらずに最後まで進める（決めきれない点や、利用料のかかる実行の前では止まる。コミットはしない） |
+| `/pipe-audit [範囲]` | 文書・定義・コードのあいだの食い違い（名前・パス・コマンド・決まり・数）を、根拠（ファイル:行）付きで並べて止まる。承認した項目だけをメインが直す |
+| `/pipe-advise [テーマ]` | Claude Code と Agent SDK の公式の文書と照らして、このリポジトリの使いかたを出典の URL 付きで助言して止まる。承認した項目だけをメインが直す |
 | `/pipe-in:pipe-build <目的か直したい点>` | パイプ（段の並び）を会話で作る・直す。プラグイン（`/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in`）を入れて使う。どのプロジェクトでも使える |
 | `/pipe-help [知りたいこと]` | この一覧。知りたいことを付けると、そこだけ詳しく |
 

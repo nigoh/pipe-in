@@ -10,7 +10,13 @@
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Agent(pipe-in-analyst)",
+      "Agent(pipe-in-tester)",
+      "Agent(pipe-in-coder)",
+      "Agent(pipe-in-verifier)",
+      "Agent(pipe-in-auditor)",
+      "Agent(pipe-in-advisor)"
     ],
     "ask": [
       "Bash(git push:*)",

@@ -19,8 +19,8 @@
 | プラグインのフックの本体（pipe-builder の操作を絞る） | `generator/guard_hook.py` |
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
-| このリポジトリを開発する Claude Code のスキル | `.claude/skills/`（`pipe-in`・`pipe-help`） |
-| /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ） |
+| このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/` |
+| /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言だけ公式の文書を Web で読める）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` は読むだけにする） |
 | /pipe-in の記録を書く（pipe-in record） | `pipe_in/dev/record.py` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |

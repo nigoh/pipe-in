@@ -25,6 +25,7 @@ npm run preview               # 画面の確認用のページ（out/preview/）
 変更したら、触った側のテストを流してから終える。Python と拡張の両方に触れたら両方流す。
 
 機能を足す・直すときは `/pipe-in <要件メモ>` を使う（`.claude/skills/pipe-in/`）。始めに `feat/<名前>` のブランチを worktree で切る（`docs/development/workflow.md`）。要件定義 → 設計 → テスト先行 → 実装 → 検証 を、段ごとにサブエージェント（`.claude/agents/pipe-in-*`）へ任せて順に進め、段の区切りで止まって確認を取る。サブエージェントの書ける範囲は `.claude/hooks/pipe_in_guard.py` が止める。進み具合は `python -m pipe_in record` で `docs/pipeline/`（手元の作業の記録。`.gitignore` 済み）に書かれ、VSCode の拡張で見られる。追跡して残すのは決定の記録（`docs/decisions/`）だけ。止まらずに最後まで進めるのは `/pipe-in --auto <要件メモ>` のときだけ。
+検証で合格したあと、決定の記録の前に、`pipe-in-auditor`（文書・定義・コードの食い違いを探す矛盾監査）と `pipe-in-advisor`（公式の文書と照らした助言）を流し、報告を見せて止まる。直すのはメインで、人が承認した項目だけ。2つとも読むだけで書けない（Web はアドバイザーだけ、公式の文書の場所だけ）。手で呼ぶときは `/pipe-audit`・`/pipe-advise`（`.claude/skills/`）。
 使いかたの一覧は `/pipe-help`（`.claude/skills/pipe-help/`）。
 pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせなど）を作る・直すときは、プラグインのスキル `/pipe-in:pipe-build <目的か直したい点>`（`plugin/`。入れ方は README の「Claude Code のプラグイン」。このリポジトリでも `/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in` で入れて使う）。パイプは対象の `.pipe-in/pipes/pipe-in-<名前>/` に置く。前の名前のころの置き場所・フォルダ名・設定も読む（README の移行の節）。
 
