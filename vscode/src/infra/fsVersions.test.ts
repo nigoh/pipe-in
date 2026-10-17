@@ -16,7 +16,7 @@ test('AC-70: 版を書く・一覧にする・読む・消す（根の中の dev
     await store.write('devpipe-one', `${T}.json`, '{}');
     await store.write('devpipe-one', `${T + 1}-draft.json`, '{"d":1}');
     assert.equal(await readFile(path.join(root, 'devpipe-one', `${T}.json`), 'utf8'), '{}');
-    assert.deepEqual((await store.list('devpipe-one')).sort(), [`${T + 1}-draft.json`, `${T}.json`]);
+    assert.deepEqual((await store.list('devpipe-one')).sort(), [`${T}.json`, `${T + 1}-draft.json`]);
     assert.equal(await store.read('devpipe-one', `${T + 1}-draft.json`), '{"d":1}');
     assert.equal(await store.read('devpipe-one', `${T + 9}.json`), null);
     await store.remove('devpipe-one', `${T}.json`);
@@ -31,7 +31,7 @@ test('AC-70: 形の違うフォルダ名・ファイル名・根の外へ出る�
   try {
     const store = createFsVersionStore(root);
     for (const [pipe, file] of [['devpipe-one', 'pipe.toml'], ['devpipe-one', '../x.json'], ['../escape', `${T}.json`], ['devpipe-one', `..\\${T}.json`], ['other', `${T}.json`]] as const) {
-      await assert.rejects(store.write(pipe, file, 'x'), undefined, `${pipe}/${file}`);
+      await assert.rejects(store.write(pipe, file, 'x'), Error, `${pipe}/${file}`);
       assert.equal(await store.read(pipe, file), null);
     }
     assert.deepEqual(await readdir(root), []);
