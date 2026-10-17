@@ -1,7 +1,7 @@
 ---
 name: pipe-help
 description: devpipe の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・プラグインの /devpipe:pipe-build）、devpipe と devpipe-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
-argument-hint: [知りたいこと（例: パイプ・作図台・再開・--auto）]
+argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
 
@@ -54,11 +54,11 @@ disable-model-invocation: true
 | コマンド | すること |
 | --- | --- |
 | devpipe: 実行を見る | 流している・流した実行を、図と出力で見る（ステータスバーのボタンでも開く） |
-| devpipe: パイプを作図する | パイプ作図台を開く。形のブロックを置き、プラグをコンセントに差してつなぎ、各ブロックで Claude に頼むことと SDK の設定を決めて保存する |
+| devpipe: パイプ作業台を開く | パイプ作業台を開く。形のブロックを置き、プラグをコンセントに差してつなぎ、各ブロックで Claude に頼むことと SDK の設定を決めて保存する |
 
 ### もっと詳しく
 
 - 開発のルール（原則・仕様・設計・テスト・進め方）：docs/development/、決めたことの記録：docs/decisions/
 - devpipe 全体：README.md（パイプの書き方・検証と差し戻し・分岐と並列・Agent SDK の設定・終了コード）
-- VSCode 拡張と作図台：vscode/README.md
+- VSCode 拡張と作業台：vscode/README.md
 - パイプの置き場所とプラグイン：README.md の「パイプ」「Claude Code のプラグイン」

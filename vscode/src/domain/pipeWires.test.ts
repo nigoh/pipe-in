@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { autoLayout, blockSize, freeSpot, frameOf, newPipe, newStage, pipeFromFiles } from './pipeModel.ts';
 import type { PipeModel, StageModel } from './pipeModel.ts';
-import { blockRect, layoutWires } from './pipeWires.ts';
+import { blockRect, layoutWires, nearestWire } from './pipeWires.ts';
+import type { Wire } from './pipeWires.ts';
 
 function stage(over: Partial<StageModel> & { id: string; name: string }): StageModel {
   return {
@@ -204,4 +205,20 @@ prompt = "x"
       assert.equal(segmentsHit(w.points, blockRect(m, s.id)), false, `${w.kind}:${w.from}→${w.to} が ${s.name} を通る`);
     }
   }
+});
+
+test('AC-77: 点の近くを通る「次の段」のケーブルを探す（落とせる先を目立たせるため）', () => {
+  const w = (kind: Wire['kind'], points: { x: number; y: number }[]): Wire => ({ kind, from: 'p', to: 'q', points });
+  const wires = [
+    w('start', [{ x: 0, y: 0 }, { x: 100, y: 0 }]),
+    w('next', [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 150 }]),
+    w('route', [{ x: 0, y: 60 }, { x: 100, y: 60 }]),
+    w('next', [{ x: 0, y: 200 }, { x: 100, y: 200 }]),
+  ];
+  assert.equal(nearestWire(wires, { x: 50, y: 52 }, 12), 1);
+  assert.equal(nearestWire(wires, { x: 104, y: 120 }, 12), 1); // 曲がったあとの縦の線
+  assert.equal(nearestWire(wires, { x: 50, y: 195 }, 12), 3);
+  assert.equal(nearestWire(wires, { x: 50, y: 2 }, 12), -1); // 始まりのケーブルには落とさない
+  assert.equal(nearestWire(wires, { x: 50, y: 61 }, 3), -1); // 分岐のケーブルにも落とさない
+  assert.equal(nearestWire(wires, { x: 500, y: 500 }, 12), -1);
 });

@@ -1,10 +1,12 @@
-// パイプ作図台のパネルの中で動くスクリプト（esbuild で out/pipeEditor.js に束ねる）。
+// パイプ作業台のパネルの中で動くスクリプト（esbuild で out/pipeEditor.js に束ねる）。
 // ブロックを置く・動かす・プラグをコンセントに差してつなぐ・ブロック（1回分の依頼）を組み立てる・検査・書き出しの下見。
-// 判断（並び・つなぎ・検査・書き出し・ケーブルの通り道）は domain の関数に任せ、ここは画面の出し入れだけ。
+// 右クリックのメニュー・元に戻す/やり直し・履歴・複数選択・コピー/貼り付け・ケーブルに落として間に挟む。
+// 判断（並び・つなぎ・検査・書き出し・ケーブルの通り道・メニューの項目・編集・履歴）は domain の関数に任せ、ここは画面の出し入れだけ。
 // vscode は import しない（acquireVsCodeApi でやり取りする）。外から来た文字は esc を通す。
 import {
   BLOCK_KINDS,
   END,
+  KIND_LABEL,
   TERMINAL_SIZE,
   autoLayout,
   blockSize,
@@ -18,9 +20,17 @@ import {
   validatePipe,
 } from '../domain/pipeModel.ts';
 import type { BlockKind, FrameModel, PipeModel, Point, StageModel } from '../domain/pipeModel.ts';
-import { blockRect, layoutWires, roundedPath } from '../domain/pipeWires.ts';
+import { blockRect, layoutWires, nearestWire, roundedPath } from '../domain/pipeWires.ts';
 import type { Wire } from '../domain/pipeWires.ts';
-import { replug, unplug } from '../domain/pipeLinks.ts';
+import { insertBetween, replug, unplug } from '../domain/pipeLinks.ts';
+import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, takeOutOfFrame, unplugAll } from '../domain/pipeEdit.ts';
+import type { Clip } from '../domain/pipeEdit.ts';
+import { menuFor, menuKey, placeMenu } from '../domain/pipeMenu.ts';
+import type { MenuItem, MenuPath, MenuTarget } from '../domain/pipeMenu.ts';
+import { createHistory, jump, record, redo, undo } from '../domain/editHistory.ts';
+import type { History } from '../domain/editHistory.ts';
+import { VERSION_LIMIT } from '../domain/pipeVersions.ts';
+import type { VersionEntry } from '../domain/pipeVersions.ts';
 import { plugSvg, socketSvg } from '../view/plugSvg.ts';
 
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
@@ -31,9 +41,6 @@ const vscode = acquireVsCodeApi();
 type ShapeName = 'process' | 'predefined' | 'document' | 'subroutine' | 'chamfer' | 'hexagon' | 'diamond' | 'parallelogram' | 'terminal';
 const SHAPE_OF: Record<BlockKind, ShapeName> = {
   research: 'process', agent: 'predefined', docs: 'document', tests: 'subroutine', code: 'chamfer', verify: 'hexagon', branch: 'diamond', outside: 'parallelogram',
-};
-const KIND_LABEL: Record<BlockKind, string> = {
-  research: '調べる', agent: '任せる', docs: '文書と図', tests: 'テスト', code: 'コード', verify: '確かめる', branch: '仕分け', outside: '外を見る',
 };
 const KIND_HINT: Record<BlockKind, string> = {
   research: '読んでまとめる', agent: 'サブエージェントを使う', docs: '文書や図を書く', tests: 'テストを書く', code: '製品コードを書く',
@@ -78,13 +85,24 @@ const THINKING: [string, string][] = [['', '既定'], ['4000', '少なめ（4,00
 
 type Selection = { type: 'stage'; id: string } | { type: 'frame'; id: string } | { type: 'edge'; wire: Wire } | { type: 'pipe' };
 const st: {
-  m: PipeModel | null; sel: Selection; view: { x: number; y: number; z: number }; tab: 'block' | 'check' | 'files'; dirty: boolean; viewMoved: boolean;
+  m: PipeModel | null; sel: Selection; view: { x: number; y: number; z: number }; tab: 'block' | 'check' | 'files' | 'history'; dirty: boolean; viewMoved: boolean;
   /** 抜いて手に持っているケーブル（wireKey）。そのケーブルは描かず、コンセントは空きにする */
   lifted: string | null;
   /** 差したばかりのケーブル（元と先）。次に描くとき、プラグを押し込む動きを付ける */
   snapped: { from: string; to: string } | null;
+  /** 選んでいる段・枠の id（2つ以上なら複数選択） */
+  picked: string[];
+  /** 写したもの（Ctrl+C）と、それを貼った回数（貼るたびに少しずつずらす） */
+  clip: Clip | null;
+  pasted: number;
+  /** 保存済みの段の name（指示文を開けるもの） */
+  savedNames: string[];
+  versions: VersionEntry[];
+  /** 間に挟む先として目立たせているケーブル（wireKey） */
+  dropWire: string | null;
 } = {
   m: null, sel: { type: 'pipe' }, view: { x: 30, y: 30, z: 0.8 }, tab: 'block', dirty: false, viewMoved: false, lifted: null, snapped: null,
+  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null,
 };
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 const esc = (t: unknown): string => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -95,7 +113,53 @@ const isTerm = (id: string): boolean => id === 'start' || id === END;
 const toast = (t: string): void => { $('toast').textContent = t; };
 let uid = 0;
 const nid = (p: string): string => `${p}${Date.now().toString(36)}${++uid}`;
-const changed = (): void => { st.dirty = true; ($('save') as HTMLButtonElement).textContent = '保存 ●'; };
+
+// ---- 元に戻す・やり直し・保存していない印 ----------------------------------------------
+
+let hist: History = createHistory('');
+/** 保存したとき（開いたとき）の形。今の形と違えば、保存していない変更がある */
+let savedSnap = '';
+/** 保存を押したときの形（保存できたら savedSnap にする） */
+let savingSnap = '';
+let stateTimer: ReturnType<typeof setTimeout> | undefined;
+const snapNow = (): string => JSON.stringify(st.m);
+
+/** 保存していない印を付け直し、拡張に知らせる（タブ名の ● と、閉じたときの下書きのため。続けて打つ間は 300ms まとめる） */
+function syncDirty(): void {
+  const dirty = st.m !== null && snapNow() !== savedSnap;
+  st.dirty = dirty;
+  ($('save') as HTMLButtonElement).textContent = dirty ? '保存 ●' : '保存';
+  if (stateTimer !== undefined) clearTimeout(stateTimer);
+  stateTimer = setTimeout(() => vscode.postMessage(dirty ? { type: 'state', dirty, model: st.m } : { type: 'state', dirty }), 300);
+}
+
+/** 1手として積む。label は履歴の一覧に出す文。key が同じ手が続けば（同じ欄に続けて打つなど）1手にまとめる */
+function changed(label: string, key?: string): void {
+  if (!st.m) return;
+  record(hist, label, snapNow(), key);
+  syncDirty();
+  if (st.tab === 'history') renderPane();
+}
+
+/** 写しの形に戻す（元に戻す・やり直し・履歴の時点）。選んでいたものが無くなっていれば外す */
+function restore(snap: string | null): void {
+  if (snap === null) return;
+  st.m = JSON.parse(snap) as PipeModel;
+  const m = model(), has = (id: string): boolean => m.stages.some((s) => s.id === id) || m.frames.some((f) => f.id === id);
+  if ((st.sel.type === 'stage' || st.sel.type === 'frame') && !has(st.sel.id)) st.sel = { type: 'pipe' };
+  if (st.sel.type === 'edge') st.sel = { type: 'pipe' };
+  st.picked = st.picked.filter(has);
+  syncDirty();
+  render();
+}
+const picks = (): string[] => (st.picked.length ? st.picked : st.sel.type === 'stage' || st.sel.type === 'frame' ? [st.sel.id] : []);
+const isPicked = (id: string): boolean => st.picked.includes(id) || ((st.sel.type === 'stage' || st.sel.type === 'frame') && st.sel.id === id);
+/** 1つだけ選ぶ（複数選択はやめる） */
+function selectOne(sel: Selection): void {
+  st.sel = sel;
+  st.picked = sel.type === 'stage' || sel.type === 'frame' ? [sel.id] : [];
+  if (sel.type !== 'pipe') st.tab = st.tab === 'history' ? 'history' : 'block';
+}
 
 // ---- 路線図 ------------------------------------------------------------------
 
@@ -120,7 +184,7 @@ function chips(s: StageModel): string {
 function stageHtml(s: StageModel, n: number): string {
   const m = model(), shape = SHAPE_OF[s.kind], z = blockSize(s.kind);
   const inFrame = frameOf(m, s) !== null;
-  const cls = [shape, st.sel.type === 'stage' && st.sel.id === s.id ? 'sel' : '', inFrame ? 'in-frame' : '', !inFrame && !s.next && !s.routes.length ? 'free' : ''].join(' ');
+  const cls = [shape, isPicked(s.id) ? 'sel' : '', inFrame ? 'in-frame' : '', !inFrame && !s.next && !s.routes.length ? 'free' : ''].join(' ');
   return `<div class="node ${cls}" data-id="${esc(s.id)}" tabindex="0" role="button" aria-label="${esc(s.label)}（${KIND_LABEL[s.kind]}）">
     ${shapeSvg(shape, z.w, z.h)}
     <div class="body">
@@ -143,7 +207,7 @@ function renderWorld(): void {
   const m = model(), ord = orderStages(m);
   let html = '';
   for (const f of m.frames) {
-    const sel = st.sel.type === 'frame' && st.sel.id === f.id ? ' sel' : '';
+    const sel = isPicked(f.id) ? ' sel' : '';
     html += `<div class="frame${sel}${f.next ? '' : ' free'}" data-id="${esc(f.id)}">
       <span class="ftab" data-drag="frame">並列 · ${esc(f.name)}</span><span class="resize" data-drag="resize" aria-label="大きさを変える"></span>
       <span class="port" data-port="${esc(f.id)}" title="引っぱって、枠のあとの段のコンセントに差す">${PLUG}</span></div>`;
@@ -192,9 +256,9 @@ function drawWires(temp?: { a: Point; b: Point }): void {
   let cables = '', hits = '', tags = '', sockets = '', plugs = '';
   wires.forEach((w, i) => {
     if (wireKey(w) === st.lifted) return;
-    const sel = st.sel.type === 'edge' && wireKey(st.sel.wire) === wireKey(w) ? ' sel' : '';
+    const sel = (st.sel.type === 'edge' && wireKey(st.sel.wire) === wireKey(w) ? ' sel' : '') + (st.dropWire === wireKey(w) ? ' drop' : '');
     const d = roundedPath(backOff(w.points, 20));
-    if (w.kind !== 'return') cables += `<path class="cable-out" d="${d}"/>`;
+    if (w.kind !== 'return') cables += `<path class="cable-out${st.dropWire === wireKey(w) ? ' drop' : ''}" d="${d}"/>`;
     cables += `<path class="wire ${w.kind}${sel}" d="${d}"/>`;
     if (w.kind !== 'start') {
       // 当たり判定はプラグの手前で止める（プラグは掴んで抜き差しするため）
@@ -290,6 +354,12 @@ function sdkPane(s: StageModel): string {
 
 function blockPane(): string {
   const m = model();
+  if (st.picked.length > 1) {
+    const names = st.picked.map((id) => stageById(id)?.label ?? (frameById(id) ? `並列の枠「${frameById(id)!.name}」` : '')).filter(Boolean);
+    return `<p class="note">${st.picked.length} 個を選んでいます：${names.map(esc).join('、')}</p>
+      <p class="note">どれかを引くと、まとめて動きます。右クリックで、まとめて複製・枠に入れる・消すができます。Shift+クリックで足したり外したりできます。</p>
+      <button type="button" class="btn" id="del-sel">${st.picked.length} 個を消す</button>`;
+  }
   if (st.sel.type === 'frame') {
     const f = frameById(st.sel.id)!;
     return `<div class="bhead"><svg class="mini" viewBox="0 0 64 40"><rect class="sh" x="2" y="2" width="60" height="36" rx="10"/></svg><div class="t"><input id="fr-name" class="mono" value="${esc(f.name)}" aria-label="枠の名前（group）"></div></div>
@@ -375,7 +445,9 @@ function renderPane(): void {
   } else if (st.tab === 'check') {
     const { errors } = validatePipe(m);
     pane.innerHTML = `<ul class="result">${errors.length ? errors.map((e) => `<li>${esc(e)}</li>`).join('') : `<li class="ok">パイプ「${esc(m.name)}」: 問題ありません</li>`}</ul>
-      <p class="note">devpipe-gen check と同じ決まりに、作図台で起きやすいこと（つなぎ忘れ・並列の枠の出口）を足しています。誤りがあっても保存はできますが、devpipe で流す前に直してください。</p>`;
+      <p class="note">devpipe-gen check と同じ決まりに、作業台で起きやすいこと（つなぎ忘れ・並列の枠の出口）を足しています。誤りがあっても保存はできますが、devpipe で流す前に直してください。</p>`;
+  } else if (st.tab === 'history') {
+    pane.innerHTML = historyPane();
   } else {
     const files = pipeFiles(m);
     pane.innerHTML = `<p class="note">保存すると pipes/devpipe-${esc(m.name)}/ に、次のファイルを書きます（README.md は無いときだけ作ります）。</p>
@@ -383,6 +455,18 @@ function renderPane(): void {
   }
   pane.dataset.sel = selKey();
   if (same) pane.scrollTop = top;
+}
+function historyPane(): string {
+  const ops = hist.entries.map((e, i) => ({ e, i })).reverse().map(({ e, i }) =>
+    `<li><button type="button" class="hrow${i === hist.at ? ' cur' : ''}${i > hist.at ? ' later' : ''}" data-hist="${i}"${i === hist.at ? ' aria-current="step"' : ''}>${esc(e.label)}</button></li>`).join('');
+  const vers = st.versions.map((v) =>
+    `<li><button type="button" class="hrow" data-ver="${esc(v.id)}">${esc(when(v.savedAt))}${v.draft ? '<span class="chip warn">下書き（保存していない）</span>' : ''}</button></li>`).join('');
+  return `<div class="box"><h3>操作（新しい順）</h3>
+      <p class="note">押すと、その時点の形に戻ります。戻したあとでも Ctrl+Y で先へ進めます。Ctrl+Z で1手戻ります。</p>
+      <ol class="hist">${ops}</ol></div>
+    <div class="box"><h3>保存した版</h3>
+      <p class="note">保存のたびに残します（新しい方から ${VERSION_LIMIT} 版まで）。押すと読み込み、保存を押すまでファイルは書きません。</p>
+      ${vers ? `<ul class="hist">${vers}</ul>` : '<p class="note">まだありません</p>'}</div>`;
 }
 const selKey = (): string => `${st.tab}:${st.sel.type}:${'id' in st.sel ? st.sel.id : ''}`;
 
@@ -396,7 +480,7 @@ $('pane').addEventListener('input', (ev) => {
   const v: string | boolean = t.type === 'checkbox' ? t.checked : t.value;
   const sv = String(v);
   let full = false;
-  if (st.sel.type === 'frame' && t.id === 'fr-name') { frameById(st.sel.id)!.name = sv.trim() || 'group'; changed(); renderWorld(); badge(); return; }
+  if (st.sel.type === 'frame' && t.id === 'fr-name') { frameById(st.sel.id)!.name = sv.trim() || 'group'; changed('枠の名前を変えた', `${selKey()}:fr-name`); renderWorld(); badge(); return; }
   if (t.id === 'p-label') m.label = sv;
   else if (t.id === 'p-desc') m.description = sv;
   else if (t.id === 'p-input') { m.input = sv as PipeModel['input']; full = true; }
@@ -442,7 +526,10 @@ $('pane').addEventListener('input', (ev) => {
       default: return;
     }
   } else return;
-  changed();
+  // 文字を打つ欄は、同じ欄に続けて打った分を1手にまとめる（選ぶ・入り切りは1回ずつ1手）
+  const typing = t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'checkbox');
+  const field = t.id || `${t.dataset.agent ?? t.dataset.mcps ?? t.dataset.rkey ?? ''}:${t.dataset.f ?? ''}`;
+  changed(s ? `「${s.label}」を書き換えた` : 'パイプの設定を書き換えた', typing ? `${selKey()}:${field}` : undefined);
   renderWorld();
   if (full) renderPane();
   else {
@@ -459,7 +546,7 @@ $('pane').addEventListener('keydown', (ev) => {
   const t = ev.target as HTMLInputElement, s = current();
   if (t.id === 'b-ref' && ev.key === 'Enter' && t.value.trim() && s) {
     s.refs.push(t.value.trim());
-    changed();
+    changed(`「${s.label}」に渡すファイルを足した`);
     renderPane();
     document.getElementById('b-ref')?.focus();
   }
@@ -467,6 +554,8 @@ $('pane').addEventListener('keydown', (ev) => {
 $('pane').addEventListener('click', (ev) => {
   const t = (ev.target as HTMLElement).closest('button');
   if (!t) return;
+  if (t.dataset.hist !== undefined) { restore(jump(hist, +t.dataset.hist)); return; }
+  if (t.dataset.ver !== undefined) { vscode.postMessage({ type: 'loadVersion', id: t.dataset.ver }); return; }
   const s = current();
   if (t.dataset.unref !== undefined && s) s.refs.splice(+t.dataset.unref, 1);
   else if (t.dataset.rdel !== undefined && s) s.routes.splice(+t.dataset.rdel, 1);
@@ -476,12 +565,12 @@ $('pane').addEventListener('click', (ev) => {
   else if (t.id === 'mcps-add' && s) s.mcpServers.push({ name: `server${s.mcpServers.length + 1}`, type: 'stdio', command: '', args: [], url: '' });
   else if (t.id === 'del-sel') { deleteSelection(); return; }
   else return;
-  changed();
+  changed(`「${s?.label ?? ''}」の設定を変えた`);
   render();
 });
 document.querySelectorAll<HTMLButtonElement>('.tabs button').forEach((b) => b.addEventListener('click', () => { st.tab = b.dataset.tab as typeof st.tab; renderPane(); }));
 
-// ---- 面の操作：選ぶ・動かす・差す・見る範囲 ---------------------------------------
+// ---- 面の操作：選ぶ・動かす・囲む・差す・見る範囲 ---------------------------------------
 
 const area = $('area');
 const toWorld = (cx: number, cy: number): Point => {
@@ -491,9 +580,11 @@ const toWorld = (cx: number, cy: number): Point => {
 const snap = (v: number): number => Math.round(v / 10) * 10;
 type Act =
   | { type: 'pan'; sx: number; sy: number; vx: number; vy: number }
-  | { type: 'move'; id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean; before: Map<string, string> }
-  | { type: 'frame'; f: FrameModel; sx: number; sy: number; ox: number; oy: number; kids: { s: StageModel; x: number; y: number }[]; before: Map<string, string> }
-  | { type: 'resize'; f: FrameModel; sx: number; sy: number; ow: number; oh: number; before: Map<string, string> }
+  | { type: 'move'; id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean; before: Map<string, string>; loose: boolean }
+  | { type: 'many'; sx: number; sy: number; items: { o: { x: number; y: number }; x: number; y: number }[]; moved: boolean; before: Map<string, string> }
+  | { type: 'frame'; f: FrameModel; sx: number; sy: number; ox: number; oy: number; kids: { s: StageModel; x: number; y: number }[]; before: Map<string, string>; moved: boolean }
+  | { type: 'resize'; f: FrameModel; sx: number; sy: number; ow: number; oh: number; before: Map<string, string>; moved: boolean }
+  | { type: 'box'; a: Point; b: Point }
   | { type: 'link'; from: string; a: Point }
   | { type: 'replug'; wire: Wire; a: Point };
 let act: Act | null = null;
@@ -509,8 +600,45 @@ function tellGroups(before: Map<string, string>): void {
   if (said.length) toast(said.join('／'));
 }
 
+/** 選んでいるものをまとめて動かす準備（枠を選んでいれば、中の段も一緒に動かす） */
+function manyAct(sx: number, sy: number): Act {
+  const m = model(), objs = new Set<{ x: number; y: number }>();
+  for (const id of st.picked) {
+    const s = stageById(id), f = frameById(id);
+    if (s) objs.add(s);
+    if (f) { objs.add(f); membersOf(m, f).forEach((k) => objs.add(k)); }
+  }
+  return { type: 'many', sx, sy, items: [...objs].map((o) => ({ o, x: o.x, y: o.y })), moved: false, before: groupsNow() };
+}
+
+/** 間に挟む先として、点の近くの「次の段」のケーブルを目立たせる（無ければ消す） */
+function hoverDrop(p: Point | null): void {
+  const i = p ? nearestWire(wires, p, 16 / st.view.z) : -1;
+  const key = i >= 0 ? wireKey(wires[i]!) : null;
+  if (key !== st.dropWire) { st.dropWire = key; drawWires(); }
+}
+const dropTarget = (): Wire | null => (st.dropWire ? wires.find((w) => wireKey(w) === st.dropWire) ?? null : null);
+
+/** ケーブルに落とした段を間に挟む（挟めなければ理由を出す）。挟めたら true */
+function dropInto(id: string): boolean {
+  const w = dropTarget();
+  st.dropWire = null;
+  if (!w) return false;
+  const r = insertBetween(model(), w, id);
+  toast(r.message || '挟めませんでした');
+  return r.changed;
+}
+
 area.addEventListener('pointerdown', (ev) => {
-  if (ev.button !== 0 || !st.m) return;
+  if (!st.m || menuEl) return;
+  // 中ボタンは、どこを押しても図を動かす
+  if (ev.button === 1) {
+    ev.preventDefault();
+    act = { type: 'pan', sx: ev.clientX, sy: ev.clientY, vx: st.view.x, vy: st.view.y };
+    area.setPointerCapture(ev.pointerId);
+    return;
+  }
+  if (ev.button !== 0) return;
   // 文字を選ぶ・ブラウザのドラッグが始まると pointercancel になり、離した操作が届かなくなるので止める
   ev.preventDefault();
   // 止めるとフォーカスが右の欄の入力に残り、Delete が入力に取られるので外す
@@ -530,26 +658,39 @@ area.addEventListener('pointerdown', (ev) => {
     const r = blockRect(m, port.dataset.port!);
     act = { type: 'link', from: port.dataset.port!, a: { x: r.x + r.w, y: r.y + r.h / 2 } };
   } else if (hit) {
-    st.sel = { type: 'edge', wire: wires[+hit.dataset.edge!]! };
+    selectOne({ type: 'edge', wire: wires[+hit.dataset.edge!]! });
     st.tab = 'block';
     render();
     return;
-  } else if (node) {
-    const id = node.dataset.id!;
-    const o = id === 'start' ? m.start : id === END ? m.end : stageById(id)!;
-    if (!isTerm(id)) { st.sel = { type: 'stage', id }; st.tab = 'block'; }
-    act = { type: 'move', id, sx: w.x, sy: w.y, ox: o.x, oy: o.y, moved: false, before: groupsNow() };
+  } else if (node || (frame && target.dataset.drag)) {
+    const id = (node ?? frame)!.dataset.id!;
+    if (ev.shiftKey && !isTerm(id)) {
+      // Shift+クリック：選んでいるものに足す・外す
+      const now = picks();
+      st.picked = now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
+      st.sel = st.picked.length === 1 ? (stageById(st.picked[0]!) ? { type: 'stage', id: st.picked[0]! } : { type: 'frame', id: st.picked[0]! }) : { type: 'pipe' };
+      render();
+      return;
+    }
+    if (st.picked.length > 1 && st.picked.includes(id)) {
+      act = manyAct(w.x, w.y);
+    } else if (node) {
+      const o = id === 'start' ? m.start : id === END ? m.end : stageById(id)!;
+      if (!isTerm(id)) selectOne({ type: 'stage', id });
+      act = { type: 'move', id, sx: w.x, sy: w.y, ox: o.x, oy: o.y, moved: false, before: groupsNow(), loose: !isTerm(id) && isLoose(m, id) };
+    } else {
+      const f = frameById(id)!;
+      selectOne({ type: 'frame', id: f.id });
+      act = target.dataset.drag === 'resize'
+        ? { type: 'resize', f, sx: w.x, sy: w.y, ow: f.w, oh: f.h, before: groupsNow(), moved: false }
+        : { type: 'frame', f, sx: w.x, sy: w.y, ox: f.x, oy: f.y, kids: membersOf(m, f).map((s) => ({ s, x: s.x, y: s.y })), before: groupsNow(), moved: false };
+    }
     render();
-  } else if (frame && target.dataset.drag) {
-    const f = frameById(frame.dataset.id!)!;
-    st.sel = { type: 'frame', id: f.id };
-    st.tab = 'block';
-    act = target.dataset.drag === 'resize'
-      ? { type: 'resize', f, sx: w.x, sy: w.y, ow: f.w, oh: f.h, before: groupsNow() }
-      : { type: 'frame', f, sx: w.x, sy: w.y, ox: f.x, oy: f.y, kids: membersOf(m, f).map((s) => ({ s, x: s.x, y: s.y })), before: groupsNow() };
-    render();
+  } else if (ev.shiftKey) {
+    // Shift+ドラッグ：囲んで選ぶ
+    act = { type: 'box', a: w, b: w };
   } else {
-    st.sel = { type: 'pipe' };
+    selectOne({ type: 'pipe' });
     act = { type: 'pan', sx: ev.clientX, sy: ev.clientY, vx: st.view.x, vy: st.view.y };
     renderWorld();
     renderPane();
@@ -568,21 +709,31 @@ area.addEventListener('pointermove', (ev) => {
     const el = document.querySelector<HTMLElement>(`.node[data-id="${CSS.escape(act.id)}"]`);
     if (el) { el.style.left = `${o.x}px`; el.style.top = `${o.y}px`; }
     drawWires();
+    // つながっていない段は、ケーブルの上に落とすと間に挟める
+    if (act.loose) hoverDrop(w);
+  } else if (act.type === 'many') {
+    const dx = snap(w.x - act.sx), dy = snap(w.y - act.sy);
+    act.items.forEach((it) => { it.o.x = it.x + dx; it.o.y = it.y + dy; });
+    act.moved = true;
+    renderWorld();
   } else if (act.type === 'frame') {
     const dx = snap(w.x - act.sx), dy = snap(w.y - act.sy);
     act.f.x = act.ox + dx;
     act.f.y = act.oy + dy;
     act.kids.forEach((k) => { k.s.x = k.x + dx; k.s.y = k.y + dy; });
-    changed();
+    act.moved = true;
     renderWorld();
   } else if (act.type === 'resize') {
     act.f.w = Math.max(240, snap(act.ow + w.x - act.sx));
     act.f.h = Math.max(120, snap(act.oh + w.y - act.sy));
-    changed();
+    act.moved = true;
     renderWorld();
+  } else if (act.type === 'box') {
+    act.b = w;
+    drawBox(act.a, act.b);
   } else if (act.type === 'link' || act.type === 'replug') {
     drawWires({ a: act.a, b: w });
-    document.querySelectorAll('.drop').forEach((n) => n.classList.remove('drop'));
+    document.querySelectorAll('.node.drop, .frame.drop').forEach((n) => n.classList.remove('drop'));
     const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
     const from = act.type === 'link' ? act.from : null;
     if (over && over.dataset.id !== from) over.classList.add('drop');
@@ -590,35 +741,54 @@ area.addEventListener('pointermove', (ev) => {
 });
 area.addEventListener('pointerup', (ev) => {
   if (!act) return;
-  if (act.type === 'link') {
+  const a = act;
+  act = null;
+  if (a.type === 'link') {
     const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
-    if (over) link(act.from, over.dataset.id!);
+    if (over) link(a.from, over.dataset.id!);
     else toast('差すのをやめました（ブロックの上で離すと、コンセントに差さります）');
-    act = null;
     render();
     st.snapped = null;
     return;
   }
-  if (act.type === 'replug') {
+  if (a.type === 'replug') {
     // ブロックの上で離せばそのコンセントに差し直し、何もない所なら抜いたまま
     const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
-    const wire = act.wire, m = model();
+    const wire = a.wire, m = model();
     const r = over ? replug(m, wire, over.dataset.id!) : unplug(m, wire);
     if (r.changed) {
-      changed();
       if (st.sel.type === 'edge') st.sel = { type: 'pipe' };
       if (r.to) st.snapped = { from: wire.owner ?? wire.from, to: r.to };
+      changed(r.message || 'ケーブルを差し直した');
     } else if (over && over.dataset.id === wire.to) st.snapped = { from: wire.owner ?? wire.from, to: wire.to };
     if (r.message) toast(r.message);
-    act = null;
     st.lifted = null;
     render();
     st.snapped = null;
     return;
   }
-  if (act.type === 'move' && act.moved) { const before = act.before; act = null; changed(); render(); tellGroups(before); return; }
-  if (act.type === 'frame' || act.type === 'resize') tellGroups(act.before);
-  act = null;
+  if (a.type === 'box') {
+    document.getElementById('box')?.remove();
+    const ids = itemsInRect(model(), { x: a.a.x, y: a.a.y, w: a.b.x - a.a.x, h: a.b.y - a.a.y });
+    st.picked = ids;
+    st.sel = ids.length === 1 ? (stageById(ids[0]!) ? { type: 'stage', id: ids[0]! } : { type: 'frame', id: ids[0]! }) : { type: 'pipe' };
+    if (ids.length) toast(`${ids.length} 個を選びました`);
+    render();
+    return;
+  }
+  if (a.type === 'move' && a.moved) {
+    const label = stageById(a.id)?.label ?? (a.id === END ? '終わり' : '始まり');
+    if (a.loose && dropInto(a.id)) changed(`「${label}」を間に挟んだ`);
+    else changed(`「${label}」を動かした`);
+    render();
+    tellGroups(a.before);
+    return;
+  }
+  if (a.type === 'many' && a.moved) { changed(`${st.picked.length} 個を動かした`); render(); tellGroups(a.before); return; }
+  if ((a.type === 'frame' || a.type === 'resize') && a.moved) {
+    changed(a.type === 'frame' ? `並列の枠「${a.f.name}」を動かした` : `並列の枠「${a.f.name}」の大きさを変えた`);
+    tellGroups(a.before);
+  }
   renderPane();
 });
 // ブラウザが操作を取り上げたとき（pointercancel）は、引きかけのケーブルなどを残さずに描き直す
@@ -626,6 +796,8 @@ area.addEventListener('pointercancel', () => {
   if (!act) return;
   act = null;
   st.lifted = null;
+  st.dropWire = null;
+  document.getElementById('box')?.remove();
   render();
 });
 area.addEventListener('wheel', (ev) => {
@@ -646,17 +818,22 @@ area.addEventListener('keydown', (ev) => {
   const node = (ev.target as HTMLElement).closest<HTMLElement>('.node');
   if (node && (ev.key === 'Enter' || ev.key === ' ') && !isTerm(node.dataset.id!)) {
     ev.preventDefault();
-    st.sel = { type: 'stage', id: node.dataset.id! };
+    selectOne({ type: 'stage', id: node.dataset.id! });
     render();
   }
 });
-document.addEventListener('keydown', (ev) => {
-  if ((ev.key === 'Delete' || ev.key === 'Backspace') && !(ev.target as HTMLElement).matches('input, textarea, select')) {
-    ev.preventDefault();
-    deleteSelection();
+
+/** 囲んでいる四角（world の中に置き、位置と大きさは CSSOM で入れる） */
+function drawBox(a: Point, b: Point): void {
+  let el = document.getElementById('box');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'box';
+    el.className = 'marquee';
+    $('world').appendChild(el);
   }
-  if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') { ev.preventDefault(); save(); }
-});
+  Object.assign(el.style, { left: `${Math.min(a.x, b.x)}px`, top: `${Math.min(a.y, b.y)}px`, width: `${Math.abs(b.x - a.x)}px`, height: `${Math.abs(b.y - a.y)}px` });
+}
 
 /** プラグを差す：右のブロックなら次の段、仕分けなら分岐、左（前）のブロックなら差し戻し、自分ならやり直し */
 function link(from: string, to: string): void {
@@ -672,51 +849,53 @@ function link(from: string, to: string): void {
   const pf = fromFrame ? Math.max(...membersOf(m, fromFrame).map((s) => pos(s.id))) : pos(from);
   const pt = to === END ? Infinity : pos(firstOf(to) ?? '');
   const nameTo = to === END ? '終わり' : stageById(to)?.label ?? frameById(to)?.name ?? to;
+  let said = '';
   if (fromFrame) {
     if (pt <= pf) { toast('並列の枠からは、右にある段へだけつなげます'); return; }
     fromFrame.next = to;
-    toast(`並列の枠 → ${nameTo}`);
+    said = `並列の枠 → ${nameTo}`;
   } else if (src) {
-    if (to === from) { src.check.on = true; src.onFail = null; toast(`${src.label}：判定に通らなければ、自分をやり直します`); }
+    if (to === from) { src.check.on = true; src.onFail = null; said = `${src.label}：判定に通らなければ、自分をやり直します`; }
     else if (pt <= pf) {
       if (frameById(to)) { toast('差し戻しは、枠ではなく段へ差してください'); return; }
       src.check.on = true;
       src.check.verdict = true;
       src.onFail = to;
-      toast(`${src.label}：判定に通らなければ「${nameTo}」へ戻します`);
+      said = `${src.label}：判定に通らなければ「${nameTo}」へ戻します`;
     } else if (src.routes.length || src.kind === 'branch') {
       src.next = null;
       if (src.routes.some((r) => r.to === to)) { toast('その行き先への分岐はもうあります'); return; }
       src.routes.push({ key: `choice${src.routes.length + 1}`, to });
-      toast(`${src.label}：分岐を1本足しました。右で選択肢の名前を決めてください`);
+      said = `${src.label}：分岐を1本足しました。右で選択肢の名前を決めてください`;
     } else {
       src.next = to;
-      toast(`${src.label} → ${nameTo}`);
+      said = `${src.label} → ${nameTo}`;
     }
   } else return;
-  changed();
+  toast(said);
+  changed(`ケーブルを差した（${said}）`);
 }
 
-function deleteSelection(): void {
-  const m = model(), sel = st.sel;
-  if (sel.type === 'stage') {
-    const s = stageById(sel.id);
-    if (!s) return;
-    m.stages = m.stages.filter((x) => x !== s);
-    m.stages.forEach((x) => { if (x.next === s.id) x.next = null; if (x.onFail === s.id) x.onFail = null; x.routes = x.routes.filter((r) => r.to !== s.id); });
-    m.frames.forEach((f) => { if (f.next === s.id) f.next = null; });
-    toast(`「${s.label}」を消しました`);
-  } else if (sel.type === 'frame') {
-    m.frames = m.frames.filter((f) => f.id !== sel.id);
-    m.stages.forEach((x) => { if (x.next === sel.id) x.next = null; x.routes = x.routes.filter((r) => r.to !== sel.id); });
-    toast('枠を消しました（中の段は残っています）');
-  } else if (sel.type === 'edge') {
-    const r = unplug(m, sel.wire);
+/** 選んでいるもの（ids を渡せばそれ）を消す。ケーブルを選んでいれば抜く */
+function deleteSelection(ids = picks()): void {
+  const m = model();
+  if (!ids.length && st.sel.type === 'edge') {
+    const r = unplug(m, st.sel.wire);
     if (r.message) toast(r.message);
     if (!r.changed) return;
-  } else return;
-  st.sel = { type: 'pipe' };
-  changed();
+    st.sel = { type: 'pipe' };
+    changed(r.message || 'ケーブルを抜いた');
+    render();
+    return;
+  }
+  if (!ids.length) return;
+  const one = ids.length === 1 ? stageById(ids[0]!)?.label ?? (frameById(ids[0]!) ? `並列の枠「${frameById(ids[0]!)!.name}」` : '') : '';
+  const r = deleteItems(m, ids);
+  if (!r.stages && !r.frames) return;
+  const said = one ? `「${one}」を消しました` : `${r.stages + r.frames} 個を消しました`;
+  toast(r.frames && !r.stages ? `${said}（枠の中の段は残っています）` : said);
+  selectOne({ type: 'pipe' });
+  changed(said.replace('しました', 'した'));
   render();
 }
 
@@ -740,7 +919,10 @@ const shelf = $('shelf');
     : `${tileSvg(k)}${KIND_LABEL[k]}`;
   shelf.appendChild(t);
 });
-/** 棚から置く。exact でなければ（押した・Enter）、at の近くの空いた場所に置く。ドラッグで置いたときは離した場所に置く */
+/**
+ * 棚から置く。exact でなければ（押した・Enter）、at の近くの空いた場所に置く。ドラッグで置いたときは離した場所に置く。
+ * ケーブルの上に落としたとき（st.dropWire）は、その間に挟む。
+ */
 function addBlock(kind: BlockKind | 'frame', at: Point, exact: boolean): void {
   const m = model();
   const size = kind === 'frame' ? { w: 280, h: 220 } : blockSize(kind);
@@ -750,8 +932,10 @@ function addBlock(kind: BlockKind | 'frame', at: Point, exact: boolean): void {
     while (m.frames.some((f) => f.name === `group${n}`)) n++;
     const f: FrameModel = { id: nid('f'), name: `group${n}`, x: p.x, y: p.y, w: size.w, h: size.h, next: null };
     m.frames.push(f);
-    st.sel = { type: 'frame', id: f.id };
+    selectOne({ type: 'frame', id: f.id });
+    st.dropWire = null;
     toast('並列の枠を置きました。段をこの中に動かすと、同時に流れます');
+    changed(`並列の枠「${f.name}」を置いた`);
   } else {
     let n = m.stages.length + 1, name: string;
     do { name = `${kind}-${n++}`; } while (m.stages.some((s) => s.name === name));
@@ -760,17 +944,24 @@ function addBlock(kind: BlockKind | 'frame', at: Point, exact: boolean): void {
     s.x = p.x;
     s.y = p.y;
     m.stages.push(s);
-    st.sel = { type: 'stage', id: s.id };
+    selectOne({ type: 'stage', id: s.id });
     st.tab = 'block';
-    toast(`「${s.label}」を置きました。右で頼むことを書き、右のプラグをほかのブロックに差してください`);
+    if (dropInto(s.id)) changed(`「${s.label}」を間に挟んだ`);
+    else {
+      toast(`「${s.label}」を置きました。右で頼むことを書き、右のプラグをほかのブロックに差してください`);
+      changed(`「${s.label}」を置いた`);
+    }
   }
-  changed();
   render();
   // 空きを探して見えている範囲の外に置いたときは、全体を見直して置いたものが見えるようにする
   const a = area.getBoundingClientRect(), v = st.view;
   const sx = p.x * v.z + v.x, sy = p.y * v.z + v.y;
   if (sx < 0 || sy < 0 || sx + size.w * v.z > a.width || sy + size.h * v.z > a.height) fit();
 }
+const inArea = (cx: number, cy: number): boolean => {
+  const r = area.getBoundingClientRect();
+  return cx > r.left && cx < r.right && cy > r.top && cy < r.bottom;
+};
 let drag: { kind: BlockKind | 'frame'; el: HTMLElement; sx: number; sy: number; moved: boolean; ghost: HTMLElement | null } | null = null;
 shelf.addEventListener('pointerdown', (ev) => {
   const t = (ev.target as HTMLElement).closest<HTMLElement>('.tile');
@@ -782,6 +973,7 @@ shelf.addEventListener('pointerdown', (ev) => {
 shelf.addEventListener('pointercancel', () => {
   drag?.ghost?.remove();
   drag = null;
+  hoverDrop(null);
 });
 shelf.addEventListener('pointermove', (ev) => {
   if (!drag) return;
@@ -792,13 +984,16 @@ shelf.addEventListener('pointermove', (ev) => {
     document.body.appendChild(drag.ghost);
   }
   if (drag.ghost) { drag.ghost.style.left = `${ev.clientX - 40}px`; drag.ghost.style.top = `${ev.clientY - 30}px`; }
+  // 段を棚から引いてケーブルの上に来たら、間に挟めることを見せる（枠は挟めない）
+  if (drag.moved && drag.kind !== 'frame') hoverDrop(inArea(ev.clientX, ev.clientY) ? toWorld(ev.clientX, ev.clientY) : null);
 });
 shelf.addEventListener('pointerup', (ev) => {
   if (!drag) return;
   drag.ghost?.remove();
   const r = area.getBoundingClientRect();
   if (!drag.moved) addBlock(drag.kind, toWorld(r.left + r.width / 2, r.top + r.height / 2), false);
-  else if (ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom) addBlock(drag.kind, toWorld(ev.clientX, ev.clientY), true);
+  else if (inArea(ev.clientX, ev.clientY)) addBlock(drag.kind, toWorld(ev.clientX, ev.clientY), true);
+  else hoverDrop(null);
   drag = null;
 });
 shelf.addEventListener('keydown', (ev) => {
@@ -808,6 +1003,257 @@ shelf.addEventListener('keydown', (ev) => {
     const r = area.getBoundingClientRect();
     addBlock(t.dataset.kind as BlockKind | 'frame', toWorld(r.left + r.width / 2, r.top + r.height / 2), false);
   }
+});
+
+// ---- 複製・コピー・貼り付け --------------------------------------------------------
+
+/** ids を写して少しずらして貼り、貼ったものを選ぶ */
+function duplicate(ids: string[]): void {
+  if (!ids.length) return;
+  const clip = copyItems(model(), ids);
+  const added = pasteClip(model(), clip, pasteOffset(clip, 1), nid);
+  pickAll(added);
+  toast(`${added.length === 1 ? '1 個' : `${added.length} 個`}を複製しました`);
+  changed(`${added.length} 個を複製した`);
+  render();
+}
+function copySelection(): void {
+  const ids = picks();
+  if (!ids.length) return;
+  st.clip = copyItems(model(), ids);
+  st.pasted = 0;
+  toast(`${ids.length} 個を写しました（Ctrl+V で貼れます）`);
+}
+/** 写したものを貼る。at を渡せば、写したものの左上をそこに合わせる。渡さなければ、貼るたびに少しずつずらす */
+function paste(at?: Point): void {
+  if (!st.clip) { toast('写したものがありません（Ctrl+C で写せます）'); return; }
+  let offset: Point;
+  if (at) {
+    const xs = [...st.clip.stages.map((s) => s.x), ...st.clip.frames.map((f) => f.x)], ys = [...st.clip.stages.map((s) => s.y), ...st.clip.frames.map((f) => f.y)];
+    offset = { x: at.x - Math.min(...xs), y: at.y - Math.min(...ys) };
+  } else {
+    st.pasted++;
+    offset = pasteOffset(st.clip, st.pasted);
+  }
+  const added = pasteClip(model(), st.clip, offset, nid);
+  pickAll(added);
+  toast(`${added.length} 個を貼りました`);
+  changed(`${added.length} 個を貼り付けた`);
+  render();
+}
+/** ids をまとめて選ぶ（1つなら、それを右の欄に出す） */
+function pickAll(ids: string[]): void {
+  st.picked = ids;
+  st.sel = ids.length === 1 ? (stageById(ids[0]!) ? { type: 'stage', id: ids[0]! } : { type: 'frame', id: ids[0]! }) : { type: 'pipe' };
+}
+
+// ---- 右クリックのメニュー --------------------------------------------------------
+
+let menuEl: HTMLElement | null = null;
+let menu: { items: MenuItem[]; path: MenuPath; target: MenuTarget; at: Point } | null = null;
+
+/** 押したもの（ブロック・枠・何もないところ・複数選択）のメニューを、画面の (cx, cy) に出す */
+function openMenu(target: MenuTarget, cx: number, cy: number, at: Point): void {
+  const items = menuFor(model(), target, { hasClip: st.clip !== null, savedNames: st.savedNames });
+  closeMenu();
+  if (!items.length) return;
+  menu = { items, path: [items.findIndex((i) => !i.sep)], target, at };
+  menuEl = document.createElement('div');
+  menuEl.className = 'menus';
+  document.body.appendChild(menuEl);
+  drawMenu({ x: cx, y: cy });
+}
+function closeMenu(): void {
+  menuEl?.remove();
+  menuEl = null;
+  menu = null;
+}
+const menuItemsHtml = (items: MenuItem[], level: number, cur: MenuPath): string => items.map((it, i) => it.sep
+  ? '<div class="msep" role="separator"></div>'
+  : `<button type="button" class="mitem${cur[level] === i ? ' on' : ''}" role="menuitem" tabindex="-1" data-level="${level}" data-i="${i}"${it.disabled ? ` aria-disabled="true" title="${esc(it.disabled)}"` : ''}${it.children ? ' aria-haspopup="menu"' : ''}>
+      <span>${esc(it.label)}</span>${it.children ? '<span class="msub" aria-hidden="true">▸</span>' : ''}${it.disabled ? `<small>${esc(it.disabled)}</small>` : ''}</button>`).join('');
+/** メニュー（と開いているサブメニュー）を描き、面からはみ出さない所に置いて、今の項目にフォーカスを移す */
+function drawMenu(at?: Point): void {
+  if (!menu || !menuEl) return;
+  const box = { w: window.innerWidth, h: window.innerHeight };
+  const top = menuEl.querySelector<HTMLElement>('.menu.l0');
+  const origin = at ?? (top ? { x: top.offsetLeft, y: top.offsetTop } : { x: 0, y: 0 });
+  menuEl.innerHTML = `<div class="menu l0" role="menu">${menuItemsHtml(menu.items, 0, menu.path)}</div>`;
+  const l0 = menuEl.querySelector<HTMLElement>('.menu.l0')!;
+  const p0 = at ? placeMenu(origin, { w: l0.offsetWidth, h: l0.offsetHeight }, box) : origin;
+  Object.assign(l0.style, { left: `${p0.x}px`, top: `${p0.y}px` });
+  const parent = menu.items[menu.path[0]!];
+  if (menu.path.length > 1 && parent?.children) {
+    const sub = document.createElement('div');
+    sub.className = 'menu l1';
+    sub.setAttribute('role', 'menu');
+    sub.innerHTML = menuItemsHtml(parent.children, 1, menu.path);
+    menuEl.appendChild(sub);
+    const row = l0.querySelector<HTMLElement>(`[data-i="${menu.path[0]}"]`)!;
+    const r = row.getBoundingClientRect();
+    // 右に出し、入らなければ左に出す
+    let x = r.right;
+    if (x + sub.offsetWidth > box.w) x = r.left - sub.offsetWidth;
+    const p1 = placeMenu({ x: Math.max(0, x), y: r.top }, { w: sub.offsetWidth, h: sub.offsetHeight }, box);
+    Object.assign(sub.style, { left: `${p1.x}px`, top: `${p1.y}px` });
+  }
+  menuEl.querySelector<HTMLElement>(`.menu.l${menu.path.length - 1} .mitem.on`)?.focus();
+}
+/** 選んでいるものから、メニューの対象を決める（キーボードで開くとき） */
+function selectionTarget(): MenuTarget {
+  if (st.picked.length > 1) return { type: 'multi', ids: [...st.picked] };
+  if (st.sel.type === 'stage') return { type: 'stage', id: st.sel.id };
+  if (st.sel.type === 'frame') return { type: 'frame', id: st.sel.id };
+  const r = area.getBoundingClientRect();
+  return { type: 'canvas', at: toWorld(r.left + r.width / 2, r.top + r.height / 2) };
+}
+function openMenuFromKeyboard(): void {
+  if (!st.m) return;
+  const target = selectionTarget(), a = area.getBoundingClientRect();
+  let cx = a.left + a.width / 2, cy = a.top + a.height / 2;
+  const id = target.type === 'stage' || target.type === 'frame' ? target.id : target.type === 'multi' ? target.ids[0]! : null;
+  if (id) {
+    const el = document.querySelector<HTMLElement>(`#world > [data-id="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+    if (el) { cx = el.left + el.width / 2; cy = el.top + el.height / 2; }
+  }
+  openMenu(target, cx, cy, target.type === 'canvas' ? target.at : toWorld(cx, cy));
+}
+
+area.addEventListener('contextmenu', (ev) => {
+  ev.preventDefault();
+  if (!st.m || act) return;
+  const target = ev.target as HTMLElement;
+  // ケーブル・プラグにはメニューを出さない（抜き差しはドラッグで）
+  if (target.closest('.wire-hit, [data-plug], [data-port]')) { closeMenu(); return; }
+  const node = target.closest<HTMLElement>('.node'), frame = target.closest<HTMLElement>('.frame');
+  const at = toWorld(ev.clientX, ev.clientY);
+  let t: MenuTarget;
+  const id = node && !isTerm(node.dataset.id!) ? node.dataset.id! : !node && frame ? frame.dataset.id! : null;
+  if (id && st.picked.length > 1 && st.picked.includes(id)) t = { type: 'multi', ids: [...st.picked] };
+  else if (id && node) { selectOne({ type: 'stage', id }); render(); t = { type: 'stage', id }; }
+  else if (id) { selectOne({ type: 'frame', id }); render(); t = { type: 'frame', id }; }
+  else t = { type: 'canvas', at };
+  openMenu(t, ev.clientX, ev.clientY, at);
+});
+// メニューの外を押したら閉じる（メニューの中の押下は、下の click で受ける）
+document.addEventListener('pointerdown', (ev) => {
+  if (menuEl && !menuEl.contains(ev.target as Node)) closeMenu();
+}, true);
+document.addEventListener('click', (ev) => {
+  if (!menu || !menuEl) return;
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('.mitem');
+  if (!b || !menuEl.contains(b)) return;
+  const level = +b.dataset.level!, i = +b.dataset.i!;
+  const path = level === 0 ? [i] : [menu.path[0]!, i];
+  const it = level === 0 ? menu.items[i]! : menu.items[menu.path[0]!]!.children![i]!;
+  if (it.disabled) return;
+  if (it.children) { menu.path = [i, 0]; drawMenu(); return; }
+  menu.path = path;
+  runMenu(it.id);
+});
+document.addEventListener('pointerover', (ev) => {
+  if (!menu || !menuEl) return;
+  const b = (ev.target as HTMLElement).closest<HTMLElement>('.mitem');
+  if (!b || !menuEl.contains(b)) return;
+  const level = +b.dataset.level!, i = +b.dataset.i!;
+  const next = level === 0 ? (menu.items[i]!.children && !menu.items[i]!.disabled ? [i, 0] : [i]) : [menu.path[0]!, i];
+  if (next.join() !== menu.path.join()) { menu.path = next; drawMenu(); }
+});
+
+/** メニューの項目を実行する */
+function runMenu(id: string): void {
+  if (!menu) return;
+  const { target, at } = menu;
+  closeMenu();
+  const m = model();
+  const ids = target.type === 'multi' ? target.ids : target.type === 'stage' || target.type === 'frame' ? [target.id] : [];
+  const s = target.type === 'stage' ? stageById(target.id) : undefined;
+  if (id.startsWith('add:')) { addBlock(id.slice(4) as BlockKind, at, true); return; }
+  if (id.startsWith('frame-in:')) {
+    const r = putInFrame(m, ids, id.slice('frame-in:'.length));
+    toast(r.message);
+    if (r.changed) { changed(r.message.replace(/。.*$/, '')); render(); }
+    return;
+  }
+  switch (id) {
+    case 'rename':
+    case 'show-prompt':
+      if (!s) return;
+      selectOne({ type: 'stage', id: s.id });
+      st.tab = 'block';
+      render();
+      if (id === 'rename') { const el = document.getElementById('b-label') as HTMLInputElement | null; el?.focus(); el?.select(); }
+      else { const d = document.querySelector<HTMLDetailsElement>('details.preview'); if (d) { d.open = true; d.scrollIntoView({ block: 'nearest' }); } }
+      return;
+    case 'open-prompt': if (s) vscode.postMessage({ type: 'openPrompt', name: s.name }); return;
+    case 'duplicate': duplicate(ids); return;
+    case 'review':
+      if (!s) return;
+      s.review = !s.review;
+      changed(s.review ? `「${s.label}」に人の確認をつけた` : `「${s.label}」の人の確認を外した`);
+      render();
+      return;
+    case 'frame-out': {
+      if (!s) return;
+      const r = takeOutOfFrame(m, s.id);
+      toast(r.message);
+      if (r.changed) { changed(r.message.replace('しました', 'した')); render(); }
+      return;
+    }
+    case 'unplug-all':
+      if (s && unplugAll(m, s.id)) { toast(`「${s.label}」のケーブルをすべて抜きました`); changed(`「${s.label}」のケーブルをすべて抜いた`); render(); }
+      return;
+    case 'delete': deleteSelection(ids); return;
+    case 'rename-frame': {
+      if (target.type !== 'frame') return;
+      selectOne({ type: 'frame', id: target.id });
+      st.tab = 'block';
+      render();
+      const el = document.getElementById('fr-name') as HTMLInputElement | null;
+      el?.focus();
+      el?.select();
+      return;
+    }
+    case 'delete-frame': deleteSelection(ids); return;
+    case 'delete-frame-all': {
+      const f = target.type === 'frame' ? frameById(target.id) : undefined;
+      if (f) deleteSelection([f.id, ...membersOf(m, f).map((x) => x.id)]);
+      return;
+    }
+    case 'add-frame': addBlock('frame', at, true); return;
+    case 'paste': paste(at); return;
+    case 'arrange': arrange(); return;
+    case 'fit': st.viewMoved = false; fit(); return;
+  }
+}
+
+// ---- キーボード ---------------------------------------------------------------
+
+const typingIn = (t: EventTarget | null): boolean => t instanceof HTMLElement && t.matches('input, textarea, select, [contenteditable="true"]');
+document.addEventListener('keydown', (ev) => {
+  // メニューを開いているあいだは、キーはメニューが受ける
+  if (menu) {
+    if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Escape', 'Tab'].includes(ev.key)) ev.preventDefault();
+    if (ev.key === 'Tab') { closeMenu(); return; }
+    const r = menuKey(menu.items, menu.path, ev.key);
+    if (r.close) { closeMenu(); return; }
+    menu.path = r.path;
+    if (r.run) runMenu(r.run);
+    else drawMenu();
+    return;
+  }
+  const mod = ev.ctrlKey || ev.metaKey, key = ev.key.toLowerCase();
+  if (mod && key === 's') { ev.preventDefault(); save(); return; }
+  // 入力欄の中では、元に戻す・コピーなどはブラウザの元からの動きに任せる
+  if (typingIn(ev.target) || !st.m) return;
+  if ((ev.shiftKey && ev.key === 'F10') || ev.key === 'ContextMenu') { ev.preventDefault(); openMenuFromKeyboard(); return; }
+  if (mod && key === 'z' && !ev.shiftKey) { ev.preventDefault(); restore(undo(hist)); return; }
+  if (mod && (key === 'y' || (key === 'z' && ev.shiftKey))) { ev.preventDefault(); restore(redo(hist)); return; }
+  if (mod && key === 'c') { ev.preventDefault(); copySelection(); return; }
+  if (mod && key === 'v') { ev.preventDefault(); paste(); return; }
+  if (mod && key === 'd') { ev.preventDefault(); duplicate(picks()); return; }
+  if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); deleteSelection(); return; }
+  if (ev.key === 'Escape' && st.picked.length > 1) { selectOne({ type: 'pipe' }); render(); }
 });
 
 // ---- 上の帯 ---------------------------------------------------------------
@@ -830,41 +1276,69 @@ function zoomBy(f: number): void {
   st.viewMoved = true;
   applyView();
 }
+function arrange(): void {
+  if (!st.m) return;
+  autoLayout(model());
+  changed('自動で並べた');
+  render();
+  fit();
+  toast('並びの順に、左から右へ並べ直しました');
+}
 function save(): void {
   if (!st.m) return;
   ($('save') as HTMLButtonElement).disabled = true;
+  savingSnap = snapNow();
   vscode.postMessage({ type: 'save', model: st.m });
 }
 $('zoom-in').addEventListener('click', () => zoomBy(1.2));
 $('zoom-out').addEventListener('click', () => zoomBy(1 / 1.2));
 $('fit').addEventListener('click', () => { if (st.m) { st.viewMoved = false; fit(); } });
-$('arrange').addEventListener('click', () => { if (!st.m) return; autoLayout(model()); changed(); render(); fit(); toast('並びの順に、左から右へ並べ直しました'); });
+$('arrange').addEventListener('click', arrange);
 $('save').addEventListener('click', save);
 
 // ---- 拡張とのやり取り ------------------------------------------------------------
 
+/** 保存した版の日時（パネルの中だけで使う表示の書式） */
+const when = (t: number): string => new Date(t).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 window.addEventListener('message', (ev: MessageEvent) => {
-  const msg = ev.data as { type?: string; model?: PipeModel; written?: string[]; errors?: string[]; message?: string };
+  const msg = ev.data as {
+    type?: string; model?: PipeModel; written?: string[]; errors?: string[]; message?: string;
+    savedNames?: string[]; dirty?: boolean; list?: VersionEntry[]; id?: string;
+  };
   if (msg.type === 'load' && msg.model) {
     st.m = msg.model;
-    st.sel = { type: 'pipe' };
-    st.dirty = false;
+    selectOne({ type: 'pipe' });
     st.viewMoved = false;
+    st.savedNames = msg.savedNames ?? [];
+    hist = createHistory(snapNow(), msg.dirty ? '保存していない下書きを開いた' : '開いたとき');
+    // 下書きを開き直したときは、保存したときの形が分からないので、保存するまで印を付けたままにする
+    savedSnap = msg.dirty ? '' : snapNow();
     $('pipe-path').textContent = `pipes/devpipe-${msg.model.name}/`;
-    ($('save') as HTMLButtonElement).textContent = '保存';
+    syncDirty();
     render();
     requestAnimationFrame(fit);
-    toast('ブロックの右のプラグを引っぱって、ほかのブロックの左のコンセントに差します');
+    toast(msg.dirty ? '保存していない下書きを開きました。保存を押すとファイルに書きます' : 'ブロックの右のプラグを引っぱって、ほかのブロックの左のコンセントに差します');
   } else if (msg.type === 'saved') {
-    st.dirty = false;
-    const btn = $('save') as HTMLButtonElement;
-    btn.disabled = false;
-    btn.textContent = '保存';
+    savedSnap = savingSnap;
+    st.savedNames = msg.savedNames ?? st.savedNames;
+    ($('save') as HTMLButtonElement).disabled = false;
+    syncDirty();
     const n = msg.errors?.length ?? 0;
     toast(n ? `保存しました（検査で ${n} 件の誤りがあります。流す前に直してください）` : '保存しました。検査にも通っています');
   } else if (msg.type === 'failed') {
     ($('save') as HTMLButtonElement).disabled = false;
     toast(`保存できませんでした：${msg.message ?? ''}`);
+  } else if (msg.type === 'versions' && Array.isArray(msg.list)) {
+    st.versions = msg.list;
+    if (st.tab === 'history') renderPane();
+  } else if (msg.type === 'version' && msg.model && st.m) {
+    const v = st.versions.find((x) => x.id === msg.id);
+    st.m = { ...msg.model, name: st.m.name };
+    selectOne({ type: 'pipe' });
+    changed(`保存した版（${v ? when(v.savedAt) : msg.id}${v?.draft ? '・下書き' : ''}）を読み込んだ`);
+    render();
+    fit();
+    toast('保存した版を読み込みました。保存を押すまでファイルは書きません（Ctrl+Z で読み込む前に戻せます）');
   }
 });
 vscode.postMessage({ type: 'ready' });

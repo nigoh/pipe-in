@@ -1,7 +1,9 @@
 // 拡張機能の宣言（package.json）の検査。AC-01・AC-02。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function readManifest(): any {
   const url = new URL('../package.json', import.meta.url);
@@ -43,17 +45,50 @@ test('ステータスバー：起動の後すぐ動き出す（ボタンをい�
   assert.ok((manifest.activationEvents ?? []).includes('onStartupFinished'));
 });
 
-test('AC-34: 作図台のコマンドと、pipes/ の場所の設定がある', () => {
+test('AC-34: 作業台のコマンドと、pipes/ の場所の設定がある', () => {
   const manifest = readManifest();
   const commands = manifest.contributes?.commands ?? [];
-  assert.equal(commands.filter((c: any) => c?.command === 'devpipe.editPipe' && c?.title === 'devpipe: パイプを作図する').length, 1);
+  assert.equal(commands.filter((c: any) => c?.command === 'devpipe.editPipe' && c?.title === 'devpipe: パイプ作業台を開く').length, 1);
   const prop = manifest.contributes?.configuration?.properties?.['devpipe.pipesDir'];
   assert.ok(prop, 'devpipe.pipesDir の設定項目があること');
   assert.equal(prop.default, '', '空なら .devpipe/pipes → pipes の順に自動で決める');
 });
 
-test('AC-34: パネルの中で動く作図台のスクリプトも、ビルドで out/ に束ねる', () => {
+test('AC-34: パネルの中で動く作業台のスクリプトも、ビルドで out/ に束ねる', () => {
   const manifest = readManifest();
   assert.match(manifest.scripts?.build ?? '', /src\/webview\/pipeEditor\.ts/);
   assert.match(manifest.scripts?.build ?? '', /out\/pipeEditor\.js/);
 });
+
+test('AC-57: 名前は「パイプ作業台」。コマンドの表示を変え、ID（devpipe.editPipe）はそのまま', () => {
+  const commands = readManifest().contributes?.commands ?? [];
+  const edit = commands.find((c: any) => c?.command === 'devpipe.editPipe');
+  assert.equal(edit?.title, 'devpipe: パイプ作業台を開く');
+});
+
+test('AC-57: 拡張・README・スキル・エージェント・CLAUDE.md に、古い名前が残っていない', () => {
+  // この検査自体が古い名前を含まないよう、文字をつないで作る
+  const OLD = new RegExp('作' + '図');
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const files = [
+    ...listFiles(path.join(root, 'src')),
+    ...listFiles(path.join(root, 'scripts')),
+    path.join(root, 'package.json'),
+    path.join(root, 'README.md'),
+    path.join(root, '..', 'README.md'),
+    path.join(root, '..', 'CLAUDE.md'),
+    path.join(root, '..', '.claude', 'skills', 'pipe-in', 'SKILL.md'),
+    path.join(root, '..', '.claude', 'skills', 'pipe-help', 'SKILL.md'),
+    path.join(root, '..', 'plugin', 'skills', 'pipe-build', 'SKILL.md'),
+    path.join(root, '..', 'plugin', 'agents', 'pipe-builder.md'),
+  ];
+  const left = files.filter((f) => OLD.test(readFileSync(f, 'utf8'))).map((f) => path.relative(root, f));
+  assert.deepEqual(left, []);
+});
+
+function listFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    return e.isDirectory() ? listFiles(full) : e.name.endsWith('.ts') ? [full] : [];
+  });
+}

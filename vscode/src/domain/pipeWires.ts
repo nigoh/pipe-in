@@ -273,3 +273,22 @@ export function roundedPath(pts: Point[], r = 9): string {
   const z = pts[pts.length - 1]!;
   return `${d} L ${z.x} ${z.y}`;
 }
+
+/** 点 p から tol 以内を通る「次の段」のケーブルのうち、いちばん近いものの番号（無ければ -1）。間に挟む先を探すのに使う */
+export function nearestWire(wires: readonly Wire[], p: Point, tol: number): number {
+  let best = -1, bestD = tol;
+  wires.forEach((w, i) => {
+    if (w.kind !== 'next') return;
+    for (let k = 1; k < w.points.length; k++) {
+      const d = segDist(p, w.points[k - 1]!, w.points[k]!);
+      if (d <= bestD) { bestD = d; best = i; }
+    }
+  });
+  return best;
+}
+
+function segDist(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+  const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}

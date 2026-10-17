@@ -45,16 +45,17 @@ devpipe.usage
 
 | 層 | パス | 置くもの | 使ってよい外の部品 |
 | --- | --- | --- | --- |
-| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道（`pipeWires.ts`）・抜き差し（`pipeLinks.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ | `node:path` |
-| アプリケーション | `vscode/src/app/` | 口 `WorkDirSource`・`PipeStore` と、それを使う手順（`refreshView`・`resolveWorkDir`・作図台の読み込みと保存・置き場所の決め方） | `node:path` |
+| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道（`pipeWires.ts`）・抜き差しと間に挟む（`pipeLinks.ts`）・複製や枠の出し入れなどの編集（`pipeEdit.ts`）・右クリックのメニュー（`pipeMenu.ts`）・元に戻す（`editHistory.ts`）・保存した版の決まり（`pipeVersions.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（時計にも触れない） | `node:path` |
+| アプリケーション | `vscode/src/app/` | 口 `WorkDirSource`・`PipeStore`・`VersionStore` と、それを使う手順（`refreshView`・`resolveWorkDir`・作業台の読み込みと保存・置き場所の決め方・保存した版の記録と読み込み） | `node:path` |
 | 画面 | `vscode/src/view/` | 図の状態 → HTML の文字列、パネルとの受け渡しの形 | なし |
-| 基盤 | `vscode/src/infra/` | 口の実装（`fsWorkDirSource.ts`・`fsPipes.ts`）。触れる場所はここで絞る | `node:fs`・`node:fs/promises`・`node:os`・`node:path` |
-| パネルの中 | `vscode/src/webview/` | 作図台の画面の操作（ビルドで1つの pipeEditor.js に束ねる）。判断は domain の関数に任せる | なし |
+| 基盤 | `vscode/src/infra/` | 口の実装（`fsWorkDirSource.ts`・`fsPipes.ts`・`fsVersions.ts`）。触れる場所はここで絞る | `node:fs`・`node:fs/promises`・`node:os`・`node:path` |
+| パネルの中 | `vscode/src/webview/` | 作業台の画面の操作（ビルドで1つの pipeEditor.js に束ねる）。判断は domain の関数に任せる | なし |
 | 入口 | `vscode/src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。判断は持たない | `vscode` を import してよいのはここだけ |
 
 - 層の決まりは `vscode/src/architecture.test.ts` が検査します（テストのファイルと `vscode/src/test/` の補助は除く）。
 - devpipe の記録の形の知識は `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts` の中だけに置きます。本体の記録の形が変わったら、ここを直します。
-- 拡張は work_dir を読むだけで書きません。書いてよいのは、作図台で「保存」を押したときの、パイプの置き場所の中の `devpipe-<名前>/` の決まったファイルだけです（`vscode/src/infra/fsPipes.ts` が場所を絞ります）。
+- 拡張は work_dir を読むだけで書きません。書いてよいのは、作業台で「保存」を押したときの、パイプの置き場所の中の `devpipe-<名前>/` の決まったファイルだけです（`vscode/src/infra/fsPipes.ts` が場所を絞ります）。
+- 作業台の「保存した版」と、閉じたときの下書きは、VSCode が拡張に用意する保存場所（`storageUri`、無ければ `globalStorageUri`）の `pipe-versions/devpipe-<名前>/<版の id>.json` にだけ書きます。プロジェクトには書きません（`vscode/src/infra/fsVersions.ts` が場所を絞ります）。
 - 色はすべて `var(--vscode-*)`。外部の読み込みはしません。ログから来た文字は必ず `escapeHtml` を通します。
 - パネルの CSP はインラインの `style="…"` 属性を捨てます。位置や大きさは描いたあとに `el.style.*` で入れ、決まった見た目はクラスにします（`vscode/src/webview/csp.test.ts` が検査します）。
 

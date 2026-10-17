@@ -178,7 +178,7 @@ function parseValue(r: Reader): TomlValue {
       r.fail('配列の区切り（, か ]）がありません');
     }
   }
-  if (c === '{') r.fail('インラインの表（{ … }）は、作図台では読めません。[表] の形で書いてください');
+  if (c === '{') r.fail('インラインの表（{ … }）は、作業台では読めません。[表] の形で書いてください');
   if (r.startsWith('true')) { r.pos += 4; return true; }
   if (r.startsWith('false')) { r.pos += 5; return false; }
   const m = /^[+-]?(\d[\d_]*)(\.\d[\d_]*)?([eE][+-]?\d+)?/.exec(r.text.slice(r.pos));

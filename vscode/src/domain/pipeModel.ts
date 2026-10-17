@@ -1,10 +1,14 @@
-// 作図台のモデル：パイプ（pipe.toml・prompts/・layout.json）と、路線図の上のブロック・枠・つなぎの行き来。
+// 作業台のモデル：パイプ（pipe.toml・prompts/・layout.json）と、路線図の上のブロック・枠・つなぎの行き来。
 // 純粋な関数だけ（ファイル・vscode に触れない）。検査の決まりは devpipe-gen check（devpipe/pipe/definition.py）に合わせる。
 import { TomlError, parseToml } from './toml.ts';
 import type { TomlTable, TomlValue } from './toml.ts';
 
 export type BlockKind = 'research' | 'agent' | 'docs' | 'tests' | 'code' | 'verify' | 'branch' | 'outside';
 export const BLOCK_KINDS: readonly BlockKind[] = ['research', 'agent', 'docs', 'tests', 'code', 'verify', 'branch', 'outside'];
+/** 棚・メニューに出すブロックの種類の名前 */
+export const KIND_LABEL: Record<BlockKind, string> = {
+  research: '調べる', agent: '任せる', docs: '文書と図', tests: 'テスト', code: 'コード', verify: '確かめる', branch: '仕分け', outside: '外を見る',
+};
 export type Access = 'read' | 'docs' | 'tests' | 'code';
 export type InputMode = 'required' | 'optional' | 'none';
 
@@ -211,7 +215,7 @@ export function pipeFromFiles(name: string, tomlText: string, files: Record<stri
     throw new PipeLoadError(`pipe.toml を読めません：${e instanceof TomlError ? e.message : String(e)}`);
   }
   const p = table(doc.pipe);
-  if (str(p.kind) === 'dev') throw new PipeLoadError('開発フローのパイプ（kind = "dev"）は、段が devpipe に組み込みのため、作図台では開けません');
+  if (str(p.kind) === 'dev') throw new PipeLoadError('開発フローのパイプ（kind = "dev"）は、段が devpipe に組み込みのため、作業台では開けません');
   const m = newPipe(name);
   m.label = str(p.label) || name;
   m.description = str(p.description);
@@ -398,7 +402,7 @@ export const promptFileText = (s: StageModel): string =>
 
 export function toToml(m: PipeModel): string {
   const ord = orderStages(m), L: string[] = [];
-  L.push('# パイプ作図台で作った定義。各段への指示は prompts/ のファイル、ブロックの位置は layout.json です。', '', '[pipe]', 'kind = "linear"', `label = ${q(m.label)}`);
+  L.push('# パイプ作業台で作った定義。各段への指示は prompts/ のファイル、ブロックの位置は layout.json です。', '', '[pipe]', 'kind = "linear"', `label = ${q(m.label)}`);
   if (m.description) L.push(`description = ${q(m.description)}`);
   L.push(`input = ${q(m.input)}`);
   if (m.maxSteps !== 50) L.push(`max_steps = ${m.maxSteps}`);

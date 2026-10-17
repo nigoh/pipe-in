@@ -1,18 +1,22 @@
 // 入口：vscode に触れる唯一のファイル。コマンド・ステータスバー・パネル・ファイルの監視・エディタで開く、を担い、判定は持たない。
 // 監視は拡張機能で1つ。記録が変わったら図の状態を作り直し、ステータスバーと（開いていれば）パネルの両方に配る。
 // work_dir の中の実行（直下の開発フローと <work_dir>/<パイプ名>/）から1つを選んで見る。既定は最新、パネルで切り替えられる。
-// パイプ作図台（devpipe.editPipe）は .devpipe/pipes/（無ければ pipes/）のパイプを開き、保存を押したときだけその devpipe-<名前>/ に書く。work_dir には書かない。
+// パイプ作業台（devpipe.editPipe）は .devpipe/pipes/（無ければ pipes/）のパイプを開き、保存を押したときだけその devpipe-<名前>/ に書く。work_dir には書かない。
+// 保存した版と、閉じたときの下書きは、拡張の保存場所（storageUri の pipe-versions/）にだけ書く。
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { choosePipesDir, isPipeName, listPipes, loadPipe, savePipe } from './app/pipeEditor.ts';
+import { choosePipesDir, isPipeName, listPipes, loadPipe, promptRelFor, savePipe } from './app/pipeEditor.ts';
+import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
+import type { VersionStore } from './app/pipeVersions.ts';
+import { createFsVersionStore } from './infra/fsVersions.ts';
 import { PipeLoadError, newPipe, validatePipe } from './domain/pipeModel.ts';
 import type { PipeModel } from './domain/pipeModel.ts';
 import { createFsPipeStore } from './infra/fsPipes.ts';
 import { parseEditorMessage } from './view/messages.ts';
 import type { ToEditorMessage } from './view/messages.ts';
-import { renderPipeEditorHtml } from './view/pipeEditorHtml.ts';
+import { editorTitle, renderPipeEditorHtml } from './view/pipeEditorHtml.ts';
 import { refreshView, resolveWorkDir } from './app/refreshView.ts';
 import type { PipelineView } from './domain/pipelineView.ts';
 import { resolveArtifactPath } from './domain/artifacts.ts';
@@ -49,11 +53,14 @@ interface CurrentView {
 }
 
 let extensionUri: vscode.Uri | undefined;
-/** 開いている作図台（パイプの名前 → パネル） */
+/** 保存した版の置き場所（拡張の保存場所の pipe-versions/） */
+let versionsRoot: string | undefined;
+/** 開いている作業台（パイプの名前 → パネル） */
 const editors = new Map<string, vscode.WebviewPanel>();
 
 export function activate(context: vscode.ExtensionContext): void {
   extensionUri = context.extensionUri;
+  versionsRoot = vscode.Uri.joinPath(context.storageUri ?? context.globalStorageUri, 'pipe-versions').fsPath;
   statusItem = vscode.window.createStatusBarItem('devpipe.status', vscode.StatusBarAlignment.Left, 50);
   statusItem.name = 'devpipe';
   statusItem.command = COMMAND;
@@ -205,9 +212,9 @@ async function showRun(): Promise<void> {
   if (current) created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.picker);
 }
 
-// ---- パイプ作図台 ----------------------------------------------------------------
+// ---- パイプ作業台 ----------------------------------------------------------------
 
-/** 作図台で読み書きするパイプの置き場所（設定 devpipe.pipesDir。空ならワークスペースの .devpipe/pipes → pipes） */
+/** 作業台で読み書きするパイプの置き場所（設定 devpipe.pipesDir。空ならワークスペースの .devpipe/pipes → pipes） */
 function pipesDir(): string | null {
   const folder = vscode.workspace.workspaceFolders?.[0];
   const setting = vscode.workspace.getConfiguration('devpipe').get<string>('pipesDir') || '';
@@ -223,7 +230,7 @@ async function editPipe(): Promise<void> {
   const store = createFsPipeStore(dir);
   const names = await listPipes(store);
   const NEW = '$(add) 新しいパイプを作る';
-  const picked = await vscode.window.showQuickPick([NEW, ...names], { placeHolder: `作図するパイプ（${dir}）` });
+  const picked = await vscode.window.showQuickPick([NEW, ...names], { placeHolder: `開くパイプ（${dir}）` });
   if (!picked) return;
   let model: PipeModel;
   if (picked === NEW) {
@@ -241,38 +248,89 @@ async function editPipe(): Promise<void> {
       return;
     }
   }
-  openEditor(store, model);
+  openEditor(dir, model, picked === NEW ? [] : model.stages.map((s) => s.name));
 }
 
-function openEditor(store: ReturnType<typeof createFsPipeStore>, model: PipeModel): void {
-  const name = model.name;
+/** 保存した版の置き場所（拡張の保存場所の pipe-versions/。プロジェクトには書かない） */
+function versionStore(): VersionStore | null {
+  return versionsRoot ? createFsVersionStore(versionsRoot) : null;
+}
+
+/**
+ * 作業台を開く。saved は保存済みの形（指示文を開くときに場所を決める）、savedNames はそのうちファイルのある段の name。
+ * draft を渡すと、保存していない下書きとして開く（閉じたときに残した下書きを開き直すとき）。
+ */
+function openEditor(dir: string, saved: PipeModel, savedNames: string[], draft?: PipeModel): void {
+  const name = saved.name;
   const existing = editors.get(name);
   if (existing) {
     existing.reveal();
     return;
   }
+  const store = createFsPipeStore(dir), versions = versionStore();
   const outDir = vscode.Uri.joinPath(extensionUri!, 'out');
-  const panel = vscode.window.createWebviewPanel('devpipe.pipeEditor', `パイプ作図台: ${name}`, vscode.ViewColumn.Active, {
+  const panel = vscode.window.createWebviewPanel('devpipe.pipeEditor', editorTitle(name, draft !== undefined), vscode.ViewColumn.Active, {
     enableScripts: true,
     retainContextWhenHidden: true,
     localResourceRoots: [outDir],
   });
   editors.set(name, panel);
+  /** 保存していない今の形（パネルが知らせてくる）。閉じたときに下書きとして残す */
+  let unsaved: PipeModel | null = draft ?? null;
   const post = (message: ToEditorMessage): void => { void panel.webview.postMessage(message); };
+  const postVersions = async (): Promise<void> => { if (versions) post({ type: 'versions', list: await listVersions(versions, name) }); };
   const onMessage = panel.webview.onDidReceiveMessage(async (value: unknown) => {
     const msg = parseEditorMessage(value);
     if (!msg) return;
     if (msg.type === 'ready') {
-      post({ type: 'load', model });
+      post({ type: 'load', model: draft ?? saved, savedNames, ...(draft ? { dirty: true } : {}) });
+      await postVersions();
+      return;
+    }
+    if (msg.type === 'state') {
+      panel.title = editorTitle(name, msg.dirty);
+      unsaved = msg.dirty ? msg.model ?? unsaved : null;
+      return;
+    }
+    if (msg.type === 'loadVersion') {
+      const model = versions ? await readVersion(versions, name, msg.id) : null;
+      if (model) post({ type: 'version', id: msg.id, model });
+      else void vscode.window.showWarningMessage('devpipe: その版を読めませんでした。');
+      return;
+    }
+    if (msg.type === 'openPrompt') {
+      // 開く場所は保存済みの形から決める（パネルから来た name は、保存済みの段にあるかを確かめるのに使うだけ）
+      const rel = savedNames.includes(msg.name) ? promptRelFor(saved, msg.name) : null;
+      if (rel === null) {
+        void vscode.window.showWarningMessage(`devpipe: 段 ${msg.name} の指示文はまだ保存されていません。`);
+        return;
+      }
+      try {
+        await vscode.window.showTextDocument(vscode.Uri.file(path.join(dir, `devpipe-${name}`, ...rel.split('/'))), { preview: true, viewColumn: vscode.ViewColumn.Beside });
+        // 書き換えても作業台の保存で上書きされるので、読むだけにする
+        await vscode.commands.executeCommand('workbench.action.files.setActiveEditorReadonlyInSession');
+      } catch {
+        void vscode.window.showWarningMessage(`devpipe: ${rel} を開けませんでした。`);
+      }
       return;
     }
     // 保存先はこのパネルを開いたパイプに決める（パネルから来た名前では決めない）
     const toSave: PipeModel = { ...msg.model, name };
     try {
       const written = await savePipe(store, toSave);
-      model = toSave;
+      saved = toSave;
+      savedNames = toSave.stages.map((s) => s.name);
+      unsaved = null;
+      panel.title = editorTitle(name, false);
       const { errors } = validatePipe(toSave);
-      post({ type: 'saved', written, errors });
+      post({ type: 'saved', written, errors, savedNames });
+      if (versions) {
+        try {
+          post({ type: 'versions', list: await recordVersion(versions, toSave, Date.now()) });
+        } catch {
+          // 版を残せなくても、保存そのものは済んでいる
+        }
+      }
       if (errors.length) void vscode.window.showWarningMessage(`devpipe: devpipe-${name} を保存しました。検査で ${errors.length} 件の誤りがあります（パネルの「検査」を見てください）。`);
     } catch (e) {
       post({ type: 'failed', message: String(e instanceof Error ? e.message : e) });
@@ -281,6 +339,19 @@ function openEditor(store: ReturnType<typeof createFsPipeStore>, model: PipeMode
   panel.onDidDispose(() => {
     onMessage.dispose();
     editors.delete(name);
+    // VSCode はパネルを閉じるのを止められないので、保存していない変更は下書きの版に残し、開き直せるようにする
+    const left = unsaved;
+    if (!left || !versions) return;
+    void (async () => {
+      try {
+        await recordVersion(versions, { ...left, name }, Date.now(), true);
+      } catch {
+        return;
+      }
+      const REOPEN = '開き直す';
+      const pick = await vscode.window.showInformationMessage(`devpipe: devpipe-${name} を保存せずに閉じました。下書きを履歴の「保存した版」に残しています。`, REOPEN);
+      if (pick === REOPEN) openEditor(dir, saved, savedNames, { ...left, name });
+    })();
   });
   panel.webview.html = renderPipeEditorHtml({
     nonce: randomBytes(16).toString('base64'),

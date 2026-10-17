@@ -278,9 +278,9 @@ url = "https://mcp.example.com/jira"
 - `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
 - `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
 
-### パイプ作図台（VSCode）
+### パイプ作業台（VSCode）
 
-VSCode 拡張の「devpipe: パイプを作図する」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
+VSCode 拡張の「devpipe: パイプ作業台を開く」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
 形で見分けるブロックを置き、プラグをコンセントに差すようにつなぎ、各ブロックで Claude に頼むことと上の設定を決めて、`.devpipe/pipes/devpipe-<名前>/`（無ければ `pipes/`）に保存します。
 
 ## 作られるファイル

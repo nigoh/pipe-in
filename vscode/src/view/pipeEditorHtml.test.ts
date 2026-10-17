@@ -1,7 +1,7 @@
-// 作図台のパネルの外側の HTML と、パネルとの受け渡しの形。
+// 作業台のパネルの外側の HTML と、パネルとの受け渡しの形。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderPipeEditorHtml } from './pipeEditorHtml.ts';
+import { editorTitle, renderPipeEditorHtml } from './pipeEditorHtml.ts';
 import { parseEditorMessage } from './messages.ts';
 import { newPipe } from '../domain/pipeModel.ts';
 
@@ -31,4 +31,30 @@ test('AC-33: パネルから来るのは ready と save（モデルの形を確�
   assert.equal(parseEditorMessage({ type: 'save' }), null);
   assert.equal(parseEditorMessage({ type: 'run', cmd: 'rm -rf /' }), null);
   assert.equal(parseEditorMessage(null), null);
+});
+
+test('AC-71: パネルから来る state・openPrompt・loadVersion を検め、形の違う値は捨てる', () => {
+  const model = newPipe('x');
+  assert.deepEqual(parseEditorMessage({ type: 'state', dirty: true, model }), { type: 'state', dirty: true, model });
+  assert.deepEqual(parseEditorMessage({ type: 'state', dirty: false }), { type: 'state', dirty: false });
+  assert.equal(parseEditorMessage({ type: 'state', dirty: 'yes' }), null);
+  assert.equal(parseEditorMessage({ type: 'state', dirty: true, model: { name: 1 } }), null);
+  assert.deepEqual(parseEditorMessage({ type: 'openPrompt', name: 'survey' }), { type: 'openPrompt', name: 'survey' });
+  for (const name of ['../x', 'a/b', '', 'C:\\x', 5]) assert.equal(parseEditorMessage({ type: 'openPrompt', name }), null, String(name));
+  assert.deepEqual(parseEditorMessage({ type: 'loadVersion', id: '1760000000000' }), { type: 'loadVersion', id: '1760000000000' });
+  assert.deepEqual(parseEditorMessage({ type: 'loadVersion', id: '1760000000000-draft' }), { type: 'loadVersion', id: '1760000000000-draft' });
+  for (const id of ['../x', '1760000000000.json', 1760000000000]) assert.equal(parseEditorMessage({ type: 'loadVersion', id }), null, String(id));
+});
+
+test('AC-73: タブ名は、変更があれば「● パイプ作業台: 名前」、なければ「パイプ作業台: 名前」', () => {
+  assert.equal(editorTitle('design-review', true), '● パイプ作業台: design-review');
+  assert.equal(editorTitle('design-review', false), 'パイプ作業台: design-review');
+});
+
+test('AC-57・AC-79: 見出しは「パイプ作業台」で、右の欄に「履歴」のタブがある', () => {
+  const html = renderPipeEditorHtml({ nonce: 'n', scriptUri: 'x.js', cspSource: 's' });
+  assert.match(html, /<title>パイプ作業台<\/title>/);
+  assert.match(html, /<h1>.*パイプ作業台<\/h1>/);
+  assert.match(html, /<button[^>]*data-tab="history"[^>]*>履歴<\/button>/);
+  assert.doesNotMatch(html, new RegExp('作' + '図'));
 });

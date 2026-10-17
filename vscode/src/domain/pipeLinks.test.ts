@@ -1,10 +1,10 @@
 // ケーブルの抜き差し：差し直しても種類（次の段・分岐・差し戻し）はそのままで、行き先だけ変わる。合わない先は断る。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { END, newPipe, newStage } from './pipeModel.ts';
+import { END, newPipe, newStage, orderStages } from './pipeModel.ts';
 import type { BlockKind, PipeModel, StageModel } from './pipeModel.ts';
 import type { Wire } from './pipeWires.ts';
-import { replug, unplug } from './pipeLinks.ts';
+import { insertBetween, replug, unplug } from './pipeLinks.ts';
 
 function stage(id: string, kind: BlockKind, x: number, y: number, over: Partial<StageModel> = {}): StageModel {
   return { ...newStage(id, kind, id), x, y, ...over };
@@ -128,4 +128,77 @@ test('AC-55: 始まりから出るケーブルは自動なので、抜くこと�
   assert.equal(unplug(m, s).changed, false);
   assert.equal(replug(m, s, 'c').changed, false);
   assert.equal(st(m, 'a').next, 'b');
+});
+
+// ---- ケーブルの上に落として、間に挟む ----
+
+/** sample に、どこともつながっていない段 n を足したもの */
+function withLoose(): PipeModel {
+  const m = sample();
+  m.stages.push(stage('n', 'code', 100, 600));
+  return m;
+}
+const order = (m: PipeModel): string[] => orderStages(m).map((s) => s.id);
+
+test('AC-61: 次の段のケーブルに挟むと A → X → B になり、並びも A, X, B の順になる。場所が足りなければ B から右をずらす', () => {
+  const m = withLoose();
+  const before = { b: st(m, 'b').x, c: st(m, 'c').x, f: m.frames[0]!.x, f1: st(m, 'f1').x, end: m.end.x };
+  const r = insertBetween(m, wire('next', 'a', 'b'), 'n');
+  assert.equal(r.changed, true);
+  assert.ok(r.message.length > 0);
+  assert.equal(st(m, 'a').next, 'n');
+  assert.equal(st(m, 'n').next, 'b');
+  const ord = order(m);
+  assert.ok(ord.indexOf('a') < ord.indexOf('n') && ord.indexOf('n') < ord.indexOf('b'));
+  assert.ok(st(m, 'n').x > st(m, 'a').x);
+  const shift = st(m, 'b').x - before.b;
+  assert.ok(shift > 0, 'B を右へずらした');
+  // B より右にあるものは、同じだけずれる（枠と中の段・終わりも）
+  assert.equal(st(m, 'c').x - before.c, shift);
+  assert.equal(m.frames[0]!.x - before.f, shift);
+  assert.equal(st(m, 'f1').x - before.f1, shift);
+  assert.equal(m.end.x - before.end, shift);
+  // A より左にあるものは動かない
+  assert.equal(st(m, 'a').x, 100);
+});
+
+test('AC-61: 間が広ければ、何もずらさない', () => {
+  const m = newPipe('wide');
+  m.stages = [stage('a', 'research', 100, 100, { next: 'z' }), stage('z', 'research', 1400, 100, { next: END }), stage('n', 'code', 100, 500)];
+  m.end = { x: 1800, y: 110 };
+  const r = insertBetween(m, wire('next', 'a', 'z'), 'n');
+  assert.equal(r.changed, true);
+  assert.equal(st(m, 'z').x, 1400);
+  assert.equal(m.end.x, 1800);
+  assert.deepEqual(order(m), ['a', 'n', 'z']);
+});
+
+test('AC-61: 枠から出るケーブルにも、終わりへ入るケーブルにも挟める', () => {
+  const m = withLoose();
+  assert.equal(insertBetween(m, wire('next', 'F', 'd'), 'n').changed, true);
+  assert.equal(m.frames[0]!.next, 'n');
+  assert.equal(st(m, 'n').next, 'd');
+  const m2 = withLoose();
+  assert.equal(insertBetween(m2, wire('next', 'd', END), 'n').changed, true);
+  assert.equal(st(m2, 'd').next, 'n');
+  assert.equal(st(m2, 'n').next, END);
+});
+
+test('AC-62: 分岐・差し戻し・始まりのケーブルには挟まず、理由を返して何も変えない', () => {
+  for (const w of [wire('route', 'b', 'c', { label: 'x' }), wire('return', 'd', 'a'), wire('start', 'start', 'a', { owner: undefined })]) {
+    const m = withLoose(), before = JSON.stringify(m);
+    const r = insertBetween(m, w, 'n');
+    assert.equal(r.changed, false, w.kind);
+    assert.ok(r.message.length > 0, w.kind);
+    assert.equal(JSON.stringify(m), before, w.kind);
+  }
+});
+
+test('AC-62: つながっている段・枠の中の段・ケーブルの両端の段は挟まない', () => {
+  for (const id of ['c', 'f2', 'a', 'b', 'nothing']) {
+    const m = withLoose(), before = JSON.stringify(m);
+    const r = insertBetween(m, wire('next', 'a', 'b'), id);
+    assert.equal(r.changed, false, id);
+    assert.equal(JSON.stringify(m), before, id);
+  }
 });

@@ -1,4 +1,4 @@
-// パイプ作図台のパネルの外側の HTML。中の操作は webview/pipeEditor.ts（out/pipeEditor.js）が行う。
+// パイプ作業台のパネルの外側の HTML。中の操作は webview/pipeEditor.ts（out/pipeEditor.js）が行う。
 // 色はすべて VSCode のテーマ（var(--vscode-*)）から。外から何も読み込まない（CSP は nonce と webview の出どころだけ）。
 import { escapeHtml } from './escape.ts';
 
@@ -192,6 +192,29 @@ details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; fo
 .result li.ok { border-left-color: var(--par); background: transparent; font-weight: 700; }
 .file h3 { margin: 0 0 4px; font-family: var(--mono); font-size: 11.5px; display: flex; justify-content: space-between; gap: 8px; }
 .file pre { margin: 0; padding: 7px 9px; background: var(--vscode-textCodeBlock-background); border-radius: 3px; font-family: var(--mono); font-size: 11px; overflow: auto; max-height: 340px; white-space: pre; }
+/* ケーブルの上に落とすと間に挟める：その間だけ太く目立たせる */
+.wire.drop { stroke: var(--todo); stroke-width: 11; stroke-dasharray: none; }
+.cable-out.drop { stroke-width: 15; }
+/* 囲んで選ぶ四角 */
+.marquee { position: absolute; border: 1px dashed var(--vscode-focusBorder); background: color-mix(in srgb, var(--sel) 35%, transparent); pointer-events: none; z-index: 6; }
+/* 右クリックのメニュー（位置は描いたあとに CSSOM で入れる） */
+.menu { position: fixed; z-index: 60; min-width: 210px; max-width: 320px; display: grid; padding: 4px; border: 1px solid var(--vscode-menu-border, var(--rule));
+  border-radius: 5px; background: var(--vscode-menu-background, var(--panel)); color: var(--vscode-menu-foreground, var(--ink)); box-shadow: 0 2px 8px var(--vscode-widget-shadow, transparent); }
+.mitem { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; width: 100%; border: 0; border-radius: 3px; background: transparent;
+  padding: 4px 10px; text-align: left; cursor: pointer; color: inherit; }
+.mitem.on { background: var(--vscode-menu-selectionBackground, var(--sel)); color: var(--vscode-menu-selectionForeground, var(--ink)); outline: none; }
+.mitem[aria-disabled="true"] { opacity: .55; cursor: default; }
+.mitem small { display: none; flex-basis: 100%; font-size: 11px; opacity: .9; }
+.mitem.on small { display: block; }
+.mitem .msub { color: var(--muted); }
+.msep { height: 1px; margin: 4px 6px; background: var(--rule); }
+/* 履歴の一覧 */
+.hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 340px; overflow: auto; }
+.hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; border: 0; border-left: 3px solid transparent; border-radius: 3px; background: transparent;
+  padding: 3px 7px; text-align: left; cursor: pointer; color: inherit; }
+.hrow:hover { background: var(--vscode-list-hoverBackground); }
+.hrow.cur { border-left-color: var(--vscode-focusBorder); background: var(--sel); font-weight: 700; }
+.hrow.later { color: var(--muted); }
 /* 狭い幅：右の欄を面の下に回し、高さを面と半分ずつに分ける（どちらも中でスクロールする）。凡例は図に重なるので隠す */
 @media (max-width: 1000px) {
   .work { grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
@@ -200,6 +223,9 @@ details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; fo
   .legend { display: none; }
 }
 `;
+
+/** パネルのタブ名。保存していない変更があれば頭に ● をつける */
+export const editorTitle = (name: string, dirty: boolean): string => `${dirty ? '● ' : ''}パイプ作業台: ${name}`;
 
 export function renderPipeEditorHtml(o: PipeEditorHtmlOptions): string {
   const n = escapeHtml(o.nonce);
@@ -210,12 +236,12 @@ export function renderPipeEditorHtml(o: PipeEditorHtmlOptions): string {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}' ${src};">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>パイプ作図台</title>
+<title>パイプ作業台</title>
 <style nonce="${n}">${STYLE}</style>
 </head>
 <body>
 <header class="top">
-  <h1><span class="mark" aria-hidden="true"></span>パイプ作図台</h1>
+  <h1><span class="mark" aria-hidden="true"></span>パイプ作業台</h1>
   <span class="path" id="pipe-path"></span>
   <span class="spacer"></span>
   <button type="button" class="btn" id="zoom-out" aria-label="縮小">−</button>
@@ -237,6 +263,7 @@ export function renderPipeEditorHtml(o: PipeEditorHtmlOptions): string {
       <button type="button" role="tab" data-tab="block" aria-selected="true">ブロック</button>
       <button type="button" role="tab" data-tab="check" aria-selected="false">検査<span class="badge" id="badge">0</span></button>
       <button type="button" role="tab" data-tab="files" aria-selected="false">書き出し</button>
+      <button type="button" role="tab" data-tab="history" aria-selected="false">履歴</button>
     </div>
     <div class="pane" id="pane"></div>
   </aside>

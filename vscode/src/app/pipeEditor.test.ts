@@ -1,8 +1,8 @@
-// 作図台の読み込みと保存の手順（ファイルの置き場所は口 PipeStore の向こう）。
+// 作業台の読み込みと保存の手順（ファイルの置き場所は口 PipeStore の向こう）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { choosePipesDir, isPipeName, listPipes, loadPipe, savePipe } from './pipeEditor.ts';
+import { choosePipesDir, isPipeName, listPipes, loadPipe, promptRelFor, savePipe } from './pipeEditor.ts';
 import type { PipeStore } from './pipeEditor.ts';
 import { newPipe } from '../domain/pipeModel.ts';
 
@@ -54,7 +54,7 @@ test('AC-30: 新しいパイプも保存できる。名前は devpipe と同じ�
   await assert.rejects(() => savePipe(store, newPipe('../escape')));
 });
 
-test('AC-17: 作図台の置き場所は、設定 → .devpipe/pipes → pipes → .devpipe/pipes の順に決める', () => {
+test('AC-17: 作業台の置き場所は、設定 → .devpipe/pipes → pipes → .devpipe/pipes の順に決める', () => {
   const ws = '/work/app';
   const has = (...dirs: string[]) => (p: string) => dirs.includes(p);
   assert.equal(choosePipesDir('/abs/pipes', ws, has()), '/abs/pipes');
@@ -64,4 +64,14 @@ test('AC-17: 作図台の置き場所は、設定 → .devpipe/pipes → pipes �
   assert.equal(choosePipesDir('', ws, has()), path.join(ws, '.devpipe', 'pipes'));
   assert.equal(choosePipesDir('', null, has()), null);
   assert.equal(choosePipesDir('/abs/pipes', null, has()), '/abs/pipes');
+});
+
+test('AC-72: 指示文を開くパスは、保存済みのモデルの段の name から決める（無い name は断る）', async () => {
+  const two = TOML + '\n[[stages]]\nname = "b"\nlabel = "B"\noutput = "b.md"\naccess = "read"\nprompt_file = "prompts/02_b.md"\n';
+  const store = memoryStore({ 'devpipe-one/pipe.toml': two, 'devpipe-one/prompts/01_a.md': 'A\n', 'devpipe-one/prompts/02_b.md': 'B\n' });
+  const saved = await loadPipe(store, 'one');
+  assert.equal(promptRelFor(saved, 'a'), 'prompts/01_a.md');
+  assert.equal(promptRelFor(saved, 'b'), 'prompts/02_b.md');
+  assert.equal(promptRelFor(saved, 'c'), null);
+  assert.equal(promptRelFor(saved, '../a'), null);
 });

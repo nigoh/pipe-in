@@ -1,4 +1,4 @@
-// パネルの CSP（style-src は nonce だけ）の中で、作図台の見た目が崩れないための決まり。
+// パネルの CSP（style-src は nonce だけ）の中で、作業台の見た目が崩れないための決まり。
 // CSP はインラインの style="…" 属性を捨てるので、位置や大きさは CSSOM（el.style.*）かクラスで入れる。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { renderPipeEditorHtml } from '../view/pipeEditorHtml.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('AC-35: 作図台のスクリプトは style 属性を書かない（CSP に捨てられて、ブロックが左上に縮むため）', () => {
+test('AC-35: 作業台のスクリプトは style 属性を書かない（CSP に捨てられて、ブロックが左上に縮むため）', () => {
   const src = read('src/webview/pipeEditor.ts');
   assert.doesNotMatch(src, /\sstyle=/);
   assert.doesNotMatch(src, /setAttribute\(\s*['"]style['"]/);

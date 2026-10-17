@@ -96,8 +96,15 @@ const PAGES: [string, ReturnType<typeof pipeFromFiles>, string][] = [
 mkdirSync(OUT, { recursive: true });
 copyFileSync(path.join(ROOT, 'out', 'pipeEditor.js'), path.join(OUT, 'pipeEditor.js'));
 for (const [page, model, theme] of PAGES) {
-  // 保存を押したら、受け取った中身を window.__saved に残す（画面の確認で、保存が届いたかを見られるように）
-  const stub = `<script nonce="preview">window.acquireVsCodeApi=()=>({postMessage(m){if(m.type==='ready')setTimeout(()=>window.postMessage({type:'load',model:${JSON.stringify(model).replace(/</g, '\u003c')}},'*'),0);if(m.type==='save'){window.__saved=m.model;setTimeout(()=>window.postMessage({type:'saved',written:['pipe.toml'],errors:[]},'*'),0)}}});</script>`;
+  // 保存を押したら、受け取った中身を window.__saved に残す（画面の確認で、保存が届いたかを見られるように）。
+  // 送られたものはすべて window.__posted に残す。版の一覧は見本を2つ（1つは閉じたときの下書き）返し、選ばれたら見本のパイプを返す
+  const json = JSON.stringify(model).replace(/</g, '\u003c');
+  const names = JSON.stringify(model.stages.map((s) => s.name));
+  const versions = JSON.stringify([{ id: '1760000600000-draft', savedAt: 1760000600000, draft: true }, { id: '1760000000000', savedAt: 1760000000000, draft: false }]);
+  const stub = `<script nonce="preview">window.__posted=[];window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);`
+    + `if(m.type==='ready'){send({type:'load',model:${json},savedNames:${names}});send({type:'versions',list:${versions}})}`
+    + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
+    + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}}});</script>`;
   let html = renderPipeEditorHtml({ nonce: 'preview', scriptUri: 'pipeEditor.js', cspSource: '' });
   html = html.replace('<style nonce="preview">', `<style nonce="preview">:root{${THEMES[theme]}}</style><style nonce="preview">`);
   html = html.replace('<script nonce="preview" src="pipeEditor.js">', `${stub}<script nonce="preview" src="pipeEditor.js">`);

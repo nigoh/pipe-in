@@ -2,7 +2,9 @@
 // 差し直しても種類（次の段・分岐・差し戻し）はそのままで、行き先だけ変わる。種類に合わない先は、理由を返して何も変えない。
 import { END, frameOf, membersOf, orderStages } from './pipeModel.ts';
 import type { FrameModel, PipeModel, StageModel } from './pipeModel.ts';
+import { blockRect } from './pipeWires.ts';
 import type { Wire } from './pipeWires.ts';
+import { isLoose } from './pipeEdit.ts';
 
 export interface PlugResult {
   changed: boolean;
@@ -79,4 +81,35 @@ export function unplug(m: PipeModel, w: Wire): PlugResult {
   else if (w.kind === 'return' && s) { s.onFail = null; s.check.on = false; }
   else return { changed: false, message: '' };
   return { changed: true, message: `${nameOf(m, owner)} のプラグを抜きました` };
+}
+
+/**
+ * つながっていない段 id を、次の段のケーブル（A → B）の間に挟んで A → X → B にする。
+ * X は A の右に A と同じ高さで置き、場所が足りなければ B と、B より右にあるもの（段・枠・終わり）を右へずらす。
+ */
+export function insertBetween(m: PipeModel, w: Wire, id: string): PlugResult {
+  if (w.kind !== 'next') return no('間に挟めるのは、次の段のケーブル（青）だけです');
+  const x = stageOf(m, id);
+  if (!x) return no('挟む段が見つかりません');
+  const owner = w.owner ?? w.from;
+  if (id === owner || id === w.to) return no('ケーブルの両端の段は挟めません');
+  if (frameOf(m, x)) return no('並列の枠の中の段は挟めません');
+  if (!isLoose(m, id)) return no('挟めるのは、どことも、つながっていない段だけです');
+  const s = stageOf(m, owner), f = frameById(m, owner);
+  if (!s && !f) return { changed: false, message: '' };
+  const GAP = 80, snap = (v: number): number => Math.round(v / 10) * 10;
+  const a = blockRect(m, owner), b = blockRect(m, w.to), z = blockRect(m, id);
+  x.x = snap(a.x + a.w + GAP);
+  x.y = snap(a.y + a.h / 2 - z.h / 2);
+  const shift = snap(Math.max(0, x.x + z.w + GAP - b.x));
+  if (shift > 0) {
+    const from = b.x;
+    for (const t of m.stages) if (t !== x && t.x >= from) t.x += shift;
+    for (const fr of m.frames) if (fr.x >= from) fr.x += shift;
+    if (m.end.x >= from) m.end.x += shift;
+  }
+  if (s) s.next = id;
+  else f!.next = id;
+  x.next = w.to;
+  return { changed: true, message: `「${x.label}」を ${nameOf(m, owner)} と ${nameOf(m, w.to)} の間に挟みました`, to: id };
 }

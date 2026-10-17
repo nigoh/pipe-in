@@ -1,7 +1,7 @@
-// 作図台の読み込みと保存の手順。ファイルの置き場所は口 PipeStore の向こう（infra/fsPipes.ts）。
+// 作業台の読み込みと保存の手順。ファイルの置き場所は口 PipeStore の向こう（infra/fsPipes.ts）。
 // 保存は pipe.toml・prompts/・layout.json を書き、使わなくなった指示を消す。README は無いときだけ作る。
 import path from 'node:path';
-import { PipeLoadError, isPipeName, orderStages, pipeFiles, pipeFromFiles } from '../domain/pipeModel.ts';
+import { PipeLoadError, isPipeName, orderStages, pipeFiles, pipeFromFiles, promptPath } from '../domain/pipeModel.ts';
 import type { PipeModel } from '../domain/pipeModel.ts';
 
 export { isPipeName };
@@ -20,7 +20,7 @@ export interface PipeStore {
 const folder = (name: string): string => `${PREFIX}${name}`;
 
 /**
- * 作図台で読み書きするパイプの置き場所。設定（devpipe.pipesDir）があればそこ（相対ならワークスペースから）。
+ * 作業台で読み書きするパイプの置き場所。設定（devpipe.pipesDir）があればそこ（相対ならワークスペースから）。
  * 無ければ、ワークスペースの .devpipe/pipes → pipes の、あるほう。どちらも無ければ .devpipe/pipes（devpipe-gen new の既定と同じ）。
  */
 export function choosePipesDir(setting: string, workspace: string | null, exists: (dir: string) => boolean): string | null {
@@ -63,7 +63,7 @@ export function readmeFor(m: PipeModel): string {
     '',
     m.description,
     '',
-    'パイプ作図台（VSCode の「devpipe: パイプを作図する」）で作ったパイプです。',
+    'パイプ作業台（VSCode の「devpipe: パイプ作業台を開く」）で作ったパイプです。',
     '',
     '## 段',
     '',
@@ -96,4 +96,10 @@ export async function savePipe(store: PipeStore, m: PipeModel): Promise<string[]
     written.push('README.md');
   }
   return written;
+}
+
+/** 保存済みのモデル saved で、段 name の指示文のファイル（prompts/NN_name.md）。その段が無ければ null */
+export function promptRelFor(saved: PipeModel, name: string): string | null {
+  const ord = orderStages(saved), i = ord.findIndex((s) => s.name === name);
+  return i < 0 ? null : promptPath(ord[i]!, i);
 }

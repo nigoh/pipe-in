@@ -1,4 +1,4 @@
-// パイプ（pipe.toml・prompts/・layout.json）と作図台のモデルの行き来、並び、検査。
+// パイプ（pipe.toml・prompts/・layout.json）と作業台のモデルの行き来、並び、検査。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -104,7 +104,7 @@ function load(layout: string | null = null): PipeModel {
 }
 const byName = (m: PipeModel, name: string) => m.stages.find((s) => s.name === name)!;
 
-test('AC-22: pipe.toml と prompts/ から作図台のモデルを作る（ブロックの形は中身から決める）', () => {
+test('AC-22: pipe.toml と prompts/ から作業台のモデルを作る（ブロックの形は中身から決める）', () => {
   const m = load();
   assert.equal(m.name, 'design-review');
   assert.equal(m.input, 'required');
@@ -184,7 +184,7 @@ test('AC-24: layout.json がなければ、並びの順に左から右へ並べ�
   assert.ok(m.end.x > x('verify'));
 });
 
-test('AC-25: 検査は devpipe-gen check と同じ決まり（主なもの）と、作図台で起きやすい誤り', () => {
+test('AC-25: 検査は devpipe-gen check と同じ決まり（主なもの）と、作業台で起きやすい誤り', () => {
   const m = load();
   byName(m, 'flow').name = 'survey';
   assert.ok(validatePipe(m).errors.some((e) => e.includes('重複')));
@@ -208,7 +208,7 @@ test('AC-25: 検査は devpipe-gen check と同じ決まり（主なもの）と
   assert.ok(validatePipe(m7).errors.some((e) => e.includes('頼むこと')));
 });
 
-test('AC-26: 作図台で読めないパイプは、理由をつけて断る', () => {
+test('AC-26: 作業台で読めないパイプは、理由をつけて断る', () => {
   assert.throws(() => pipeFromFiles('x', '[pipe]\nkind = "dev"\nlabel = "開発"\n', {}, null), (e: unknown) => e instanceof PipeLoadError && /開発フロー/.test(e.message));
   assert.throws(() => pipeFromFiles('x', 'a = { b = 1 }\n', {}, null), PipeLoadError);
   assert.throws(() => pipeFromFiles('x', '[pipe]\nkind = "linear"\n[[stages]]\nname = "a"\nprompt_file = "../a.md"\n', {}, null), (e: unknown) => e instanceof PipeLoadError && /prompts\//.test(e.message));
