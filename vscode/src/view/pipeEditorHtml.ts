@@ -184,6 +184,9 @@ details.box > summary { cursor: pointer; font-size: 12px; color: var(--muted); f
 .card .row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: end; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .note { margin: 0; font-size: 12px; color: var(--muted); }
+/* 判定の箱：いちばん上のスイッチで入り切りし、オンのときだけ下の欄を出す */
+.check-box > .pill.toggle { justify-self: start; }
+.check-box .row2 { grid-template-columns: minmax(0, 1fr) minmax(0, 7em); }
 details.preview { border: 1px dashed var(--rule); border-radius: 8px; }
 details.preview summary { cursor: pointer; padding: 7px 10px; font-weight: 700; }
 details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; font-family: var(--mono); font-size: 11px; }

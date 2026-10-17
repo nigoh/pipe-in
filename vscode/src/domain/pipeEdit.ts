@@ -106,17 +106,17 @@ export function hasLinks(m: PipeModel, id: string): boolean {
   return s.next !== null || s.onFail !== null || s.routes.length > 0 || hasIncoming(m, id);
 }
 
-/** 段に出入りするつなぎを、すべて外す（差し戻しを外すときは、抜くときと同じく判定も切る） */
+/** 段に出入りするつなぎを、すべて外す（差し戻しを外しても判定は残し、その段をやり直すにする。判定を切るのはスイッチだけ） */
 export function unplugAll(m: PipeModel, id: string): boolean {
   const s = stageOf(m, id);
   if (!s || !hasLinks(m, id)) return false;
   s.next = null;
   s.routes = [];
-  if (s.onFail !== null) { s.onFail = null; s.check.on = false; }
+  s.onFail = null;
   for (const x of m.stages) {
     if (x === s) continue;
     if (x.next === id) x.next = null;
-    if (x.onFail === id) { x.onFail = null; x.check.on = false; }
+    if (x.onFail === id) x.onFail = null;
     x.routes = x.routes.filter((r) => r.to !== id);
   }
   for (const f of m.frames) if (f.next === id) f.next = null;

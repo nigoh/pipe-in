@@ -71,14 +71,14 @@ export function replug(m: PipeModel, w: Wire, to: string): PlugResult {
   return { changed: true, message: `${nameOf(m, owner)} → ${nameOf(m, dest)}`, to: dest };
 }
 
-/** ケーブルの先のプラグを抜く（つなぎを外す。差し戻しは判定も切る） */
+/** ケーブルの先のプラグを抜く（つなぎを外す。差し戻しは判定を残し、その段をやり直すにする） */
 export function unplug(m: PipeModel, w: Wire): PlugResult {
   if (w.kind === 'start') return no('始まりから出るケーブルは、いちばん左の段へ自動でつながります');
   const owner = w.owner ?? w.from, s = stageOf(m, owner), f = frameById(m, owner);
   if (w.kind === 'route' && s) s.routes = s.routes.filter((r) => !(r.key === w.label && r.to === w.to));
   else if (w.kind === 'next' && s) s.next = null;
   else if (w.kind === 'next' && f) f.next = null;
-  else if (w.kind === 'return' && s) { s.onFail = null; s.check.on = false; }
+  else if (w.kind === 'return' && s) { s.onFail = null; return { changed: true, message: `${s.label}：差し戻しを外し、この段をやり直すにしました` }; }
   else return { changed: false, message: '' };
   return { changed: true, message: `${nameOf(m, owner)} のプラグを抜きました` };
 }

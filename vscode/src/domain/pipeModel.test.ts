@@ -250,3 +250,39 @@ test('AC-39: 空いていれば、狙った点を中心に置く', () => {
   const m = newPipe('x'), z = blockSize('research');
   assert.deepEqual(freeSpot(m, z, { x: 300, y: 600 }), { x: 300 - Math.round(z.w / 20) * 10, y: 600 - Math.round(z.h / 20) * 10 });
 });
+
+// ---- D0005-AC-17: 判定の保存の形は、前の版と同じ ----
+
+/** pipe.toml の文から、[stages.check] の表を1つずつ取り出す */
+function checkTables(toml: string): string[] {
+  const out: string[] = [];
+  let cur: string[] | null = null;
+  for (const l of toml.split('\n')) {
+    if (l.startsWith('[')) {
+      if (cur) out.push(cur.join('\n').trim());
+      cur = l === '[stages.check]' ? [l] : null;
+    } else if (cur) cur.push(l);
+  }
+  if (cur) out.push(cur.join('\n').trim());
+  return out;
+}
+
+test('D0005-AC-17: 自分をやり直す・前の段へ戻す・判定オフの段の [stages.check] は、前の版と同じ形で保存する', () => {
+  const m = newPipe('keep');
+  m.stages = [
+    { ...newStage('a', 'research', 'a'), prompt: 'x', x: 100, y: 100, next: 'b' },
+    { ...newStage('b', 'research', 'b'), prompt: 'x', x: 400, y: 100, next: 'c', check: { on: true, verdict: true, command: '', maxRetries: 2 } },
+    { ...newStage('c', 'research', 'c'), prompt: 'x', x: 700, y: 100, next: 'end', check: { on: true, verdict: false, command: 'npm test', maxRetries: 3 }, onFail: 'a' },
+  ];
+  m.end = { x: 1000, y: 120 };
+  const files = pipeFiles(m), toml = files['pipe.toml']!;
+  assert.deepEqual(checkTables(toml), [
+    '[stages.check]\nverdict = true\nmax_retries = 2',
+    '[stages.check]\ncommand = "npm test"\non_fail = "a"\nmax_retries = 3',
+  ]);
+  const again = pipeFromFiles('keep', toml, files, null);
+  const nameOf = (id: string | null): string | null => (id ? again.stages.find((s) => s.id === id)?.name ?? id : null);
+  assert.deepEqual(again.stages.map((s) => [s.name, s.check.on, s.check.verdict, s.check.command, s.check.maxRetries, nameOf(s.onFail)]), [
+    ['a', false, false, '', 2, null], ['b', true, true, '', 2, null], ['c', true, false, 'npm test', 3, 'a'],
+  ]);
+});

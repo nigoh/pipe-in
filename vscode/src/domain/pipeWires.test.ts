@@ -222,3 +222,51 @@ test('AC-77: 点の近くを通る「次の段」のケーブルを探す（落�
   assert.equal(nearestWire(wires, { x: 50, y: 61 }, 3), -1); // 分岐のケーブルにも落とさない
   assert.equal(nearestWire(wires, { x: 500, y: 500 }, 12), -1);
 });
+
+// ---- D0005: 自分をやり直す判定は、図にケーブルを描かない ----
+
+test('D0005-AC-01: 判定がオンで onFail が無い段は、差し戻しのケーブルが返らない', () => {
+  const m = newPipe('self');
+  m.stages = [stage({ id: 'a', name: 'a', x: 100, y: 100, next: 'end', check: { on: true, verdict: true, command: '', maxRetries: 2 }, onFail: null })];
+  assert.deepEqual(layoutWires(m).filter((w) => w.kind === 'return'), []);
+});
+
+test('D0005-AC-02: onFail が自分の id の段も、差し戻しのケーブルが返らない', () => {
+  const m = newPipe('self');
+  m.stages = [stage({ id: 'a', name: 'a', x: 100, y: 100, next: 'end', check: { on: true, verdict: true, command: '', maxRetries: 2 }, onFail: 'a' })];
+  assert.deepEqual(layoutWires(m).filter((w) => w.kind === 'return'), []);
+});
+
+test('D0005-AC-03: 前の段へ戻す段には、B から A への差し戻しが1本返る', () => {
+  const m = newPipe('back');
+  m.stages = [
+    stage({ id: 'a', name: 'a', x: 100, y: 100, next: 'b' }),
+    stage({ id: 'b', name: 'b', x: 400, y: 100, next: 'end', check: { on: true, verdict: true, command: '', maxRetries: 2 }, onFail: 'a' }),
+  ];
+  m.end = { x: 700, y: 120 };
+  const back = layoutWires(m).filter((w) => w.kind === 'return');
+  assert.equal(back.length, 1);
+  assert.equal(back[0]!.from, 'b');
+  assert.equal(back[0]!.to, 'a');
+});
+
+test('D0005-AC-05: 前の版の pipe.toml（判定オン・on_fail なし）を読んでも、差し戻しのケーブルが返らない', () => {
+  const toml = `[pipe]
+kind = "linear"
+label = "前の版"
+
+[[stages]]
+name = "survey"
+label = "ソースの調査"
+output = "01_survey.md"
+access = "read"
+review = true
+prompt_file = "prompts/01_survey.md"
+[stages.check]
+verdict = true
+max_retries = 2
+`;
+  const m = pipeFromFiles('old', toml, { 'prompts/01_survey.md': '調べる\n' }, null);
+  assert.equal(m.stages[0]!.check.on, true);
+  assert.deepEqual(layoutWires(m).filter((w) => w.kind === 'return'), []);
+});

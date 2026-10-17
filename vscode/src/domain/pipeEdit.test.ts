@@ -174,3 +174,19 @@ test('AC-66（画面で見つけた不具合）：枠を含めて貼るときは
   // 段だけを貼るときは、今までどおり少しずつずらす
   assert.deepEqual(pasteOffset(copyItems(m, ['a']), 2), { x: 80, y: 80 });
 });
+
+// ---- D0005: つなぎを外しても、判定は残す（判定を切るのはスイッチだけ） ----
+
+test('D0005-AC-04: つなぎをすべて外しても、差し戻しを持っていた段の判定はオンのまま（この段をやり直す）', () => {
+  const m = sample();
+  assert.equal(unplugAll(m, 'c'), true);
+  assert.equal(st(m, 'c').check.on, true);
+  assert.equal(st(m, 'c').onFail, null);
+});
+
+test('D0005-AC-04: 外した段へ戻していた、ほかの段の判定もオンのまま（この段をやり直す）', () => {
+  const m = sample();
+  assert.equal(unplugAll(m, 'a'), true);
+  assert.equal(st(m, 'c').onFail, null);
+  assert.equal(st(m, 'c').check.on, true);
+});

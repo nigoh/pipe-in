@@ -43,7 +43,8 @@ function edges(m: PipeModel): Edge[] {
       if (s.routes.length) s.routes.forEach((r, k) => E.push({ kind: 'route', from: s.id, to: r.to, label: r.key, k, owner: s.id }));
       else if (s.next) E.push({ kind: 'next', from: s.id, to: s.next, owner: s.id });
     }
-    if (s.check.on) E.push({ kind: 'return', from: s.id, to: s.onFail ?? s.id, self: !s.onFail || s.onFail === s.id, owner: s.id });
+    // 自分をやり直す判定は、差し替える先が無いのでケーブルにしない（カードの札で示す。D0005）
+    if (s.check.on && s.onFail && s.onFail !== s.id) E.push({ kind: 'return', from: s.id, to: s.onFail, owner: s.id });
   }
   for (const f of m.frames) if (f.next) E.push({ kind: 'next', from: f.id, to: f.next, owner: f.id });
   const exists = (id: string): boolean => id === END || m.stages.some((s) => s.id === id) || m.frames.some((f) => f.id === id);

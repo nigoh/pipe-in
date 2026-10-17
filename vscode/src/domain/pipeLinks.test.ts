@@ -32,6 +32,15 @@ function sample(): PipeModel {
 const wire = (kind: Wire['kind'], from: string, to: string, extra: Partial<Wire> = {}): Wire => ({ kind, from, to, owner: from, points: [], ...extra });
 const st = (m: PipeModel, id: string): StageModel => m.stages.find((s) => s.id === id)!;
 
+test('D0005-AC-04: 前の段へ戻すケーブルを抜くと、判定はオンのまま onFail が null になり、知らせに「この段をやり直す」が入る', () => {
+  const m = sample();
+  const r = unplug(m, wire('return', 'c', 'a'));
+  assert.equal(r.changed, true);
+  assert.equal(st(m, 'c').check.on, true);
+  assert.equal(st(m, 'c').onFail, null);
+  assert.match(r.message, /この段をやり直す/);
+});
+
 test('AC-51: 次の段のケーブルは、右にある段・枠・終わりへ差し直せる', () => {
   for (const [to, want] of [['c', 'c'], ['F', 'F'], [END, END]] as const) {
     const m = sample(), r = replug(m, wire('next', 'a', 'b'), to);
@@ -109,7 +118,7 @@ test('AC-54: 並列の枠から出るケーブルは、右にある段へだけ�
   assert.equal(m.frames[0]!.next, END);
 });
 
-test('AC-55: 抜くと、どの種類のつなぎも外れる（差し戻しは判定も切れる）', () => {
+test('AC-55: 抜くと、どの種類のつなぎも外れる（差し戻しは判定を残す。D0005-AC-04 で変えた）', () => {
   const m = sample();
   assert.equal(unplug(m, wire('next', 'a', 'b')).changed, true);
   assert.equal(st(m, 'a').next, null);
@@ -117,7 +126,7 @@ test('AC-55: 抜くと、どの種類のつなぎも外れる（差し戻しは�
   assert.deepEqual(st(m, 'b').routes, [{ key: 'y', to: END }]);
   assert.equal(unplug(m, wire('return', 'd', 'a')).changed, true);
   assert.equal(st(m, 'd').onFail, null);
-  assert.equal(st(m, 'd').check.on, false);
+  assert.equal(st(m, 'd').check.on, true);
   assert.equal(unplug(m, wire('next', 'F', 'd')).changed, true);
   assert.equal(m.frames[0]!.next, null);
 });

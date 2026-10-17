@@ -38,6 +38,8 @@ prompt = "ソースを調べる"
 description = "モジュールを読む"
 prompt = "1つだけ読む"
 tools = ["Read", "Grep"]
+[stages.check]
+verdict = true
 [[stages]]
 name = "flow"
 label = "フロー図"

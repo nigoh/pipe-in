@@ -25,6 +25,8 @@ import type { Wire } from '../domain/pipeWires.ts';
 import { insertBetween, replug, unplug } from '../domain/pipeLinks.ts';
 import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, takeOutOfFrame, unplugAll } from '../domain/pipeEdit.ts';
 import type { Clip } from '../domain/pipeEdit.ts';
+import { setCheck } from '../domain/pipeCheck.ts';
+import { checkBoxHtml, checkChipHtml } from '../view/checkHtml.ts';
 import { menuFor, menuKey, placeMenu } from '../domain/pipeMenu.ts';
 import type { MenuItem, MenuPath, MenuTarget } from '../domain/pipeMenu.ts';
 import { createHistory, jump, record, redo, undo } from '../domain/editHistory.ts';
@@ -166,7 +168,8 @@ function selectOne(sel: Selection): void {
 function chips(s: StageModel): string {
   const c = [`<span class="chip">${s.access}</span>`];
   if (s.review) c.push('<span class="chip">人の確認</span>');
-  if (s.check.on) c.push('<span class="chip ok">判定</span>');
+  const judge = checkChipHtml(model(), s);
+  if (judge) c.push(judge);
   if (s.routes.length) c.push(`<span class="chip rt">分岐${s.routes.length}</span>`);
   if (s.web !== 'off') c.push('<span class="chip warn">web</span>');
   if (s.bash) c.push('<span class="chip warn">bash</span>');
@@ -372,7 +375,6 @@ function blockPane(): string {
   if (!s) return pipePane();
   const ord = orderStages(m), i = ord.indexOf(s), f = frameOf(m, s), shape = SHAPE_OF[s.kind], z = blockSize(s.kind);
   const prev = ord.slice(0, i).filter((x) => !f || frameOf(m, x) !== f);
-  const before = ord.slice(0, i + 1).filter((x) => x !== s && !frameOf(m, x));
   const mini = shapePath(shape, z.w, z.h);
   return `
     <div class="bhead"><svg class="mini" viewBox="-2 -2 ${z.w + 4} ${z.h + 4}"><path class="sh" d="${mini.outer}"/>${mini.inner ? `<path class="sh hollow" d="${mini.inner}"/>` : ''}</svg>
@@ -397,16 +399,11 @@ function blockPane(): string {
     <div class="box"><h3>返すもの</h3>
       <div class="rgrid">
         <label class="field">成果物<input id="b-output" class="mono" value="${esc(s.output)}"></label>
-        <label class="pill toggle${s.check.on ? ' on' : ''}"><input type="checkbox" id="b-check"${s.check.on ? ' checked' : ''}>判定（pass / fail）</label>
         ${f ? '' : `<label class="pill toggle${s.review ? ' on' : ''}"><input type="checkbox" id="b-review"${s.review ? ' checked' : ''}>このあと人が確認</label>`}
       </div>
       ${s.routes.length || s.kind === 'branch' ? `<div class="field">分岐の選択肢（choice）<div class="choices">${s.routes.map((r, j) => `<span class="choice"><input data-rkey="${j}" value="${esc(r.key)}" aria-label="選択肢の名前"><span>→ ${esc(r.to === END ? '終わり' : stageById(r.to)?.label ?? frameById(r.to)?.name ?? '')}</span><button type="button" data-rdel="${j}" aria-label="消す">×</button></span>`).join('') || '<span class="note">右のプラグを行き先に差すと、選択肢が増えます</span>'}</div></div>` : ''}
-      ${s.check.on ? `<div class="row2">
-        <label class="field">不合格なら戻す先<select id="b-onfail">${opt([['', '自分をやり直す'], ...(f ? [] : before.map((x) => [x.id, x.label] as [string, string]))], s.onFail && s.onFail !== s.id ? s.onFail : '')}</select></label>
-        <label class="field">戻す上限<input type="number" id="b-retries" min="0" max="9" value="${s.check.maxRetries}"></label></div>
-        <label class="field">確認用のコマンド（終了コード 0 で合格・任意）<input id="b-command" class="mono" value="${esc(s.check.command)}" placeholder="python -m pytest -q"></label>
-        <label class="pill toggle${s.check.verdict ? ' on' : ''}"><input type="checkbox" id="b-verdict"${s.check.verdict ? ' checked' : ''}>Claude に判定させる（verdict）</label>` : ''}
     </div>
+    ${checkBoxHtml(m, s)}
     ${s.access !== 'read' || s.web === 'domains' ? `<div class="box"><h3>書き込みと取得の範囲</h3>
       ${s.access === 'docs' ? `<label class="field">文書のフォルダ docs_dir<input id="b-docs" class="mono" value="${esc(s.docsDir)}"></label>` : ''}
       ${s.access !== 'read' ? `<label class="field">さらに絞る場所 writes（1行に1つ）<textarea id="b-writes" rows="2">${esc(s.writes.join('\n'))}</textarea></label>` : ''}
@@ -499,7 +496,7 @@ $('pane').addEventListener('input', (ev) => {
     else switch (t.id) {
       case 'b-label': s.label = sv; break;
       case 'b-name': s.name = sv.trim(); break;
-      case 'b-kind': s.kind = sv as BlockKind; if (sv === 'verify') s.check.on = true; full = true; break;
+      case 'b-kind': s.kind = sv as BlockKind; if (sv === 'verify') setCheck(s, true); full = true; break;
       case 'b-prompt': s.prompt = sv; break;
       case 'b-model': s.model = sv; break;
       case 'b-access': s.access = sv as StageModel['access']; if (sv === 'read') s.writes = []; full = true; break;
@@ -507,7 +504,7 @@ $('pane').addEventListener('input', (ev) => {
       case 'b-web': s.web = sv as StageModel['web']; full = true; break;
       case 'b-turns': s.maxTurns = parseInt(sv, 10) || 100; break;
       case 'b-output': s.output = sv.trim(); break;
-      case 'b-check': s.check.on = v === true; if (!s.check.on) s.onFail = null; full = true; break;
+      case 'b-check': setCheck(s, v === true); full = true; break;
       case 'b-verdict': s.check.verdict = v === true; full = true; break;
       case 'b-review': s.review = v === true; full = true; break;
       case 'b-onfail': s.onFail = sv || null; break;
