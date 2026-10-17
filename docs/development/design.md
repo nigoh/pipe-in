@@ -4,22 +4,22 @@
 
 | やりたいこと | 場所 |
 | --- | --- |
-| 入口（devpipe コマンド） | `devpipe/cli.py` |
-| どのパイプにも共通：段の実行・記録・確認・まとめ | `devpipe/engine/pipeline.py` |
-| 段の設定の型・protected_paths | `devpipe/engine/spec.py` |
-| 止める操作（devpipe が流す段の PreToolUse フック） | `devpipe/engine/guard.py` |
-| SDK の呼び出し | `devpipe/engine/runner.py` |
-| 設定の読み込み | `devpipe/engine/config.py` |
-| 使用量の集計と表 | `devpipe/usage/` |
-| 開発フロー（5段・差し戻し・指示文） | `devpipe/dev/` |
-| パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `devpipe/pipe/` |
-| ジェネレーター（devpipe-gen・環境の検出・ひな形） | `generator/`（Python では `devpipe_generator`）・`generator/templates/` |
+| 入口（devpipe コマンド） | `pipe_in/cli.py` |
+| どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
+| 段の設定の型・protected_paths | `pipe_in/engine/spec.py` |
+| 止める操作（devpipe が流す段の PreToolUse フック） | `pipe_in/engine/guard.py` |
+| SDK の呼び出し | `pipe_in/engine/runner.py` |
+| 設定の読み込み | `pipe_in/engine/config.py` |
+| 使用量の集計と表 | `pipe_in/usage/` |
+| 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
+| パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/` |
+| ジェネレーター（devpipe-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのフックの本体（pipe-builder の操作を絞る） | `generator/guard_hook.py` |
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | このリポジトリを開発する Claude Code のスキル | `.claude/skills/`（`pipe-in`・`pipe-help`） |
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ） |
-| /pipe-in の記録を書く（devpipe record） | `devpipe/dev/record.py` |
+| /pipe-in の記録を書く（devpipe record） | `pipe_in/dev/record.py` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | 作ったパイプ（どちらも .gitignore 済み） | 対象の `.devpipe/pipes/`、今までの `pipes/` |
 
@@ -28,17 +28,17 @@
 ## 本体の依存の向き
 
 ```
-devpipe_generator（generator/）
+pipe_in_generator（generator/）
    ↓
-devpipe.pipe / devpipe.dev
+pipe_in.pipe / pipe_in.dev
    ↓
-devpipe.engine
+pipe_in.engine
    ↓
-devpipe.usage
+pipe_in.usage
 ```
 
 - 逆向きの import は `tests/test_architecture.py` が止めます。
-- `devpipe.engine` は、どのパイプにも共通の仕組みです。特定のパイプ（開発フロー・パイプの定義）や入口（`devpipe.cli`）を知りません。
+- `pipe_in.engine` は、どのパイプにも共通の仕組みです。特定のパイプ（開発フロー・パイプの定義）や入口（`pipe_in.cli`）を知りません。
 - `generator/guard_hook.py` と `.claude/hooks/pipe_in_guard.py` は、Claude Code が道具を呼ぶたびに動きます。起動を軽くし、devpipe が壊れていても動くように、**標準ライブラリだけ**を使います（`guard_hook.py` は `tests/test_architecture.py` が検査します）。
 
 ## 拡張の層
@@ -65,10 +65,10 @@ devpipe.usage
 
 | もの | 読む所 |
 | --- | --- |
-| 実行の記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）と終了コード | 本体の `devpipe/engine/`・`devpipe/dev/record.py`、拡張の `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts`。見本の記録 `tests/fixtures/pipe_in/` を両方のテストで読み、形がずれないようにしている |
-| 設定（`pipeline.toml`） | `devpipe/engine/config.py` |
-| パイプ（`pipe.toml`・`prompts/*.md`・`layout.json`） | `devpipe/pipe/definition.py`、拡張の `pipeModel.ts` |
-| パイプの置き場所 | `devpipe/pipe/definition.py` の `pipes_dirs`・`new_pipes_dir`、拡張の `choosePipesDir` |
+| 実行の記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）と終了コード | 本体の `pipe_in/engine/`・`pipe_in/dev/record.py`、拡張の `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts`。見本の記録 `tests/fixtures/pipe_in/` を両方のテストで読み、形がずれないようにしている |
+| 設定（`pipeline.toml`） | `pipe_in/engine/config.py` |
+| パイプ（`pipe.toml`・`prompts/*.md`・`layout.json`） | `pipe_in/pipe/definition.py`、拡張の `pipeModel.ts` |
+| パイプの置き場所 | `pipe_in/pipe/definition.py` の `pipes_dirs`・`new_pipes_dir`、拡張の `choosePipesDir` |
 
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。

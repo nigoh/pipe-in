@@ -10,8 +10,8 @@ dependencies = ["claude-agent-sdk>=0.2.159,<0.3"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-devpipe = "devpipe.cli:main"
-devpipe-gen = "devpipe_generator.cli:main"
+devpipe = "pipe_in.cli:main"
+devpipe-gen = "pipe_in_generator.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -19,13 +19,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 # エンジン（devpipe/）と、ジェネレーター（generator/ を devpipe_generator という名前で入れる）
-packages = ["devpipe", "devpipe.engine", "devpipe.usage", "devpipe.dev", "devpipe.pipe", "devpipe_generator"]
-package-dir = { "devpipe_generator" = "generator" }
+packages = ["pipe_in", "pipe_in.engine", "pipe_in.usage", "pipe_in.dev", "pipe_in.pipe", "pipe_in_generator"]
+package-dir = { "pipe_in_generator" = "generator" }
 
 [tool.setuptools.package-data]
-"devpipe.dev" = ["prompts/*.md"]
-"devpipe.pipe" = ["*.md"]
-"devpipe_generator" = ["*.md", "templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
+"pipe_in.dev" = ["prompts/*.md"]
+"pipe_in.pipe" = ["*.md"]
+"pipe_in_generator" = ["*.md", "templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

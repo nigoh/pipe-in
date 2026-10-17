@@ -13,11 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from devpipe import cli
-from devpipe.dev.pipeline import DevPipeline
-from devpipe.dev.record import RecordError, Recorder
-from devpipe.engine.checkpoint import Decision
-from devpipe.engine.config import load_config
+from pipe_in import cli
+from pipe_in.dev.pipeline import DevPipeline
+from pipe_in.dev.record import RecordError, Recorder
+from pipe_in.engine.checkpoint import Decision
+from pipe_in.engine.config import load_config
 
 FIXTURES = Path(__file__).parent / "fixtures" / "pipe_in"
 FIXED = datetime(2026, 10, 17, 10, 0, 0)
@@ -234,7 +234,7 @@ def test_ac03_cli_reports_mistakes_without_traceback(tmp_path, capsys):
 
 
 def test_ac02_record_never_calls_the_sdk(tmp_path, monkeypatch):
-    import devpipe.engine.runner as runner
+    import pipe_in.engine.runner as runner
 
     def boom(*a, **k):
         raise AssertionError("SDK を呼んではいけない")
@@ -246,6 +246,6 @@ def test_ac02_record_never_calls_the_sdk(tmp_path, monkeypatch):
 
 
 def test_ac02_record_module_does_not_import_the_sdk():
-    src = (Path(__file__).parents[1] / "devpipe" / "dev" / "record.py").read_text(encoding="utf-8")
+    src = (Path(__file__).parents[1] / "pipe_in" / "dev" / "record.py").read_text(encoding="utf-8")
     assert "claude_agent_sdk" not in src
     assert "runner" not in src

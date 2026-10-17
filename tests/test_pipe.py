@@ -8,29 +8,29 @@ from pathlib import Path
 
 import pytest
 
-from devpipe.dev.specs import STAGES
-from devpipe.engine.checkpoint import Decision
-from devpipe.engine.config import load_config
-from devpipe.engine.guard import check_tool
-from devpipe.engine.pipeline import STATE, SUMMARY, Exit
-from devpipe.engine.runner import StageRun
+from pipe_in.dev.specs import STAGES
+from pipe_in.engine.checkpoint import Decision
+from pipe_in.engine.config import load_config
+from pipe_in.engine.guard import check_tool
+from pipe_in.engine.pipeline import STATE, SUMMARY, Exit
+from pipe_in.engine.runner import StageRun
 
 
 # 新しい部品はテストの中で読み込む（1件ずつ、何で落ちたかが見えるように）
 def definition():
-    from devpipe.pipe import definition
+    from pipe_in.pipe import definition
 
     return definition
 
 
 def pipe_specs():
-    from devpipe.pipe import specs
+    from pipe_in.pipe import specs
 
     return specs
 
 
 def linear_cls():
-    from devpipe.pipe.pipeline import LinearPipeline
+    from pipe_in.pipe.pipeline import LinearPipeline
 
     return LinearPipeline
 
@@ -107,7 +107,7 @@ def state_at(cfg) -> dict:
 
 
 def test_dev_state_has_pipe_fields(tmp_path):
-    from devpipe.dev.pipeline import DevPipeline
+    from pipe_in.dev.pipeline import DevPipeline
     from test_pipeline import FakeRunner
 
     cfg = load_config(tmp_path, None, auto_approve=True)
@@ -442,7 +442,7 @@ def test_linear_state_stages_have_output_and_review(tmp_path):
 
 
 def test_dev_state_stages_have_output_and_review(tmp_path):
-    from devpipe.dev.pipeline import DevPipeline
+    from pipe_in.dev.pipeline import DevPipeline
     from test_pipeline import FakeRunner
 
     cfg = load_config(tmp_path, None, auto_approve=True)
@@ -472,7 +472,7 @@ def test_linear_summary_lists_stage_results(tmp_path):
 
 
 def cli_main(*argv: str):
-    from devpipe.cli import main
+    from pipe_in.cli import main
 
     return main(list(argv))
 
@@ -501,8 +501,8 @@ def test_cli_pipe_requires_input(tmp_path, monkeypatch):
 
 
 def test_pipeline_for_picks_kind_and_settings(tmp_path):
-    from devpipe.cli import pipeline_for
-    from devpipe.dev.pipeline import DevPipeline
+    from pipe_in.cli import pipeline_for
+    from pipe_in.dev.pipeline import DevPipeline
 
     (tmp_path / "pipeline.toml").write_text('[pipeline]\ntest_command = "make test"\n', encoding="utf-8")
     base = load_config(tmp_path, None, auto_approve=True)

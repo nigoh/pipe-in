@@ -84,7 +84,7 @@ RED_RESULT_SCHEMA: dict[str, Any] = {
 
 
 def _prompt_text(name: str) -> str:
-    return resources.files("devpipe.dev").joinpath(f"prompts/{name}.md").read_text(encoding="utf-8")
+    return resources.files("pipe_in.dev").joinpath(f"prompts/{name}.md").read_text(encoding="utf-8")
 
 
 def build_specs(cfg: Config) -> dict[str, StageSpec]:

@@ -37,7 +37,7 @@ Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の�
 
 | | 段の成果物 | 決定の記録 |
 | --- | --- | --- |
-| 置き場所 | `docs/pipeline/`（`01_requirements.md`〜`05_test_report.md`・`state.json`・`logs/`。`python -m devpipe record` が書く） | `docs/decisions/Dnnnn-<名前>.md` |
+| 置き場所 | `docs/pipeline/`（`01_requirements.md`〜`05_test_report.md`・`state.json`・`logs/`。`python -m pipe_in record` が書く） | `docs/decisions/Dnnnn-<名前>.md` |
 | 追跡 | **しない**（`.gitignore` 済み）。手元の作業の記録 | する |
 | 何のため | 段から段への受け渡しと、VSCode の拡張で進み具合を見るため | あとから読む人が「何を、なぜ決めたか」を知るため |
 | 中身 | 段の文書そのもの。セッション ID・手元のパス・読んだコードの中身が入る | 目的・FR と AC・決めたことと理由・対象外・確かめたこと（[specs.md](specs.md)） |

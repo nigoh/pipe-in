@@ -1,4 +1,4 @@
-"""インストールせずにテストを流せるよう、generator/ を devpipe_generator として読み込めるようにする。
+"""インストールせずにテストを流せるよう、generator/ を pipe_in_generator として読み込めるようにする。
 
 pip install -e . 済みなら、そちらを使う（pyproject.toml の package-dir で同じ名前に対応づけている）。
 """
@@ -12,16 +12,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "generator"
 
+# 入れ直していない worktree でも、この作業フォルダの pipe_in を読むように先頭に足す
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 try:
-    import devpipe_generator  # noqa: F401
+    import pipe_in_generator  # noqa: F401
 except ImportError:
     if (GENERATOR / "__init__.py").is_file():
         spec = importlib.util.spec_from_file_location(
-            "devpipe_generator", GENERATOR / "__init__.py", submodule_search_locations=[str(GENERATOR)]
+            "pipe_in_generator", GENERATOR / "__init__.py", submodule_search_locations=[str(GENERATOR)]
         )
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
-        sys.modules["devpipe_generator"] = module
+        sys.modules["pipe_in_generator"] = module
         spec.loader.exec_module(module)
 
 
@@ -53,11 +57,11 @@ def changes(before: dict[str, tuple[int, int]], after: dict[str, tuple[int, int]
 
 
 def pytest_sessionstart(session) -> None:
-    session.config._devpipe_watch = snapshot(ROOT)
+    session.config._pipe_in_watch = snapshot(ROOT)
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
-    before = getattr(session.config, "_devpipe_watch", None)
+    before = getattr(session.config, "_pipe_in_watch", None)
     if before is None:
         return
     changed = changes(before, snapshot(ROOT))

@@ -1,4 +1,4 @@
-"""依存の向きの検査：devpipe_generator → devpipe.pipe → devpipe.engine → devpipe.usage（devpipe.dev → devpipe.engine）。
+"""依存の向きの検査：pipe_in_generator → pipe_in.pipe → pipe_in.engine → pipe_in.usage（pipe_in.dev → pipe_in.engine）。
 
 逆向きの import があると落ちる。共通の仕組み（engine）が、特定のパイプや入口を知らないようにするため。
 """
@@ -14,13 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (フォルダ, そのフォルダの Python の名前, import してはいけないもの)
 RULES = [
-    ("devpipe/usage", "devpipe.usage", ["devpipe.engine", "devpipe.dev", "devpipe.pipe", "devpipe.cli", "devpipe_generator"]),
-    ("devpipe/engine", "devpipe.engine", ["devpipe.dev", "devpipe.pipe", "devpipe.cli", "devpipe_generator"]),
-    ("devpipe/dev", "devpipe.dev", ["devpipe.pipe", "devpipe.cli", "devpipe_generator"]),
-    ("devpipe/pipe", "devpipe.pipe", ["devpipe.dev", "devpipe.cli", "devpipe_generator"]),
-    ("devpipe", "devpipe", ["devpipe_generator"]),
+    ("pipe_in/usage", "pipe_in.usage", ["pipe_in.engine", "pipe_in.dev", "pipe_in.pipe", "pipe_in.cli", "pipe_in_generator"]),
+    ("pipe_in/engine", "pipe_in.engine", ["pipe_in.dev", "pipe_in.pipe", "pipe_in.cli", "pipe_in_generator"]),
+    ("pipe_in/dev", "pipe_in.dev", ["pipe_in.pipe", "pipe_in.cli", "pipe_in_generator"]),
+    ("pipe_in/pipe", "pipe_in.pipe", ["pipe_in.dev", "pipe_in.cli", "pipe_in_generator"]),
+    ("pipe_in", "pipe_in", ["pipe_in_generator"]),
     # design が段を1つ流すため、ジェネレーターは engine を使ってよい（入口と開発フローには頼らない）
-    ("generator", "devpipe_generator", ["devpipe.cli", "devpipe.dev"]),
+    ("generator", "pipe_in_generator", ["pipe_in.cli", "pipe_in.dev"]),
 ]
 
 
@@ -74,13 +74,13 @@ def test_dependency_direction(folder, package, forbidden):
 
 def test_rule_catches_reverse_import(tmp_path, monkeypatch):
     """検査そのものが逆向きの import を見つけられること。"""
-    bad = tmp_path / "devpipe" / "engine"
+    bad = tmp_path / "pipe_in" / "engine"
     bad.mkdir(parents=True)
     (bad / "__init__.py").write_text("", encoding="utf-8")
-    (bad / "oops.py").write_text("from ..dev import specs\nfrom devpipe.pipe.pipeline import LinearPipeline\n", encoding="utf-8")
+    (bad / "oops.py").write_text("from ..dev import specs\nfrom pipe_in.pipe.pipeline import LinearPipeline\n", encoding="utf-8")
     monkeypatch.setattr(__import__(__name__), "ROOT", tmp_path)
-    found = _violations("devpipe/engine", "devpipe.engine", ["devpipe.dev", "devpipe.pipe"])
-    assert any("devpipe.dev" in f for f in found) and any("devpipe.pipe" in f for f in found)
+    found = _violations("pipe_in/engine", "pipe_in.engine", ["pipe_in.dev", "pipe_in.pipe"])
+    assert any("pipe_in.dev" in f for f in found) and any("pipe_in.pipe" in f for f in found)
 
 
 def test_guard_hook_uses_only_stdlib():
@@ -89,6 +89,6 @@ def test_guard_hook_uses_only_stdlib():
 
     path = ROOT / "generator" / "guard_hook.py"
     assert path.is_file()
-    targets = {t.split(".")[0] for t in _imports(path, "devpipe_generator.guard_hook") if t}
+    targets = {t.split(".")[0] for t in _imports(path, "pipe_in_generator.guard_hook") if t}
     outside = sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
     assert outside == []

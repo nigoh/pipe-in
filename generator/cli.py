@@ -14,7 +14,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from devpipe.pipe import definition as pd
+from pipe_in.pipe import definition as pd
 
 from .detect import detect
 from .render import render_template, template_values

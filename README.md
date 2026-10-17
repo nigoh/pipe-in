@@ -323,13 +323,13 @@ VSCode 拡張の「devpipe: パイプ作業台を開く」で、パイプをフ�
 
 `git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得。
 
-また、段ごとに許したツール（`devpipe/dev/specs.py`・`devpipe/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
 
-止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `devpipe/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
+止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `pipe_in/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
 
 ### まとめに出る使用量
 
-各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`devpipe/usage/metrics.py`、表は `devpipe/usage/report.py`）。
+各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`pipe_in/usage/metrics.py`、表は `pipe_in/usage/report.py`）。
 
 | 節 | 中身 |
 |---|---|
@@ -386,13 +386,13 @@ model = "sonnet"
 
 | やりたいこと | 場所 |
 |---|---|
-| 開発フローの各段への指示（文書の構成、守ること） | `devpipe/dev/prompts/*.md` |
-| 開発フローの段の順番、確認、差し戻しの流れ | `devpipe/dev/pipeline.py` |
-| 開発フローの段ごとのツールと書き込み範囲 | `devpipe/dev/specs.py` |
-| どのパイプにも共通の流れ（記録・確認・まとめ） | `devpipe/engine/pipeline.py` |
-| 止める操作 | `devpipe/engine/guard.py` の `DANGEROUS_BASH` |
-| SDK の呼び出し | `devpipe/engine/runner.py` |
-| パイプの読み込み・検査・流れ・権限の型 | `devpipe/pipe/` |
+| 開発フローの各段への指示（文書の構成、守ること） | `pipe_in/dev/prompts/*.md` |
+| 開発フローの段の順番、確認、差し戻しの流れ | `pipe_in/dev/pipeline.py` |
+| 開発フローの段ごとのツールと書き込み範囲 | `pipe_in/dev/specs.py` |
+| どのパイプにも共通の流れ（記録・確認・まとめ） | `pipe_in/engine/pipeline.py` |
+| 止める操作 | `pipe_in/engine/guard.py` の `DANGEROUS_BASH` |
+| SDK の呼び出し | `pipe_in/engine/runner.py` |
+| パイプの読み込み・検査・流れ・権限の型 | `pipe_in/pipe/` |
 | パイプの生成・環境の検出・ひな形 | `generator/`（`devpipe-gen`）・`generator/templates/` |
 
 テストは `pip install -e '.[dev]' && pytest` で実行できます。SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめます。

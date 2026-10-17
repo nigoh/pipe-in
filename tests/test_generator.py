@@ -1,4 +1,4 @@
-"""ジェネレーター（generator/ = devpipe_generator）：環境の検出・ひな形の穴埋め・パイプのフォルダの生成と検査。"""
+"""ジェネレーター（generator/ = pipe_in_generator）：環境の検出・ひな形の穴埋め・パイプのフォルダの生成と検査。"""
 
 from __future__ import annotations
 
@@ -10,19 +10,19 @@ import pytest
 
 # 新しい部品はテストの中で読み込む（1件ずつ、何で落ちたかが見えるように）
 def detect_mod():
-    from devpipe_generator import detect
+    from pipe_in_generator import detect
 
     return detect
 
 
 def gen_cli():
-    from devpipe_generator import cli
+    from pipe_in_generator import cli
 
     return cli
 
 
 def definition():
-    from devpipe.pipe import definition
+    from pipe_in.pipe import definition
 
     return definition
 
@@ -43,7 +43,7 @@ def python_project(tmp_path: Path) -> Path:
 @pytest.fixture(autouse=True)
 def no_repo_pipes(tmp_path, monkeypatch):
     """どのテストも、devpipe のリポジトリの本物の pipes/ には書かない（今までの場所を仮のフォルダに向ける）。"""
-    from devpipe.pipe import definition as pd
+    from pipe_in.pipe import definition as pd
 
     def fake_default() -> Path:
         env = __import__("os").environ.get(pd.PIPES_DIR_ENV)
@@ -219,7 +219,7 @@ def test_check_reports_errors(tmp_path, capsys):
 
 
 def test_render_template_comments_out_missing_values():
-    from devpipe_generator.render import render_template
+    from pipe_in_generator.render import render_template
 
     text = 'test_command = "{{test_command}}"\nprompt = "{{source_dirs}} を読む"\n'
     out = render_template(text, {"test_command": None, "source_dirs": '`src/` と "lib"'})
@@ -270,7 +270,7 @@ def test_detect_makefile_without_test_target(tmp_path):
 
 
 def design_mod():
-    from devpipe_generator import design
+    from pipe_in_generator import design
 
     return design
 
@@ -298,7 +298,7 @@ class DesignRunner:
         self.calls: list[tuple[object, str, str | None]] = []
 
     async def __call__(self, spec, prompt, cfg, *, resume, log_name):
-        from devpipe.engine.runner import StageRun
+        from pipe_in.engine.runner import StageRun
 
         self.calls.append((spec, prompt, resume))
         return StageRun(stage=spec.name, session_id="d-1", structured=self.designs.pop(0), cost_usd=0.05, num_turns=3)

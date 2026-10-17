@@ -17,7 +17,7 @@ DEFAULT_MAX_TURNS = 100
 
 
 def _stage_rules() -> str:
-    return resources.files("devpipe.pipe").joinpath("stage_rules.md").read_text(encoding="utf-8")
+    return resources.files("pipe_in.pipe").joinpath("stage_rules.md").read_text(encoding="utf-8")
 
 
 def _can_write(cfg: Config, stage: PipeStage) -> tuple[Callable[[str], bool], str]:

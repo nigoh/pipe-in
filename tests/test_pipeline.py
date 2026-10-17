@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from devpipe.dev import specs as st
-from devpipe.engine.checkpoint import Decision, ask_human
-from devpipe.engine.config import load_config
-from devpipe.engine.guard import check_tool, is_test_path
-from devpipe.dev.pipeline import DevPipeline
-from devpipe.engine.pipeline import Exit, ShellResult
-from devpipe.engine.runner import StageRun
+from pipe_in.dev import specs as st
+from pipe_in.engine.checkpoint import Decision, ask_human
+from pipe_in.engine.config import load_config
+from pipe_in.engine.guard import check_tool, is_test_path
+from pipe_in.dev.pipeline import DevPipeline
+from pipe_in.engine.pipeline import Exit, ShellResult
+from pipe_in.engine.runner import StageRun
 
 
 class FakeRunner:
@@ -379,7 +379,7 @@ def test_powershell_is_disallowed_up_front(tmp_path, stage):
 
 
 def test_guard_hook_denies_powershell(tmp_path):
-    from devpipe.engine.guard import make_guard_hook
+    from pipe_in.engine.guard import make_guard_hook
 
     cfg = make_cfg(tmp_path)
     spec = st.build_specs(cfg)["implement"]
@@ -398,7 +398,7 @@ def test_guard_hook_denies_powershell(tmp_path):
 
 
 def test_summary_has_usage_sections(tmp_path):
-    from devpipe.usage.metrics import StageMetrics
+    from pipe_in.usage.metrics import StageMetrics
 
     class WithMetrics(FakeRunner):
         async def __call__(self, spec, prompt, cfg, *, resume, log_name):
@@ -433,8 +433,8 @@ def test_summary_without_metrics_still_works(tmp_path):
 
 
 def test_usage_report_mentions_reset():
-    from devpipe.dev.specs import STAGE_LABELS
-    from devpipe.usage.report import usage_sections
+    from pipe_in.dev.specs import STAGE_LABELS
+    from pipe_in.usage.report import usage_sections
 
     metrics = {"tokens": {"output": 1}, "rate_limits": {
         "five_hour": {"first": 0.12, "last": 0.02, "peak": 0.13, "reset_seen": True, "resets_at": None}}}
@@ -537,7 +537,7 @@ def test_review_without_pending_is_error(tmp_path):
 
 
 def test_cli_review_needs_feedback_for_revise(tmp_path):
-    from devpipe.cli import main
+    from pipe_in.cli import main
 
     with pytest.raises(SystemExit):
         main(["--project", str(tmp_path), "--review", "revise"])
@@ -553,7 +553,7 @@ def test_cli_review_needs_feedback_for_revise(tmp_path):
     ],
 )
 def test_cli_rejects_mixed_review_args(tmp_path, argv):
-    from devpipe.cli import main
+    from pipe_in.cli import main
 
     with pytest.raises(SystemExit) as e:
         main(["--project", str(tmp_path), *argv])
@@ -561,7 +561,7 @@ def test_cli_rejects_mixed_review_args(tmp_path, argv):
 
 
 def test_cli_review_without_pending_explains(tmp_path):
-    from devpipe.cli import main
+    from pipe_in.cli import main
 
     with pytest.raises(SystemExit) as e:
         main(["--project", str(tmp_path), "--review", "approve"])

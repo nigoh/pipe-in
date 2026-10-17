@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from devpipe.engine.checkpoint import Decision
-from devpipe.engine.config import load_config
-from devpipe.engine.guard import check_tool
-from devpipe.engine.pipeline import STATE, SUMMARY, Exit, ShellResult
-from devpipe.engine.runner import StageRun
-from devpipe.pipe import definition as pd
-from devpipe.pipe import specs as ps
-from devpipe.pipe.pipeline import LinearPipeline
+from pipe_in.engine.checkpoint import Decision
+from pipe_in.engine.config import load_config
+from pipe_in.engine.guard import check_tool
+from pipe_in.engine.pipeline import STATE, SUMMARY, Exit, ShellResult
+from pipe_in.engine.runner import StageRun
+from pipe_in.pipe import definition as pd
+from pipe_in.pipe import specs as ps
+from pipe_in.pipe.pipeline import LinearPipeline
 
 
 def make_pipe(project: Path, toml: str, name: str = "p") -> pd.PipeDef:
@@ -422,7 +422,7 @@ def test_structured_output_tool_is_never_denied(tmp_path):
     """SDK は構造化出力を StructuredOutput という道具で返す。止めると判定・分岐・設計が返らない。"""
     check, _ = guard_of(tmp_path, "[stages.check]\nverdict = true\n")
     assert check("StructuredOutput", status="pass", summary="x", problems=[]) is None
-    from devpipe.dev import specs as dev_specs
+    from pipe_in.dev import specs as dev_specs
 
     cfg = load_config(tmp_path, None, auto_approve=True)
     for name, spec in dev_specs.build_specs(cfg).items():
@@ -437,7 +437,7 @@ def test_structured_output_tool_is_never_denied(tmp_path):
 
 
 def test_cli_loads_pipe_from_project(tmp_path, monkeypatch):
-    from devpipe import cli
+    from pipe_in import cli
 
     monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
     project = tmp_path / "app"

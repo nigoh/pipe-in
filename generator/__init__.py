@@ -2,5 +2,5 @@
 
 コマンドは devpipe-gen（generator/cli.py）。ひな形は generator/templates/。
 guard_hook.py は Claude Code のプラグイン（plugin/）のフックで、標準ライブラリだけを使う。
-devpipe.pipe（定義の読み込み・検査）だけを使い、devpipe の流れや入口には頼らない。
+pipe_in.pipe（定義の読み込み・検査）だけを使い、devpipe の流れや入口には頼らない。
 """

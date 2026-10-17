@@ -14,7 +14,7 @@ import pytest
 
 # 新しい部品はテストの中で読み込む（1件ずつ、何で落ちたかが見えるように）
 def hook():
-    from devpipe_generator import guard_hook
+    from pipe_in_generator import guard_hook
 
     return guard_hook
 
@@ -205,7 +205,7 @@ def test_main_prints_nothing_when_allowed(tmp_path, monkeypatch):
 
 
 def test_cli_dispatches_guard_hook(tmp_path, monkeypatch):
-    from devpipe_generator import cli
+    from pipe_in_generator import cli
 
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload(tmp_path, "Write", {"file_path": "src/a.py"}))))
     out = io.StringIO()

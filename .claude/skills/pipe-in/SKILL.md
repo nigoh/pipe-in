@@ -54,19 +54,19 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 ## 記録（VSCode の拡張で見る）
 
-段を進めるたびに、`python -m devpipe record …` で devpipe と同じ形の記録を `docs/pipeline/`（`.gitignore` 済み）に書く。SDK は呼ばず、利用料もかからない。
+段を進めるたびに、`python -m pipe_in record …` で devpipe と同じ形の記録を `docs/pipeline/`（`.gitignore` 済み）に書く。SDK は呼ばず、利用料もかからない。
 拡張の「devpipe: 実行を見る」とステータスバーに、動いている段・確認待ち・差し戻し・最後の結果が出る。
 
 | いつ | コマンド |
 | --- | --- |
-| 始めるとき（要件メモを渡す） | `python -m devpipe record start --text "<要件メモ>"`（長いときは `--input <ファイル>`） |
-| 段を任せる直前 | `python -m devpipe record begin <段>`（実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
-| サブエージェントが返ったあと | `python -m devpipe record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
-| 人の確認を待つとき | `python -m devpipe record wait <段>` |
-| 人が答えたとき | `python -m devpipe record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
-| テスト先行の結果 | `python -m devpipe record red red --summary "<要約>" --test Dnnnn-AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
-| 検証の判定 | `python -m devpipe record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure Dnnnn-AC-01=<中身>`） |
-| 終わるとき | `python -m devpipe record finish PASSED`（`TEST_FAILED`・`STOPPED_BY_HUMAN`・`STAGE_ERROR`・`BLOCKED`） |
+| 始めるとき（要件メモを渡す） | `python -m pipe_in record start --text "<要件メモ>"`（長いときは `--input <ファイル>`） |
+| 段を任せる直前 | `python -m pipe_in record begin <段>`（実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
+| サブエージェントが返ったあと | `python -m pipe_in record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
+| 人の確認を待つとき | `python -m pipe_in record wait <段>` |
+| 人が答えたとき | `python -m pipe_in record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
+| テスト先行の結果 | `python -m pipe_in record red red --summary "<要約>" --test Dnnnn-AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
+| 検証の判定 | `python -m pipe_in record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure Dnnnn-AC-01=<中身>`） |
+| 終わるとき | `python -m pipe_in record finish PASSED`（`TEST_FAILED`・`STOPPED_BY_HUMAN`・`STAGE_ERROR`・`BLOCKED`） |
 
 - 段の名前は `requirements`・`design`・`red`・`implement`・`test`。
 - `start` は途中の記録があると断る。前の記録が途中のまま残っていたら、人にどうするか（`finish STOPPED_BY_HUMAN` で閉じるか）聞く。終わった記録は `docs/pipeline/archive/` に移る。
@@ -88,7 +88,7 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - 各段の結果は、これまでどおり会話に書く（あとから読み返せるように）。
 - 要件定義で、決めきれない点（方向が大きく分かれる・人にしか決められない）があれば、そこでは止まって聞く。決められる点は決めて、その旨を書く。
-- `devpipe/engine/guard.py` の止める範囲を狭める変更・依存を足す変更・利用料のかかる本物での実行は、理由を書いてから行う。迷うときは止まって聞く。
+- `pipe_in/engine/guard.py` の止める範囲を狭める変更・依存を足す変更・利用料のかかる本物での実行は、理由を書いてから行う。迷うときは止まって聞く。
 - 検証で不合格が3回続いたら、止まって状況を報告する。
 - コミット・push は、人に言われるまでしない。
 

@@ -1,7 +1,7 @@
 """目的から段を組む（devpipe-gen design）。
 
 Claude に対象を読むだけで調べさせ、パイプの設計を構造化出力で返させる。ジェネレーターがそれを
-pipe.toml・prompts/・README.md に書き、devpipe.pipe の検査に通るまで（max_rounds 回まで）直させる。
+pipe.toml・prompts/・README.md に書き、pipe_in.pipe の検査に通るまで（max_rounds 回まで）直させる。
 検査に通らなければ、何も書かない。
 """
 
@@ -14,10 +14,10 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from devpipe.engine.config import load_config
-from devpipe.engine.runner import StageRunner, run_stage_sdk
-from devpipe.engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec
-from devpipe.pipe import definition as pd
+from pipe_in.engine.config import load_config
+from pipe_in.engine.runner import StageRunner, run_stage_sdk
+from pipe_in.engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec
+from pipe_in.pipe import definition as pd
 
 from .detect import Env, detect
 
@@ -59,7 +59,7 @@ DESIGN_SCHEMA: dict[str, Any] = {
 
 
 def _rules() -> str:
-    return resources.files("devpipe_generator").joinpath("design_rules.md").read_text(encoding="utf-8")
+    return resources.files("pipe_in_generator").joinpath("design_rules.md").read_text(encoding="utf-8")
 
 
 def designer_spec(model: str | None = None) -> StageSpec:

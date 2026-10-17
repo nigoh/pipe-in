@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from devpipe.engine.config import load_config
-from devpipe.engine.guard import check_tool
-from devpipe.pipe import definition as pd
-from devpipe.pipe import specs as ps
+from pipe_in.engine.config import load_config
+from pipe_in.engine.guard import check_tool
+from pipe_in.pipe import definition as pd
+from pipe_in.pipe import specs as ps
 
 FULL = '''
 [pipe]
@@ -148,7 +148,7 @@ def test_subagent_tools_are_allowed_only_with_agents(tmp_path):
 
 
 def test_sdk_options_from_spec(tmp_path):
-    from devpipe.engine.runner import sdk_options
+    from pipe_in.engine.runner import sdk_options
 
     spec, cfg = survey_spec(tmp_path)
     opts = sdk_options(spec, cfg, resume="s-1")
@@ -164,8 +164,8 @@ def test_sdk_options_from_spec(tmp_path):
 
 
 def test_sdk_options_defaults_for_dev_flow(tmp_path):
-    from devpipe.dev import specs as dev_specs
-    from devpipe.engine.runner import sdk_options
+    from pipe_in.dev import specs as dev_specs
+    from pipe_in.engine.runner import sdk_options
 
     cfg = load_config(tmp_path, None, auto_approve=True)
     opts = sdk_options(dev_specs.build_specs(cfg)["requirements"], cfg, resume=None)
