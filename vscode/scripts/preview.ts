@@ -2,6 +2,7 @@
 // 本物の HTML（view/pipeEditorHtml.ts）と本物のビルド（out/pipeEditor.js）から、VSCode の外のブラウザで開けるページを
 // out/preview/ に書く。VSCode の API の代わりに、見本のパイプを読み込ませるだけの小さな置き換えを入れ、
 // テーマの色（--vscode-*）は明るい・暗いの2通りを仮の値で入れる。Playwright（MCP）で開いて画面を確かめるのに使う。
+// 「実行を見る」パネルの明るい・暗いのページ（run-panel-*.html）も、画面用の見本の記録から作る（中身は previewPages.ts）。
 // CSP は本物と同じに残す（style="…" 属性が捨てられるなど、パネルの中だけで起きる崩れをここでも見つけるため）。
 // 置き換えのスクリプトとテーマの色には nonce を付けて入れる。out/ は .gitignore 済み。
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -10,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { folderFor } from '../src/app/pipeEditor.ts';
 import { pipeFromFiles } from '../src/domain/pipeModel.ts';
 import { renderPipeEditorHtml } from '../src/view/pipeEditorHtml.ts';
+import { PANEL_PAGES, SHOWCASE_DIR, panelPreviewHtml, readShowcaseView, withTheme } from './previewPages.ts';
+import type { Theme } from './previewPages.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'out', 'preview');
@@ -79,18 +82,11 @@ type = "http"
 url = "https://mcp.example.com/jira"
 `;
 
-// VSCode のテーマの色の仮の値（Dark Modern・Light Modern に近いもの）
-const COMMON = '--vscode-font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;--vscode-editor-font-family:Consolas,"SF Mono",monospace;--vscode-button-foreground:#ffffff;--vscode-button-background:#0078d4;--vscode-button-hoverBackground:#026ec1;--vscode-focusBorder:#0078d4;';
-const THEMES: Record<string, string> = {
-  dark: COMMON + '--vscode-editor-background:#1f1f1f;--vscode-foreground:#cccccc;--vscode-descriptionForeground:#9d9d9d;--vscode-editorWidget-background:#202020;--vscode-panel-border:#2b2b2b;--vscode-editorIndentGuide-background:#404040;--vscode-charts-blue:#3794ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#f14c4c;--vscode-charts-green:#89d185;--vscode-charts-purple:#b180d7;--vscode-charts-yellow:#cca700;--vscode-editor-selectionBackground:#264f78;--vscode-button-secondaryBackground:#313131;--vscode-button-secondaryForeground:#cccccc;--vscode-button-secondaryHoverBackground:#3c3c3c;--vscode-input-background:#313131;--vscode-input-foreground:#cccccc;--vscode-notifications-background:#1f1f1f;--vscode-notifications-foreground:#cccccc;--vscode-textCodeBlock-background:#2b2b2b;--vscode-list-hoverBackground:#2a2d2e;--vscode-dropdown-background:#313131;--vscode-dropdown-foreground:#cccccc;--vscode-inputValidation-errorBackground:#5a1d1d;',
-  light: COMMON + '--vscode-editor-background:#ffffff;--vscode-foreground:#3b3b3b;--vscode-descriptionForeground:#717171;--vscode-editorWidget-background:#f8f8f8;--vscode-panel-border:#e5e5e5;--vscode-editorIndentGuide-background:#d3d3d3;--vscode-charts-blue:#1a85ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#e51400;--vscode-charts-green:#388a34;--vscode-charts-purple:#652d90;--vscode-charts-yellow:#bf8803;--vscode-editor-selectionBackground:#add6ff;--vscode-button-secondaryBackground:#e5e5e5;--vscode-button-secondaryForeground:#3b3b3b;--vscode-button-secondaryHoverBackground:#cccccc;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-notifications-background:#ffffff;--vscode-notifications-foreground:#3b3b3b;--vscode-textCodeBlock-background:#f2f2f2;--vscode-list-hoverBackground:#f2f2f2;--vscode-dropdown-background:#ffffff;--vscode-dropdown-foreground:#3b3b3b;--vscode-inputValidation-errorBackground:#f2dede;',
-};
-
 // ジェネレーターのひな形「diagrams」（pipe-in-gen new で作られるパイプ）。prompts/ も読み込む
 const DIAGRAMS = path.join(ROOT, '..', 'generator', 'templates', 'diagrams');
 const diagramPrompts: Record<string, string> = {};
 for (const f of readdirSync(path.join(DIAGRAMS, 'prompts'))) diagramPrompts[`prompts/${f}`] = readFileSync(path.join(DIAGRAMS, 'prompts', f), 'utf8');
-const PAGES: [string, ReturnType<typeof pipeFromFiles>, string][] = [
+const PAGES: [string, ReturnType<typeof pipeFromFiles>, Theme][] = [
   ['pipe-editor-dark', pipeFromFiles('design-review', SAMPLE, {}, null), 'dark'],
   ['pipe-editor-light', pipeFromFiles('design-review', SAMPLE, {}, null), 'light'],
   ['pipe-editor-diagrams', pipeFromFiles('diagrams', readFileSync(path.join(DIAGRAMS, 'pipe.toml'), 'utf8'), diagramPrompts, null), 'dark'],
@@ -110,8 +106,15 @@ for (const [page, model, theme] of PAGES) {
     + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
     + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}}});</script>`;
   let html = renderPipeEditorHtml({ nonce: 'preview', scriptUri: 'pipeEditor.js', cspSource: '' });
-  html = html.replace('<style nonce="preview">', `<style nonce="preview">:root{${THEMES[theme]}}</style><style nonce="preview">`);
+  html = withTheme(html, theme);
   html = html.replace('<script nonce="preview" src="pipeEditor.js">', `${stub}<script nonce="preview" src="pipeEditor.js">`);
   writeFileSync(path.join(OUT, `${page}.html`), html, 'utf8');
 }
-console.log(`out/preview/ に ${PAGES.map(([p]) => `${p}.html`).join('・')} を作りました`);
+
+// 「実行を見る」パネルのページ：画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の読み取りと renderPanelHtml で
+const view = await readShowcaseView(SHOWCASE_DIR);
+for (const [page, theme] of PANEL_PAGES) {
+  writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(view, theme), 'utf8');
+}
+const written = [...PAGES.map(([p]) => p), ...PANEL_PAGES.map(([p]) => p)];
+console.log(`out/preview/ に ${written.map((p) => `${p}.html`).join('・')} を作りました`);

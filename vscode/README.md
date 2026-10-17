@@ -1,17 +1,24 @@
 # pipe-in-vscode
 
-[pipe-in](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見るプラグイン。パイプを組み立てる作業台もある。
+[pipe-in](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見る拡張。パイプを組み立てる作業台もある。
 pipe-in が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物の Markdown）は読むだけで、何も書かない。
 書くのは、作業台で「保存」を押したときの、開いたパイプのフォルダ（新しいパイプは `.pipe-in/pipes/pipe-in-<名前>/`）の中（`pipe.toml`・`prompts/*.md`・`layout.json`・無いときの `README.md`）だけ。
 作業台の「保存した版」は、プロジェクトではなく VSCode が拡張に用意する保存場所に書く。
 
-前の名前の拡張から移るときの手順（設定・コマンド・古い拡張の外し方）は、リポジトリの [README](../README.md) の移行の節にある。
+前の名前の拡張から移るときの手順（設定・コマンド・古い拡張の外し方）は、リポジトリの [README の移行の節](../README.md#migrate) にある。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/run-panel-dark.png">
+  <img src="../docs/assets/run-panel-light.png" alt="VSCode のパネル。左に開発フローの段の図（要件定義 → 設計 → テスト先行 → 実装 → 検証。修正の依頼1回・差し戻し1回）、右に検証の出力・成果物・使用量" width="900">
+</picture>
+
+<sub>「pipe-in: 実行を見る」のパネル。見本の記録（数字は見本）を写したもの。</sub>
 
 ## 使い方
 
 ```bash
 cd vscode
-npm install          # 型検査とビルドの道具（テストだけなら不要）
+npm ci               # 型検査とビルドの道具（テストだけなら不要）
 npm test             # node:test（Node 22 以上）
 npm run typecheck
 npm run build        # out/extension.cjs
@@ -61,6 +68,13 @@ pipe-in（前の名前の 0.2 以降）の記録（`state.json` に `usage_summa
 ステータスバーの説明にも、利用枠の今の使用率が出る。古い記録では節を出さない（今までどおり）。
 
 ### パイプ作業台
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/pipe-editor-dark.png">
+  <img src="../docs/assets/pipe-editor-light.png" alt="パイプ作業台。ブロックをケーブルでつないで段の並びを組み、右で選んだ段の設定を決める" width="900">
+</picture>
+
+<sub>パイプ作業台。見本のパイプを開き、段「ソースの調査」を選んだところ。</sub>
 
 コマンドパレットの「pipe-in: パイプ作業台を開く」で、ワークスペースの `.pipe-in/pipes/` と前の版の置き場所（どちらも無くて `pipes/` があればそこ）のパイプを選ぶか、新しく作る。
 

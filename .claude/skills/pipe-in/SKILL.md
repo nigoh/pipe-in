@@ -18,9 +18,12 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 ## 0. 始める前に
 
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
-  今の作業フォルダが main のままなら、`git worktree add ../devpipe-<名前> -b feat/<名前>` で切り、以降はそのフォルダで作業する（切ったことを伝える）。`docs/pipeline/` の記録も、その worktree の中にできる。
-  すでに機能のブランチの worktree にいるなら、そのまま進める。
-- main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
+  - いちばん確かなのは、会話を worktree のフォルダで始めること。会話を worktree の中で始めたとき、または下の EnterWorktree で移ったあとは、そのまま進める。
+  - 会話が main の作業フォルダで始まっていたら、先に下の `git status` を見てから、`git worktree add ../pipe-in-<名前> -b feat/<名前>` で切り、`EnterWorktree` に `path`（切った worktree の絶対パス）を渡して、会話ごと移る（切ったこと・移ったことを伝える）。`cd` では移れない（プロジェクトの外へ出ると戻される）。人が打つ `/cd <パス>` でも移れる。
+  - 移るのは、段のサブエージェントが会話のその時の作業フォルダから始まり、フック（`.claude/hooks/pipe_in_guard.py`）がその `cwd` を基準に書ける場所を決めるため。移らずに任せると、main を基準に判定されて、worktree への書き込みが止まる。
+  - `../pipe-in-<名前>` は `.claude/worktrees/` の外なので、EnterWorktree は移るたびに人の承認を求める（`--auto` でもここは人が答える）。EnterWorktree で新しく作る形（`name`）はブランチ名が決まりと合わないので使わず、`git worktree add` で切ってから `path` で移る。
+  - `docs/pipeline/` の記録も、その worktree の中にできる。
+- main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る（EnterWorktree で移る前に見る。移ったあとは main の作業フォルダを指す git のコマンドが止められる）。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
 - worktree の中では、直したコードを確かめるのに `python -m devpipe …`・`python -m pytest` を使う（`devpipe-gen` などのコマンドは main のコードを動かす）。拡張を触るなら、その worktree で `npm --prefix vscode ci` をする。
 
 ## main が進んだら載せ直す
@@ -37,6 +40,7 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 ## 役割の分け方
 
 段の中身は、段ごとのサブエージェント（`.claude/agents/`）に Agent ツールで任せる。メインエージェント（あなた）は、人とのやり取り・記録・段の区切りの判断を受け持つ。
+段のサブエージェントに `isolation: worktree` は付けない（main から一時の worktree が切られ、機能のブランチの変更も `docs/pipeline/` の記録も見えなくなるため）。
 
 | 段 | 任せる先 | 書けるもの（`.claude/hooks/pipe_in_guard.py` が止める） |
 | --- | --- | --- |
@@ -133,9 +137,9 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
 - 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams のページができる）
+  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）ができる）
   2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
-  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る
+  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`）も同じように開いて撮る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
   4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る
   5. 見る：撮った画面を読み、重なり・はみ出し・読めない色・崩れがないか、手順の「合格の見え方」になっているかを確かめる。`browser_console_messages` でエラーが0件かも見る
   6. 片付ける：配るのを止め（TaskStop）、`.playwright-mcp/` を消す（`.gitignore` 済みだが残さない）
@@ -162,4 +166,4 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
   **コミット・main に入れる・push は、人に言われるまでしない。**
-- main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら worktree とブランチを片付ける。
+- main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら worktree とブランチを片付ける。

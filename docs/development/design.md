@@ -23,6 +23,9 @@
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言だけ公式の文書を Web で読める）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` は読むだけにする） |
 | /pipe-in の記録を書く（pipe-in record） | `pipe_in/dev/record.py` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
+| ロゴ（README に載せる SVG。明るい表示用と暗い表示用）と README の画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
+| 画面用の見本の記録（本体の流れを差し替えた runner で作る。README の画像と確認用のページが読む） | `tests/fixtures/showcase/`・作り方 `tests/showcase.py` |
+| 画面の確認用のページ（開発用。`npm run preview`） | `vscode/scripts/preview.ts`・ページを作る関数 `vscode/scripts/previewPages.ts` |
 | 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
 
 新しいものを置く場所に迷ったら、まずこの表の近いものの隣に置き、表に1行足します（表のパスが実物と合っているかは `tests/test_rules.py` が検査します）。
@@ -67,7 +70,7 @@ pipe_in.usage
 
 | もの | 読む所 |
 | --- | --- |
-| 実行の記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）と終了コード | 本体の `pipe_in/engine/`・`pipe_in/dev/record.py`、拡張の `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts`。見本の記録 `tests/fixtures/pipe_dev/`（今の形）と `tests/fixtures/pipe_in/`（前の版の形）を両方のテストで読み、形がずれないようにしている |
+| 実行の記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）と終了コード | 本体の `pipe_in/engine/`・`pipe_in/dev/record.py`、拡張の `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts`。見本の記録 `tests/fixtures/pipe_dev/`（今の形）と `tests/fixtures/pipe_in/`（前の版の形）を両方のテストで読み、形がずれないようにしている。画面用の見本 `tests/fixtures/showcase/`（本体が今書く形。`tests/test_showcase.py` が今の本体で作り直したものと形を比べる） |
 | 設定（`pipeline.toml`） | `pipe_in/engine/config.py` |
 | パイプ（`pipe.toml`・`prompts/*.md`・`layout.json`） | `pipe_in/pipe/definition.py`、拡張の `pipeModel.ts` |
 | パイプの置き場所 | `pipe_in/pipe/definition.py` の `pipes_dirs`・`new_pipes_dir`、拡張の `choosePipesDirs` |

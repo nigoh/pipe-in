@@ -1,15 +1,77 @@
-# pipe-in
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-logo-dark.svg">
+    <img src="docs/assets/pipe-in-logo.svg" alt="pipe-in" width="420">
+  </picture>
+</h1>
 
-要件メモから **要件定義 → 設計 → テスト先行 → 実装 → 検証** までを、Claude Agent SDK（Python）で順に実行するパイプラインです。テスト駆動（赤 → 緑 → 整理）とドメイン駆動の設計を前提にしています。
+pipe-in は、要件メモから **要件定義 → 設計 → テスト先行 → 実装 → 検証** を Claude Agent SDK（Python）で順に流し、段の区切りで人が確かめながら進める道具です。
 
-実行の進み具合を VSCode のパネルで図として見るプラグインは [`vscode/`](vscode/README.md) にあります。
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/run-panel-dark.png">
+  <img src="docs/assets/run-panel-light.png" alt="VSCode のパネル。左に開発フローの段の図（要件定義 → 設計 → テスト先行 → 実装 → 検証。修正の依頼1回・差し戻し1回）、右に検証の出力・成果物・使用量" width="900">
+</picture>
 
-開発のほかにも、段の並びを自分で決めた **パイプ** をジェネレーターで作って流せます（ソースから図を作る、仕様とソースを突き合わせて QA の観点を出す、など）。→ [パイプ](#パイプ目的に合わせた段の並び)
+<sub>VSCode の拡張のパネル。見本の記録（数字は見本）を拡張の本物の画面で写したもの。</sub>
+
+- 段の区切りで止まり、人が 承認 / 修正を依頼 / 中止 を選びます。→ [使い方](#使い方)
+- テストを先に書かせて赤を確かめ、検証で不合格なら実装へ差し戻します（既定で最大3回）。→ [開発フローの流れ](#開発フローの流れ)
+- 段ごとに書ける範囲を決め、範囲外の書き込みや危ない操作は止めます。→ [安全のしくみ](#安全のしくみ)
+- 進み具合と使用量を VSCode のパネルで図として見られます。パイプは作業台で組み立てます。→ [VSCode の拡張](#vscode-の拡張)
+- 段の並びを自分で決めた「パイプ」を作って流せます（図を作る・仕様とソースの突き合わせなど）。→ [パイプ](#パイプ目的に合わせた段の並び)
+- 費用・トークン・利用枠を、段ごとに記録に残します。→ [記録と使用量](#記録と使用量)
+
+**目次**：[すぐ試す](#すぐ試す) · [使い方](#使い方) · [VSCode の拡張](#vscode-の拡張) · [パイプ](#パイプ目的に合わせた段の並び) · [安全のしくみ](#安全のしくみ) · [記録と使用量](#記録と使用量) · [設定](#設定pipelinetoml) · [終了コード](#終了コード) · [前の名前から移る](#migrate) · [中身を直したいとき](#中身を直したいとき) · [注意](#注意) · [ライセンス](#ライセンス)
+
+## すぐ試す
+
+### 必要なもの
+
+- Python 3.11 以上
+- Claude Code にログイン済み（`claude` で一度ログイン）か、`ANTHROPIC_API_KEY` を設定済み
+- 対象プロジェクトは git 管理下で、作業用ブランチにしておくのがおすすめです
+
+### 入れる
+
+```bash
+# リポジトリを手元に写す
+git clone https://github.com/nigoh/pipe-in.git
+cd pipe-in
+
+# 仮想環境を作る
+python -m venv .venv
+# 仮想環境に入る（どちらか1つ）
+. .venv/Scripts/activate        # Windows の Git Bash
+source .venv/bin/activate       # macOS / Linux
+
+# 入れる
+pip install -e .                # pipe-in と pipe-in-gen が入る
+```
+
+前の名前のころに入れていたときは、[移行の節](#migrate)の手順で入れ直してください。
+
+### 最初の1回
+
+```bash
+# 対象のプロジェクトで、要件メモから開発フローを流す
+pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタンを追加したい"
+```
+
+要件定義のあとで止まり、文書の先頭を見せて確認を求めます（[確認の画面](#確認の画面)）。記録は対象の `docs/pipeline/` に残ります（[作られるファイル](#作られるファイル)）。
+
+> [!IMPORTANT]
+> 段ごとに Claude Agent SDK を呼ぶので、利用料がかかります。対象は git 管理下にして、作業用のブランチで流してください。
+
+## 使い方
+
+### 開発フローの流れ
 
 - 要件定義・設計・テスト先行のあとに、人が内容を確認します（承認 / 修正を依頼 / 中止）。
 - テスト先行の段は、製品コードより先に受け入れ基準（AC）ごとのテストを書き、落ちることを確かめます。テストのない AC が残れば差し戻します。
 - 検証が不合格なら、検証報告を添えて実装へ差し戻します（既定で最大3回）。
 - 段ごとに書き込める範囲を決めてあり、範囲外の書き込みや危ない操作は止めます。
+
+テスト駆動（赤 → 緑 → 整理）とドメイン駆動の設計を前提にしています。
 
 ```
 要件メモ ─▶ 要件定義 ─[確認]─▶ 設計 ─[確認]─▶ テスト先行（赤）─[確認]─▶ 実装（緑・整理）─▶ 検証 ─▶ 合格
@@ -17,65 +79,7 @@
                                                                          └──── 不合格 ────┘（最大3回）
 ```
 
-## 必要なもの
-
-- Python 3.11 以上
-- Claude Code にログイン済み（`claude` で一度ログイン）か、`ANTHROPIC_API_KEY` を設定済み
-- 対象プロジェクトは git 管理下で、作業用ブランチにしておくのがおすすめです
-
-## インストール
-
-```bash
-cd pipe-in
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .     # pipe-in と pipe-in-gen が入る
-```
-
-前の名前のころに入れていたときは、すぐ下の移行の節の手順で入れ直してください。
-
-## devpipe から移る
-
-この道具の名前は devpipe から pipe-in に変わりました（0.3.0）。前の版を使っていたときは、次の手順で移ってください。パスは `<リポジトリ>`（このリポジトリのフォルダ）・`<対象>`（パイプを流すプロジェクト）に読み替えてください。
-
-1. **入れ直す**：古いものを先に外してから入れます（順が逆だと、外すときに新しく入った別名のコマンドも消えます）。
-
-   ```bash
-   cd <リポジトリ>
-   pip uninstall devpipe
-   pip install -e '.[dev]'
-   ```
-
-2. **古いコマンド**：`devpipe`・`devpipe-gen` は 0.3 の間だけ別名として動き、標準エラーに「名前が変わりました」の案内を1行出します。**0.4 で消します。** `python -m devpipe` は無くなりました（`python -m pipe_in` を使います）。
-3. **プラグイン**：古いマーケットプレイスを外して、登録し直します。スキルは `/pipe-in:pipe-build` になります。登録し直すまでの間も、古いプラグインのフックは別名の `devpipe-gen guard-hook` で動き、pipe-builder を止めます。
-
-   ```
-   /plugin marketplace remove devpipe
-   /plugin marketplace add nigoh/pipe-in
-   /plugin install pipe-in@pipe-in
-   ```
-
-4. **VSCode の拡張**：新しい `pipe-in-vscode.vsix` を入れ（[vscode/README.md](vscode/README.md)）、古い拡張を `code --uninstall-extension nok.devpipe-vscode` で外します。
-   - 古い設定 `devpipe.workDir`・`devpipe.pipesDir` は、新しい設定 `pipe-in.workDir`・`pipe-in.pipesDir` を書いていない間は読みます。
-   - 古いコマンド ID（`devpipe.showRun`・`devpipe.editPipe`）に付けたキー割り当ても効きます（パレットには出しません）。
-   - 作業台の「保存した版」は引き継がれません（拡張の保存場所が変わるため）。
-5. **パイプの置き場所**：前の版の `<対象>/.devpipe/pipes/devpipe-<名前>/` は、そのまま読めて流せます。作業台で直して保存しても、元のフォルダに書きます。新しい置き場所に移したいときは、次のようにします。
-
-   ```bash
-   cd <対象>
-   mkdir -p .pipe-in/pipes
-   git mv .devpipe/pipes/devpipe-<名前> .pipe-in/pipes/pipe-in-<名前>
-   ```
-
-   同じ名前のパイプが両方にあると新しいほうを使い、`pipe-in-gen new` はその名前では作りません。`pipe-in-gen list` は、古いものに「（古い名前）」と添えます。`<対象>` の `.gitignore` に `.devpipe/` を書いていたときは、`.pipe-in/` も足してください。
-6. **環境変数**：パイプの置き場所は `PIPE_IN_PIPES_DIR` で変えます。`DEVPIPE_PIPES_DIR` も読みます（両方あれば新しいほう。プラグインのフックも同じ）。
-7. **記録**：前の版が書いた記録（`docs/pipeline/` の `state.json` など）は、そのまま拡張で見られます。
-8. **GitHub の URL**：リポジトリの名前が変わったあとは、手元の複製の向き先を直します（古い URL からも転送されます）。
-
-   ```bash
-   git remote set-url origin https://github.com/nigoh/pipe-in.git
-   ```
-
-## 使い方
+### 流す
 
 ```bash
 # 要件メモをファイルで渡す
@@ -90,6 +94,9 @@ pipe-in --project ~/src/myapp --input request.md --yes
 # テスト担当の判定に加えて、自分のテストコマンドでも裏付けを取る
 pipe-in --project ~/src/myapp --input request.md --test-cmd "pytest -q"
 ```
+
+> [!WARNING]
+> `--yes` は確認なしで最後まで流します。人が見ないままコードが書き換わり、費用もかかります。
 
 `pipe-in` の代わりに `python -m pipe_in` でも動きます。
 
@@ -131,6 +138,9 @@ pipe-in --project ~/src/myapp --review quit                                     
 
 段を流さずに、開発フローと同じ形の記録（`state.json`・段のログ・`99_summary.md`）だけを書きます。SDK は呼ばず、利用料もかかりません。Claude Code の開発用スキル（このリポジトリの `/pipe-in`）が、会話の中で進めた段を VSCode の拡張で見られるように使います。
 
+<details>
+<summary>コマンドの一覧</summary>
+
 ```bash
 pipe-in record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
 pipe-in record begin requirements                 # 段を始める（拡張に「動いている」と出る）
@@ -138,15 +148,49 @@ pipe-in record done requirements --summary "…"    # 段を閉じる
 pipe-in record wait requirements                  # 確認待ち
 pipe-in record review requirements approved       # revise --feedback "…" / quit
 pipe-in record red red --summary "…"              # テスト先行の結果
-pipe-in record verdict pass --attempt 1 --summary "…"
-pipe-in record finish PASSED
+pipe-in record verdict pass --attempt 1 --summary "…"   # 検証の判定
+pipe-in record finish PASSED                      # 記録を閉じる
 ```
+
+</details>
 
 - 記録には `"driver": "pipe-dev"` が入ります。`pipe-in --review` は、`driver` の入った記録（前の版の記録も）の続きを流しません。
 
+## VSCode の拡張
+
+`vscode/` にある拡張で、実行の進み具合をパネルに図として見たり、パイプを作業台で組み立てたりできます。拡張は記録を読むだけで、記録には何も書きません。くわしい使い方は [vscode/README.md](vscode/README.md) にあります。
+
+```bash
+# 拡張を作って、普段の VSCode に入れる
+cd vscode
+npm install
+npm run package                                        # pipe-in-vscode.vsix ができる
+code --install-extension pipe-in-vscode.vsix --force
+```
+
+### 実行を見る
+
+コマンドパレットの「pipe-in: 実行を見る」か、ステータスバーの `pipe-in` のボタンでパネルが開きます（冒頭の画像）。
+
+- 左に段の図（要件メモ → 要件定義 → 確認 → … → 完了）。動いている段・確認待ち・差し戻しの回数が出ます。
+- 右に、いま見ている段の出力・成果物の一覧（押すと開く）・使用量（段ごとのトークン・モデル別・利用枠）。
+- `pipe-in --pipe` で流したパイプの記録も、開発フローと切り替えて見られます。
+
+### パイプ作業台
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-editor-dark.png">
+  <img src="docs/assets/pipe-editor-light.png" alt="パイプ作業台。ブロックをケーブルでつないで段の並びを組み、右で選んだ段の設定を決める" width="900">
+</picture>
+
+<sub>パイプ作業台。見本のパイプを開き、段「ソースの調査」を選んだところ。</sub>
+
+VSCode 拡張の「pipe-in: パイプ作業台を開く」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
+形で見分けるブロックを置き、プラグをコンセントに差すようにつなぎ、各ブロックで Claude に頼むことと[パイプの設定](#定義の書き方pipetoml)を決めて、`.pipe-in/pipes/pipe-in-<名前>/`（無ければ `pipes/`。前の版のフォルダのパイプは元のフォルダ）に保存します。
+
 ## パイプ（目的に合わせた段の並び）
 
-上の開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます。
+開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます（ソースから図を作る、仕様とソースを突き合わせて QA の観点を出す、など）。
 パイプは1つのフォルダ（対象プロジェクトの `.pipe-in/pipes/pipe-in-<名前>/`）で、**ジェネレーター**（`pipe-in-gen`）がひな形から作ります。
 
 ```
@@ -169,18 +213,45 @@ pipe-in-gen new diagrams --from diagrams --project ~/src/myapp  # ひな形か�
 pipe-in-gen design apidoc --purpose "ソースから API の文書を作り、突き合わせたい" --project ~/src/myapp
                                                                 # 目的から段を組んで作る（Claude が設計する）
 pipe-in-gen check diagrams --project ~/src/myapp                # 定義の誤りを調べる
-pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"
+pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"   # 作ったパイプを流す
 ```
 
-Claude Code では、プラグインのスキル `/pipe-in:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（下の「Claude Code のプラグイン」）。
+対象のフォルダで、ひな形 diagrams からパイプを作り、定義を調べたときの出力（Python のプロジェクト：pytest・`src/`・`docs/`）：
+
+```text
+$ pipe-in-gen new diagrams --from diagrams
+✓ <対象>/.pipe-in/pipes/pipe-in-diagrams を作りました（ひな形: diagrams）
+  見つけた環境: 言語 python・テスト pytest -q・ソース src・文書 docs
+✓ パイプ「diagrams」: 問題ありません
+
+中身は自由に直せます（段の並び・権限・確認は pipe.toml、指示は prompts/）。直したら pipe-in-gen check で確かめてください。
+流す: pipe-in --pipe diagrams --project <対象のフォルダ> [--text "依頼メモ"]
+```
+
+```text
+$ pipe-in-gen check diagrams
+✓ パイプ「diagrams」: 問題ありません
+```
+
+Claude Code では、プラグインのスキル `/pipe-in:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（下の「[Claude Code のプラグイン](#claude-code-のプラグイン)」）。
 
 - `pipe-in-gen new` は対象のファイルを見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
-  見るもの：Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・Rust・Java（Maven・Gradle）・Ruby（RSpec・Rake）・PHP（composer・PHPUnit）・.NET・Deno・Makefile の test、`src/`・`docs/` など。
 - `pipe-in-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。利用料がかかります。
 - 同じ名前のパイプがあれば作りません（`--force` で作り直し）。ほかの置き場所（前の版の置き場所を含む）に同じ名前があるときは、`--force` を付けても作りません。
 - パイプは対象プロジェクトの `.pipe-in/pipes/` に作ります。`--pipes-dir`（そこだけを使う）か `PIPE_IN_PIPES_DIR` で変えられます。
-- 探すときは、対象の `.pipe-in/pipes/` → 前の版の置き場所（移行の節）→ 今までの場所（`PIPE_IN_PIPES_DIR`、なければ pipe-in のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
-- 指示文には対象プロジェクトの事情が入りやすいので、対象が公開リポジトリなら、`.pipe-in/` をコミットする前に中身を確かめてください（入れたくなければ `.gitignore` に足します）。共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
+- 探すときは、対象の `.pipe-in/pipes/` → 前の版の置き場所（[移行の節](#migrate)）→ 今までの場所（`PIPE_IN_PIPES_DIR`、なければ pipe-in のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
+
+<details>
+<summary><code>pipe-in-gen new</code> が見るもの</summary>
+
+Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・Rust・Java（Maven・Gradle）・Ruby（RSpec・Rake）・PHP（composer・PHPUnit）・.NET・Deno・Makefile の test、`src/`・`docs/` など。
+
+</details>
+
+> [!WARNING]
+> 指示文には対象プロジェクトの事情が入りやすいので、対象が公開リポジトリなら、`.pipe-in/` などの生成物はコミットする前に中身を確かめてください（入れたくなければ `.gitignore` に足します）。
+
+共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
 
 ### Claude Code のプラグイン
 
@@ -240,7 +311,7 @@ prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短け
 - 段は定義の順に流れ、各段には依頼メモと、前の段のうち成果物があるものの場所が渡されます。
 - 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
 - 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
-- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell・サブエージェントなどは、どの段でも使えません。`protected_paths` とパイプのフォルダは、どの段も書けません。
+- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。
 - MCP のサーバーは、Claude Code の設定から読みます。対象の `pipeline.toml` の `setting_sources` に `"project"`（`.mcp.json`）か `"user"` を入れてください。
 - `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。
 
@@ -266,6 +337,16 @@ max_retries = 2                # 戻す回数の上限。超えたら終了コ�
 
 ### 分岐・飛び先・並列
 
+- `[stages.routes]`：段に choice を返させ、行き先を選びます（`"end"` で終わり）。
+- `next`：次の段を決めます（`"end"` で終わり）。省くと定義の次の段です。
+- `group`：同じ group の続いた段は同時に流します。
+- 分岐先の段が、ほかの分岐先に流れ込まないように、最後に `next` を書いてください。
+- `group` の段には `review`・`routes`・`next` を書けません。`check` の `on_fail` は自分だけを指せます（自分だけをやり直す）。
+- 段を流す回数は `[pipe]` の `max_steps`（既定 50）までです。超えたら終了コード 3 で止めます（飛び先や差し戻しの無限ループを防ぐ）。
+
+<details>
+<summary>書き方の例</summary>
+
 ```toml
 [[stages]]
 name = "classify"
@@ -289,13 +370,18 @@ name = "sequence"
 group = "draw"
 ```
 
-- 分岐先の段が、ほかの分岐先に流れ込まないように、最後に `next` を書いてください。
-- `group` の段には `review`・`routes`・`next` を書けません。`check` の `on_fail` は自分だけを指せます（自分だけをやり直す）。
-- 段を流す回数は `[pipe]` の `max_steps`（既定 50）までです。超えたら終了コード 3 で止めます（飛び先や差し戻しの無限ループを防ぐ）。
+</details>
 
 ### Agent SDK の設定
 
 段ごとに、Claude Agent SDK の設定を書けます。書いたものだけを SDK に渡します。
+
+- 許可のモード（`permission_mode`）・考える量（`max_thinking_tokens`）・予備のモデル（`fallback_model`）・この段の決まり（`system_append`）・追加で読めるフォルダ（`add_dirs`）・使う MCP の道具（`mcp`）・サブエージェント（`agents`）・この段だけの MCP サーバー（`mcp_servers`）。
+- `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
+- `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
+
+<details>
+<summary>書き方の例</summary>
 
 ```toml
 [[stages]]
@@ -319,15 +405,39 @@ type = "http"                     # stdio（command・args）/ http・sse（url�
 url = "https://mcp.example.com/jira"
 ```
 
-- `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
-- `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
+</details>
 
-### パイプ作業台（VSCode）
+## 安全のしくみ
 
-VSCode 拡張の「pipe-in: パイプ作業台を開く」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
-形で見分けるブロックを置き、プラグをコンセントに差すようにつなぎ、各ブロックで Claude に頼むことと上の設定を決めて、`.pipe-in/pipes/pipe-in-<名前>/`（無ければ `pipes/`。前の版のフォルダのパイプは元のフォルダ）に保存します。
+### 段ごとの役割と書き込める範囲
 
-## 作られるファイル
+| 段 | できること | 書き込める範囲 |
+|---|---|---|
+| 要件定義 | コードを読む | `01_requirements.md` だけ |
+| 設計 | コードを読む | `02_design.md` と、`domain_dir` を設定していればドメインの文書 |
+| テスト先行 | 読む・書く・コマンド実行 | テストファイルと `03_red_tests.md`。**製品コードは書けない** |
+| 実装 | 読む・書く・コマンド実行 | 製品コードと `04_implementation.md`。**テストファイルとドメインの文書は書けない** |
+| 検証 | 読む・書く・コマンド実行 | テストファイルと `05_test_report.md`。**製品コードは書けない** |
+
+`protected_paths` に書いたパスは、どの段も書けません。
+
+実装とテストの担当を分けているのは、実装の担当が「テストを都合よく直して通す」ことを防ぐためです。実装の担当はテストに不満があれば、実装の記録に「テストへの異議」として書き、次の検証の段がそれを判断します。
+
+テスト先行の段は、判定（`red` / `blocked`）と「AC とテストの対応」を構造化出力で返します。パイプラインは要件定義書から `AC-数字` を拾い、テストのない AC があれば同じ会話で一度だけ補わせ、それでも残れば止めます（終了コード 3）。`test_command` があれば、テスト先行のあとにも実行し、通ってしまったら「赤になっていません」と注意を残します（止めはしません）。
+
+テストファイルの判定は、`tests/`・`test/`・`__tests__/`・`spec/`・`specs/` の中にあるか、`test_*.py`・`*_test.py`・`*_test.go`・`*.test.*`・`*.spec.*`・`*_spec.rb`・`conftest.py` の名前かで行います。足りなければ `extra_test_globs` に追加してください。
+
+### どの段でも止める操作
+
+`git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得（パイプでは、`web` を書いた段を除く）。
+
+また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+
+止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `pipe_in/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
+
+## 記録と使用量
+
+### 作られるファイル
 
 対象プロジェクトの `docs/pipeline/` に置かれます（`work_dir` で変更可）。
 
@@ -345,35 +455,12 @@ VSCode 拡張の「pipe-in: パイプ作業台を開く」で、パイプをフ�
 
 `examples/truncate/` に、小さなプロジェクトで実際に流した結果があります（要件メモから合格まで、4段で約2分・約$0.85）。これはテスト先行の段を足す前（v0.1）の結果なので、ファイル名と段の数が今と違います。
 
-## 段ごとの役割と書き込める範囲
-
-| 段 | できること | 書き込める範囲 |
-|---|---|---|
-| 要件定義 | コードを読む | `01_requirements.md` だけ |
-| 設計 | コードを読む | `02_design.md` と、`domain_dir` を設定していればドメインの文書 |
-| テスト先行 | 読む・書く・コマンド実行 | テストファイルと `03_red_tests.md`。**製品コードは書けない** |
-| 実装 | 読む・書く・コマンド実行 | 製品コードと `04_implementation.md`。**テストファイルとドメインの文書は書けない** |
-| 検証 | 読む・書く・コマンド実行 | テストファイルと `05_test_report.md`。**製品コードは書けない** |
-
-`protected_paths` に書いたパスは、どの段も書けません。
-
-実装とテストの担当を分けているのは、実装の担当が「テストを都合よく直して通す」ことを防ぐためです。実装の担当はテストに不満があれば、実装の記録に「テストへの異議」として書き、次の検証の段がそれを判断します。
-
-テスト先行の段は、判定（`red` / `blocked`）と「AC とテストの対応」を構造化出力で返します。パイプラインは要件定義書から `AC-数字` を拾い、テストのない AC があれば同じ会話で一度だけ補わせ、それでも残れば止めます（終了コード 3）。`test_command` があれば、テスト先行のあとにも実行し、通ってしまったら「赤になっていません」と注意を残します（止めはしません）。
-
-テストファイルの判定は、`tests/`・`test/`・`__tests__/`・`spec/` の中にあるか、`test_*.py`・`*_test.py`・`*.test.*`・`*.spec.*`・`conftest.py` などの名前かで行います。足りなければ `extra_test_globs` に追加してください。
-
-### どの段でも止める操作
-
-`git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得。
-
-また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
-
-止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `pipe_in/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
-
 ### まとめに出る使用量
 
-各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`pipe_in/usage/metrics.py`、表は `pipe_in/usage/report.py`）。
+各段の最後に Claude Code が返す結果（`ResultMessage`）と、途中の利用枠のイベント（`RateLimitEvent`）、開始時の環境（`SystemMessage` の `init`）から集めます（`pipe_in/usage/metrics.py`、表は `pipe_in/usage/report.py`）。`99_summary.md` に、次の節が出ます。
+
+<details>
+<summary>節ごとの中身</summary>
 
 | 節 | 中身 |
 |---|---|
@@ -382,7 +469,10 @@ VSCode 拡張の「pipe-in: パイプ作業台を開く」で、パイプをフ�
 | 環境 | 使われたモデル、Claude Code の版、認証の出どころ、許可のモード、費用の根拠、途中で止まった段 |
 | 利用枠 | 5時間枠・7日枠の使用率（開始 → 終了。途中で枠が戻ったときは最大値も）、枠が戻る時刻、超過利用の可否 |
 
-費用は定価での見積もり（`costBasis: list`）です。サブスクリプションでログインしている場合は、利用枠の使用率のほうが実際の負担に近い値です。
+</details>
+
+> [!NOTE]
+> 費用は定価での概算（`costBasis: list`）です。サブスクリプションでログインしている場合は、利用枠の使用率のほうが実際の負担に近い値です。
 
 ## 設定（pipeline.toml）
 
@@ -426,6 +516,50 @@ model = "sonnet"
 | 5 | 人の確認を待っている（`--pause` のとき。`--review` で続ける） |
 | 130 | Ctrl+C で中断（`--from` で再開できます） |
 
+<a id="migrate"></a>
+
+## devpipe から移る
+
+この道具の名前は devpipe から pipe-in に変わりました（0.3.0）。前の版を使っていたときは、次の手順で移ってください。パスは `<リポジトリ>`（このリポジトリのフォルダ）・`<対象>`（パイプを流すプロジェクト）に読み替えてください。
+
+1. **入れ直す**：古いものを先に外してから入れます（順が逆だと、外すときに新しく入った別名のコマンドも消えます）。
+
+   ```bash
+   cd <リポジトリ>
+   pip uninstall devpipe
+   pip install -e '.[dev]'
+   ```
+
+2. **古いコマンド**：`devpipe`・`devpipe-gen` は 0.3 の間だけ別名として動き、標準エラーに「名前が変わりました」の案内を1行出します。**0.4 で消します。** `python -m devpipe` は無くなりました（`python -m pipe_in` を使います）。
+3. **プラグイン**：古いマーケットプレイスを外して、登録し直します。スキルは `/pipe-in:pipe-build` になります。登録し直すまでの間も、古いプラグインのフックは別名の `devpipe-gen guard-hook` で動き、pipe-builder を止めます。
+
+   ```
+   /plugin marketplace remove devpipe
+   /plugin marketplace add nigoh/pipe-in
+   /plugin install pipe-in@pipe-in
+   ```
+
+4. **VSCode の拡張**：新しい `pipe-in-vscode.vsix` を入れ（[vscode/README.md](vscode/README.md)）、古い拡張を `code --uninstall-extension nok.devpipe-vscode` で外します。
+   - 古い設定 `devpipe.workDir`・`devpipe.pipesDir` は、新しい設定 `pipe-in.workDir`・`pipe-in.pipesDir` を書いていない間は読みます。
+   - 古いコマンド ID（`devpipe.showRun`・`devpipe.editPipe`）に付けたキー割り当ても効きます（パレットには出しません）。
+   - 作業台の「保存した版」は引き継がれません（拡張の保存場所が変わるため）。
+5. **パイプの置き場所**：前の版の `<対象>/.devpipe/pipes/devpipe-<名前>/` は、そのまま読めて流せます。作業台で直して保存しても、元のフォルダに書きます。新しい置き場所に移したいときは、次のようにします。
+
+   ```bash
+   cd <対象>
+   mkdir -p .pipe-in/pipes
+   git mv .devpipe/pipes/devpipe-<名前> .pipe-in/pipes/pipe-in-<名前>
+   ```
+
+   同じ名前のパイプが両方にあると新しいほうを使い、`pipe-in-gen new` はその名前では作りません。`pipe-in-gen list` は、古いものに「（古い名前）」と添えます。`<対象>` の `.gitignore` に `.devpipe/` を書いていたときは、`.pipe-in/` も足してください。
+6. **環境変数**：パイプの置き場所は `PIPE_IN_PIPES_DIR` で変えます。`DEVPIPE_PIPES_DIR` も読みます（両方あれば新しいほう。プラグインのフックも同じ）。
+7. **記録**：前の版が書いた記録（`docs/pipeline/` の `state.json` など）は、そのまま拡張で見られます。
+8. **GitHub の URL**：リポジトリの名前が変わったあとは、手元の複製の向き先を直します（古い URL からも転送されます）。
+
+   ```bash
+   git remote set-url origin https://github.com/nigoh/pipe-in.git
+   ```
+
 ## 中身を直したいとき
 
 | やりたいこと | 場所 |
@@ -439,14 +573,23 @@ model = "sonnet"
 | パイプの読み込み・検査・流れ・権限の型 | `pipe_in/pipe/` |
 | パイプの生成・環境の検出・ひな形 | `generator/`（`pipe-in-gen`）・`generator/templates/` |
 
-テストは `pip install -e '.[dev]' && pytest` で実行できます。SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめます。
+```bash
+# テストを流す（SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめる）
+pip install -e '.[dev]' && pytest
+```
 
-直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](docs/development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](docs/decisions/) にあります。
+直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](docs/development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](docs/decisions/) にあります。README の画像の撮り直し方は [docs/assets/README.md](docs/assets/README.md) にあります。
 
 ## 注意
 
-- 費用は SDK が返す概算です。実際の請求とはずれることがあります。
+> [!NOTE]
+> 費用は SDK が返す概算です。実際の請求とはずれることがあります。
+
 - Claude Code の中（Bash ツール）から起動しても、修正の依頼（同じ会話の続き）は使えます（Claude Code 2.1.119・claude-agent-sdk 0.2.168 で確認）。古い版で会話を引き継げないときは、普段のターミナルから実行してください。
 - 対象プロジェクトの CLAUDE.md・`.claude/` の規約やフックを各段に効かせたいときは、`setting_sources = ["project"]` を設定してください。
-- Windows で日本語の表示が崩れるときは `PYTHONUTF8=1` を設定してください（`feature.sh`・`feature.ps1` は設定済み）。
+- Windows で日本語の表示が崩れるときは `PYTHONUTF8=1` を設定してください。
 - 動作を確認した環境：Python 3.13、claude-agent-sdk 0.2.159〜0.2.168、Claude Code 2.1.301。
+
+## ライセンス
+
+MIT（[LICENSE](LICENSE)）
