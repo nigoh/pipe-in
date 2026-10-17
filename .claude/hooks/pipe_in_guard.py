@@ -7,6 +7,8 @@
 - pipe-in-coder（実装）：テスト・.claude/・.git/・.env・ほかの段の記録を除いた所と docs/pipeline/04_implementation.md。Bash はテスト・型検査・ビルド
 - pipe-in-verifier（検証）：docs/pipeline/05_test_report.md だけ。Bash はテスト・型検査・ビルド・git の読むだけのコマンド
 PowerShell・MCP・Agent・Web・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
+報告を親に渡す SubagentHandback は止めない。書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ
+（worktree ならその worktree。見つからなければ CLAUDE_PROJECT_DIR）。
 
 道具を呼ぶたびに動くので、標準ライブラリだけを使う。入力が読めないときは止める。
 """
@@ -21,6 +23,8 @@ from pathlib import Path
 from typing import Any
 
 READ_TOOLS = {"Read", "Glob", "Grep"}
+# 報告を親に渡すだけの道具。止めると、どの段も報告を返せずに終わる（ファイルにも外にも書かない）
+REPORT_TOOLS = {"SubagentHandback"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 WORK = "docs/pipeline/"
 
@@ -63,6 +67,24 @@ AGENTS: dict[str, tuple[Any, list[str], str]] = {
 }
 
 
+def project_root(cwd: str, project_dir: str | None) -> str:
+    """書いてよい場所の基準：サブエージェントがいる git の作業フォルダ（.git のあるいちばん近い上のフォルダ）。
+
+    worktree（.git がファイル）で作業しているとき、会話を始めた場所（CLAUDE_PROJECT_DIR）を基準にすると、
+    worktree の下がすべて「プロジェクトの外」になって書けない。基準を worktree にしても、範囲はその中の
+    決まった場所だけで、会話を始めた場所やほかの worktree には書けない。見つからなければ今までどおり。
+    """
+    here = os.path.normpath(os.path.abspath(cwd)) if cwd else ""
+    while here:
+        if os.path.exists(os.path.join(here, ".git")):
+            return here
+        parent = os.path.dirname(here)
+        if parent == here:
+            break
+        here = parent
+    return project_dir or cwd or os.getcwd()
+
+
 def project_path(file_path: Any, root: str) -> str | None:
     """プロジェクトの中の相対パス（/ 区切り）。外や .. を含むときは None。"""
     if not isinstance(file_path, str) or not file_path.strip():
@@ -100,7 +122,7 @@ def decide(payload: dict[str, Any], *, root: str) -> str | None:
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         tool_input = {}
-    if tool in READ_TOOLS:
+    if tool in READ_TOOLS or tool in REPORT_TOOLS:
         return None
     if tool in WRITE_TOOLS:
         rel = project_path(tool_input.get("file_path"), root)
@@ -146,7 +168,7 @@ def main() -> int:
         # だれの呼び出しか分からないので、安全側に倒して止める
         _write(_deny("フックへの入力が読めないため止めました"))
         return 0
-    root = os.environ.get("CLAUDE_PROJECT_DIR") or str(payload.get("cwd") or "") or os.getcwd()
+    root = project_root(str(payload.get("cwd") or ""), os.environ.get("CLAUDE_PROJECT_DIR"))
     reason = decide(payload, root=root)
     if reason:
         _write(_deny(reason))

@@ -257,3 +257,59 @@ def test_ac04_skill_uses_the_agents_and_writes_records():
     for op in ("record start", "record begin", "record done", "record wait", "record review", "record red", "record verdict", "record finish"):
         assert op in skill
     assert "docs/pipeline/ も作らない" not in skill
+
+
+# ---- D0004：報告を返せるようにし、worktree の中でも書けるようにする ------------------------------
+
+
+@pytest.mark.parametrize("agent", AGENTS)
+def test_d0004_ac01_subagents_can_hand_back_their_report(guard, agent):
+    """D0004-AC-01: 報告を親に渡す道具（SubagentHandback）は止めない（止めると、どの段も報告を返せない）。"""
+    assert call(guard, agent, "SubagentHandback", message="報告") is None
+
+
+def make_checkout(base: Path, name: str, git_is_file: bool) -> Path:
+    """git の作業フォルダの形（.git がフォルダ＝ふつうの clone、.git がファイル＝worktree）を一時フォルダに作る。"""
+    top = base / name
+    (top / "tests" / "sub").mkdir(parents=True)
+    if git_is_file:
+        (top / ".git").write_text("gitdir: ../main/.git/worktrees/x\n", encoding="utf-8")
+    else:
+        (top / ".git").mkdir()
+    return top
+
+
+def test_d0004_ac02_root_is_the_checkout_the_agent_works_in(guard, tmp_path):
+    """D0004-AC-02: 書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ（worktree なら worktree）。"""
+    main = make_checkout(tmp_path, "main", git_is_file=False)
+    wt = make_checkout(tmp_path, "wt", git_is_file=True)
+    assert Path(guard.project_root(str(wt), str(main))) == wt
+    assert Path(guard.project_root(str(wt / "tests" / "sub"), str(main))) == wt
+    assert Path(guard.project_root(str(main / "tests"), None)) == main
+
+
+def test_d0004_ac03_without_git_falls_back_to_project_dir(guard, tmp_path):
+    """D0004-AC-03: git の作業フォルダが見つからなければ、今までどおり CLAUDE_PROJECT_DIR を基準にする。"""
+    lone = tmp_path / "lone"
+    lone.mkdir()
+    main = make_checkout(tmp_path, "main", git_is_file=False)
+    assert Path(guard.project_root(str(lone), str(main))) == main
+    assert Path(guard.project_root(str(lone), None)) == lone
+
+
+def test_d0004_ac04_worktree_agent_writes_only_inside_its_worktree(guard, monkeypatch, tmp_path):
+    """D0004-AC-04: worktree にいるサブエージェントは、その worktree の中の決まった場所にだけ書ける。
+    会話を始めた場所（CLAUDE_PROJECT_DIR）やほかの worktree には書けない（基準を変えても、すり抜けの道を開けない）。"""
+    main = make_checkout(tmp_path, "main", git_is_file=False)
+    wt = make_checkout(tmp_path, "wt", git_is_file=True)
+    other = make_checkout(tmp_path, "other", git_is_file=True)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(main))
+
+    def decision(path: str) -> str:
+        payload = {"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": path}, "cwd": str(wt)}
+        return run_main(guard, monkeypatch, json.dumps(payload))
+
+    assert decision(str(wt / "tests" / "test_x.py")) == ""
+    assert decision("tests/test_y.py") == ""  # 相対パスは worktree からとして見る
+    for denied in (str(wt / "pipe_in" / "cli.py"), str(main / "tests" / "test_x.py"), str(other / "tests" / "test_x.py")):
+        assert json.loads(decision(denied))["hookSpecificOutput"]["permissionDecision"] == "deny", denied
