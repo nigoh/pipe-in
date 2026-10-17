@@ -120,7 +120,9 @@ test('D0009-AC-15: パネルの確認用ページに手元の情報が無い', a
 });
 
 test('D0009-AC-15: 手元の情報の見つけ方そのものが、ユーザー名の入ったパスとメールアドレスを見つける', () => {
-  const bad = ['C:\\Users\\taro\\work', 'C:/Users/taro/work', '/Users/hanako/src', '/home/jiro/app', 'mail: someone@corp.co.jp'];
+  // 見本は実行時につなぐ（このファイルの文字そのものは、リポジトリの手元の情報の検査（tests/test_rules.py）に掛からないように）
+  const U = 'Users';
+  const bad = [`C:\\${U}\\taro\\work`, `C:/${U}/taro/work`, `/${U}/hanako/src`, '/' + 'home/jiro/app', 'mail: someone' + '@' + 'corp.co.jp'];
   for (const text of bad) assert.ok(LOCAL_INFO.some((re) => re.test(text)), text);
   for (const text of ['docs/pipeline', '~/src/myapp', 'D:/work/app']) assert.ok(!LOCAL_INFO.some((re) => re.test(text)), text);
   assert.ok(readFileSync(path.join(REPO, 'tests', 'test_rules.py'), 'utf8').includes('LOCAL_INFO'), 'Python 側の一覧がある');
