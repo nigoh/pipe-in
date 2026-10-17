@@ -57,7 +57,7 @@
     "preview": "node --experimental-strip-types --no-warnings scripts/preview.ts"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/node": "^26",
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
