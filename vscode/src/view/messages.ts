@@ -24,8 +24,11 @@ export function parseWebviewMessage(value: unknown): FromPanelMessage | null {
 // ---- パイプ作業台のパネルとの受け渡し ----
 
 export type ToEditorMessage =
-  /** 開いた・開き直した。savedNames は保存済みの段の name（指示文を開けるもの）。dirty は保存していない下書きを開き直したとき */
-  | { type: 'load'; model: PipeModel; savedNames: string[]; dirty?: boolean }
+  /**
+   * 開いた・開き直した。folder は保存先のフォルダ名（見せるだけ。保存先は入口が決める）。
+   * savedNames は保存済みの段の name（指示文を開けるもの）。dirty は保存していない下書きを開き直したとき
+   */
+  | { type: 'load'; model: PipeModel; folder: string; savedNames: string[]; dirty?: boolean }
   | { type: 'saved'; written: string[]; errors: string[]; savedNames: string[] }
   | { type: 'failed'; message: string }
   /** 保存した版の一覧（新しい順） */

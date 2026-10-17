@@ -1,14 +1,14 @@
 {
-  "name": "devpipe",
+  "name": "pipe-in",
   "owner": {
-    "name": "devpipe"
+    "name": "pipe-in"
   },
-  "description": "devpipe のパイプを Claude Code の会話で作る・直すためのプラグイン",
+  "description": "pipe-in のパイプを Claude Code の会話で作る・直すためのプラグイン",
   "plugins": [
     {
-      "name": "devpipe",
+      "name": "pipe-in",
       "source": "./plugin",
-      "description": "パイプ（.devpipe/pipes/devpipe-<名前>/）を作る・直すスキル /devpipe:pipe-build と、手を動かすエージェント pipe-builder"
+      "description": "パイプ（.pipe-in/pipes/pipe-in-<名前>/）を作る・直すスキル /pipe-in:pipe-build と、手を動かすエージェント pipe-builder"
     }
   ]
 }

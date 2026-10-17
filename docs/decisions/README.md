@@ -9,6 +9,7 @@
 | [D0003](D0003-rebase-on-main-change.md) | main が進んだら、機能のブランチを載せ直す |
 | [D0004](D0004-pipe-in-guard-worktree.md) | /pipe-in のサブエージェントが、報告を返し、worktree の中でも書けるようにする |
 | [D0005](D0005-judge-switch.md) | 作業台の判定をスイッチで入り切りし、自分をやり直す判定はケーブルを描かずに札で示す |
+| [D0006](D0006-rename-pipe-in.md) | 製品の名前を pipe-in に変える（前半：製品） |
 | [D0007](D0007-cable-physics.md) | コンセントの上で離しても差さる・流線型のケーブル・引くときはひものように動く |
 
 ## ひな形

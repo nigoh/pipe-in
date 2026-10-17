@@ -1,6 +1,6 @@
-# devpipe の開発のルール
+# pipe-in の開発のルール
 
-devpipe（本体・ジェネレーター・プラグイン・VSCode 拡張）を直したり機能を足したりするときの決まりです。
+pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を直したり機能を足したりするときの決まりです。
 人も Claude Code も、ここに従って進めます。Claude Code で進めるときは `/pipe-in <要件メモ>` が、この決まりどおりに段を進めます。
 
 ## どれを読むか
@@ -21,10 +21,11 @@ devpipe（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 決まり | 検査するテスト |
 | --- | --- |
 | 依存の向き（本体・ジェネレーター） | `tests/test_architecture.py` |
+| 前の名前が、決まったファイル（読み替え・移行の節・歴史）にしか残っていない | `tests/test_rename.py` |
 | プラグインの pipe-builder・/pipe-in のサブエージェントが書ける場所と Bash | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
 | 拡張の層ごとに使ってよい部品・`vscode` を import するのは入口だけ | `vscode/src/architecture.test.ts` |
 | パネルの CSP（インラインの style を使わない） | `vscode/src/webview/csp.test.ts` |
 | 手元の事情（ユーザー名の入ったパス・メールアドレス）と秘密のファイルを載せない | `tests/test_rules.py` |
 | 決定の記録の形・テストの AC の ID が記録にある | `tests/test_rules.py` |
 | CLAUDE.md と design.md の置き場所の表が実物と食い違わない | `tests/test_rules.py` |
-| テストがリポジトリの実物（`pipes/`・`.devpipe/`・`docs/pipeline/`）を変えない | `tests/conftest.py`（テストが通っても、最後に失敗にする） |
+| テストがリポジトリの実物（`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/`）を変えない | `tests/conftest.py`（テストが通っても、最後に失敗にする） |

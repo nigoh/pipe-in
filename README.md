@@ -1,4 +1,4 @@
-# devpipe
+# pipe-in
 
 要件メモから **要件定義 → 設計 → テスト先行 → 実装 → 検証** までを、Claude Agent SDK（Python）で順に実行するパイプラインです。テスト駆動（赤 → 緑 → 整理）とドメイン駆動の設計を前提にしています。
 
@@ -26,38 +26,82 @@
 ## インストール
 
 ```bash
-cd devpipe
+cd pipe-in
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .     # devpipe と devpipe-gen が入る
+pip install -e .     # pipe-in と pipe-in-gen が入る
 ```
+
+前の名前のころに入れていたときは、すぐ下の移行の節の手順で入れ直してください。
+
+## devpipe から移る
+
+この道具の名前は devpipe から pipe-in に変わりました（0.3.0）。前の版を使っていたときは、次の手順で移ってください。パスは `<リポジトリ>`（このリポジトリのフォルダ）・`<対象>`（パイプを流すプロジェクト）に読み替えてください。
+
+1. **入れ直す**：古いものを先に外してから入れます（順が逆だと、外すときに新しく入った別名のコマンドも消えます）。
+
+   ```bash
+   cd <リポジトリ>
+   pip uninstall devpipe
+   pip install -e '.[dev]'
+   ```
+
+2. **古いコマンド**：`devpipe`・`devpipe-gen` は 0.3 の間だけ別名として動き、標準エラーに「名前が変わりました」の案内を1行出します。**0.4 で消します。** `python -m devpipe` は無くなりました（`python -m pipe_in` を使います）。
+3. **プラグイン**：古いマーケットプレイスを外して、登録し直します。スキルは `/pipe-in:pipe-build` になります。登録し直すまでの間も、古いプラグインのフックは別名の `devpipe-gen guard-hook` で動き、pipe-builder を止めます。
+
+   ```
+   /plugin marketplace remove devpipe
+   /plugin marketplace add nigoh/pipe-in
+   /plugin install pipe-in@pipe-in
+   ```
+
+4. **VSCode の拡張**：新しい `pipe-in-vscode.vsix` を入れ（[vscode/README.md](vscode/README.md)）、古い拡張を `code --uninstall-extension nok.devpipe-vscode` で外します。
+   - 古い設定 `devpipe.workDir`・`devpipe.pipesDir` は、新しい設定 `pipe-in.workDir`・`pipe-in.pipesDir` を書いていない間は読みます。
+   - 古いコマンド ID（`devpipe.showRun`・`devpipe.editPipe`）に付けたキー割り当ても効きます（パレットには出しません）。
+   - 作業台の「保存した版」は引き継がれません（拡張の保存場所が変わるため）。
+5. **パイプの置き場所**：前の版の `<対象>/.devpipe/pipes/devpipe-<名前>/` は、そのまま読めて流せます。作業台で直して保存しても、元のフォルダに書きます。新しい置き場所に移したいときは、次のようにします。
+
+   ```bash
+   cd <対象>
+   mkdir -p .pipe-in/pipes
+   git mv .devpipe/pipes/devpipe-<名前> .pipe-in/pipes/pipe-in-<名前>
+   ```
+
+   同じ名前のパイプが両方にあると新しいほうを使い、`pipe-in-gen new` はその名前では作りません。`pipe-in-gen list` は、古いものに「（古い名前）」と添えます。`<対象>` の `.gitignore` に `.devpipe/` を書いていたときは、`.pipe-in/` も足してください。
+6. **環境変数**：パイプの置き場所は `PIPE_IN_PIPES_DIR` で変えます。`DEVPIPE_PIPES_DIR` も読みます（両方あれば新しいほう。プラグインのフックも同じ）。
+7. **記録**：前の版が書いた記録（`docs/pipeline/` の `state.json` など）は、そのまま拡張で見られます。
+8. **GitHub の URL**：リポジトリの名前が変わったあとは、手元の複製の向き先を直します（古い URL からも転送されます）。
+
+   ```bash
+   git remote set-url origin https://github.com/nigoh/pipe-in.git
+   ```
 
 ## 使い方
 
 ```bash
 # 要件メモをファイルで渡す
-devpipe --project ~/src/myapp --input request.md
+pipe-in --project ~/src/myapp --input request.md
 
 # 直接書く
-devpipe --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタンを追加したい"
+pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタンを追加したい"
 
 # 確認なしで最後まで流す
-devpipe --project ~/src/myapp --input request.md --yes
+pipe-in --project ~/src/myapp --input request.md --yes
 
 # テスト担当の判定に加えて、自分のテストコマンドでも裏付けを取る
-devpipe --project ~/src/myapp --input request.md --test-cmd "pytest -q"
+pipe-in --project ~/src/myapp --input request.md --test-cmd "pytest -q"
 ```
 
-`devpipe` の代わりに `python -m devpipe` でも動きます。
+`pipe-in` の代わりに `python -m pipe_in` でも動きます。
 
 ### 途中から再開する
 
 前の段の文書が残っていれば、その次から始められます。
 
 ```bash
-devpipe --project ~/src/myapp --from design      # 要件定義書を手で直したあと
-devpipe --project ~/src/myapp --from red         # 設計書を手で直したあと
-devpipe --project ~/src/myapp --from implement   # 先に書いたテストを手で直したあと
-devpipe --project ~/src/myapp --from test        # 検証だけやり直す
+pipe-in --project ~/src/myapp --from design      # 要件定義書を手で直したあと
+pipe-in --project ~/src/myapp --from red         # 設計書を手で直したあと
+pipe-in --project ~/src/myapp --from implement   # 先に書いたテストを手で直したあと
+pipe-in --project ~/src/myapp --from test        # 検証だけやり直す
 ```
 
 ### 確認の画面
@@ -73,88 +117,88 @@ devpipe --project ~/src/myapp --from test        # 検証だけやり直す
 対話できない所（Claude Code のチャット、CI など）から動かすときは `--pause` を付けます。確認の段まで流したら、入力を待たずに `state.json` の `pending_review`（段・文書・会話の ID）を残して止まります（終了コード 5）。文書を読んで、`--review` で答えると続きから流れます。
 
 ```bash
-devpipe --project ~/src/myapp --input request.md --pause --test-cmd "pytest -q"   # 要件定義のあとで止まる
-devpipe --project ~/src/myapp --review approve --test-cmd "pytest -q"             # 承認 → 設計のあとで止まる
-devpipe --project ~/src/myapp --review revise --feedback "AC-03 を分けて"          # 同じ会話のまま直させ、また止まる
-devpipe --project ~/src/myapp --review quit                                       # 中止
+pipe-in --project ~/src/myapp --input request.md --pause --test-cmd "pytest -q"   # 要件定義のあとで止まる
+pipe-in --project ~/src/myapp --review approve --test-cmd "pytest -q"             # 承認 → 設計のあとで止まる
+pipe-in --project ~/src/myapp --review revise --feedback "AC-03 を分けて"          # 同じ会話のまま直させ、また止まる
+pipe-in --project ~/src/myapp --review quit                                       # 中止
 ```
 
 - 記録（`state.json` の `runs`・段のログの番号・費用の合計・注意）は、呼び出しをまたいで続きます。
 - `--test-cmd`・`--max-retries` は記録に残らないので、`--review` のたびに同じものを渡してください。
 - 止まっている間の `final` は空のままです（VSCode のパネルでは「次を待っている」と出ます）。
 
-### 記録だけを書く（`devpipe record`）
+### 記録だけを書く（`pipe-in record`）
 
-段を流さずに、開発フローと同じ形の記録（`state.json`・段のログ・`99_summary.md`）だけを書きます。SDK は呼ばず、利用料もかかりません。Claude Code の `/pipe-in` が、会話の中で進めた段を VSCode の拡張で見られるように使います。
+段を流さずに、開発フローと同じ形の記録（`state.json`・段のログ・`99_summary.md`）だけを書きます。SDK は呼ばず、利用料もかかりません。Claude Code の開発用スキル（このリポジトリの `/pipe-in`）が、会話の中で進めた段を VSCode の拡張で見られるように使います。
 
 ```bash
-devpipe record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
-devpipe record begin requirements                 # 段を始める（拡張に「動いている」と出る）
-devpipe record done requirements --summary "…"    # 段を閉じる
-devpipe record wait requirements                  # 確認待ち
-devpipe record review requirements approved       # revise --feedback "…" / quit
-devpipe record red red --summary "…"              # テスト先行の結果
-devpipe record verdict pass --attempt 1 --summary "…"
-devpipe record finish PASSED
+pipe-in record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
+pipe-in record begin requirements                 # 段を始める（拡張に「動いている」と出る）
+pipe-in record done requirements --summary "…"    # 段を閉じる
+pipe-in record wait requirements                  # 確認待ち
+pipe-in record review requirements approved       # revise --feedback "…" / quit
+pipe-in record red red --summary "…"              # テスト先行の結果
+pipe-in record verdict pass --attempt 1 --summary "…"
+pipe-in record finish PASSED
 ```
 
-- 記録には `"driver": "pipe-in"` が入り、`devpipe --review` はこの記録の続きを流しません。
+- 記録には `"driver": "pipe-dev"` が入ります。`pipe-in --review` は、`driver` の入った記録（前の版の記録も）の続きを流しません。
 
 ## パイプ（目的に合わせた段の並び）
 
 上の開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます。
-パイプは1つのフォルダ（対象プロジェクトの `.devpipe/pipes/devpipe-<名前>/`）で、**ジェネレーター**（`devpipe-gen`）がひな形から作ります。
+パイプは1つのフォルダ（対象プロジェクトの `.pipe-in/pipes/pipe-in-<名前>/`）で、**ジェネレーター**（`pipe-in-gen`）がひな形から作ります。
 
 ```
 ~/src/myapp/                対象プロジェクト
-└─ .devpipe/pipes/         作ったパイプ（1パイプ＝1フォルダ）
-   └─ devpipe-diagrams/
+└─ .pipe-in/pipes/         作ったパイプ（1パイプ＝1フォルダ）
+   └─ pipe-in-diagrams/
       ├─ pipe.toml         段の並び・書き込める範囲・確認の有無
       ├─ prompts/          段ごとの指示文
       └─ README.md         何をするパイプか・流し方
 
-devpipe のリポジトリ
+pipe-in のリポジトリ
 ├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）
 │  └─ templates/           ひな形（dev / diagrams / spec-qa）
-└─ plugin/                 Claude Code のプラグイン（/devpipe:pipe-build と pipe-builder）
+└─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）
 ```
 
 ```bash
-devpipe-gen list --project ~/src/myapp                          # ひな形と、作ったパイプの一覧
-devpipe-gen new diagrams --from diagrams --project ~/src/myapp  # ひな形から .devpipe/pipes/devpipe-diagrams/ を作る
-devpipe-gen design apidoc --purpose "ソースから API の文書を作り、突き合わせたい" --project ~/src/myapp
+pipe-in-gen list --project ~/src/myapp                          # ひな形と、作ったパイプの一覧
+pipe-in-gen new diagrams --from diagrams --project ~/src/myapp  # ひな形から .pipe-in/pipes/pipe-in-diagrams/ を作る
+pipe-in-gen design apidoc --purpose "ソースから API の文書を作り、突き合わせたい" --project ~/src/myapp
                                                                 # 目的から段を組んで作る（Claude が設計する）
-devpipe-gen check diagrams --project ~/src/myapp                # 定義の誤りを調べる
-devpipe --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"
+pipe-in-gen check diagrams --project ~/src/myapp                # 定義の誤りを調べる
+pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"
 ```
 
-Claude Code では、プラグインのスキル `/devpipe:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（下の「Claude Code のプラグイン」）。
+Claude Code では、プラグインのスキル `/pipe-in:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（下の「Claude Code のプラグイン」）。
 
-- `devpipe-gen new` は対象のファイルを見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
+- `pipe-in-gen new` は対象のファイルを見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
   見るもの：Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・Rust・Java（Maven・Gradle）・Ruby（RSpec・Rake）・PHP（composer・PHPUnit）・.NET・Deno・Makefile の test、`src/`・`docs/` など。
-- `devpipe-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。利用料がかかります。
-- 同じ名前のパイプがあれば作りません（`--force` で作り直し）。
-- パイプは対象プロジェクトの `.devpipe/pipes/` に作ります。`--pipes-dir`（そこだけを使う）か `DEVPIPE_PIPES_DIR` で変えられます。
-- 探すときは、対象の `.devpipe/pipes/` → 今までの場所（`DEVPIPE_PIPES_DIR`、なければ devpipe のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
-- 指示文には対象プロジェクトの事情が入りやすいので、対象が公開リポジトリなら、`.devpipe/` をコミットする前に中身を確かめてください（入れたくなければ `.gitignore` に足します）。共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
+- `pipe-in-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。利用料がかかります。
+- 同じ名前のパイプがあれば作りません（`--force` で作り直し）。ほかの置き場所（前の版の置き場所を含む）に同じ名前があるときは、`--force` を付けても作りません。
+- パイプは対象プロジェクトの `.pipe-in/pipes/` に作ります。`--pipes-dir`（そこだけを使う）か `PIPE_IN_PIPES_DIR` で変えられます。
+- 探すときは、対象の `.pipe-in/pipes/` → 前の版の置き場所（移行の節）→ 今までの場所（`PIPE_IN_PIPES_DIR`、なければ pipe-in のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
+- 指示文には対象プロジェクトの事情が入りやすいので、対象が公開リポジトリなら、`.pipe-in/` をコミットする前に中身を確かめてください（入れたくなければ `.gitignore` に足します）。共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
 
 ### Claude Code のプラグイン
 
 このリポジトリは Claude Code のプラグインのマーケットプレイスにもなっています（`.claude-plugin/marketplace.json` → `plugin/`）。
-入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`devpipe-gen` が使えること（`pip install -e .`）が前提です。
+入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。
 
 ```
-/plugin marketplace add <devpipe のリポジトリのフォルダか GitHub の owner/repo>
-/plugin install devpipe@devpipe
+/plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>
+/plugin install pipe-in@pipe-in
 ```
 
 | 入るもの | すること |
 | --- | --- |
-| スキル `/devpipe:pipe-build` | 目的か直したい点を聞き、段の表（直すときは「前 → 後」の表）を見せて確認を取り、pipe-builder に任せ、`devpipe-gen check` の結果と流し方を伝える。流すのは言われてから |
-| エージェント `pipe-builder` | 確認が取れた表どおりに `pipe.toml`・`prompts/`・`README.md` を書き、`devpipe-gen check` が通るまで直す。表に無い権限の拡大はせず差し戻す |
-| フック（`devpipe-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/devpipe-<名前>/`）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `devpipe-gen list / new / check` だけに絞る。PowerShell・MCP・Web・ほかのエージェントの呼び出しも止める。ほかのエージェントには何もしない |
+| スキル `/pipe-in:pipe-build` | 目的か直したい点を聞き、段の表（直すときは「前 → 後」の表）を見せて確認を取り、pipe-builder に任せ、`pipe-in-gen check` の結果と流し方を伝える。流すのは言われてから |
+| エージェント `pipe-builder` | 確認が取れた表どおりに `pipe.toml`・`prompts/`・`README.md` を書き、`pipe-in-gen check` が通るまで直す。表に無い権限の拡大はせず差し戻す |
+| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。PowerShell・MCP・Web・ほかのエージェントの呼び出しも止める。ほかのエージェントには何もしない |
 
-フックは `devpipe-gen` で動くので、`devpipe-gen` が無い環境では効きません（スキルは、はじめに `devpipe-gen` を確かめて、無ければ止まります）。
+フックは `pipe-in-gen` で動くので、`pipe-in-gen` が無い環境では効きません（スキルは、はじめに `pipe-in-gen` を確かめて、無ければ止まります）。
 
 ### ひな形
 
@@ -210,7 +254,7 @@ name = "verify"
 # ...
 [stages.check]
 verdict = true                 # 段に pass / fail と直す点（problems）を返させる
-command = "python -m pytest -q tests/test_docs.py"   # devpipe が流す確認用のコマンド（終了コード 0 で合格）
+command = "python -m pytest -q tests/test_docs.py"   # pipe-in が流す確認用のコマンド（終了コード 0 で合格）
 on_fail = "draw"               # 不合格のときに戻す段（自分か前の段。省くと自分）
 max_retries = 2                # 戻す回数の上限。超えたら終了コード 1
 ```
@@ -218,7 +262,7 @@ max_retries = 2                # 戻す回数の上限。超えたら終了コ�
 - `verdict` と `command` は、どちらか一方でも両方でもかまいません。両方なら、どちらも合格で合格です。
 - 検証は、人の確認より先に行います（不合格のものは人に見せない）。
 - 戻した段には「前回の検証で見つかった問題」が渡され、新しい会話でやり直します。
-- `command` は利用者が書くコマンドで、devpipe が対象のフォルダで実行します。`curl` や `git push` などの危ない操作は、`devpipe-gen check` で拒みます。
+- `command` は利用者が書くコマンドで、pipe-in が対象のフォルダで実行します。`curl` や `git push` などの危ない操作は、`pipe-in-gen check` で拒みます。
 
 ### 分岐・飛び先・並列
 
@@ -280,8 +324,8 @@ url = "https://mcp.example.com/jira"
 
 ### パイプ作業台（VSCode）
 
-VSCode 拡張の「devpipe: パイプ作業台を開く」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
-形で見分けるブロックを置き、プラグをコンセントに差すようにつなぎ、各ブロックで Claude に頼むことと上の設定を決めて、`.devpipe/pipes/devpipe-<名前>/`（無ければ `pipes/`）に保存します。
+VSCode 拡張の「pipe-in: パイプ作業台を開く」で、パイプをフロー図として組み立てられます（[vscode/README.md](vscode/README.md)）。
+形で見分けるブロックを置き、プラグをコンセントに差すようにつなぎ、各ブロックで Claude に頼むことと上の設定を決めて、`.pipe-in/pipes/pipe-in-<名前>/`（無ければ `pipes/`。前の版のフォルダのパイプは元のフォルダ）に保存します。
 
 ## 作られるファイル
 
@@ -393,7 +437,7 @@ model = "sonnet"
 | 止める操作 | `pipe_in/engine/guard.py` の `DANGEROUS_BASH` |
 | SDK の呼び出し | `pipe_in/engine/runner.py` |
 | パイプの読み込み・検査・流れ・権限の型 | `pipe_in/pipe/` |
-| パイプの生成・環境の検出・ひな形 | `generator/`（`devpipe-gen`）・`generator/templates/` |
+| パイプの生成・環境の検出・ひな形 | `generator/`（`pipe-in-gen`）・`generator/templates/` |
 
 テストは `pip install -e '.[dev]' && pytest` で実行できます。SDK を呼ばずに、段の順番・確認・差し戻し・書き込み制限を確かめます。
 

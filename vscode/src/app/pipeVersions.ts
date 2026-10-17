@@ -5,7 +5,7 @@ import type { PipeModel } from '../domain/pipeModel.ts';
 import { isVersionId, sortVersions, versionFile, versionFromFile, versionId, versionsToDrop } from '../domain/pipeVersions.ts';
 import type { VersionEntry } from '../domain/pipeVersions.ts';
 
-/** 版の置き場所の中の devpipe-<名前>/ を読み書きする口。pipe はフォルダの名前、file は <id>.json */
+/** 版の置き場所の中の pipe-in-<名前>/ を読み書きする口。pipe はフォルダの名前、file は <id>.json */
 export interface VersionStore {
   list(pipe: string): Promise<string[]>;
   read(pipe: string, file: string): Promise<string | null>;
@@ -13,7 +13,8 @@ export interface VersionStore {
   remove(pipe: string, file: string): Promise<void>;
 }
 
-const folder = (name: string): string => `devpipe-${name}`;
+// 版のフォルダは名前ごとに1つ（パイプが前の版のフォルダ名でも、版は新しい名前で残す。拡張の保存場所は前の版から引き継がない）
+const folder = (name: string): string => `pipe-in-${name}`;
 
 export async function listVersions(store: VersionStore, name: string): Promise<VersionEntry[]> {
   const files = await store.list(folder(name));

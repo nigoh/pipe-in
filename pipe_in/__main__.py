@@ -1,4 +1,4 @@
-"""python -m devpipe の入口（中身は devpipe/cli.py）。"""
+"""python -m pipe_in の入口（中身は pipe_in/cli.py）。"""
 
 import sys
 

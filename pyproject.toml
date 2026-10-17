@@ -1,6 +1,6 @@
 [project]
-name = "devpipe"
-version = "0.2.0"
+name = "pipe-in"
+version = "0.3.0"
 description = "要件 → 要件定義 → 設計 → テスト先行 → 実装 → 検証 を Claude Agent SDK で繋ぐパイプライン"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -10,15 +10,18 @@ dependencies = ["claude-agent-sdk>=0.2.159,<0.3"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-devpipe = "pipe_in.cli:main"
-devpipe-gen = "pipe_in_generator.cli:main"
+pipe-in = "pipe_in.cli:main"
+pipe-in-gen = "pipe_in_generator.cli:main"
+# 前の名前。0.3 の間だけ残し、案内を出してから同じ中身を流す。0.4 で消す
+devpipe = "pipe_in.legacy:devpipe_main"
+devpipe-gen = "pipe_in_generator.legacy:devpipe_gen_main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# エンジン（devpipe/）と、ジェネレーター（generator/ を devpipe_generator という名前で入れる）
+# 本体（pipe_in/）と、ジェネレーター（generator/ を pipe_in_generator という名前で入れる）
 packages = ["pipe_in", "pipe_in.engine", "pipe_in.usage", "pipe_in.dev", "pipe_in.pipe", "pipe_in_generator"]
 package-dir = { "pipe_in_generator" = "generator" }
 

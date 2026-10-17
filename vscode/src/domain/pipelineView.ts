@@ -109,7 +109,7 @@ export interface PipelineView {
   waiting: boolean;
   /** FR-14 */
   noRecords: { message: string; workDir: string } | null;
-  /** 使用量（devpipe 0.2 から）。usage_summary のない記録では null */
+  /** 使用量（本体 0.2 から）。usage_summary のない記録では null */
   usage: UsageView | null;
   /** 確認待ち（state.json の pending_review）。なければ null */
   pendingReview: PendingReviewView | null;

@@ -54,7 +54,7 @@ def bash(guard, agent, command):
 
 
 def test_ac04_main_agent_is_not_restricted(guard):
-    assert write(guard, None, "devpipe/cli.py") is None
+    assert write(guard, None, "pipe_in/cli.py") is None
     assert call(guard, None, "PowerShell", command="Remove-Item x") is None
     assert bash(guard, None, "git commit -m x") is None
     assert call(guard, "Explore", "Write", file_path="x.py") is None  # ほかのサブエージェントにも何もしない
@@ -70,16 +70,16 @@ def test_ac04_main_agent_is_not_restricted(guard):
         ("pipe-in-analyst", "docs/pipeline/02_design.md", True),
         ("pipe-in-analyst", "docs/pipeline/03_red_tests.md", False),
         ("pipe-in-analyst", "docs/pipeline/state.json", False),
-        ("pipe-in-analyst", "devpipe/cli.py", False),
+        ("pipe-in-analyst", "pipe_in/cli.py", False),
         ("pipe-in-tester", "tests/test_x.py", True),
         ("pipe-in-tester", "tests/fixtures/a/state.json", True),
         ("pipe-in-tester", "vscode/src/domain/a.test.ts", True),
         ("pipe-in-tester", "docs/pipeline/03_red_tests.md", True),
         ("pipe-in-tester", "vscode/src/domain/a.ts", False),
-        ("pipe-in-tester", "devpipe/cli.py", False),
-        ("pipe-in-tester", "tests/../devpipe/cli.py", False),
+        ("pipe-in-tester", "pipe_in/cli.py", False),
+        ("pipe-in-tester", "tests/../pipe_in/cli.py", False),
         ("pipe-in-tester", "docs/pipeline/04_implementation.md", False),
-        ("pipe-in-coder", "devpipe/dev/record.py", True),
+        ("pipe-in-coder", "pipe_in/dev/record.py", True),
         ("pipe-in-coder", "vscode/src/domain/a.ts", True),
         ("pipe-in-coder", "README.md", True),
         ("pipe-in-coder", "docs/pipeline/04_implementation.md", True),
@@ -94,7 +94,7 @@ def test_ac04_main_agent_is_not_restricted(guard):
         ("pipe-in-coder", ".env", False),
         ("pipe-in-verifier", "docs/pipeline/05_test_report.md", True),
         ("pipe-in-verifier", "docs/pipeline/04_implementation.md", False),
-        ("pipe-in-verifier", "devpipe/cli.py", False),
+        ("pipe-in-verifier", "pipe_in/cli.py", False),
         ("pipe-in-verifier", "tests/test_x.py", False),
     ],
 )
@@ -133,7 +133,7 @@ def test_ac04_missing_path_is_denied(guard):
         ("pipe-in-tester", "python -m pytest -q && git commit -m x", False),
         ("pipe-in-tester", "python -m pytest -q > out.txt", False),
         ("pipe-in-tester", "python -m pytest $(rm x)", False),
-        ("pipe-in-tester", "python -c 'open(\"devpipe/cli.py\",\"w\")'", False),
+        ("pipe-in-tester", "python -c 'open(\"pipe_in/cli.py\",\"w\")'", False),
         ("pipe-in-coder", "python -m pytest -q", True),
         ("pipe-in-coder", "npm --prefix vscode test", True),
         ("pipe-in-coder", "npm --prefix vscode run typecheck", True),
@@ -141,7 +141,7 @@ def test_ac04_missing_path_is_denied(guard):
         ("pipe-in-coder", "pip install requests", False),
         ("pipe-in-coder", "npm --prefix vscode install left-pad", False),
         ("pipe-in-coder", "git checkout -- tests", False),
-        ("pipe-in-coder", "devpipe record finish PASSED", False),
+        ("pipe-in-coder", "pipe-in record finish PASSED", False),
         ("pipe-in-verifier", "python -m pytest -q", True),
         ("pipe-in-verifier", "npm --prefix vscode run typecheck", True),
         ("pipe-in-verifier", "git diff", True),
@@ -164,10 +164,10 @@ def test_ac04_bash_scope(guard, agent, command, ok):
 @pytest.mark.parametrize(
     "tool,tool_input",
     [
-        ("PowerShell", {"command": "Set-Content devpipe/cli.py x"}),
+        ("PowerShell", {"command": "Set-Content pipe_in/cli.py x"}),
         ("mcp__plugin_playwright_playwright__browser_navigate", {"url": "http://example.com"}),
         ("mcp__claude_ai_Gmail__send_message", {}),
-        ("Agent", {"prompt": "write devpipe/cli.py"}),
+        ("Agent", {"prompt": "write pipe_in/cli.py"}),
         ("WebFetch", {"url": "http://example.com"}),
         ("WebSearch", {"query": "x"}),
         ("NotebookEdit", {"notebook_path": "tests/a.ipynb"}),
@@ -181,7 +181,7 @@ def test_ac04_bypass_routes_are_denied(guard, agent, tool, tool_input):
 @pytest.mark.parametrize("agent", AGENTS)
 def test_ac04_reading_is_allowed(guard, agent):
     for tool in ("Read", "Glob", "Grep"):
-        assert call(guard, agent, tool, file_path="devpipe/cli.py", pattern="x") is None
+        assert call(guard, agent, tool, file_path="pipe_in/cli.py", pattern="x") is None
 
 
 # ---- フックの入口：壊れた入力は止める。出すのは deny の JSON だけ ------------------------------
@@ -202,7 +202,7 @@ def test_ac04_main_denies_unreadable_input(guard, monkeypatch):
 
 def test_ac04_main_denies_out_of_scope_and_passes_the_rest(guard, monkeypatch):
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", ROOT)
-    deny = run_main(guard, monkeypatch, json.dumps({"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": "devpipe/cli.py"}, "cwd": ROOT}))
+    deny = run_main(guard, monkeypatch, json.dumps({"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": "pipe_in/cli.py"}, "cwd": ROOT}))
     assert json.loads(deny)["hookSpecificOutput"]["permissionDecision"] == "deny"
     ok = run_main(guard, monkeypatch, json.dumps({"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": "tests/test_x.py"}, "cwd": ROOT}))
     assert ok == ""
@@ -211,7 +211,7 @@ def test_ac04_main_denies_out_of_scope_and_passes_the_rest(guard, monkeypatch):
 def test_ac04_main_writes_utf8_even_if_the_console_is_not(guard, monkeypatch):
     """検証で見つけたこと：Windows の標準出力（cp932）のまま書くと、Claude Code に届く理由が文字化けする。"""
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", ROOT)
-    payload = json.dumps({"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": "devpipe/cli.py"}, "cwd": ROOT})
+    payload = json.dumps({"agent_type": "pipe-in-tester", "tool_name": "Write", "tool_input": {"file_path": "pipe_in/cli.py"}, "cwd": ROOT})
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(payload.encode("utf-8")), encoding="utf-8"))
     raw = io.BytesIO()
     out = io.TextIOWrapper(raw, encoding="cp932")

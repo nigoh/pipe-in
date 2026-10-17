@@ -49,7 +49,7 @@ def _can_write(cfg: Config, stage: PipeStage) -> tuple[Callable[[str], bool], st
 
 
 def _outside_pipe(can_write: Callable[[str], bool], cfg: Config, pipe: PipeDef) -> Callable[[str], bool]:
-    """パイプのフォルダ（定義・指示文）は、どの段からも書き換えさせない（devpipe 自身を対象にしたときのため）。"""
+    """パイプのフォルダ（定義・指示文）は、どの段からも書き換えさせない（このリポジトリ自身を対象にしたときのため）。"""
     pipe_rel = cfg.rel(pipe.dir.resolve())
 
     def wrapped(rel: str) -> bool:

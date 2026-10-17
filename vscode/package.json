@@ -1,13 +1,13 @@
 {
-  "name": "devpipe-vscode",
-  "displayName": "devpipe",
-  "description": "devpipe の実行を VSCode の中で図として見て、パイプを作業台で組み立てる",
+  "name": "pipe-in-vscode",
+  "displayName": "pipe-in",
+  "description": "pipe-in の実行を VSCode の中で図として見て、パイプを作業台で組み立てる",
   "version": "0.0.0",
   "publisher": "nok",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nigoh/devpipe"
+    "url": "https://github.com/nigoh/pipe-in"
   },
   "private": true,
   "type": "module",
@@ -22,28 +22,28 @@
   "contributes": {
     "commands": [
       {
-        "command": "devpipe.showRun",
-        "title": "devpipe: 実行を見る",
+        "command": "pipe-in.showRun",
+        "title": "pipe-in: 実行を見る",
         "icon": "$(circuit-board)"
       },
       {
-        "command": "devpipe.editPipe",
-        "title": "devpipe: パイプ作業台を開く",
+        "command": "pipe-in.editPipe",
+        "title": "pipe-in: パイプ作業台を開く",
         "icon": "$(type-hierarchy)"
       }
     ],
     "configuration": {
-      "title": "devpipe",
+      "title": "pipe-in",
       "properties": {
-        "devpipe.workDir": {
+        "pipe-in.workDir": {
           "type": "string",
           "default": "docs/pipeline",
-          "description": "devpipe の work_dir。ワークスペースの最初のフォルダからの相対パス"
+          "description": "pipe-in の work_dir。ワークスペースの最初のフォルダからの相対パス"
         },
-        "devpipe.pipesDir": {
+        "pipe-in.pipesDir": {
           "type": "string",
           "default": "",
-          "description": "作業台で読み書きするパイプの置き場所。ワークスペースの最初のフォルダからの相対パスか、絶対パス。空なら .devpipe/pipes（無くて pipes があれば pipes）"
+          "description": "作業台で読み書きするパイプの置き場所。ワークスペースの最初のフォルダからの相対パスか、絶対パス。空なら .pipe-in/pipes と前の版の置き場所（どちらも無くて pipes があれば pipes）"
         }
       }
     }
@@ -53,7 +53,7 @@
     "typecheck": "tsc -p .",
     "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.cjs && esbuild src/webview/pipeEditor.ts --bundle --platform=browser --format=iife --outfile=out/pipeEditor.js",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license -o devpipe-vscode.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license -o pipe-in-vscode.vsix",
     "preview": "node --experimental-strip-types --no-warnings scripts/preview.ts"
   },
   "devDependencies": {

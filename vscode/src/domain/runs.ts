@@ -13,7 +13,7 @@ export interface RunCandidate {
 
 export const ROOT_RUN_ID = '';
 const DEV_LABEL = '開発フロー';
-// 記録の置き場所の中で、パイプのフォルダにならない名前（devpipe の RESERVED_NAMES）
+// 記録の置き場所の中で、パイプのフォルダにならない名前（本体の RESERVED_NAMES）
 const RESERVED = new Set(['logs']);
 
 /** パイプのフォルダ名として使えるか（パイプの名前と同じ規則。logs は除く）。 */

@@ -45,7 +45,7 @@ args = ["server.js", "--quiet"]
 
 
 def make(project: Path, toml: str, name: str = "p") -> pd.PipeDef:
-    d = project / "pipes" / f"devpipe-{name}"
+    d = project / "pipes" / f"pipe-in-{name}"
     d.mkdir(parents=True, exist_ok=True)
     (d / "pipe.toml").write_text(toml, encoding="utf-8")
     return pd.load_pipe(d)

@@ -1,7 +1,8 @@
-"""パイプの定義（<対象>/.devpipe/pipes/devpipe-<名前>/pipe.toml など）を読み、検査し、探す。
+"""パイプの定義（<対象>/.pipe-in/pipes/pipe-in-<名前>/pipe.toml など）を読み、検査し、探す。
 
 パイプは1つのフォルダで、pipe.toml（段の並び・権限・確認の有無）と prompts/（段ごとの指示文）と README.md を持つ。
 作るのはジェネレーター（generator/）。ここは読むだけで、書かない。
+前の版（devpipe）の置き場所 .devpipe/pipes/・フォルダ名 devpipe-<名前>/・環境変数 DEVPIPE_PIPES_DIR も読み続ける。
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 import tomllib
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -16,10 +18,16 @@ from typing import Any
 from ..engine.guard import DANGEROUS_BASH
 
 PIPE_FILE = "pipe.toml"
-PREFIX = "devpipe-"
-PIPES_DIR_ENV = "DEVPIPE_PIPES_DIR"
-# 対象プロジェクトの中のパイプの置き場所（先に探す）
-PROJECT_PIPES_DIR = Path(".devpipe") / "pipes"
+# パイプのフォルダ名の頭。前の版（devpipe）の頭も読み続ける。同じ置き場所の中ではこの順に探す
+PREFIX = "pipe-in-"
+LEGACY_PREFIX = "devpipe-"
+PREFIXES = (PREFIX, LEGACY_PREFIX)
+# 今までの置き場所を変える環境変数。前の版の名前も読む（両方あれば新しいほう）
+PIPES_DIR_ENV = "PIPE_IN_PIPES_DIR"
+LEGACY_PIPES_DIR_ENV = "DEVPIPE_PIPES_DIR"
+# 対象プロジェクトの中のパイプの置き場所（先に探す）。前の版の置き場所はその次に探す
+PROJECT_PIPES_DIR = Path(".pipe-in") / "pipes"
+LEGACY_PROJECT_PIPES_DIR = Path(".devpipe") / "pipes"
 KINDS = ("dev", "linear")
 ACCESS = ("read", "docs", "tests", "code")
 INPUT_MODES = ("required", "optional", "none")
@@ -33,7 +41,7 @@ DEFAULT_MAX_STEPS = 50
 # mcp__<サーバー>__<ツール> か mcp__<サーバー>__*（サーバーの名前は必ず書く）
 MCP_RE = re.compile(r"mcp__[A-Za-z0-9][A-Za-z0-9_.-]*?__(\*|[A-Za-z0-9][A-Za-z0-9_.-]*)")
 DOMAIN_RE = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
-# 許可のモードは、確認を省く・何でも許すものを除く（devpipe の guard と人の確認で守るため）
+# 許可のモードは、確認を省く・何でも許すものを除く（本体の guard と人の確認で守るため）
 PERMISSION_MODES = ("default", "acceptEdits", "plan")
 MCP_TYPES = ("stdio", "http", "sse")
 # サブエージェントに持たせられない道具（入れ子・すり抜けの道）
@@ -51,7 +59,7 @@ class StageCheck:
     """段の検証。どちらかが不合格なら on_fail の段へ戻す。"""
 
     verdict: bool = False  # 段に判定（pass / fail と直す点）を構造化出力で返させる
-    command: str | None = None  # devpipe が流す確認用のコマンド。終了コード 0 で合格
+    command: str | None = None  # 本体が流す確認用のコマンド。終了コード 0 で合格
     timeout_sec: int = 600
     on_fail: str | None = None  # 不合格のときに戻す段（自分か前の段）。省くと自分
     max_retries: int = 2
@@ -135,47 +143,96 @@ class PipeDef:
     max_steps: int = DEFAULT_MAX_STEPS
 
 
+def pipe_folders(name: str) -> list[str]:
+    """名前のパイプのフォルダ名の候補を、探す順に返す（新しい頭 → 前の版の頭）。"""
+    return [p + name for p in PREFIXES]
+
+
+def name_of(folder: str) -> str | None:
+    """フォルダ名からパイプの名前を返す。どちらかの頭で始まり、残りが正しい名前のときだけ。ほかは None。"""
+    for p in PREFIXES:
+        if folder.startswith(p):
+            rest = folder[len(p):]
+            return rest if is_valid_name(rest) else None
+    return None
+
+
+def is_legacy(pipe_dir: Path) -> bool:
+    """前の版の名前のパイプか（フォルダ名が前の版の頭で始まるか、前の版の置き場所の中にあるか）。"""
+    if pipe_dir.name.startswith(LEGACY_PREFIX):
+        return True
+    parent = pipe_dir.parent
+    return (parent.parent.name, parent.name) == LEGACY_PROJECT_PIPES_DIR.parts
+
+
+def env_pipes_dir(environ: Mapping[str, str]) -> Path | None:
+    """環境変数で指定した置き場所。PIPE_IN_PIPES_DIR → DEVPIPE_PIPES_DIR の順。空の値は無いものとする。"""
+    for key in (PIPES_DIR_ENV, LEGACY_PIPES_DIR_ENV):
+        value = environ.get(key)
+        if value:
+            return Path(value).expanduser()
+    return None
+
+
 def is_valid_name(name: str) -> bool:
     return bool(NAME_RE.fullmatch(name)) and name not in RESERVED_NAMES
 
 
 def default_pipes_dir() -> Path:
-    """今までのパイプの置き場所。DEVPIPE_PIPES_DIR があればそこ、なければ devpipe のリポジトリの pipes/。
+    """今までのパイプの置き場所。環境変数（env_pipes_dir）があればそこ、なければこのリポジトリの pipes/。
 
-    devpipe を clone して pip install -e . で使う前提（リポジトリの中のフォルダを指す）。
+    リポジトリを clone して pip install -e . で使う前提（リポジトリの中のフォルダを指す）。
     """
-    env = os.environ.get(PIPES_DIR_ENV)
-    if env:
-        return Path(env).expanduser()
+    env = env_pipes_dir(os.environ)
+    if env is not None:
+        return env
     return Path(__file__).resolve().parents[2] / "pipes"
 
 
 def pipes_dirs(project: Path | None = None, pipes_dir: Path | None = None) -> list[Path]:
     """パイプを探す場所を、探す順に返す。
 
-    pipes_dir（--pipes-dir）を指定したときはそこだけ。なければ、対象の .devpipe/pipes/ → 今までの場所。
+    pipes_dir（--pipes-dir）を指定したときはそこだけ。なければ、対象の .pipe-in/pipes/ → 前の版の置き場所 → 今までの場所。
     """
     if pipes_dir is not None:
         return [pipes_dir]
-    dirs = [project / PROJECT_PIPES_DIR] if project is not None else []
+    dirs = [project / PROJECT_PIPES_DIR, project / LEGACY_PROJECT_PIPES_DIR] if project is not None else []
     return [*dirs, default_pipes_dir()]
 
 
 def new_pipes_dir(project: Path, pipes_dir: Path | None = None) -> Path:
-    """新しいパイプを作る場所：--pipes-dir → DEVPIPE_PIPES_DIR → 対象の .devpipe/pipes/。"""
+    """新しいパイプを作る場所：--pipes-dir → 環境変数（新 → 前の版）→ 対象の .pipe-in/pipes/。"""
     if pipes_dir is not None:
         return pipes_dir
-    env = os.environ.get(PIPES_DIR_ENV)
-    return Path(env).expanduser() if env else project / PROJECT_PIPES_DIR
+    env = env_pipes_dir(os.environ)
+    return env if env is not None else project / PROJECT_PIPES_DIR
+
+
+def existing_pipes(name: str, dirs: Iterable[Path]) -> list[Path]:
+    """dirs の中にある、その名前のパイプのフォルダ（新旧どちらの頭も）。同じものは1度だけ並べる。"""
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for base in dirs:
+        for folder in pipe_folders(name):
+            d = base / folder
+            key = d.resolve()
+            if d.exists() and key not in seen:
+                seen.add(key)
+                found.append(d)
+    return found
 
 
 def find_pipe(name_or_path: str, pipes_dir: Path | None = None, *, project: Path | None = None) -> Path | None:
-    """名前なら pipes_dirs() の順に devpipe-<名前>/ を、パスならそのフォルダを返す。pipe.toml がなければ None。"""
+    """名前なら pipes_dirs() の順に、その中で pipe-in-<名前>/ → devpipe-<名前>/ の順に探す。パスならそのフォルダ。
+
+    pipe.toml がなければ None。
+    """
     if is_valid_name(name_or_path):
         for base in pipes_dirs(project, pipes_dir):
-            d = base / f"{PREFIX}{name_or_path}"
-            if (d / PIPE_FILE).is_file():
-                return d
+            for folder in pipe_folders(name_or_path):
+                d = base / folder
+                if (d / PIPE_FILE).is_file():
+                    return d
     p = Path(name_or_path).expanduser()
     if name_or_path and p.is_dir() and (p / PIPE_FILE).is_file():
         return p
@@ -321,7 +378,8 @@ def load_pipe(pipe_dir: Path) -> PipeDef:
     test_command = _opt_str(p.get("test_command"))
     max_steps = p.get("max_steps", DEFAULT_MAX_STEPS)
     return PipeDef(
-        name=pipe_dir.name.removeprefix(PREFIX),
+        # 頭（pipe-in- か devpipe-）を除いた名前。どちらの頭でもないフォルダは、そのフォルダ名のまま
+        name=name_of(pipe_dir.name) or pipe_dir.name,
         dir=pipe_dir,
         kind=str(p.get("kind", "linear")),
         label=str(p.get("label", "")),
@@ -515,7 +573,7 @@ def check_pipe(pipe: PipeDef, project_dir: Path) -> list[str]:
         errors.append(f"input「{pipe.input}」は使えません（{' / '.join(INPUT_MODES)} のどれか）")
     if pipe.kind == "dev":
         if pipe.stages:
-            errors.append('kind = "dev" のパイプには [[stages]] を書けません（段は devpipe に組み込みの5段です）')
+            errors.append('kind = "dev" のパイプには [[stages]] を書けません（段は本体に組み込みの5段です）')
         return errors
     if pipe.max_steps < 1:
         errors.append("max_steps は 1 以上の整数で書いてください")
@@ -536,7 +594,7 @@ def check_pipe(pipe: PipeDef, project_dir: Path) -> list[str]:
         if not s.output or "/" in s.output or "\\" in s.output or s.output.startswith("."):
             errors.append(at + "output は記録の置き場所の中のファイル名だけを書いてください（例: 01_survey.md）")
         elif s.output in RESERVED_OUTPUTS:
-            errors.append(at + f"output に「{s.output}」は使えません（devpipe が書くファイルです）")
+            errors.append(at + f"output に「{s.output}」は使えません（本体が書くファイルです）")
         elif s.output in seen_outputs:
             errors.append(at + f"成果物「{s.output}」が重複しています")
         seen_outputs.add(s.output)
@@ -549,7 +607,8 @@ def check_pipe(pipe: PipeDef, project_dir: Path) -> list[str]:
 
 
 def list_pipes(pipes_dir: Path | None = None) -> list[Path]:
+    """置き場所の中の、pipe.toml を持つパイプのフォルダ（新旧どちらの頭も）。"""
     d = pipes_dir or default_pipes_dir()
     if not d.is_dir():
         return []
-    return sorted(p for p in d.glob(f"{PREFIX}*") if (p / PIPE_FILE).is_file())
+    return sorted(p for p in d.iterdir() if name_of(p.name) is not None and (p / PIPE_FILE).is_file())

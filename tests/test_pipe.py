@@ -1,4 +1,4 @@
-"""パイプ（pipes/devpipe-<名前>/ のフォルダ）の読み込み・検査・実行を、SDK を呼ばずに確かめる。"""
+"""パイプ（pipes/pipe-in-<名前>/ のフォルダ。前の版の devpipe-<名前>/ も読む）の読み込み・検査・実行を、SDK を呼ばずに確かめる。"""
 
 from __future__ import annotations
 
@@ -59,8 +59,10 @@ prompt = "図を描いてください"
 '''
 
 
-def make_pipe(pipes_dir: Path, name: str = "pics", toml: str = PICS, prompts: dict[str, str] | None = None) -> Path:
-    d = pipes_dir / f"devpipe-{name}"
+def make_pipe(
+    pipes_dir: Path, name: str = "pics", toml: str = PICS, prompts: dict[str, str] | None = None, prefix: str = "pipe-in-"
+) -> Path:
+    d = pipes_dir / f"{prefix}{name}"
     (d / "prompts").mkdir(parents=True, exist_ok=True)
     (d / "pipe.toml").write_text(toml, encoding="utf-8")
     for fname, text in (prompts if prompts is not None else {"01_survey.md": "ソースを調べてください\n"}).items():
@@ -124,7 +126,7 @@ def test_dev_state_has_pipe_fields(tmp_path):
 def test_load_pipe_reads_folder(tmp_path):
     pipe = load(tmp_path)
     assert pipe.name == "pics" and pipe.kind == "linear" and pipe.label == "図を作る"
-    assert pipe.dir == (tmp_path / "pipes/devpipe-pics")
+    assert pipe.dir == (tmp_path / "pipes/pipe-in-pics")
     assert [s.name for s in pipe.stages] == ["survey", "draw"]
     survey, draw = pipe.stages
     assert (survey.access, survey.review, survey.bash, survey.output) == ("read", True, False, "01_survey.md")
@@ -154,7 +156,16 @@ def test_check_pipe_errors(tmp_path, case):
     assert any(word in e for e in errors), errors
 
 
+@pytest.fixture
+def no_env(monkeypatch):
+    """手元の環境変数に左右されないよう、置き場所の環境変数を新旧とも消す。"""
+    monkeypatch.delenv("PIPE_IN_PIPES_DIR", raising=False)
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+    return monkeypatch
+
+
 def test_find_pipe_by_name_or_path(tmp_path):
+    """D0006-AC-05: 名前でもパスでも探せ、名前は pipe-in-<名前>/ から読む。"""
     pipes = tmp_path / "pipes"
     d = make_pipe(pipes)
     assert definition().find_pipe("pics", pipes) == d
@@ -166,48 +177,133 @@ def test_find_pipe_by_name_or_path(tmp_path):
     assert definition().load_pipe(other).name == "mine"
 
 
-def test_find_pipe_prefers_project_pipes(tmp_path, monkeypatch):
-    """D0001-AC-13: 対象の .devpipe/pipes/ を先に見て、無ければ今までの場所を見る。"""
+def test_find_pipe_prefers_project_pipes(tmp_path, no_env):
+    """D0001-AC-13・D0006-AC-06: 対象の .pipe-in/pipes/ → .devpipe/pipes/ → 今までの場所の順に見る。"""
     shared = tmp_path / "shared"
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(shared))
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(shared))
     project = tmp_path / "app"
-    mine = make_pipe(project / ".devpipe" / "pipes", "pics")
+    mine = make_pipe(project / ".pipe-in" / "pipes", "pics")
     make_pipe(shared, "pics")
     only_shared = make_pipe(shared, "old")
     assert definition().find_pipe("pics", project=project) == mine
     assert definition().find_pipe("old", project=project) == only_shared
     assert definition().find_pipe("nothing", project=project) is None
-    assert definition().pipes_dirs(project=project) == [project / ".devpipe" / "pipes", shared]
+    assert definition().pipes_dirs(project=project) == [project / ".pipe-in" / "pipes", project / ".devpipe" / "pipes", shared]
 
 
-def test_find_pipe_explicit_dir_only(tmp_path, monkeypatch):
-    """D0001-AC-13: --pipes-dir を指定したときはそこだけを見る。"""
-    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+def test_find_pipe_explicit_dir_only(tmp_path, no_env):
+    """D0001-AC-13・D0006-AC-05: --pipes-dir を指定したときは、その中の pipe-in-<名前>/ → devpipe-<名前>/ だけを見る。"""
     project = tmp_path / "app"
-    make_pipe(project / ".devpipe" / "pipes", "pics")
+    make_pipe(project / ".pipe-in" / "pipes", "pics")
+    make_pipe(project / ".devpipe" / "pipes", "pics", prefix="devpipe-")
     explicit = tmp_path / "explicit"
     assert definition().find_pipe("pics", explicit, project=project) is None
-    d = make_pipe(explicit, "pics")
-    assert definition().find_pipe("pics", explicit, project=project) == d
+    old = make_pipe(explicit, "pics", prefix="devpipe-")
+    assert definition().find_pipe("pics", explicit, project=project) == old
+    new = make_pipe(explicit, "pics")
+    assert definition().find_pipe("pics", explicit, project=project) == new
     assert definition().pipes_dirs(project=project, pipes_dir=explicit) == [explicit]
 
 
-def test_new_pipes_dir_order(tmp_path, monkeypatch):
-    """D0001-AC-15: 作る場所は --pipes-dir → DEVPIPE_PIPES_DIR → 対象の .devpipe/pipes/。"""
+def test_find_pipe_prefers_new_place_then_old(tmp_path, no_env):
+    """D0006-AC-05: 対象の .pipe-in/pipes/pipe-in-x/ があればそれ、無くて .devpipe/pipes/devpipe-x/ があればそれ。"""
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
     project = tmp_path / "app"
-    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
-    assert definition().new_pipes_dir(project) == project / ".devpipe" / "pipes"
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "env"))
+    old = make_pipe(project / ".devpipe" / "pipes", "pics", prefix="devpipe-")
+    assert definition().find_pipe("pics", project=project) == old
+    new = make_pipe(project / ".pipe-in" / "pipes", "pics")
+    assert definition().find_pipe("pics", project=project) == new
+
+
+def test_find_pipe_prefers_new_folder_name_in_same_place(tmp_path, no_env):
+    """D0006-AC-05: 同じ置き場所に pipe-in-x/ と devpipe-x/ があれば pipe-in-x/。"""
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
+    project = tmp_path / "app"
+    base = project / ".pipe-in" / "pipes"
+    old = make_pipe(base, "pics", prefix="devpipe-")
+    assert definition().find_pipe("pics", project=project) == old
+    new = make_pipe(base, "pics")
+    assert definition().find_pipe("pics", project=project) == new
+
+
+def test_load_pipe_name_from_old_folder(tmp_path):
+    """D0006-AC-05: devpipe-<名前>/ のパイプも、pipe-in-<名前>/ のパイプも、名前は頭を除いたもの。"""
+    assert definition().load_pipe(make_pipe(tmp_path / "a", "pics", prefix="devpipe-")).name == "pics"
+    assert definition().load_pipe(make_pipe(tmp_path / "b", "pics")).name == "pics"
+    assert definition().load_pipe(make_pipe(tmp_path / "c", "pics", prefix="")).name == "pics"  # 頭が無いフォルダはそのまま
+
+
+def test_pipes_dirs_order(tmp_path, no_env):
+    """D0006-AC-06: 探す順は 対象の .pipe-in/pipes → 対象の .devpipe/pipes → 今までの場所。"""
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
+    project = tmp_path / "app"
+    assert definition().pipes_dirs(project) == [project / ".pipe-in" / "pipes", project / ".devpipe" / "pipes", tmp_path / "shared"]
+    assert definition().pipes_dirs() == [tmp_path / "shared"]
+
+
+def test_folder_names_and_prefixes():
+    """D0006-AC-05: フォルダ名の頭は pipe-in- が先、devpipe- が後。名前の読み替えは両方の頭に効く。"""
+    d = definition()
+    assert d.PREFIX == "pipe-in-" and d.LEGACY_PREFIX == "devpipe-"
+    assert d.PREFIXES == ("pipe-in-", "devpipe-")
+    assert d.pipe_folders("x") == ["pipe-in-x", "devpipe-x"]
+    assert d.name_of("pipe-in-x") == "x" and d.name_of("devpipe-x") == "x"
+    assert d.name_of("x") is None and d.name_of("pipe-in-") is None and d.name_of("pipe-in-Bad") is None
+
+
+def test_is_legacy(tmp_path):
+    """D0006-AC-09: devpipe- で始まるフォルダか、.devpipe/pipes の中のフォルダは古い名前。"""
+    d = definition()
+    assert d.is_legacy(tmp_path / "pipes" / "devpipe-x")
+    assert d.is_legacy(tmp_path / ".devpipe" / "pipes" / "pipe-in-x")
+    assert not d.is_legacy(tmp_path / ".pipe-in" / "pipes" / "pipe-in-x")
+    assert not d.is_legacy(tmp_path / "pipes" / "pipe-in-x")
+
+
+def test_new_pipes_dir_order(tmp_path, no_env):
+    """D0001-AC-15・D0006-AC-07: 作る場所は --pipes-dir → PIPE_IN_PIPES_DIR → DEVPIPE_PIPES_DIR → 対象の .pipe-in/pipes/。"""
+    project = tmp_path / "app"
+    assert definition().new_pipes_dir(project) == project / ".pipe-in" / "pipes"
+    no_env.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "old-env"))
+    assert definition().new_pipes_dir(project) == tmp_path / "old-env"
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "env"))
     assert definition().new_pipes_dir(project) == tmp_path / "env"
     assert definition().new_pipes_dir(project, tmp_path / "given") == tmp_path / "given"
 
 
-def test_default_pipes_dir_can_be_overridden(tmp_path, monkeypatch):
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "my-pipes"))
+def test_new_pipes_dir_prefers_new_env(tmp_path, no_env):
+    """D0006-AC-07: 両方の環境変数があれば PIPE_IN_PIPES_DIR に作る。"""
+    no_env.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "old-env"))
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "env"))
+    assert definition().new_pipes_dir(tmp_path / "app") == tmp_path / "env"
+
+
+def test_default_pipes_dir_can_be_overridden(tmp_path, no_env):
+    """D0006-AC-10: PIPE_IN_PIPES_DIR → DEVPIPE_PIPES_DIR → リポジトリの pipes/。"""
+    no_env.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "old-pipes"))
+    assert definition().default_pipes_dir() == tmp_path / "old-pipes"
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "my-pipes"))
     assert definition().default_pipes_dir() == tmp_path / "my-pipes"
-    monkeypatch.delenv("DEVPIPE_PIPES_DIR")
+    no_env.delenv("PIPE_IN_PIPES_DIR")
+    no_env.delenv("DEVPIPE_PIPES_DIR")
     assert definition().default_pipes_dir().name == "pipes"
     assert (definition().default_pipes_dir() / "README.md").is_file()  # リポジトリの pipes/
+
+
+@pytest.mark.parametrize(
+    "environ,want",
+    [
+        ({}, None),
+        ({"PIPE_IN_PIPES_DIR": "new"}, "new"),
+        ({"DEVPIPE_PIPES_DIR": "old"}, "old"),
+        ({"PIPE_IN_PIPES_DIR": "new", "DEVPIPE_PIPES_DIR": "old"}, "new"),
+        ({"PIPE_IN_PIPES_DIR": "", "DEVPIPE_PIPES_DIR": "old"}, "old"),  # 空の値は無いものとする
+    ],
+)
+def test_env_pipes_dir_prefers_new_name(environ, want):
+    """D0006-AC-10: env_pipes_dir は PIPE_IN_PIPES_DIR → DEVPIPE_PIPES_DIR の順（辞書で渡す）。"""
+    got = definition().env_pipes_dir(environ)
+    assert got == (Path(want) if want else None)
 
 
 # ---- AC-04〜AC-07: パイプの実行 ---------------------------------------------------
@@ -378,7 +474,7 @@ def test_access_tests_and_code_scope(tmp_path):
 
 def test_pipe_folder_is_never_writable(tmp_path):
     for stage in ("r", "d", "t", "c"):
-        assert scope_guard(tmp_path, stage)("Write", file_path=str(tmp_path / "pipes/devpipe-scopes/pipe.toml")) is not None
+        assert scope_guard(tmp_path, stage)("Write", file_path=str(tmp_path / "pipes/pipe-in-scopes/pipe.toml")) is not None
 
 
 def test_bash_denied_when_not_allowed(tmp_path):
@@ -468,7 +564,7 @@ def test_linear_summary_lists_stage_results(tmp_path):
     assert "最後の段まで終わりました" in text
 
 
-# ---- コマンド（devpipe --pipe） ----------------------------------------------------
+# ---- コマンド（pipe-in --pipe） ----------------------------------------------------
 
 
 def cli_main(*argv: str):
@@ -477,23 +573,24 @@ def cli_main(*argv: str):
     return main(list(argv))
 
 
-def test_cli_pipe_not_found(tmp_path, monkeypatch):
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "pipes"))
+def test_cli_pipe_not_found(tmp_path, no_env):
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "pipes"))
     with pytest.raises(SystemExit) as e:
         cli_main("--project", str(tmp_path), "--pipe", "nothing")
     assert "見つかりません" in str(e.value.code)
+    assert "pipe-in-gen list" in str(e.value.code)
 
 
-def test_cli_pipe_with_errors_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "pipes"))
+def test_cli_pipe_with_errors_is_refused(tmp_path, no_env):
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "pipes"))
     make_pipe(tmp_path / "pipes", "broken", BROKEN["duplicate"][0])
     with pytest.raises(SystemExit) as e:
         cli_main("--project", str(tmp_path), "--pipe", "broken", "--yes")
     assert "重複" in str(e.value.code)
 
 
-def test_cli_pipe_requires_input(tmp_path, monkeypatch):
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "pipes"))
+def test_cli_pipe_requires_input(tmp_path, no_env):
+    no_env.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "pipes"))
     make_pipe(tmp_path / "pipes", "qa", PICS.replace('input = "optional"', 'input = "required"'))
     with pytest.raises(SystemExit) as e:
         cli_main("--project", str(tmp_path), "--pipe", "qa", "--yes")

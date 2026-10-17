@@ -1,4 +1,4 @@
-"""目的から段を組む（devpipe-gen design）。
+"""目的から段を組む（pipe-in-gen design）。
 
 Claude に対象を読むだけで調べさせ、パイプの設計を構造化出力で返させる。ジェネレーターがそれを
 pipe.toml・prompts/・README.md に書き、pipe_in.pipe の検査に通るまで（max_rounds 回まで）直させる。
@@ -19,6 +19,7 @@ from pipe_in.engine.runner import StageRunner, run_stage_sdk
 from pipe_in.engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec
 from pipe_in.pipe import definition as pd
 
+from .cli import refuse_clash
 from .detect import Env, detect
 
 STAGE_SCHEMA: dict[str, Any] = {
@@ -97,7 +98,7 @@ def render_pipe(name: str, purpose: str, design: dict[str, Any]) -> dict[str, st
     """設計から、パイプのフォルダのファイル（相対パス → 中身）を作る。"""
     files: dict[str, str] = {}
     lines = [
-        "# devpipe-gen design で作ったパイプ。段の並び・書き込める範囲・確認の有無はここで、各段への指示は prompts/ で決めます。",
+        "# pipe-in-gen design で作ったパイプ。段の並び・書き込める範囲・確認の有無はここで、各段への指示は prompts/ で決めます。",
         "",
         "[pipe]",
         'kind = "linear"',
@@ -148,11 +149,11 @@ def render_pipe(name: str, purpose: str, design: dict[str, Any]) -> dict[str, st
     need = ' --text "依頼メモ"' if design.get("input") == "required" else ""
     files["README.md"] = "\n".join(
         [
-            f"# devpipe-{name}：{design.get('label', name)}",
+            f"# {pd.PREFIX}{name}：{design.get('label', name)}",
             "",
             str(design.get("description", "")),
             "",
-            f"`devpipe-gen design` で、次の目的から作ったパイプです：{purpose}",
+            f"`pipe-in-gen design` で、次の目的から作ったパイプです：{purpose}",
             "",
             "## 段",
             "",
@@ -163,13 +164,13 @@ def render_pipe(name: str, purpose: str, design: dict[str, Any]) -> dict[str, st
             "## 流し方",
             "",
             "```bash",
-            f"devpipe --pipe {name} --project <対象のフォルダ>{need}",
+            f"pipe-in --pipe {name} --project <対象のフォルダ>{need}",
             "```",
             "",
             "## 直し方",
             "",
             "- 段の並び・書き込める範囲・確認と検証は `pipe.toml`、各段への指示は `prompts/` のファイルです。",
-            f"- 直したら `devpipe-gen check {name} --project <対象のフォルダ>` で確かめてください。",
+            f"- 直したら `pipe-in-gen check {name} --project <対象のフォルダ>` で確かめてください。",
             "",
         ]
     )
@@ -203,7 +204,7 @@ async def _design(
     spec = designer_spec(model)
     staging = dest.parent / ".design-staging" / dest.name
     prompt = (
-        f"次の目的のための devpipe のパイプを設計してください。\n\n## 目的\n{purpose}\n\n"
+        f"次の目的のための pipe-in のパイプを設計してください。\n\n## 目的\n{purpose}\n\n"
         f"## 対象プロジェクトの形（ファイルから推し量ったもの）\n{_env_note(detect(project))}\n"
     )
     resume: str | None = None
@@ -218,7 +219,7 @@ async def _design(
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(staging), str(dest))
                 print(f"✓ {dest} を作りました（設計 {round_} 回・${run.cost_usd:.3f}）")
-                print(f"流す: devpipe --pipe {name} --project <対象のフォルダ>")
+                print(f"流す: pipe-in --pipe {name} --project <対象のフォルダ>")
                 return 0
             print("  ✗ 設計に誤りがありました:")
             for e in errors:
@@ -249,7 +250,10 @@ def design_pipe(
     if not purpose.strip():
         print("✗ 目的（--purpose）を書いてください")
         return 1
-    dest = (pipes_dir or pd.default_pipes_dir()) / f"{pd.PREFIX}{name}"
+    # 置き場所は cli.main が決めて渡す。渡されなければ new と同じ決まり（new_pipes_dir）で決める
+    dest = (pipes_dir or pd.new_pipes_dir(project)) / f"{pd.PREFIX}{name}"
+    if refuse_clash(name, dest, project):
+        return 1
     if dest.exists():
         if not force:
             print(f"✗ {dest} はもうあります。作り直すなら --force を付けてください")

@@ -31,10 +31,10 @@ except ImportError:
 
 # ---- テストがリポジトリの実物を変えていないかの見張り（docs/development/testing.md） ----------
 #
-# テストは tmp_path の中だけに書く。リポジトリの pipes/・.devpipe/・docs/pipeline/ に書いたら、
+# テストは tmp_path の中だけに書く。リポジトリの pipes/・.pipe-in/・.devpipe/（前の版の置き場所）・docs/pipeline/ に書いたら、
 # テストがすべて通っていても、最後に失敗にする（前に、テストが本物の pipes/ にパイプを作ったことがあるため）。
 
-WATCHED = ("pipes", ".devpipe", "docs/pipeline")
+WATCHED = ("pipes", ".pipe-in", ".devpipe", "docs/pipeline")
 
 
 def snapshot(root: Path) -> dict[str, tuple[int, int]]:

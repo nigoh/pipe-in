@@ -19,7 +19,7 @@ from pipe_in.pipe.pipeline import LinearPipeline
 
 
 def make_pipe(project: Path, toml: str, name: str = "p") -> pd.PipeDef:
-    d = project / "pipes" / f"devpipe-{name}"
+    d = project / "pipes" / f"pipe-in-{name}"
     d.mkdir(parents=True, exist_ok=True)
     (d / "pipe.toml").write_text(toml, encoding="utf-8")
     return pd.load_pipe(d)
@@ -433,15 +433,16 @@ def test_structured_output_tool_is_never_denied(tmp_path):
         assert reason is None, name
 
 
-# ---- D0001-AC-14: devpipe --pipe は対象の .devpipe/pipes/ から読む ---------------------------
+# ---- D0001-AC-14: pipe-in --pipe は対象の .pipe-in/pipes/ から読む ---------------------------
 
 
 def test_cli_loads_pipe_from_project(tmp_path, monkeypatch):
+    """D0001-AC-14・D0006-AC-05: pipe-in --pipe は対象の .pipe-in/pipes/pipe-in-<名前>/ から読む。"""
     from pipe_in import cli
 
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
+    monkeypatch.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
     project = tmp_path / "app"
-    d = project / ".devpipe" / "pipes" / "devpipe-local"
+    d = project / ".pipe-in" / "pipes" / "pipe-in-local"
     d.mkdir(parents=True)
     (d / "pipe.toml").write_text(pipe_toml(stage_toml("only")), encoding="utf-8")
     pipe = cli._load_pipe("local", project)

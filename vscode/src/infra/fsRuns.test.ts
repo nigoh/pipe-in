@@ -13,7 +13,7 @@ const listRunCandidates = (dir: string) =>
   (fsSource as unknown as { listRunCandidates: ListRunCandidates }).listRunCandidates(dir);
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'devpipe-vscode-runs-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pipe-in-vscode-runs-'));
   try {
     await fn(dir);
   } finally {
@@ -45,7 +45,7 @@ test('AC-01: 直下に記録がなければパイプだけ、何もなければ�
     await writeFile(path.join(dir, 'spec-qa', 'state.json'), stateJson({ pipe: 'spec-qa' }));
     assert.deepEqual((await listRunCandidates(dir)).map((c) => c.id), ['spec-qa']);
   });
-  const missing = path.join(os.tmpdir(), `devpipe-vscode-missing-${process.pid}-${Date.now()}`);
+  const missing = path.join(os.tmpdir(), `pipe-in-vscode-missing-${process.pid}-${Date.now()}`);
   assert.deepEqual(await listRunCandidates(missing), [{ id: '', label: '開発フロー', updatedAt: null }]);
 });
 

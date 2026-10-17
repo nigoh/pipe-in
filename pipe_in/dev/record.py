@@ -1,8 +1,8 @@
-"""devpipe record：開発フローの記録（state.json・段のログ・まとめ）だけを書く。段は流さない（SDK を呼ばない）。
+"""pipe-in record：開発フローの記録（state.json・段のログ・まとめ）だけを書く。段は流さない（SDK を呼ばない）。
 
-Claude Code の /pipe-in が、会話の中で進めた段の結果を devpipe と同じ形で残すために使う。
-VSCode の拡張は、devpipe 本体の記録と同じように図・確認待ち・差し戻しを出せる。
-記録には driver = "pipe-in" を入れ、devpipe --review がこの記録の続きを流さないようにする。
+Claude Code の開発用スキル（/pipe-dev）が、会話の中で進めた段の結果を本体と同じ形で残すために使う。
+VSCode の拡張は、本体の記録と同じように図・確認待ち・差し戻しを出せる。
+記録には driver = "pipe-dev" を入れ、pipe-in --review がこの記録の続きを流さないようにする。
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
 
-DRIVER = "pipe-in"
+DRIVER = "pipe-dev"
 LOGS = "logs"
 ARCHIVE = "archive"
 OUTPUTS = {"requirements": REQUIREMENTS, "design": DESIGN, "red": RED, "implement": IMPLEMENTATION, "test": TEST_REPORT}
@@ -51,7 +51,7 @@ class Recorder:
     def _load(self) -> dict[str, Any]:
         path = self.work_dir / STATE
         if not path.is_file():
-            raise RecordError(f"記録がありません（{self.cfg.rel(path)}）。先に devpipe record start で始めてください")
+            raise RecordError(f"記録がありません（{self.cfg.rel(path)}）。先に pipe-in record start で始めてください")
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _save(self, state: dict[str, Any]) -> None:
@@ -74,7 +74,7 @@ class Recorder:
     @staticmethod
     def _open_run(state: dict[str, Any]) -> None:
         if state.get("final") is not None:
-            raise RecordError(f"この記録はもう終わっています（{state['final']}）。次は devpipe record start で始めてください")
+            raise RecordError(f"この記録はもう終わっています（{state['final']}）。次は pipe-in record start で始めてください")
 
     # ---- 始める --------------------------------------------------------
 
@@ -86,7 +86,7 @@ class Recorder:
             old = json.loads(old_path.read_text(encoding="utf-8"))
             if old.get("final") is None and (old.get("runs") or old.get("open") or old.get("pending_review")):
                 raise RecordError(
-                    f"途中の記録があります（{self.cfg.rel(old_path)}）。devpipe record finish で終えるか、"
+                    f"途中の記録があります（{self.cfg.rel(old_path)}）。pipe-in record finish で終えるか、"
                     "残さないなら消してから始めてください"
                 )
             self._archive(old)
@@ -133,7 +133,7 @@ class Recorder:
         self._open_run(state)
         label = STAGE_LABELS[self._stage(stage)]
         if state.get("open"):
-            raise RecordError(f"「{STAGE_LABELS[state['open']['stage']]}」の段がまだ閉じていません。先に devpipe record done で閉じてください")
+            raise RecordError(f"「{STAGE_LABELS[state['open']['stage']]}」の段がまだ閉じていません。先に pipe-in record done で閉じてください")
         if attempt is not None and attempt < 1:
             raise RecordError("attempt は 1 以上にしてください")
         seq = max((r["seq"] for r in state["runs"] if "seq" in r), default=0) + 1
@@ -141,7 +141,7 @@ class Recorder:
         now = self._stamp()
         logs = self.work_dir / LOGS
         logs.mkdir(parents=True, exist_ok=True)
-        prompt = f"/pipe-in の{label}" + (f"（{attempt} 回目）" if attempt else "")
+        prompt = f"/pipe-dev の{label}" + (f"（{attempt} 回目）" if attempt else "")
         line = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER, "at": now}
         (logs / log).write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
         state["open"] = {"stage": stage, "seq": seq, "attempt": attempt, "note": note, "log": log, "began_at": now}
@@ -154,7 +154,7 @@ class Recorder:
         label = STAGE_LABELS[self._stage(stage)]
         o = state.get("open")
         if not o or o["stage"] != stage:
-            raise RecordError(f"「{label}」の段は始まっていません。先に devpipe record begin で始めてください")
+            raise RecordError(f"「{label}」の段は始まっていません。先に pipe-in record begin で始めてください")
         began = datetime.fromisoformat(o["began_at"])
         duration = round(max((self.now() - began).total_seconds(), 0.0), 1)
         lines = []
@@ -265,7 +265,7 @@ class Recorder:
         self._open_run(state)
         self._choice(final, FINALS, "最後の結果")
         if state.get("open"):
-            raise RecordError(f"「{STAGE_LABELS[state['open']['stage']]}」の段がまだ閉じていません。先に devpipe record done で閉じてください")
+            raise RecordError(f"「{STAGE_LABELS[state['open']['stage']]}」の段がまだ閉じていません。先に pipe-in record done で閉じてください")
         state["final"] = final
         state["pending_review"] = None
         self._save(state)
@@ -274,7 +274,7 @@ class Recorder:
     def _summary(self, state: dict[str, Any]) -> str:
         w = self.cfg.rel(self.work_dir)
         lines = [
-            "# /pipe-in のまとめ",
+            "# /pipe-dev のまとめ",
             "",
             f"- 結果: {state['final']}（{EXIT_MESSAGES[Exit[state['final']]]}）",
             f"- 期間: {state['started_at']} 〜 {state['updated_at']}",
@@ -300,7 +300,7 @@ class Recorder:
         return "\n".join(lines)
 
 
-# ---- コマンド（devpipe record …） --------------------------------------------------
+# ---- コマンド（pipe-in record …） --------------------------------------------------
 
 
 def _pairs(values: Sequence[str] | None, what: str) -> list[tuple[str, str]]:
@@ -315,8 +315,8 @@ def _pairs(values: Sequence[str] | None, what: str) -> list[tuple[str, str]]:
 
 def _parse(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        prog="devpipe record",
-        description="開発フローの記録（docs/pipeline/）だけを書く。段は流さない。Claude Code の /pipe-in が使う",
+        prog="pipe-in record",
+        description="開発フローの記録（docs/pipeline/）だけを書く。段は流さない。Claude Code の開発用スキルが使う",
     )
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
@@ -386,6 +386,6 @@ def main(argv: list[str]) -> int:
         elif args.action == "finish":
             r.finish(args.final)
     except RecordError as e:
-        raise SystemExit(f"devpipe record: {e}") from e
+        raise SystemExit(f"pipe-in record: {e}") from e
     print(f"記録しました: {args.action}（{r.cfg.rel(r.work_dir / STATE)}）")
     return 0

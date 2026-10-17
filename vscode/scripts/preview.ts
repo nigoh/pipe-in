@@ -7,6 +7,7 @@
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { folderFor } from '../src/app/pipeEditor.ts';
 import { pipeFromFiles } from '../src/domain/pipeModel.ts';
 import { renderPipeEditorHtml } from '../src/view/pipeEditorHtml.ts';
 
@@ -85,7 +86,7 @@ const THEMES: Record<string, string> = {
   light: COMMON + '--vscode-editor-background:#ffffff;--vscode-foreground:#3b3b3b;--vscode-descriptionForeground:#717171;--vscode-editorWidget-background:#f8f8f8;--vscode-panel-border:#e5e5e5;--vscode-editorIndentGuide-background:#d3d3d3;--vscode-charts-blue:#1a85ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#e51400;--vscode-charts-green:#388a34;--vscode-charts-purple:#652d90;--vscode-charts-yellow:#bf8803;--vscode-editor-selectionBackground:#add6ff;--vscode-button-secondaryBackground:#e5e5e5;--vscode-button-secondaryForeground:#3b3b3b;--vscode-button-secondaryHoverBackground:#cccccc;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-notifications-background:#ffffff;--vscode-notifications-foreground:#3b3b3b;--vscode-textCodeBlock-background:#f2f2f2;--vscode-list-hoverBackground:#f2f2f2;--vscode-dropdown-background:#ffffff;--vscode-dropdown-foreground:#3b3b3b;--vscode-inputValidation-errorBackground:#f2dede;',
 };
 
-// ジェネレーターのひな形「diagrams」（devpipe-gen new で作られるパイプ）。prompts/ も読み込む
+// ジェネレーターのひな形「diagrams」（pipe-in-gen new で作られるパイプ）。prompts/ も読み込む
 const DIAGRAMS = path.join(ROOT, '..', 'generator', 'templates', 'diagrams');
 const diagramPrompts: Record<string, string> = {};
 for (const f of readdirSync(path.join(DIAGRAMS, 'prompts'))) diagramPrompts[`prompts/${f}`] = readFileSync(path.join(DIAGRAMS, 'prompts', f), 'utf8');
@@ -102,9 +103,10 @@ for (const [page, model, theme] of PAGES) {
   // 送られたものはすべて window.__posted に残す。版の一覧は見本を2つ（1つは閉じたときの下書き）返し、選ばれたら見本のパイプを返す
   const json = JSON.stringify(model).replace(/</g, '\u003c');
   const names = JSON.stringify(model.stages.map((s) => s.name));
+  const folder = JSON.stringify(folderFor(model.name));
   const versions = JSON.stringify([{ id: '1760000600000-draft', savedAt: 1760000600000, draft: true }, { id: '1760000000000', savedAt: 1760000000000, draft: false }]);
   const stub = `<script nonce="preview">window.__posted=[];window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);`
-    + `if(m.type==='ready'){send({type:'load',model:${json},savedNames:${names}});send({type:'versions',list:${versions}})}`
+    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'versions',list:${versions}})}`
     + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
     + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}}});</script>`;
   let html = renderPipeEditorHtml({ nonce: 'preview', scriptUri: 'pipeEditor.js', cspSource: '' });

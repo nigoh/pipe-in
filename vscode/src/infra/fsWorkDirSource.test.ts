@@ -20,7 +20,7 @@ async function listAll(dir: string): Promise<string[]> {
 }
 
 test('FR-02/03/11: state.json・名前の読めるログ・7つの成果物だけを写しに入れ、work_dir に書き込まない', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'devpipe-vscode-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'pipe-in-vscode-'));
   try {
     await mkdir(path.join(dir, 'logs'));
     await writeFile(path.join(dir, 'state.json'), stateJson({ runs: [stageRunEntry({ stage: 'requirements', seq: 1 })] }));
@@ -54,7 +54,7 @@ test('FR-02/03/11: state.json・名前の読めるログ・7つの成果物だ�
 });
 
 test('FR-14: work_dir が存在しなくても例外を出さず、空の写し（記録なしの表示）になる', async () => {
-  const missing = path.join(os.tmpdir(), `devpipe-vscode-missing-${process.pid}-${Date.now()}`);
+  const missing = path.join(os.tmpdir(), `pipe-in-vscode-missing-${process.pid}-${Date.now()}`);
   const snap = await createFsWorkDirSource(missing, missing).read();
   assert.deepEqual(snap, { workDir: missing, stateJson: null, stageLogs: [], artifacts: {} });
   assert.deepEqual(buildPipelineView(snap).noRecords, { message: '記録がありません', workDir: missing });

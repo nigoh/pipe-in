@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-10-17T10:00:00",
+  "updated_at": "2026-10-17T10:00:00",
+  "pipe": "dev",
+  "driver": "pipe-dev",
+  "stages": [
+    {"name": "requirements", "label": "要件定義", "output": "01_requirements.md", "review": true},
+    {"name": "design", "label": "設計", "output": "02_design.md", "review": true},
+    {"name": "red", "label": "テスト先行", "output": "03_red_tests.md", "review": true},
+    {"name": "implement", "label": "実装", "output": "04_implementation.md", "review": false},
+    {"name": "test", "label": "検証", "output": "05_test_report.md", "review": false}
+  ],
+  "final": "PASSED",
+  "total_cost_usd": 0.0,
+  "usage_summary": null,
+  "pending_review": null,
+  "warnings": [],
+  "open": null,
+  "runs": [
+    {"stage": "requirements", "session_id": null, "is_error": false, "subtype": "success", "result": "要件定義を書いた", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 1, "attempt": null, "note": ""},
+    {"stage": "requirements", "review": "revise", "feedback": "AC を分けて"},
+    {"stage": "requirements", "session_id": null, "is_error": false, "subtype": "success", "result": "直した", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 2, "attempt": null, "note": "指摘を反映"},
+    {"stage": "requirements", "review": "approved"},
+    {"stage": "design", "session_id": null, "is_error": false, "subtype": "success", "result": "設計を書いた", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 3, "attempt": null, "note": ""},
+    {"stage": "design", "review": "approved"},
+    {"stage": "red", "session_id": null, "is_error": false, "subtype": "success", "result": "テストを書いた", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 4, "attempt": null, "note": ""},
+    {"stage": "red", "result": {"status": "red", "summary": "AC-01 が赤", "tests": [{"criterion": "AC-01", "test": "tests/test_a.py::test_a"}], "commands": ["python -m pytest -q"]}},
+    {"stage": "red", "review": "approved"},
+    {"stage": "implement", "session_id": null, "is_error": false, "subtype": "success", "result": "実装した", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 5, "attempt": 1, "note": ""},
+    {"stage": "test", "session_id": null, "is_error": false, "subtype": "success", "result": "検証した", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 6, "attempt": 1, "note": ""},
+    {"stage": "test", "attempt": 1, "verdict": {"status": "fail", "summary": "AC-01 不合格", "failures": [{"criterion": "AC-01", "detail": "期待と違う"}], "commands": ["python -m pytest -q"], "command_check": null}},
+    {"stage": "implement", "session_id": null, "is_error": false, "subtype": "success", "result": "直した", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 7, "attempt": 2, "note": "差し戻し"},
+    {"stage": "test", "session_id": null, "is_error": false, "subtype": "success", "result": "検証した", "cost_usd": 0.0, "num_turns": 0, "duration_sec": 0.0, "denials": [], "errors": [], "metrics": {}, "seq": 8, "attempt": 2, "note": ""},
+    {"stage": "test", "attempt": 2, "verdict": {"status": "pass", "summary": "すべて合格", "failures": [], "commands": ["python -m pytest -q"], "command_check": null}}
+  ]
+}

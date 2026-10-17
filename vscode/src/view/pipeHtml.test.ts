@@ -48,7 +48,7 @@ test('AC-03: 動いている段・出力の見出し・使用量の表は、段�
   assert.match(body, /出力：図とソースの突き合わせ/);
   assert.match(body, /ソースの調査/);
   assert.doesNotMatch(body, /undefined/);
-  assert.equal(statusBarLabel(view).text, '$(sync~spin) devpipe: 図とソースの突き合わせ');
+  assert.equal(statusBarLabel(view).text, '$(sync~spin) pipe-in: 図とソースの突き合わせ');
 });
 
 test('AC-07: 確認待ちを帯とステータスバーに出し、エスケープする', () => {
@@ -65,7 +65,7 @@ test('AC-07: 確認待ちを帯とステータスバーに出し、エスケー�
   assert.doesNotMatch(body, /人の確認かもしれない/);
 
   const label = statusBarLabel(view);
-  assert.equal(label.text, '$(comment-discussion) devpipe: <b>図</b>の確認待ち'); // ステータスバーは HTML ではない
+  assert.equal(label.text, '$(comment-discussion) pipe-in: <b>図</b>の確認待ち'); // ステータスバーは HTML ではない
   assert.match(label.tooltip, /docs\/pipeline\/diagrams\/<x>\.md/);
 });
 

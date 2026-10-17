@@ -1,4 +1,4 @@
-// 実行の記録：devpipe の state.json を読んだもの。記録の形の知識はここに閉じる。
+// 実行の記録：本体の state.json を読んだもの。記録の形の知識はここに閉じる。
 import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import { STAGES, isStage, isStageName } from './stage.ts';
@@ -16,7 +16,7 @@ export interface StageRun {
   costUsd: number;
   durationSec: number;
   isError: boolean;
-  /** devpipe 0.2 の metrics から。古い記録では null */
+  /** 本体 0.2 の metrics から。古い記録では null */
   tokens: TokenCounts | null;
   cacheReuseRate: number | null;
 }
@@ -35,7 +35,7 @@ export interface Verdict {
   summary: string;
 }
 
-/** トークン数（devpipe の Tokens のうち、表に出すもの）。 */
+/** トークン数（本体の Tokens のうち、表に出すもの）。 */
 export interface TokenCounts {
   /** キャッシュを使わない入力 */
   input: number;
@@ -110,7 +110,7 @@ export interface RunRecord {
   final: string | null;
   totalCostUsd: number;
   startedAt: string | null;
-  /** devpipe 0.2 から。古い記録では null */
+  /** 本体 0.2 から。古い記録では null */
   usage: UsageSummary | null;
 }
 
@@ -256,7 +256,7 @@ function parsePendingReview(value: unknown): PendingReview | null {
   return { stage: value.stage, doc: value.doc };
 }
 
-// ---- 使用量（devpipe 0.2 の metrics・usage_summary） ----------------------------
+// ---- 使用量（本体 0.2 の metrics・usage_summary） ----------------------------
 
 const RATE_WINDOW_LABELS: Readonly<Record<string, string>> = { five_hour: '5時間枠', seven_day: '7日枠' };
 const RATE_WINDOW_ORDER: readonly string[] = ['five_hour', 'seven_day'];

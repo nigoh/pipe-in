@@ -184,7 +184,7 @@ test('AC-24: layout.json がなければ、並びの順に左から右へ並べ�
   assert.ok(m.end.x > x('verify'));
 });
 
-test('AC-25: 検査は devpipe-gen check と同じ決まり（主なもの）と、作業台で起きやすい誤り', () => {
+test('AC-25: 検査は pipe-in-gen check と同じ決まり（主なもの）と、作業台で起きやすい誤り', () => {
   const m = load();
   byName(m, 'flow').name = 'survey';
   assert.ok(validatePipe(m).errors.some((e) => e.includes('重複')));

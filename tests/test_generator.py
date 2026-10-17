@@ -42,11 +42,19 @@ def python_project(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def no_repo_pipes(tmp_path, monkeypatch):
-    """どのテストも、devpipe のリポジトリの本物の pipes/ には書かない（今までの場所を仮のフォルダに向ける）。"""
+    """どのテストも、リポジトリの本物の pipes/ には書かない（今までの場所を仮のフォルダに向ける）。
+
+    手元に置き場所の環境変数があっても左右されないよう、新旧とも消してから始める。
+    """
+    import os
+
     from pipe_in.pipe import definition as pd
 
+    monkeypatch.delenv("PIPE_IN_PIPES_DIR", raising=False)
+    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+
     def fake_default() -> Path:
-        env = __import__("os").environ.get(pd.PIPES_DIR_ENV)
+        env = pd.env_pipes_dir(os.environ)
         return Path(env) if env else tmp_path / "repo-pipes"
 
     monkeypatch.setattr(pd, "default_pipes_dir", fake_default)
@@ -83,9 +91,10 @@ def test_detect_ignores_npm_placeholder(tmp_path):
 
 
 def test_new_makes_pipe_folder(tmp_path):
+    """D0006-AC-07: new は pipe-in-<名前>/ を作り、README の流し方は pipe-in のコマンド。"""
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
-    d = tmp_path / "pipes/devpipe-pics"
+    d = tmp_path / "pipes/pipe-in-pics"
     assert (d / "pipe.toml").is_file() and (d / "README.md").is_file()
     assert sorted(p.name for p in (d / "prompts").glob("*.md"))  # 段の指示文が prompts/ に入る
     pipe = definition().load_pipe(d)
@@ -95,13 +104,15 @@ def test_new_makes_pipe_folder(tmp_path):
     assert not any("{{" in t for t in texts)  # 穴は全部埋まっている
     assert any("`src/`" in t for t in texts)  # 見つけたソースの場所が入る
     readme = (d / "README.md").read_text(encoding="utf-8")
-    assert "devpipe --pipe pics" in readme
+    assert "pipe-in --pipe pics" in readme
+    assert "pipe-in-gen check" in readme
+    assert not any("devpipe" in t.lower() for t in texts)
 
 
 def test_new_does_not_write_local_paths(tmp_path):
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
-    for p in (tmp_path / "pipes/devpipe-pics").rglob("*"):
+    for p in (tmp_path / "pipes/pipe-in-pics").rglob("*"):
         if p.is_file():
             text = p.read_text(encoding="utf-8")
             assert str(project) not in text and project.as_posix() not in text, p
@@ -110,7 +121,7 @@ def test_new_does_not_write_local_paths(tmp_path):
 def test_new_does_not_overwrite(tmp_path):
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
-    toml = tmp_path / "pipes/devpipe-pics/pipe.toml"
+    toml = tmp_path / "pipes/pipe-in-pics/pipe.toml"
     toml.write_text(toml.read_text(encoding="utf-8") + "\n# 手で直した\n", encoding="utf-8")
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) != 0
     assert "# 手で直した" in toml.read_text(encoding="utf-8")
@@ -119,7 +130,7 @@ def test_new_does_not_overwrite(tmp_path):
 def test_new_force_overwrites(tmp_path):
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
-    d = tmp_path / "pipes/devpipe-pics"
+    d = tmp_path / "pipes/pipe-in-pics"
     (d / "pipe.toml").write_text("# 壊れた\n", encoding="utf-8")
     (d / "prompts/old.md").write_text("古い指示", encoding="utf-8")
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project), "--force") == 0
@@ -130,14 +141,14 @@ def test_new_force_overwrites(tmp_path):
 def test_new_fills_detected_test_command(tmp_path):
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "mydev", "--from", "dev", "--project", str(project)) == 0
-    pipe = definition().load_pipe(tmp_path / "pipes/devpipe-mydev")
+    pipe = definition().load_pipe(tmp_path / "pipes/pipe-in-mydev")
     assert pipe.kind == "dev" and pipe.test_command == "pytest -q"
 
 
 def test_new_without_test_command_leaves_it_out(tmp_path):
     (tmp_path / "bare").mkdir()
     assert gen(tmp_path, "new", "mydev", "--from", "dev", "--project", str(tmp_path / "bare")) == 0
-    pipe = definition().load_pipe(tmp_path / "pipes/devpipe-mydev")
+    pipe = definition().load_pipe(tmp_path / "pipes/pipe-in-mydev")
     assert pipe.test_command is None
     assert definition().check_pipe(pipe, tmp_path / "bare") == []
 
@@ -163,39 +174,104 @@ def test_list_shows_templates_and_pipes(tmp_path, capsys):
     assert "pics" in out
 
 
-def test_new_defaults_to_project_pipes(tmp_path, monkeypatch):
-    """D0001-AC-15: 置き場所の指定がなければ、対象の .devpipe/pipes/ に作り、check もそこから探す。"""
-    monkeypatch.delenv("DEVPIPE_PIPES_DIR", raising=False)
+def test_new_defaults_to_project_pipes(tmp_path):
+    """D0001-AC-15・D0006-AC-07: 置き場所の指定がなければ、対象の .pipe-in/pipes/pipe-in-<名前>/ に作り、.devpipe は作らない。check もそこから探す。"""
     project = python_project(tmp_path)
     assert gen_cli().main(["new", "pics", "--from", "diagrams", "--project", str(project)]) == 0
-    assert (project / ".devpipe/pipes/devpipe-pics/pipe.toml").is_file()
+    assert (project / ".pipe-in/pipes/pipe-in-pics/pipe.toml").is_file()
+    assert not (project / ".devpipe").exists()
     assert gen_cli().main(["check", "pics", "--project", str(project)]) == 0
 
 
-def test_new_respects_pipes_dir_and_env(tmp_path, monkeypatch):
-    """D0001-AC-15: --pipes-dir か DEVPIPE_PIPES_DIR があれば、そちらに作る。"""
+@pytest.mark.parametrize("env_name", ["PIPE_IN_PIPES_DIR", "DEVPIPE_PIPES_DIR"])
+def test_new_respects_pipes_dir_and_env(tmp_path, monkeypatch, env_name):
+    """D0001-AC-15・D0006-AC-07: --pipes-dir か PIPE_IN_PIPES_DIR（無ければ DEVPIPE_PIPES_DIR）があれば、そちらに作る。"""
     project = python_project(tmp_path)
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "env"))
+    monkeypatch.setenv(env_name, str(tmp_path / "env"))
     assert gen_cli().main(["new", "a", "--from", "diagrams", "--project", str(project)]) == 0
-    assert (tmp_path / "env/devpipe-a/pipe.toml").is_file()
+    assert (tmp_path / "env/pipe-in-a/pipe.toml").is_file()
     assert gen(tmp_path, "new", "b", "--from", "diagrams", "--project", str(project)) == 0
-    assert (tmp_path / "pipes/devpipe-b/pipe.toml").is_file()
+    assert (tmp_path / "pipes/pipe-in-b/pipe.toml").is_file()
+    assert not (project / ".pipe-in").exists()
     assert not (project / ".devpipe").exists()
 
 
 def test_list_shows_project_and_shared_pipes(tmp_path, monkeypatch, capsys):
-    """D0001-AC-16: list --project は、対象の .devpipe/pipes/ と今までの場所の両方を出す。"""
+    """D0001-AC-16・D0006-AC-09: list --project は、対象の .pipe-in/pipes/ と今までの場所の両方を出す。"""
     project = python_project(tmp_path)
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
+    monkeypatch.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
     assert gen_cli().main(["new", "old", "--from", "diagrams", "--project", str(project)]) == 0
-    monkeypatch.delenv("DEVPIPE_PIPES_DIR")
+    monkeypatch.delenv("PIPE_IN_PIPES_DIR")
     assert gen_cli().main(["new", "mine", "--from", "diagrams", "--project", str(project)]) == 0
-    monkeypatch.setenv("DEVPIPE_PIPES_DIR", str(tmp_path / "shared"))
+    monkeypatch.setenv("PIPE_IN_PIPES_DIR", str(tmp_path / "shared"))
     capsys.readouterr()
     assert gen_cli().main(["list", "--project", str(project)]) == 0
     out = capsys.readouterr().out
     assert "mine" in out and "old" in out
-    assert ".devpipe" in out
+    assert ".pipe-in" in out
+    assert "pipe-in-gen new" in out and "pipe-in --pipe" in out
+
+
+def make_old_pipe(base: Path, folder: str, label: str = "古い置き場所のパイプ") -> Path:
+    d = base / folder
+    (d / "prompts").mkdir(parents=True)
+    (d / "pipe.toml").write_text(
+        f'[pipe]\nkind = "linear"\nlabel = "{label}"\n\n[[stages]]\nname = "a"\nlabel = "a"\noutput = "01_a.md"\naccess = "read"\nprompt = "x"\n',
+        encoding="utf-8",
+    )
+    return d
+
+
+def snapshot(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("force", [False, True], ids=["plain", "force"])
+def test_new_refuses_name_in_old_place(tmp_path, capsys, force):
+    """D0006-AC-08: 古い置き場所に同じ名前のパイプがあれば、new は場所を示して断り、何も書かない（--force でも）。"""
+    project = python_project(tmp_path)
+    old = make_old_pipe(project / ".devpipe" / "pipes", "devpipe-pics")
+    before = snapshot(tmp_path)
+    capsys.readouterr()
+    argv = ["new", "pics", "--from", "diagrams", "--project", str(project), *(["--force"] if force else [])]
+    assert gen_cli().main(argv) != 0
+    out = capsys.readouterr().out
+    assert str(old) in out
+    assert snapshot(tmp_path) == before
+    assert not (project / ".pipe-in").exists()
+
+
+def test_new_refuses_old_folder_name_in_new_place(tmp_path, capsys):
+    """D0006-AC-08: 作る置き場所に古いフォルダ名（devpipe-<名前>/）があっても断り、何も書かない。"""
+    project = python_project(tmp_path)
+    old = make_old_pipe(tmp_path / "pipes", "devpipe-pics")
+    before = snapshot(tmp_path)
+    capsys.readouterr()
+    assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project), "--force") != 0
+    assert str(old) in capsys.readouterr().out
+    assert snapshot(tmp_path) == before
+
+
+def test_list_marks_old_names(tmp_path, capsys):
+    """D0006-AC-09: list は新旧の置き場所のパイプを両方出し、古いもの（.devpipe/pipes にある・devpipe- で始まる）に「古い名前」と添える。"""
+    project = python_project(tmp_path)
+    make_old_pipe(project / ".pipe-in" / "pipes", "pipe-in-fresh", "新しいパイプ")
+    make_old_pipe(project / ".devpipe" / "pipes", "devpipe-aged", "古いパイプ")
+    make_old_pipe(project / ".pipe-in" / "pipes", "devpipe-mixed", "古いフォルダ名")
+    capsys.readouterr()
+    assert gen_cli().main(["list", "--project", str(project)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+
+    def line_of(label: str) -> str:
+        found = [x for x in lines if label in x]
+        assert len(found) == 1, (label, lines)
+        return found[0]
+
+    assert "古い名前" not in line_of("新しいパイプ")
+    assert "古い名前" in line_of("古いパイプ")
+    assert "古い名前" in line_of("古いフォルダ名")
+    assert "aged" in line_of("古いパイプ") and "devpipe-aged" not in line_of("古いパイプ")  # 名前は頭を除いたもの
+    assert any(str(project / ".devpipe" / "pipes") in x for x in lines)
 
 
 @pytest.mark.parametrize("name", TEMPLATES)
@@ -210,7 +286,7 @@ def test_templates_make_valid_pipes(tmp_path, name):
 def test_check_reports_errors(tmp_path, capsys):
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
-    toml = tmp_path / "pipes/devpipe-pics/pipe.toml"
+    toml = tmp_path / "pipes/pipe-in-pics/pipe.toml"
     toml.write_text(toml.read_text(encoding="utf-8").replace('name = "draw"', 'name = "survey"'), encoding="utf-8")
     capsys.readouterr()
     assert gen(tmp_path, "check", "pics", "--project", str(project)) != 0
@@ -266,7 +342,7 @@ def test_detect_makefile_without_test_target(tmp_path):
     assert detect_mod().detect(tmp_path).test_command is None
 
 
-# ---- FR-07 目的から段を組む（devpipe-gen design） -------------------------------------
+# ---- FR-07 目的から段を組む（pipe-in-gen design） -------------------------------------
 
 
 def design_mod():
@@ -314,7 +390,7 @@ def design(tmp_path: Path, runner, *, name: str = "apidoc", force: bool = False)
 def test_design_writes_valid_pipe(tmp_path):
     r = DesignRunner([good_design()])
     assert design(tmp_path, r) == 0
-    d = tmp_path / "pipes/devpipe-apidoc"
+    d = tmp_path / "pipes/pipe-in-apidoc"
     pipe = definition().load_pipe(d)
     assert [s.name for s in pipe.stages] == ["survey", "write", "check"]
     assert pipe.label == 'API の "仕様" を書く'
@@ -323,7 +399,9 @@ def test_design_writes_valid_pipe(tmp_path):
     assert pipe.stages[1].writes == ["docs/api/*.md"]
     assert pipe.stages[2].check.verdict and pipe.stages[2].check.on_fail == "write"
     assert definition().check_pipe(pipe, tmp_path / "shop") == []
-    assert "devpipe --pipe apidoc" in (d / "README.md").read_text(encoding="utf-8")
+    readme = (d / "README.md").read_text(encoding="utf-8")
+    assert "pipe-in --pipe apidoc" in readme and "pipe-in-gen check apidoc" in readme
+    assert "devpipe" not in readme.lower() and "devpipe" not in (d / "pipe.toml").read_text(encoding="utf-8").lower()
     spec, prompt, resume = r.calls[0]
     assert spec.can_write("docs/x.md") is False and "Write" not in spec.allowed_tools and not spec.allow_bash
     assert spec.output_format["type"] == "json_schema"
@@ -346,16 +424,30 @@ def test_design_gives_up_without_writing(tmp_path):
     r = DesignRunner([bad, bad, bad])
     assert design(tmp_path, r) != 0
     assert len(r.calls) == 3
-    assert not (tmp_path / "pipes/devpipe-apidoc").exists()
+    assert not (tmp_path / "pipes/pipe-in-apidoc").exists()
 
 
 def test_design_refuses_existing_pipe(tmp_path):
-    (tmp_path / "pipes/devpipe-apidoc").mkdir(parents=True)
-    (tmp_path / "pipes/devpipe-apidoc/pipe.toml").write_text("# 手で作った\n", encoding="utf-8")
+    """D0006-AC-08: 作る先（pipe-in-<名前>/）にもうあれば、設計を始めずに断る。"""
+    (tmp_path / "pipes/pipe-in-apidoc").mkdir(parents=True)
+    (tmp_path / "pipes/pipe-in-apidoc/pipe.toml").write_text("# 手で作った\n", encoding="utf-8")
     r = DesignRunner([good_design()])
     assert design(tmp_path, r) != 0
     assert r.calls == []
-    assert "手で作った" in (tmp_path / "pipes/devpipe-apidoc/pipe.toml").read_text(encoding="utf-8")
+    assert "手で作った" in (tmp_path / "pipes/pipe-in-apidoc/pipe.toml").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("force", [False, True], ids=["plain", "force"])
+def test_design_refuses_name_in_old_place(tmp_path, capsys, force):
+    """D0006-AC-08: 古い置き場所に同じ名前のパイプがあれば、design は設計を始めずに、場所を示して断る（--force でも）。"""
+    project = tmp_path / "shop"
+    old = make_old_pipe(project / ".devpipe" / "pipes", "devpipe-apidoc")
+    r = DesignRunner([good_design()])
+    capsys.readouterr()
+    assert design(tmp_path, r, force=force) != 0
+    assert r.calls == []
+    assert str(old) in capsys.readouterr().out
+    assert not (tmp_path / "pipes" / "pipe-in-apidoc").exists()
 
 
 def test_design_cli_needs_purpose(tmp_path, capsys):

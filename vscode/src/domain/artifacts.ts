@@ -59,7 +59,7 @@ export function artifactNamesFor(record: RunRecord | null): ArtifactName[] {
   return artifactDefsFor(record).map((d) => d.name);
 }
 
-/** 中身があり、空白だけでない（devpipe の _doc_ready）。undefined はファイルなし。 */
+/** 中身があり、空白だけでない（本体の _doc_ready）。undefined はファイルなし。 */
 export function isArtifactReady(content: string | undefined): boolean {
   return content !== undefined && content.trim() !== '';
 }

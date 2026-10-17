@@ -1,4 +1,4 @@
-// 使用量（devpipe 0.2 の state.json の usage_summary と、段の実行ごとの metrics）の読み取りと図の状態。
+// 使用量（本体 0.2 の state.json の usage_summary と、段の実行ごとの metrics）の読み取りと図の状態。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseRunRecord } from './runRecord.ts';

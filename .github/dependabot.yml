@@ -2,7 +2,7 @@
 # 小さい版の上げはまとめて1つの PR にし、大きい版の上げは個別に出す（ビルドが通るかを確かめてから入れる）。
 version: 2
 updates:
-  # devpipe 本体（pyproject.toml）
+  # pipe-in 本体（pyproject.toml）
   - package-ecosystem: pip
     directory: /
     schedule:
@@ -11,7 +11,7 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     commit-message:
-      prefix: "chore(devpipe)"
+      prefix: "chore(pipe-in)"
     groups:
       python-minor:
         update-types: [minor, patch]
@@ -25,7 +25,7 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     commit-message:
-      prefix: "chore(devpipe-vscode)"
+      prefix: "chore(pipe-in-vscode)"
     groups:
       npm-minor:
         update-types: [minor, patch]

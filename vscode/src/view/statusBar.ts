@@ -8,7 +8,10 @@ export interface StatusBarLabel {
   tooltip: string;
 }
 
-/** devpipe の終了の名前（state.json の final）→ アイコンと短い言葉。 */
+/** ボタンに出す名前 */
+const NAME = 'pipe-in';
+
+/** 本体の終了の名前（state.json の final）→ アイコンと短い言葉。 */
 const FINALS: Readonly<Record<string, [string, string]>> = {
   PASSED: ['pass', '合格'],
   TEST_FAILED: ['error', '不合格'],
@@ -28,26 +31,26 @@ function rateNow(view: PipelineView): string {
 export function statusBarLabel(view: PipelineView): StatusBarLabel {
   const cost = `合計 $${view.totalCostUsd.toFixed(3)}${rateNow(view)}`;
   if (view.noRecords) {
-    return { text: '$(circuit-board) devpipe', tooltip: `devpipe：${NO_RECORDS_MESSAGE}（${view.noRecords.workDir}）\n${CLICK}` };
+    return { text: `$(circuit-board) ${NAME}`, tooltip: `${NAME}：${NO_RECORDS_MESSAGE}（${view.noRecords.workDir}）\n${CLICK}` };
   }
   if (view.final !== null) {
     const [icon, word] = FINALS[view.final] ?? ['info', view.final];
-    return { text: `$(${icon}) devpipe: ${word}`, tooltip: `devpipe：${word}・${cost}\n${CLICK}` };
+    return { text: `$(${icon}) ${NAME}: ${word}`, tooltip: `${NAME}：${word}・${cost}\n${CLICK}` };
   }
   if (view.runningStage !== null && view.terminal.source !== null) {
     const src = view.terminal.source;
     const now = `${view.stageLabels[src.stage] ?? src.stage}${src.attempt === null ? '' : `（${src.attempt} 回目）`}`;
-    return { text: `$(sync~spin) devpipe: ${now}`, tooltip: `devpipe：${now}が動いている・${cost}\n${CLICK}` };
+    return { text: `$(sync~spin) ${NAME}: ${now}`, tooltip: `${NAME}：${now}が動いている・${cost}\n${CLICK}` };
   }
   if (view.pendingReview !== null) {
     const { label, doc } = view.pendingReview;
     return {
-      text: `$(comment-discussion) devpipe: ${label}の確認待ち`,
-      tooltip: `devpipe：${label}の確認を待っている（${doc}）・${cost}\n${CLICK}`,
+      text: `$(comment-discussion) ${NAME}: ${label}の確認待ち`,
+      tooltip: `${NAME}：${label}の確認を待っている（${doc}）・${cost}\n${CLICK}`,
     };
   }
   if (view.waiting) {
-    return { text: '$(clock) devpipe: 待ち', tooltip: `devpipe：${WAITING_MESSAGE}・${cost}\n${CLICK}` };
+    return { text: `$(clock) ${NAME}: 待ち`, tooltip: `${NAME}：${WAITING_MESSAGE}・${cost}\n${CLICK}` };
   }
-  return { text: '$(circuit-board) devpipe', tooltip: `devpipe・${cost}\n${CLICK}` };
+  return { text: `$(circuit-board) ${NAME}`, tooltip: `${NAME}・${cost}\n${CLICK}` };
 }

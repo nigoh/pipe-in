@@ -5,19 +5,19 @@
 機能ごとに、ブランチを切って、別の作業フォルダ（worktree）で進めます。いくつかの会話や人が同時に作業しても、変更が混ざらないようにするためです。
 
 ```bash
-git worktree add ../devpipe-<名前> -b feat/<名前>     # 文書だけなら docs/<名前>、直しなら fix/<名前>
-cd ../devpipe-<名前>
+git worktree add ../pipe-in-<名前> -b feat/<名前>     # 文書だけなら docs/<名前>、直しなら fix/<名前>
+cd ../pipe-in-<名前>
 ```
 
 - このリポジトリでは、複数の会話を同時に動かすのがふつうです。1人で1つだけ進めるときも、worktree を切ります。
 - 切る前に、main の作業フォルダの `git status` を見ます。まだコミットされていない変更（ほかの会話の作業）があれば、それがどのファイルかを覚えておきます（あとで main に入れるときに重なりを確かめるため）。
 - 同じファイルを大きく触る機能は、同時に進めません（あとで合わせるのが難しくなる）。
-- 終わったら、main に入れたあとで `git worktree remove ../devpipe-<名前>` と `git branch -d <ブランチ>` で片付けます。
+- 終わったら、main に入れたあとで `git worktree remove ../pipe-in-<名前>` と `git branch -d <ブランチ>` で片付けます。
 
 ### worktree で気をつけること
 
 - 拡張を触るなら、その worktree で `cd vscode && npm ci` をします（`node_modules/` は worktree ごとに要る）。
-- `pip install -e .` で入れた `devpipe`・`devpipe-gen` のコマンドは、入れたときのフォルダ（ふつうは main）のコードを動かします。worktree で直したコードを確かめるときは、その worktree の中で `python -m devpipe …`・`python -m pytest` を使います。
+- `pip install -e .` で入れた `pipe-in`・`pipe-in-gen` のコマンドは、入れたときのフォルダ（ふつうは main）のコードを動かします。worktree で直したコードを確かめるときは、その worktree の中で `python -m pipe_in …`・`python -m pytest` を使います。
 - `/pipe-in` の記録（`docs/pipeline/`）は worktree ごとにできます。VSCode の拡張で進み具合を見るときは、その worktree のフォルダを開きます。
 
 ## 2. 進める：5つの段
@@ -90,7 +90,7 @@ git rebase --autostash main           # まだコミットしていない自分�
 3. `git status` で、自分の変更だけがあることを確かめる（ほかの作業のファイルが無いか）。
 4. `git add` してから `git diff --cached` を読み、[principles.md](principles.md) の「7. 公開する前提で書く」のものが入っていないかを見る。
 5. **1つの機能を1つのコミット**にする。文の形は既存に合わせる：
-   - `feat(devpipe): …`・`feat(devpipe-vscode): …`・`fix(…): …`・`docs: …`・`chore: …`
+   - `feat(pipe-in): …`・`feat(pipe-in-vscode): …`・`fix(…): …`・`docs: …`・`chore: …`
    - 1行目は日本語で、何ができるようになるか。本文に、変えた点を箇条書きで。決定の記録があれば、その番号を書く
 6. main に入れる。**main に入れる直前**にもう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。そのうえで、main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ。マージのコミットは作らない）。
    - main の作業フォルダに、ほかの会話のまだコミットしていない変更があり、それが自分のブランチの変更と同じファイルなら、git が断ります。そのときは、**ほかの会話の作業を stash しない**（その会話の作業を壊すおそれがある）。自分のブランチ側からそのファイルの変更を外すか、その会話がコミットするのを待ってから載せ直します。

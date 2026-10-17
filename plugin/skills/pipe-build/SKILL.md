@@ -1,25 +1,25 @@
 ---
 name: pipe-build
-description: devpipe のパイプ（<対象>/.devpipe/pipes/devpipe-<名前>/）を、目的と対象プロジェクトに合わせて作る、またはすでにあるパイプを直す。段の表を見せて確認を取ってから、手を動かすのはエージェント pipe-builder に任せ、devpipe-gen check が通ったら流し方を伝える。
+description: pipe-in のパイプ（<対象>/.pipe-in/pipes/pipe-in-<名前>/）を、目的と対象プロジェクトに合わせて作る、またはすでにあるパイプを直す。段の表を見せて確認を取ってから、手を動かすのはエージェント pipe-builder に任せ、pipe-in-gen check が通ったら流し方を伝える。
 argument-hint: <作りたいパイプの目的、または直したいパイプの名前と直したい点> [対象プロジェクトのパス]
 disable-model-invocation: true
 ---
 
-# /devpipe:pipe-build — パイプを作る・直す
+# /pipe-in:pipe-build — パイプを作る・直す
 
 依頼: $ARGUMENTS
 
 （空なら、新しく作るのか、どのパイプを直すのかと、対象プロジェクトの場所を聞いてから始める）
 
-パイプは1つのフォルダ（`pipe.toml`・`prompts/`・`README.md`）です。書き方は `devpipe-gen --help` と devpipe の README の「パイプ」の節にあります。
+パイプは1つのフォルダ（`pipe.toml`・`prompts/`・`README.md`）です。書き方は `pipe-in-gen --help` と pipe-in の README の「パイプ」の節にあります。
 ここに書いたのは進め方だけです。この会話では、ファイルを書くのは pipe-builder に任せ、自分では書きません。
 
 ## 0. 前提を確かめる
 
-- `devpipe-gen --help` が動くかを確かめる。動かなければ、devpipe の入れ方（devpipe のリポジトリで `pip install -e .`）を案内して止まる。
-  pipe-builder の書き込みを絞るフックも `devpipe-gen` で動くので、これが無いまま先に進まない。
+- `pipe-in-gen --help` が動くかを確かめる。動かなければ、pipe-in の入れ方（pipe-in のリポジトリで `pip install -e .`）を案内して止まる。
+  pipe-builder の書き込みを絞るフックも `pipe-in-gen` で動くので、これが無いまま先に進まない。
 - 対象プロジェクトのフォルダを決める（指定がなければ今のフォルダ。違いそうなら聞く）。
-- `devpipe-gen list --project <対象>` で、ひな形とすでにあるパイプを見る。
+- `pipe-in-gen list --project <対象>` で、ひな形とすでにあるパイプを見る。
 
 ## 1. 作るか直すかを決める
 
@@ -32,7 +32,7 @@ disable-model-invocation: true
 2. 対象を読む（読むだけ）：言語・テストのコマンド・ソース／文書／仕様書の場所。
 3. 形を決めて見せる：ひな形（`dev` / `diagrams` / `spec-qa`）でほぼ足りるならそれをもとにし、足りなければいちばん近いひな形から段を足す・削る。
    段ごとに、名前・表示名・成果物・`access`・`review`・`bash`・`check`・指示の要点を表にして見せ、確認を取る。決め方は下の「段の決め方」。
-   図で組み立てたい人には、VSCode の「devpipe: パイプ作業台を開く」（作業台）も案内する。
+   図で組み立てたい人には、VSCode の「pipe-in: パイプ作業台を開く」（作業台）も案内する。
 
 ## 2b. 直す
 
@@ -43,7 +43,7 @@ disable-model-invocation: true
 
 ## 3. pipe-builder に任せる
 
-確認が取れたら、エージェント pipe-builder（一覧では `devpipe:pipe-builder`）を呼ぶ。渡すもの:
+確認が取れたら、エージェント pipe-builder（一覧では `pipe-in:pipe-builder`）を呼ぶ。渡すもの:
 
 - 対象プロジェクトのパスと、パイプの名前
 - 作るときはもとにするひな形、直すときはパイプのフォルダのパス
@@ -54,12 +54,12 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
 
 ## 4. 結果を伝える
 
-- 変えたファイルの一覧・段の差分の要約・`devpipe-gen check` の結果・直せなかった点を見せる。
-- 流すコマンドを示す：`devpipe --pipe <名前> --project <対象> --text "依頼メモ"`（`input` が required なら依頼メモは必須）。
+- 変えたファイルの一覧・段の差分の要約・`pipe-in-gen check` の結果・直せなかった点を見せる。
+- 流すコマンドを示す：`pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`input` が required なら依頼メモは必須）。
   チャットから流すなら `--pause` を付け、確認の段で `--review approve` / `--review revise --feedback "…"` / `--review quit`（どれも `--pipe <名前>` と一緒に）で答える。
 - 記録は `<work_dir>/<名前>/`（既定は `docs/pipeline/<名前>/`）に残る。
-  対象が公開リポジトリなら、`docs/pipeline/` を `.gitignore` に入れることと、`.devpipe/pipes/` の指示文に社内の事情が入っていないかを見てからコミットすることを勧める。
-- **流すのは、人に言われてから。** devpipe を流すと Claude の利用料がかかる。
+  対象が公開リポジトリなら、`docs/pipeline/` を `.gitignore` に入れることと、`.pipe-in/pipes/` の指示文に社内の事情が入っていないかを見てからコミットすることを勧める。
+- **流すのは、人に言われてから。** pipe-in を流すと Claude の利用料がかかる。
 
 ## 段の決め方
 
@@ -71,4 +71,4 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
 - 目的で道が分かれるなら `[stages.routes]`、分岐先の最後には `next`。互いに独立した段は `group` で同時に流す。
 - 段の中で手分けしたいときは `[stages.agents.<名前>]`。方針だけを立てさせたい段は `permission_mode = "plan"`。
 - Web や MCP は、要る段だけに `web`・`mcp` を書く。`web` はできればドメインの一覧で絞り、MCP は読むだけの道具を選ぶ。MCP を使うなら、対象の `pipeline.toml` の `setting_sources` に設定の出どころが要ることを伝える。
-- 会話を挟まずに Claude に段を組ませる `devpipe-gen design` もあるが、利用料がかかるので、人に言われたときだけ使う（pipe-builder には使わせない）。
+- 会話を挟まずに Claude に段を組ませる `pipe-in-gen design` もあるが、利用料がかかるので、人に言われたときだけ使う（pipe-builder には使わせない）。

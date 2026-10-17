@@ -1,4 +1,4 @@
-// pipe.toml を読む小さな TOML の読み手（devpipe のパイプで使う書き方だけ）。
+// pipe.toml を読む小さな TOML の読み手（pipe-in のパイプで使う書き方だけ）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TomlError, parseToml } from './toml.ts';

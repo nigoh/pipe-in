@@ -105,9 +105,11 @@ const st: {
   versions: VersionEntry[];
   /** 間に挟む先として目立たせているケーブル（wireKey） */
   dropWire: string | null;
+  /** 保存先のフォルダ名（拡張が知らせてくる。見せるだけ） */
+  folder: string;
 } = {
   m: null, sel: { type: 'pipe' }, view: { x: 30, y: 30, z: 0.8 }, tab: 'block', dirty: false, viewMoved: false, lifted: null, snapped: null,
-  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null,
+  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null, folder: '',
 };
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 const esc = (t: unknown): string => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -350,7 +352,7 @@ const opt = (list: [string, string][], v: string): string =>
 const current = (): StageModel | undefined => (st.sel.type === 'stage' ? stageById(st.sel.id) : undefined);
 
 function delivered(s: StageModel): string {
-  // devpipe の pipe/specs.py の stage_prompt と同じ組み立て
+  // 本体の pipe/specs.py の stage_prompt と同じ組み立て
   const m = model(), ord = orderStages(m), i = ord.indexOf(s), w = `docs/pipeline/${m.name}`, f = frameOf(m, s);
   const given = [...(m.input !== 'none' ? [`- 依頼メモ: \`${w}/00_input.md\``] : []),
     ...ord.slice(0, i).filter((x) => !f || frameOf(m, x) !== f).map((x) => `- ${x.label}の成果物: \`${w}/${x.output}\``)];
@@ -487,12 +489,12 @@ function renderPane(): void {
   } else if (st.tab === 'check') {
     const { errors } = validatePipe(m);
     pane.innerHTML = `<ul class="result">${errors.length ? errors.map((e) => `<li>${esc(e)}</li>`).join('') : `<li class="ok">パイプ「${esc(m.name)}」: 問題ありません</li>`}</ul>
-      <p class="note">devpipe-gen check と同じ決まりに、作業台で起きやすいこと（つなぎ忘れ・並列の枠の出口）を足しています。誤りがあっても保存はできますが、devpipe で流す前に直してください。</p>`;
+      <p class="note">pipe-in-gen check と同じ決まりに、作業台で起きやすいこと（つなぎ忘れ・並列の枠の出口）を足しています。誤りがあっても保存はできますが、pipe-in で流す前に直してください。</p>`;
   } else if (st.tab === 'history') {
     pane.innerHTML = historyPane();
   } else {
     const files = pipeFiles(m);
-    pane.innerHTML = `<p class="note">保存すると pipes/devpipe-${esc(m.name)}/ に、次のファイルを書きます（README.md は無いときだけ作ります）。</p>
+    pane.innerHTML = `<p class="note">保存すると pipes/${esc(st.folder)}/ に、次のファイルを書きます（README.md は無いときだけ作ります）。</p>
       ${Object.entries(files).map(([rel, text]) => `<div class="file"><h3>${esc(rel)}</h3><pre>${esc(text)}</pre></div>`).join('')}`;
   }
   pane.dataset.sel = selKey();
@@ -1350,17 +1352,18 @@ const when = (t: number): string => new Date(t).toLocaleString('ja-JP', { year: 
 window.addEventListener('message', (ev: MessageEvent) => {
   const msg = ev.data as {
     type?: string; model?: PipeModel; written?: string[]; errors?: string[]; message?: string;
-    savedNames?: string[]; dirty?: boolean; list?: VersionEntry[]; id?: string;
+    savedNames?: string[]; dirty?: boolean; list?: VersionEntry[]; id?: string; folder?: string;
   };
   if (msg.type === 'load' && msg.model) {
     st.m = msg.model;
+    st.folder = typeof msg.folder === 'string' ? msg.folder : '';
     selectOne({ type: 'pipe' });
     st.viewMoved = false;
     st.savedNames = msg.savedNames ?? [];
     hist = createHistory(snapNow(), msg.dirty ? '保存していない下書きを開いた' : '開いたとき');
     // 下書きを開き直したときは、保存したときの形が分からないので、保存するまで印を付けたままにする
     savedSnap = msg.dirty ? '' : snapNow();
-    $('pipe-path').textContent = `pipes/devpipe-${msg.model.name}/`;
+    $('pipe-path').textContent = `pipes/${st.folder}/`;
     syncDirty();
     render();
     requestAnimationFrame(fit);

@@ -1,12 +1,12 @@
-# devpipe-{{name}}：開発
+# pipe-in-{{name}}：開発
 
 要件メモから、要件定義 → 設計 → テスト先行 → 実装 → 検証 を順に流し、検証に通るまで実装へ差し戻します。
-段の中身は devpipe に組み込みです（devpipe の README の「使い方」を見てください）。
+段の中身は pipe-in に組み込みです（pipe-in の README の「使い方」を見てください）。
 
 ## 流し方
 
 ```bash
-devpipe --pipe {{name}} --project <対象のフォルダ> --input request.md
+pipe-in --pipe {{name}} --project <対象のフォルダ> --input request.md
 ```
 
 ## 直し方

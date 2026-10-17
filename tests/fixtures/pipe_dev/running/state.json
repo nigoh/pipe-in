@@ -1,0 +1,20 @@
+{
+  "started_at": "2026-10-17T10:00:00",
+  "updated_at": "2026-10-17T10:00:00",
+  "pipe": "dev",
+  "driver": "pipe-dev",
+  "stages": [
+    {"name": "requirements", "label": "要件定義", "output": "01_requirements.md", "review": true},
+    {"name": "design", "label": "設計", "output": "02_design.md", "review": true},
+    {"name": "red", "label": "テスト先行", "output": "03_red_tests.md", "review": true},
+    {"name": "implement", "label": "実装", "output": "04_implementation.md", "review": false},
+    {"name": "test", "label": "検証", "output": "05_test_report.md", "review": false}
+  ],
+  "final": null,
+  "total_cost_usd": 0.0,
+  "usage_summary": null,
+  "pending_review": null,
+  "warnings": [],
+  "open": {"stage": "requirements", "seq": 1, "attempt": null, "note": "", "log": "01_requirements.jsonl", "began_at": "2026-10-17T10:00:00"},
+  "runs": []
+}

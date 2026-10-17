@@ -1,5 +1,5 @@
 // 作業台のモデル：パイプ（pipe.toml・prompts/・layout.json）と、路線図の上のブロック・枠・つなぎの行き来。
-// 純粋な関数だけ（ファイル・vscode に触れない）。検査の決まりは devpipe-gen check（devpipe/pipe/definition.py）に合わせる。
+// 純粋な関数だけ（ファイル・vscode に触れない）。検査の決まりは pipe-in-gen check（pipe_in/pipe/definition.py）に合わせる。
 import { TomlError, parseToml } from './toml.ts';
 import type { TomlTable, TomlValue } from './toml.ts';
 
@@ -215,7 +215,7 @@ export function pipeFromFiles(name: string, tomlText: string, files: Record<stri
     throw new PipeLoadError(`pipe.toml を読めません：${e instanceof TomlError ? e.message : String(e)}`);
   }
   const p = table(doc.pipe);
-  if (str(p.kind) === 'dev') throw new PipeLoadError('開発フローのパイプ（kind = "dev"）は、段が devpipe に組み込みのため、作業台では開けません');
+  if (str(p.kind) === 'dev') throw new PipeLoadError('開発フローのパイプ（kind = "dev"）は、段が pipe-in に組み込みのため、作業台では開けません');
   const m = newPipe(name);
   m.label = str(p.label) || name;
   m.description = str(p.description);
@@ -532,7 +532,7 @@ export function validatePipe(m: PipeModel): { errors: string[] } {
       if (!s.routes.length && !s.next && ord[i + 1]) errors.push(at + 'つなぎがありません（ここで終わるなら「終わり」へ差してください）');
     }
     if (s.kind === 'branch' && !s.routes.length) errors.push(at + '仕分けのブロックに、分岐がありません（右のプラグを行き先に差してください）');
-    // Agent SDK の設定（devpipe/pipe/definition.py の _check_sdk と同じ決まり）
+    // Agent SDK の設定（pipe_in/pipe/definition.py の _check_sdk と同じ決まり）
     if (s.permissionMode && !PERMISSION_MODES.includes(s.permissionMode)) errors.push(at + `permission_mode「${s.permissionMode}」は使えません（${PERMISSION_MODES.join(' / ')} のどれか）`);
     if (s.thinking !== null && !(s.thinking >= 1)) errors.push(at + 'max_thinking_tokens は 1 以上の整数で書いてください');
     s.addDirs.forEach((d) => { if (!d || d.startsWith('/') || d.startsWith('\\') || /^[A-Za-z]:/.test(d)) errors.push(at + `add_dirs の「${d}」は、プロジェクトからの相対パスで書いてください`); });

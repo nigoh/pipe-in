@@ -102,7 +102,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunP
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>devpipe</title>
+<title>pipe-in</title>
 <style nonce="${n}">${STYLE}${USAGE_STYLE}</style>
 </head>
 <body>

@@ -1,4 +1,4 @@
-# devpipe-{{name}}：仕様とソースの突き合わせ（検討事項・QA）
+# pipe-in-{{name}}：仕様とソースの突き合わせ（検討事項・QA）
 
 仕様書の項目とソースの対応を取り、食い違いと検討事項を洗い出し、QA の観点とテストケース案を書きます。
 どの段もコードやテストは書きません（読むだけで、文書を書きます）。
@@ -18,10 +18,10 @@
 依頼メモに、仕様書の場所と、見てほしい範囲を書いて渡します（必須）。
 
 ```bash
-devpipe --pipe {{name}} --project <対象のフォルダ> --text "仕様書は docs/spec/order.md。注文の確定まで"
+pipe-in --pipe {{name}} --project <対象のフォルダ> --text "仕様書は docs/spec/order.md。注文の確定まで"
 ```
 
 ## 直し方
 
 - 段の並び・書き込める範囲・確認の有無は `pipe.toml`、各段への指示は `prompts/` のファイルです。
-- 直したら `devpipe-gen check {{name}} --project <対象のフォルダ>` で確かめてください。
+- 直したら `pipe-in-gen check {{name}} --project <対象のフォルダ>` で確かめてください。

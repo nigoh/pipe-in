@@ -1,11 +1,15 @@
-"""プラグインの PreToolUse フック（devpipe-gen guard-hook）：pipe-builder が触れる範囲を絞る。
+"""プラグインの PreToolUse フック（pipe-in-gen guard-hook）：pipe-builder が触れる範囲を絞る。
 
 Claude Code のプラグインのエージェントには hooks を書けないため、プラグインの hooks/hooks.json から
 どの道具の呼び出しでもここを呼び、入力の agent_type で pipe-builder の呼び出しだけを検査する。
 pipe-builder に許すのは、読む道具と、パイプのフォルダの決まったファイルへの書き込みと、
-devpipe-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
+pipe-in-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
 
-道具を呼ぶたびに動くので、標準ライブラリだけを使う（devpipe や SDK を読み込まない）。
+パイプのフォルダは pipe-in-<名前>/ と、前の版の名前 devpipe-<名前>/ の両方を同じ決まりで守る。
+置き場所の環境変数も、PIPE_IN_PIPES_DIR と前の版の DEVPIPE_PIPES_DIR の両方を同じ決まりで見る。
+Bash で許すのは新しい名前の pipe-in-gen だけ（前の名前の別名は同じ中身なので、許す形を増やさない）。
+
+道具を呼ぶたびに動くので、標準ライブラリだけを使う（本体や SDK を読み込まない）。
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -21,13 +26,21 @@ AGENT = "pipe-builder"
 READ_TOOLS = {"Read", "Glob", "Grep"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 
-PIPE_DIR = re.compile(r"devpipe-[a-z0-9][a-z0-9-]*")
+# パイプのフォルダ名（新しい頭と、前の版の頭）
+PIPE_DIR = re.compile(r"(?:pipe-in|devpipe)-[a-z0-9][a-z0-9-]*")
 PROMPT_FILE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.md")
 FIXED_FILES = {"pipe.toml", "README.md"}
 
-DEVPIPE_GEN = re.compile(r"devpipe-gen\s+(list|new|check)(\s.*)?", re.S)
+GEN = re.compile(r"pipe-in-gen\s+(list|new|check)(\s.*)?", re.S)
 # 別のコマンドをつなぐ・書き出す・置き換える記号
 SHELL_META = set(";&|`$<>(){}\n\r")
+# 置き場所の環境変数（この順に見る）
+PIPES_DIR_ENVS = ("PIPE_IN_PIPES_DIR", "DEVPIPE_PIPES_DIR")
+
+
+def env_pipes_dirs(environ: Mapping[str, str]) -> list[str]:
+    """置き場所の環境変数のうち、空でないものの値を PIPE_IN_PIPES_DIR → DEVPIPE_PIPES_DIR の順に返す。"""
+    return [v for v in (environ.get(k) for k in PIPES_DIR_ENVS) if v]
 
 
 def is_builder(agent_type: Any) -> bool:
@@ -36,13 +49,21 @@ def is_builder(agent_type: Any) -> bool:
 
 
 def _in_pipe(rest: tuple[str, ...]) -> bool:
-    """devpipe-<名前>/ の中の相対パスが、書いてよいファイル（pipe.toml・README.md・prompts/*.md）か。"""
+    """パイプのフォルダの中の相対パスが、書いてよいファイル（pipe.toml・README.md・prompts/*.md）か。"""
     if len(rest) == 1:
         return rest[0] in FIXED_FILES
     return len(rest) == 2 and rest[0] == "prompts" and bool(PROMPT_FILE.fullmatch(rest[1]))
 
 
-def check_write(file_path: Any, cwd: str, pipes_env: str | None) -> str | None:
+def _env_list(pipes_env: str | Sequence[str] | None) -> list[str]:
+    if pipes_env is None:
+        return []
+    if isinstance(pipes_env, str):
+        return [pipes_env] if pipes_env else []
+    return [p for p in pipes_env if isinstance(p, str) and p]
+
+
+def check_write(file_path: Any, cwd: str, pipes_env: str | Sequence[str] | None) -> str | None:
     if not isinstance(file_path, str) or not file_path.strip():
         return "書き込み先のパスがありません"
     if ".." in re.split(r"[\\/]", file_path):
@@ -52,14 +73,15 @@ def check_write(file_path: Any, cwd: str, pipes_env: str | None) -> str | None:
     for i, part in enumerate(parts[:-2]):
         if part == "pipes" and PIPE_DIR.fullmatch(parts[i + 1]) and _in_pipe(parts[i + 2 :]):
             return None
-    if pipes_env:
-        base = os.path.normpath(os.path.abspath(os.path.expanduser(pipes_env)))
+    # 環境変数の置き場所の下も、同じ決まり（パイプのフォルダの決まったファイルだけ）で見る
+    for env in _env_list(pipes_env):
+        base = os.path.normpath(os.path.abspath(os.path.expanduser(env)))
         if os.path.normcase(full).startswith(os.path.normcase(base) + os.sep):
             rest = Path(os.path.relpath(full, base)).parts
             if rest and PIPE_DIR.fullmatch(rest[0]) and _in_pipe(rest[1:]):
                 return None
     return (
-        f"pipe-builder が書けるのは、パイプのフォルダ（…/pipes/devpipe-<名前>/）の pipe.toml・README.md・prompts/*.md だけです（{file_path}）"
+        f"pipe-builder が書けるのは、パイプのフォルダ（…/pipes/pipe-in-<名前>/）の pipe.toml・README.md・prompts/*.md だけです（{file_path}）"
     )
 
 
@@ -68,14 +90,14 @@ def check_bash(command: Any) -> str | None:
         return "空のコマンドは実行できません"
     if SHELL_META & set(command):
         return "pipe-builder の Bash では、コマンドをつなぐ・書き出す記号（; & | ` $ < > など）は使えません"
-    if not DEVPIPE_GEN.fullmatch(command.strip()):
-        return "pipe-builder の Bash で使えるのは devpipe-gen list / new / check だけです"
+    if not GEN.fullmatch(command.strip()):
+        return "pipe-builder の Bash で使えるのは pipe-in-gen list / new / check だけです（devpipe-gen は名前が変わりました）"
     if any(t == "--force" or t.startswith("--force=") for t in command.split()):
         return "作り直し（--force）は人が決めます。親に差し戻してください"
     return None
 
 
-def decide(payload: dict[str, Any], *, pipes_env: str | None) -> str | None:
+def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) -> str | None:
     """止める理由を返す。止めないときは None。pipe-builder 以外の呼び出しには何もしない。"""
     if not is_builder(payload.get("agent_type")):
         return None
@@ -89,7 +111,7 @@ def decide(payload: dict[str, Any], *, pipes_env: str | None) -> str | None:
         return check_write(tool_input.get("file_path"), str(payload.get("cwd") or ""), pipes_env)
     if tool == "Bash":
         return check_bash(tool_input.get("command"))
-    return f"pipe-builder は {tool} を使えません（使えるのは Read・Glob・Grep・Write・Edit と、Bash の devpipe-gen だけ）"
+    return f"pipe-builder は {tool} を使えません（使えるのは Read・Glob・Grep・Write・Edit と、Bash の pipe-in-gen だけ）"
 
 
 def _deny(reason: str) -> str:
@@ -120,7 +142,7 @@ def main() -> int:
         # だれの呼び出しか分からないので、安全側に倒して止める
         sys.stdout.write(_deny("フックへの入力が読めないため止めました"))
         return 0
-    reason = decide(payload, pipes_env=os.environ.get("DEVPIPE_PIPES_DIR"))
+    reason = decide(payload, pipes_env=env_pipes_dirs(os.environ))
     if reason:
         sys.stdout.write(_deny(reason))
     return 0

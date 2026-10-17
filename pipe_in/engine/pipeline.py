@@ -21,7 +21,7 @@ from .config import Config
 from .runner import StageRun, StageRunner, run_stage_sdk
 from .spec import StageSpec
 
-# どのパイプでも devpipe が書くファイル
+# どのパイプでも本体が書くファイル
 INPUT = "00_input.md"
 SUMMARY = "99_summary.md"
 STATE = "state.json"
@@ -216,11 +216,12 @@ class BasePipeline:
     def _load_pending(self) -> dict[str, Any]:
         path = self.doc(STATE)
         data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-        if data.get("driver") == "pipe-in":
-            # /pipe-in（devpipe record）の記録には会話の続きがないので、ここから SDK で流さない
+        if data.get("driver") is not None:
+            # 開発用スキル（pipe-in record）の記録には会話の続きがないので、ここから SDK で流さない。
+            # 値は見ない（前の版の "pipe-in" も、この先名前が変わっても漏れないように）
             raise SystemExit(
-                f"この記録（{self.cfg.rel(path)}）は Claude Code の /pipe-in が書いたものです。"
-                "続きは /pipe-in の会話で進めてください（devpipe --review では流せません）"
+                f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-dev）が書いたものです。"
+                "続きはその会話で進めてください（pipe-in --review では流せません）"
             )
         pending = data.get("pending_review")
         if not pending:

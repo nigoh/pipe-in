@@ -1,7 +1,8 @@
-"""devpipe record：/pipe-in が、SDK を呼ばずに開発フローと同じ形の記録（docs/pipeline/）を書く。
+"""pipe-in record：開発用のスキルが、SDK を呼ばずに開発フローと同じ形の記録（docs/pipeline/）を書く。
 
-VSCode の拡張がそのまま図にできるように、devpipe 本体が書く state.json と同じ形にする。
-見本は tests/fixtures/pipe_in/ にあり、拡張のテスト（vscode/src/domain/pipeInRecord.test.ts）も同じ見本を読む。
+VSCode の拡張がそのまま図にできるように、本体が書く state.json と同じ形にする。
+見本は tests/fixtures/pipe_dev/（今の形。driver = "pipe-dev"）にあり、拡張のテスト（vscode/src/domain/pipeInRecord.test.ts）も同じ見本を読む。
+tests/fixtures/pipe_in/ は前の版の記録（driver = "pipe-in"）の見本として残す。
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from pipe_in.dev.record import RecordError, Recorder
 from pipe_in.engine.checkpoint import Decision
 from pipe_in.engine.config import load_config
 
-FIXTURES = Path(__file__).parent / "fixtures" / "pipe_in"
+FIXTURES = Path(__file__).parent / "fixtures" / "pipe_dev"
 FIXED = datetime(2026, 10, 17, 10, 0, 0)
 
 
@@ -75,6 +76,7 @@ def fixture_state(name: str) -> dict:
 
 
 def test_ac01_running_matches_fixture(tmp_path):
+    """D0006-AC-22: 始めた段の記録とログの1行目が見本と同じ（driver は pipe-dev、prompt は /pipe-dev の<段>）。"""
     r = recorder(tmp_path)
     r.start("足したい機能のメモ")
     r.begin("requirements")
@@ -86,17 +88,38 @@ def test_ac01_running_matches_fixture(tmp_path):
 
 
 def test_ac01_waiting_matches_fixture(tmp_path):
+    """D0006-AC-22: 確認待ちの記録が見本と同じ（driver のほかは今と同じ形）。"""
     up_to_waiting(recorder(tmp_path))
     assert state(tmp_path) == fixture_state("waiting")
 
 
 def test_ac01_finished_matches_fixture(tmp_path):
+    """D0006-AC-22: 終わった記録が見本と同じ。"""
     r = recorder(tmp_path)
     up_to_waiting(r)
     to_finish(r)
     assert state(tmp_path) == fixture_state("finished")
     summary = (tmp_path / "docs" / "pipeline" / "99_summary.md").read_text(encoding="utf-8")
     assert "PASSED" in summary or "終わりました" in summary
+
+
+def test_summary_title_is_pipe_dev(tmp_path):
+    """D0006-AC-22: finish が書く 99_summary.md の1行目は「# /pipe-dev のまとめ」。"""
+    r = recorder(tmp_path)
+    up_to_waiting(r)
+    to_finish(r)
+    summary = (tmp_path / "docs" / "pipeline" / "99_summary.md").read_text(encoding="utf-8")
+    assert summary.splitlines()[0] == "# /pipe-dev のまとめ"
+
+
+def test_old_fixture_differs_only_in_driver():
+    """D0006-AC-24: 前の版の見本（pipe_in）と今の見本（pipe_dev）は driver の値だけが違う（ほかの形は変えない）。"""
+    old_dir = Path(__file__).parent / "fixtures" / "pipe_in"
+    for name in ("running", "waiting", "finished"):
+        old = json.loads((old_dir / name / "state.json").read_text(encoding="utf-8"))
+        new = fixture_state(name)
+        assert (old.pop("driver"), new.pop("driver")) == ("pipe-in", "pipe-dev")
+        assert old == new
 
 
 def test_ac03_done_closes_log_and_measures_time(tmp_path):
@@ -185,9 +208,21 @@ def test_ac03_archives_a_finished_run_before_starting(tmp_path):
     assert (w / "00_input.md").read_text(encoding="utf-8").strip() == "次のメモ"
 
 
-def test_ac03_devpipe_review_refuses_a_pipe_in_record(tmp_path):
-    """/pipe-in の記録の続きを、devpipe --review が SDK で流してしまわない。"""
+def set_driver(project: Path, driver: str | None) -> None:
+    path = project / "docs" / "pipeline" / "state.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if driver is None:
+        data.pop("driver", None)
+    else:
+        data["driver"] = driver
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+@pytest.mark.parametrize("driver", ["pipe-dev", "pipe-in", "other"])
+def test_review_refuses_records_with_a_driver(tmp_path, driver):
+    """D0006-AC-23: driver の入った記録（今の pipe-dev・前の版の pipe-in・ほか）の続きを、pipe-in --review が SDK で流さない。文に /pipe-dev を含む。"""
     up_to_waiting(recorder(tmp_path))
+    set_driver(tmp_path, driver)
     called = []
 
     async def runner(*a, **k):
@@ -195,15 +230,35 @@ def test_ac03_devpipe_review_refuses_a_pipe_in_record(tmp_path):
         raise AssertionError("SDK を呼んではいけない")
 
     cfg = load_config(tmp_path, pause_for_review=True)
-    with pytest.raises(SystemExit, match="pipe-in"):
+    with pytest.raises(SystemExit) as e:
         asyncio.run(DevPipeline(cfg, runner=runner).review(Decision("approve", "")))
+    assert "/pipe-dev" in str(e.value.code)
+    assert "pipe-in --review" in str(e.value.code)
     assert not called
 
 
-# ---- コマンド（devpipe record …） ----------------------------------------------
+def test_review_continues_a_record_without_driver(tmp_path):
+    """D0006-AC-23: driver の無い確認待ちの記録は、今までどおり続きを流す。"""
+    from pipe_in.engine.runner import StageRun
+
+    up_to_waiting(recorder(tmp_path))
+    set_driver(tmp_path, None)
+    called: list[str] = []
+
+    async def runner(spec, prompt, cfg, *, resume, log_name):
+        called.append(spec.name)
+        return StageRun(stage=spec.name, session_id="s-1", is_error=True)
+
+    cfg = load_config(tmp_path, pause_for_review=True)
+    asyncio.run(DevPipeline(cfg, runner=runner).review(Decision("approve", "")))
+    assert called and called[0] == "implement"
+
+
+# ---- コマンド（pipe-in record …） ----------------------------------------------
 
 
 def test_ac03_cli_writes_the_same_record(tmp_path):
+    """D0006-AC-22: コマンドで書いた記録の driver は pipe-dev。"""
     p = str(tmp_path)
     assert cli.main(["record", "start", "--project", p, "--text", "メモ"]) == 0
     assert cli.main(["record", "begin", "requirements", "--project", p]) == 0
@@ -217,7 +272,7 @@ def test_ac03_cli_writes_the_same_record(tmp_path):
     assert cli.main(["record", "verdict", "fail", "--project", p, "--attempt", "1", "--summary", "だめ", "--failure", "AC-01=違う"]) == 0
     assert cli.main(["record", "finish", "TEST_FAILED", "--project", p]) == 0
     s = state(tmp_path)
-    assert s["driver"] == "pipe-in" and s["final"] == "TEST_FAILED"
+    assert s["driver"] == "pipe-dev" and s["final"] == "TEST_FAILED"
     assert s["runs"][-2]["result"]["tests"] == [{"criterion": "AC-01", "test": "tests/test_a.py::test_a"}]
     assert s["runs"][-1]["verdict"]["failures"] == [{"criterion": "AC-01", "detail": "違う"}]
 

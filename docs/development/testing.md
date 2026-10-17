@@ -23,7 +23,7 @@
 
 ## やってはいけないこと
 
-- **リポジトリの実物に書く**：`pipes/`・`.devpipe/`・`docs/pipeline/`。既定の置き場所がリポジトリの中を指す関数（`default_pipes_dir` など）を通るテストは、置き場所を `tmp_path` に向けます（`tests/test_generator.py` の `no_repo_pipes` を参照）。書いてしまったら、テストが通っていても `tests/conftest.py` が最後に失敗にします。
+- **リポジトリの実物に書く**：`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/`。既定の置き場所がリポジトリの中を指す関数（`default_pipes_dir` など）を通るテストは、置き場所を `tmp_path` に向けます（`tests/test_generator.py` の `no_repo_pipes` を参照）。書いてしまったら、テストが通っていても `tests/conftest.py` が最後に失敗にします。
 - ホームのフォルダ（`~`）や、テストの外のフォルダに書く。
 - ネットワークにつなぐ・SDK を呼ぶ。
 - `sleep` で待つ。テストの順番に頼る（1つずつ流しても通るように書く）。

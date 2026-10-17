@@ -1,5 +1,5 @@
 // テスト用の記録（state.json・段のログ・記録の写し）を文字列として作る小さな関数。
-// devpipe が work_dir に書く形（要件定義書「devpipe が今書いている記録」）に合わせる。
+// 本体 が work_dir に書く形（要件定義書「本体 が今書いている記録」）に合わせる。
 import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
 
 /** 段のログの始まりの行（`Prompt`）。 */
@@ -35,7 +35,7 @@ export function logText(lines: string[]): string {
   return lines.map((l) => `${l}\n`).join('');
 }
 
-/** state.json の runs に入る「段の実行」の要素（devpipe の `Pipeline._run_stage` が書く形）。 */
+/** state.json の runs に入る「段の実行」の要素（本体 の `Pipeline._run_stage` が書く形）。 */
 export function stageRunEntry(p: {
   stage: string;
   seq: number;
@@ -44,7 +44,7 @@ export function stageRunEntry(p: {
   numTurns?: number;
   costUsd?: number;
   durationSec?: number;
-  /** devpipe 0.2 の metrics（StageMetrics.to_dict の形）。省くと古い記録と同じく持たない */
+  /** 本体 0.2 の metrics（StageMetrics.to_dict の形）。省くと古い記録と同じく持たない */
   metrics?: object;
 }): object {
   return {
@@ -65,7 +65,7 @@ export function stageRunEntry(p: {
   };
 }
 
-/** トークン数（devpipe の Tokens を dict にした形）。 */
+/** トークン数（本体 の Tokens を dict にした形）。 */
 export function tokensDict(p: { input?: number; cacheWrite?: number; cacheRead?: number; output?: number; thinking?: number }): object {
   const input = p.input ?? 0;
   const cacheWrite = p.cacheWrite ?? 0;
@@ -85,7 +85,7 @@ export function tokensDict(p: { input?: number; cacheWrite?: number; cacheRead?:
   };
 }
 
-/** 段の実行の metrics（devpipe の StageMetrics.to_dict の形）。 */
+/** 段の実行の metrics（本体 の StageMetrics.to_dict の形）。 */
 export function stageMetricsDict(p: { tokens?: object; model?: string } = {}): object {
   return {
     model: p.model ?? 'claude-opus-5-5',
@@ -104,7 +104,7 @@ export function stageMetricsDict(p: { tokens?: object; model?: string } = {}): o
   };
 }
 
-/** state.json の usage_summary（devpipe の summarize_runs の形）。前回の本物の実行の数字に近いもの。 */
+/** state.json の usage_summary（本体 の summarize_runs の形）。前回の本物の実行の数字に近いもの。 */
 export function usageSummaryDict(): object {
   return {
     tokens: tokensDict({ input: 122, cacheWrite: 550460, cacheRead: 5224407, output: 126952, thinking: 23628 }),
@@ -129,9 +129,9 @@ export function stateJson(p: {
   runs?: object[];
   final?: string | null;
   totalCostUsd?: number;
-  /** devpipe 0.2 の usage_summary。省くと古い記録と同じく持たない */
+  /** 本体 0.2 の usage_summary。省くと古い記録と同じく持たない */
   usageSummary?: unknown;
-  /** 以下は devpipe がパイプを持つようになってからの項目。省くとその前の記録と同じく持たない */
+  /** 以下は 本体 がパイプを持つようになってからの項目。省くとその前の記録と同じく持たない */
   pipe?: string;
   /** 段の並び（{name, label, output?, review?} の配列） */
   stages?: unknown;

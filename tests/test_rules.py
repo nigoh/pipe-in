@@ -145,23 +145,27 @@ TABLE_PATH = re.compile(r"`([^`\s<>*…]+/[^`\s<>*…]*)`")
 
 
 def table_paths(text: str) -> list[str]:
-    """表の行（| で始まる行）にある、/ を含むパス。対象プロジェクトの中を指すもの（.devpipe/ と ~/）と、node: の部品の名前は除く。"""
+    """表の行（| で始まる行）にある、/ を含むパス。対象プロジェクトの中を指すもの（.pipe-in/・.devpipe/ と ~/）と、node: の部品の名前は除く。"""
     out = []
     for line in text.splitlines():
         if not line.startswith("|"):
             continue
         for m in TABLE_PATH.finditer(line):
             p = m.group(1)
-            if p.startswith((".devpipe/", "~/", "/", "node:")) or "://" in p:
+            if p.startswith((".pipe-in/", ".devpipe/", "~/", "/", "node:")) or "://" in p:
                 continue
             out.append(p)
     return out
 
 
 def test_table_paths_pattern():
-    """D0002-AC-04: 表のパスの拾い方。"""
-    text = "| a | `devpipe/cli.py`・`generator/` |\n| b | 対象の `.devpipe/pipes/`、`pipes/devpipe-<名前>/`・`node:fs/promises` |\n本文の `x/y.py` は見ない"
-    assert table_paths(text) == ["devpipe/cli.py", "generator/"]
+    """D0002-AC-04・D0006-AC-25: 表のパスの拾い方。対象の中を指す .pipe-in/ と前の版の .devpipe/ は除く。"""
+    text = (
+        "| a | `pipe_in/cli.py`・`generator/` |\n"
+        "| b | 対象の `.pipe-in/pipes/`、`.devpipe/pipes/`、`pipes/pipe-in-<名前>/`・`node:fs/promises` |\n"
+        "本文の `x/y.py` は見ない"
+    )
+    assert table_paths(text) == ["pipe_in/cli.py", "generator/"]
 
 
 @pytest.mark.parametrize("doc", ["CLAUDE.md", "docs/development/design.md"])
@@ -195,10 +199,27 @@ def test_watch_detects_changes(tmp_path):
 
 
 def test_watched_dirs():
-    """D0002-AC-05: 見張るのは pipes/・.devpipe/・docs/pipeline/。"""
+    """D0002-AC-05・D0006-AC-25: 見張るのは pipes/・.pipe-in/・.devpipe/・docs/pipeline/。"""
     import conftest
 
-    assert set(conftest.WATCHED) == {"pipes", ".devpipe", "docs/pipeline"}
+    assert set(conftest.WATCHED) == {"pipes", ".pipe-in", ".devpipe", "docs/pipeline"}
+
+
+def test_watch_detects_new_place(tmp_path):
+    """D0006-AC-25: 見張りは、新しい置き場所 .pipe-in/ への書き込みにも気づく。"""
+    import conftest
+
+    before = conftest.snapshot(tmp_path)
+    (tmp_path / ".pipe-in" / "pipes" / "pipe-in-x").mkdir(parents=True)
+    (tmp_path / ".pipe-in" / "pipes" / "pipe-in-x" / "pipe.toml").write_text("x", encoding="utf-8")
+    assert ".pipe-in/pipes/pipe-in-x/pipe.toml" in conftest.changes(before, conftest.snapshot(tmp_path))
+
+
+def test_gitignore_has_both_places():
+    """D0006-AC-25: .gitignore に新しい置き場所 /.pipe-in/ と、前の版の /.devpipe/ の両方がある。"""
+    lines = [line.strip() for line in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()]
+    assert "/.pipe-in/" in lines
+    assert "/.devpipe/" in lines
 
 
 # ---- D0002-AC-06: 開発のルールの文書がそろっている -----------------------------------------
@@ -220,7 +241,7 @@ def test_development_docs_exist():
 
 
 def test_workflow_documents_rebase():
-    """D0003-AC-01: workflow.md に、載せ直す時と方法・main へは早送りで入れること・worktree の注意がある。"""
+    """D0003-AC-01・D0006-AC-26: workflow.md に、載せ直す時と方法・main へは早送りで入れること・worktree の注意がある（コマンドは新しい名前）。"""
     text = (DEVELOPMENT / "workflow.md").read_text(encoding="utf-8")
     for word in [
         "git rebase --autostash main",
@@ -230,7 +251,7 @@ def test_workflow_documents_rebase():
         "main に入れる直前",
         "載せ直したら",
         "push したブランチ",
-        "python -m devpipe",
+        "python -m pipe_in",
         "stash しない",
     ]:
         assert word in text, word

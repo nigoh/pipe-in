@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 
-# devpipe を手元で流した記録（プロンプト・コードの中身・セッション ID・手元のパスを含む）
+# pipe-in を手元で流した記録（プロンプト・コードの中身・セッション ID・手元のパスを含む）
 /docs/pipeline/
 
 # Claude Code の手元だけの設定
@@ -26,7 +26,8 @@ Thumbs.db
 # 作ったパイプ（対象プロジェクトの事情が入りやすい）。README だけ追跡する
 /pipes/*
 !/pipes/README.md
-# このリポジトリを対象にして作ったパイプ（.devpipe/pipes/）も載せない
+# このリポジトリを対象にして作ったパイプ（.pipe-in/pipes/、前の版の .devpipe/pipes/）も載せない
+/.pipe-in/
 /.devpipe/
 
 # Playwright（MCP）で画面を確かめたときのスクリーンショット

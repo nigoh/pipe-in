@@ -85,7 +85,7 @@ function toOutputItem(part: unknown): OutputItem | null {
 const TARGET_KEYS = ['file_path', 'notebook_path', 'command', 'pattern', 'path'] as const;
 const TARGET_MAX = 90;
 
-/** ツールの呼び出しの対象（FR-09）。devpipe の _short と同じ切り詰め。 */
+/** ツールの呼び出しの対象（FR-09）。本体の _short と同じ切り詰め。 */
 export function summarizeToolTarget(input: Record<string, unknown>): string | null {
   const key = TARGET_KEYS.find((k) => k in input);
   if (key === undefined) return null;

@@ -23,7 +23,7 @@ test('AC-69: 保存のたびに版を足し、新しい順の一覧を返す。�
   m.label = '変えた';
   const list = await recordVersion(store, m, T + 1000, true);
   assert.deepEqual(list.map((v) => v.id), [`${T + 1000}-draft`, String(T)]);
-  assert.ok(store.files[`devpipe-one/${T}.json`]);
+  assert.ok(store.files[`pipe-in-one/${T}.json`]);
   assert.deepEqual(await listVersions(store, 'one'), list);
   assert.deepEqual(await listVersions(store, 'two'), []);
 });
@@ -34,7 +34,7 @@ test('AC-69: 50 版を超えたら、古いほうから消す', async () => {
   for (let i = 0; i < 52; i++) await recordVersion(store, m, T + i);
   const list = await listVersions(store, 'one');
   assert.equal(list.length, 50);
-  assert.equal(store.files[`devpipe-one/${T}.json`], undefined);
+  assert.equal(store.files[`pipe-in-one/${T}.json`], undefined);
   assert.equal(list.at(-1)!.savedAt, T + 2);
 });
 
@@ -48,11 +48,11 @@ test('AC-69: 読むのは一覧にある版だけ。中身は形を確かめ、�
   assert.equal(await readVersion(store, 'one', String(T + 1)), null); // 一覧に無い
   assert.equal(await readVersion(store, 'one', '../../x'), null);
   // 名前を書き換えた版でも、このパイプの名前で返す
-  store.files[`devpipe-one/${T + 5}.json`] = JSON.stringify({ ...m, name: 'other' });
+  store.files[`pipe-in-one/${T + 5}.json`] = JSON.stringify({ ...m, name: 'other' });
   assert.equal((await readVersion(store, 'one', String(T + 5)))?.name, 'one');
   // 形の違う中身は読まない
-  store.files[`devpipe-one/${T + 6}.json`] = '{"name": 1}';
-  store.files[`devpipe-one/${T + 7}.json`] = 'こわれた';
+  store.files[`pipe-in-one/${T + 6}.json`] = '{"name": 1}';
+  store.files[`pipe-in-one/${T + 7}.json`] = 'こわれた';
   assert.equal(await readVersion(store, 'one', String(T + 6)), null);
   assert.equal(await readVersion(store, 'one', String(T + 7)), null);
 });

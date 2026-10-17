@@ -1,10 +1,10 @@
-// PipeStore の実装：node:fs/promises で、パイプの置き場所（.devpipe/pipes/ など）を読み書きする。
-// 触れるのは置き場所の中の devpipe-<名前>/ の pipe.toml・layout.json・README.md・prompts/*.md だけ。ほかは読まず、書かない。
+// PipeStore の実装：node:fs/promises で、パイプの置き場所（.pipe-in/pipes/ など）を読み書きする。
+// 触れるのは置き場所の中の pipe-in-<名前>/（前の版の devpipe-<名前>/ も）の pipe.toml・layout.json・README.md・prompts/*.md だけ。ほかは読まず、書かない。
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { PipeStore } from '../app/pipeEditor.ts';
 
-const PIPE_DIR = /^devpipe-[a-z0-9][a-z0-9-]*$/;
+const PIPE_DIR = /^(?:pipe-in|devpipe)-[a-z0-9][a-z0-9-]*$/;
 const FIXED = new Set(['pipe.toml', 'layout.json', 'README.md']);
 const PROMPT = /^prompts\/[A-Za-z0-9_][A-Za-z0-9_.-]*\.md$/;
 

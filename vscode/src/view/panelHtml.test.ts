@@ -69,3 +69,11 @@ for (const [name, make] of views) {
     assert.match(html, /var\(--vscode-/);
   });
 }
+
+test('D0006-AC-21: パネルの title は pipe-in', () => {
+  for (const [, make] of views) {
+    const html = renderPanelHtml(make(), 'n');
+    assert.equal(/<title>(.*?)<\/title>/.exec(html)?.[1], 'pipe-in');
+    assert.deepEqual(html.match(new RegExp('.{0,20}dev' + 'pipe.{0,20}', 'gi')) ?? [], []);
+  }
+});

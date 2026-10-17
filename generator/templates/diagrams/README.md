@@ -1,4 +1,4 @@
-# devpipe-{{name}}：ソースから図を作る
+# pipe-in-{{name}}：ソースから図を作る
 
 ソースを調べ、フロー図・シーケンス図・状態遷移図・クラス図を Mermaid で描き、図とソースが合っているかを確かめます。
 図は Markdown の中に書くので、GitHub や VSCode の Markdown のプレビューでそのまま図として見えます。
@@ -16,10 +16,10 @@
 ## 流し方
 
 ```bash
-devpipe --pipe {{name}} --project <対象のフォルダ> --text "図にしたい範囲や観点（省いてもよい）"
+pipe-in --pipe {{name}} --project <対象のフォルダ> --text "図にしたい範囲や観点（省いてもよい）"
 ```
 
 ## 直し方
 
 - 段の並び・書き込める範囲・確認の有無は `pipe.toml`、各段への指示は `prompts/` のファイルです。
-- 直したら `devpipe-gen check {{name}} --project <対象のフォルダ>` で確かめてください。
+- 直したら `pipe-in-gen check {{name}} --project <対象のフォルダ>` で確かめてください。
