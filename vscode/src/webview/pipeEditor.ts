@@ -20,7 +20,10 @@ import {
   validatePipe,
 } from '../domain/pipeModel.ts';
 import type { BlockKind, FrameModel, PipeModel, Point, StageModel } from '../domain/pipeModel.ts';
-import { blockRect, layoutWires, nearestWire, roundedPath } from '../domain/pipeWires.ts';
+import { blockRect, cablePath, emptySockets, layoutWires, nearestWire, smoothPath } from '../domain/pipeWires.ts';
+import { dropTarget as blockAt } from '../domain/pipeDrop.ts';
+import { restRope, ropeSettled, stepRope } from '../domain/cableRope.ts';
+import type { Rope } from '../domain/cableRope.ts';
 import type { Wire } from '../domain/pipeWires.ts';
 import { insertBetween, replug, unplug } from '../domain/pipeLinks.ts';
 import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, takeOutOfFrame, unplugAll } from '../domain/pipeEdit.ts';
@@ -251,21 +254,23 @@ function backOff(pts: Point[], d: number): Point[] {
 const wireKey = (w: Wire): string => `${w.kind}:${w.from}:${w.to}:${w.label ?? ''}`;
 let wires: Wire[] = [];
 
-function drawWires(temp?: { a: Point; b: Point }): void {
+function drawWires(): void {
   const svg = document.getElementById('wires');
   if (!svg) return;
   const m = model();
-  wires = layoutWires(m);
+  // つながっていない段を引いている間は、その段をよけない（ケーブルが逃げると、間に挟めなくなるため）
+  wires = layoutWires(m, act?.type === 'move' && act.loose ? { ignore: act.id } : {});
   let cables = '', hits = '', tags = '', sockets = '', plugs = '';
   wires.forEach((w, i) => {
     if (wireKey(w) === st.lifted) return;
     const sel = (st.sel.type === 'edge' && wireKey(st.sel.wire) === wireKey(w) ? ' sel' : '') + (st.dropWire === wireKey(w) ? ' drop' : '');
-    const d = roundedPath(backOff(w.points, 20));
+    // 通り道の角を大きく回る、流線型の曲線で描く
+    const d = cablePath(backOff(w.points, 20));
     if (w.kind !== 'return') cables += `<path class="cable-out${st.dropWire === wireKey(w) ? ' drop' : ''}" d="${d}"/>`;
     cables += `<path class="wire ${w.kind}${sel}" d="${d}"/>`;
     if (w.kind !== 'start') {
       // 当たり判定はプラグの手前で止める（プラグは掴んで抜き差しするため）
-      hits += `<path class="wire-hit" data-edge="${i}" d="${roundedPath(backOff(w.points, 16))}"/>`;
+      hits += `<path class="wire-hit" data-edge="${i}" d="${cablePath(backOff(w.points, 16))}"/>`;
       cables += `<circle class="bush" cx="${w.points[0]!.x}" cy="${w.points[0]!.y}" r="4"/>`;
     }
     const end = w.points[w.points.length - 1]!, ang = angleOf(w.points);
@@ -278,20 +283,60 @@ function drawWires(temp?: { a: Point; b: Point }): void {
     }
   });
   // まだ何も差さっていないコンセントも出しておく（どこに差せばいいかがわかるように）
-  const filled = new Set(wires.filter((w) => w.kind !== 'return' && wireKey(w) !== st.lifted).map((w) => w.to));
-  [...m.stages.filter((s) => !frameOf(m, s)).map((s) => s.id), ...m.frames.map((f) => f.id), END].forEach((id) => {
-    if (!filled.has(id)) { const r = blockRect(m, id); sockets += socketSvg(r.x - 16, r.y + r.h / 2, 0, false); }
-  });
-  let tmp = '';
-  if (temp) {
-    const pts = [temp.a, temp.b], d = roundedPath(backOff(pts, 20));
-    // 手に持っているケーブルは、ポインタの下の物を隠さない（離した先を elementFromPoint で探すため）
-    tmp = `<g class="in-hand"><path class="cable-out" d="${d}"/><path class="wire temp" d="${d}"/>${plugSvg(temp.b.x, temp.b.y, angleOf(pts), 'temp', 'loose')}</g>`;
-  }
+  for (const e of emptySockets(m, wires.filter((w) => wireKey(w) !== st.lifted))) sockets += socketSvg(e.x, e.y, 0, false);
   // ケーブルの当たり判定（透明）の上にプラグを置いて、近くを通るケーブルがあってもプラグを掴めるようにする。
-  // プラグのあとにコンセントを描いて、差さったプラグの刃をコンセントの中に隠す
-  svg.innerHTML = cables + hits + plugs + sockets + tags + tmp;
+  // プラグのあとにコンセントを描いて、差さったプラグの刃をコンセントの中に隠す。手に持っているケーブルはいちばん上（中は drawRope が描く）
+  svg.innerHTML = cables + hits + plugs + sockets + tags + '<g class="in-hand" id="in-hand"></g>';
+  drawRope();
 }
+
+// ---- 手に持っているケーブル：ひもとして動かす（D0007） --------------------------------
+
+const ROPE_N = 16;
+/** 手に持っているケーブル。a は元の点、hand は手元。raf は予約している画面の更新（0 なら予約なし） */
+let rope: { r: Rope; a: Point; hand: Point; last: number; raf: number } | null = null;
+const reduceMotion = (): boolean => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+/** 手に持っているケーブルだけを描き直す（置いたケーブルの通り道は計算し直さない） */
+function drawRope(): void {
+  const g = document.getElementById('in-hand');
+  if (!g) return;
+  if (!rope) { g.innerHTML = ''; return; }
+  const pts = rope.r.pts, d = smoothPath(backOff(pts, 20));
+  // プラグの向きは、ひもの先の向き（先が縮んで向きが決まらないときは、元の点から手元への向き）
+  const n = pts.length, tail = n > 2 && Math.hypot(pts[n - 1]!.x - pts[n - 2]!.x, pts[n - 1]!.y - pts[n - 2]!.y) > 0.5 ? pts : [rope.a, rope.hand];
+  g.innerHTML = `<path class="cable-out" d="${d}"/><path class="wire temp" d="${d}"/>${plugSvg(rope.hand.x, rope.hand.y, angleOf(tail), 'temp', 'loose')}`;
+}
+function startRope(a: Point, hand: Point): void {
+  stopRope();
+  rope = { r: restRope(a, hand, ROPE_N), a, hand, last: 0, raf: 0 };
+  drawRope();
+}
+/** 手元が動いた。動きを減らす設定なら、まっすぐな形をその場で描く。そうでなければ、ひもを進める予約をする */
+function moveRope(hand: Point): void {
+  if (!rope) return;
+  rope.hand = hand;
+  if (reduceMotion()) { rope.r = restRope(rope.a, hand, ROPE_N); drawRope(); return; }
+  if (!rope.raf) { rope.last = 0; rope.raf = requestAnimationFrame(tickRope); }
+}
+function tickRope(t: number): void {
+  if (!rope) return;
+  const dt = rope.last ? (t - rope.last) / 1000 : 1 / 60;
+  rope.last = t;
+  rope.raf = 0;
+  const next = stepRope(rope.r, rope.a, rope.hand, dt), still = ropeSettled(rope.r, next);
+  rope.r = next;
+  drawRope();
+  // 揺れが収まったら予約をやめる（動いていないときに更新を回し続けない）。手元がまた動けば moveRope が予約し直す
+  if (!still) rope.raf = requestAnimationFrame(tickRope);
+}
+function stopRope(): void {
+  if (rope?.raf) cancelAnimationFrame(rope.raf);
+  rope = null;
+  drawRope();
+}
+/** 離した点・重ねている点から、差す先を決める（コンセントの上でも差さる。ゆとりは画面の 8px） */
+const dropAt = (p: Point): string | null => blockAt(model(), wires, p, 8 / st.view.z);
 
 function applyView(): void {
   $('world').style.transform = `translate(${st.view.x}px, ${st.view.y}px) scale(${st.view.z})`;
@@ -650,10 +695,12 @@ area.addEventListener('pointerdown', (ev) => {
     const wire = wires[+plug.dataset.plug!]!;
     act = { type: 'replug', wire, a: wire.points[0]! };
     st.lifted = wireKey(wire);
-    drawWires({ a: act.a, b: w });
+    drawWires();
+    startRope(act.a, w);
   } else if (port) {
     const r = blockRect(m, port.dataset.port!);
     act = { type: 'link', from: port.dataset.port!, a: { x: r.x + r.w, y: r.y + r.h / 2 } };
+    startRope(act.a, w);
   } else if (hit) {
     selectOne({ type: 'edge', wire: wires[+hit.dataset.edge!]! });
     st.tab = 'block';
@@ -729,11 +776,11 @@ area.addEventListener('pointermove', (ev) => {
     act.b = w;
     drawBox(act.a, act.b);
   } else if (act.type === 'link' || act.type === 'replug') {
-    drawWires({ a: act.a, b: w });
+    moveRope(w);
+    // 差す先（ブロックの上か、そのコンセントの上）を目立たせる
     document.querySelectorAll('.node.drop, .frame.drop').forEach((n) => n.classList.remove('drop'));
-    const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
-    const from = act.type === 'link' ? act.from : null;
-    if (over && over.dataset.id !== from) over.classList.add('drop');
+    const id = dropAt(w), from = act.type === 'link' ? act.from : null;
+    if (id && id !== from) document.querySelector(`#world > [data-id="${CSS.escape(id)}"]`)?.classList.add('drop');
   }
 });
 area.addEventListener('pointerup', (ev) => {
@@ -741,23 +788,25 @@ area.addEventListener('pointerup', (ev) => {
   const a = act;
   act = null;
   if (a.type === 'link') {
-    const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
-    if (over) link(a.from, over.dataset.id!);
-    else toast('差すのをやめました（ブロックの上で離すと、コンセントに差さります）');
+    const to = dropAt(toWorld(ev.clientX, ev.clientY));
+    stopRope();
+    if (to) link(a.from, to);
+    else toast('差すのをやめました（ブロックかコンセントの上で離すと差さります）');
     render();
     st.snapped = null;
     return;
   }
   if (a.type === 'replug') {
-    // ブロックの上で離せばそのコンセントに差し直し、何もない所なら抜いたまま
-    const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.node, .frame');
+    // ブロックかコンセントの上で離せば差し直し、何もない所なら抜いたまま
+    const to = dropAt(toWorld(ev.clientX, ev.clientY));
+    stopRope();
     const wire = a.wire, m = model();
-    const r = over ? replug(m, wire, over.dataset.id!) : unplug(m, wire);
+    const r = to ? replug(m, wire, to) : unplug(m, wire);
     if (r.changed) {
       if (st.sel.type === 'edge') st.sel = { type: 'pipe' };
       if (r.to) st.snapped = { from: wire.owner ?? wire.from, to: r.to };
       changed(r.message || 'ケーブルを差し直した');
-    } else if (over && over.dataset.id === wire.to) st.snapped = { from: wire.owner ?? wire.from, to: wire.to };
+    } else if (to === wire.to) st.snapped = { from: wire.owner ?? wire.from, to: wire.to };
     if (r.message) toast(r.message);
     st.lifted = null;
     render();
@@ -792,6 +841,7 @@ area.addEventListener('pointerup', (ev) => {
 area.addEventListener('pointercancel', () => {
   if (!act) return;
   act = null;
+  stopRope();
   st.lifted = null;
   st.dropWire = null;
   document.getElementById('box')?.remove();

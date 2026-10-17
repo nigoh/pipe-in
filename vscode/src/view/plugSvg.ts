@@ -3,11 +3,13 @@
 // 差さったプラグは本体がコンセントの面に付き、刃はコンセントの中に入る（コンセントをあとに描いて刃を隠す）。
 // 抜けたプラグは刃が本体の先に出て、刃の先端が掴んでいる点に来る。CSP があるので style 属性は使わない。
 
-export interface Box { x: number; y: number; w: number; h: number }
-export type PlugPose = 'in' | 'loose';
+import { SOCKET_BOX } from '../domain/pipeWires.ts';
+import type { Box } from '../domain/pipeWires.ts';
 
-/** コンセントの外形（ブロックの左の縁の 16px 手前から） */
-export const SOCKET_BOX: Box = { x: -1, y: -12, w: 15, h: 24 };
+// コンセントの外形は、差す先を決める判断（domain/pipeDrop.ts）と同じものを使う
+export { SOCKET_BOX };
+export type { Box };
+export type PlugPose = 'in' | 'loose';
 const SLOTS: Box[] = [{ x: 3.5, y: -6.5, w: 2.2, h: 5 }, { x: 8.3, y: -6.5, w: 2.2, h: 5 }, { x: 3.5, y: 2, w: 2.2, h: 4 }, { x: 8.3, y: 2, w: 2.2, h: 4 }];
 const BODY = { w: 14, h: 15 }, PRONG = { w: 9, h: 2.6 };
 

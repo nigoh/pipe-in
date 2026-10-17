@@ -286,3 +286,12 @@ test('D0005-AC-17: 自分をやり直す・前の段へ戻す・判定オフの�
     ['a', false, false, '', 2, null], ['b', true, true, '', 2, null], ['c', true, false, 'npm test', 3, 'a'],
   ]);
 });
+
+test('D0007-AC-37: 保存の形は変わらない（layout.json はブロックの位置と形だけで、ケーブルの形やひもの状態を書かない）', () => {
+  const files = pipeFiles(load());
+  assert.deepEqual(Object.keys(files).filter((f) => !f.startsWith('prompts/')).sort(), ['layout.json', 'pipe.toml']);
+  const layout = JSON.parse(files['layout.json']!);
+  assert.deepEqual(Object.keys(layout).sort(), ['end', 'frames', 'stages', 'start']);
+  for (const v of Object.values(layout.stages as Record<string, object>)) assert.deepEqual(Object.keys(v).sort(), ['kind', 'x', 'y']);
+  assert.doesNotMatch(files['pipe.toml']!, /cable|rope|wire/i);
+});

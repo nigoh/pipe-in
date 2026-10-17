@@ -229,7 +229,12 @@ function routeForward(m: PipeModel, e: Edge, p1: Point, p2: Point, tracks: Track
   return fallback!;
 }
 
-export function layoutWires(m: PipeModel): Wire[] {
+/**
+ * ケーブルの通り道。ignore の段はよける相手にしない（つながっていない段を引いてケーブルの上に重ねるとき、
+ * ケーブルが段をよけて逃げると、間に挟む先が見つからなくなるため）。
+ */
+export function layoutWires(model: PipeModel, o: { ignore?: string } = {}): Wire[] {
+  const m = o.ignore ? { ...model, stages: model.stages.filter((s) => s.id !== o.ignore) } : model;
   const E = edges(m), tracks: Track[] = [];
   const midY = (id: string): number => { const r = blockRect(m, id); return r.y + r.h / 2; };
   const outs = new Map<string, Edge[]>(), ins = new Map<string, Edge[]>();
@@ -275,17 +280,92 @@ export function roundedPath(pts: Point[], r = 9): string {
   return `${d} L ${z.x} ${z.y}`;
 }
 
-/** 点 p から tol 以内を通る「次の段」のケーブルのうち、いちばん近いものの番号（無ければ -1）。間に挟む先を探すのに使う */
+/** 点 p から tol 以内を通る「次の段」のケーブルのうち、いちばん近いものの番号（無ければ -1）。間に挟む先を探すのに使う。描いた曲線（curvePoints）で測る */
 export function nearestWire(wires: readonly Wire[], p: Point, tol: number): number {
   let best = -1, bestD = tol;
   wires.forEach((w, i) => {
     if (w.kind !== 'next') return;
-    for (let k = 1; k < w.points.length; k++) {
-      const d = segDist(p, w.points[k - 1]!, w.points[k]!);
+    const c = curvePoints(w.points);
+    for (let k = 1; k < c.length; k++) {
+      const d = segDist(p, c[k - 1]!, c[k]!);
       if (d <= bestD) { bestD = d; best = i; }
     }
   });
   return best;
+}
+
+// ---- コンセントの外形と、ケーブルの曲線（D0007） ----
+
+export interface Box { x: number; y: number; w: number; h: number }
+/** コンセントの外形（差し込む点を原点に、ケーブルが入ってくる向きを +x にとる。ブロックの左の縁の 16px 手前から） */
+export const SOCKET_BOX: Box = { x: -1, y: -12, w: 15, h: 24 };
+
+/** まだ何も差さっていないコンセント（枠の外の段・枠・終わりの、左 16px・縦の中央）。wires は差さっているケーブル */
+export function emptySockets(m: PipeModel, wires: readonly Wire[]): { id: string; x: number; y: number }[] {
+  const filled = new Set(wires.filter((w) => w.kind !== 'return').map((w) => w.to));
+  return [...m.stages.filter((s) => !frameOf(m, s)).map((s) => s.id), ...m.frames.map((f) => f.id), END]
+    .filter((id) => !filled.has(id))
+    .map((id) => { const r = blockRect(m, id); return { id, x: r.x - 16, y: r.y + r.h / 2 }; });
+}
+
+/** path に書く数（小数 2 桁まで。-0 は 0） */
+const n2 = (v: number): number => Math.round(v * 100) / 100 + 0;
+const pt = (p: Point): string => `${n2(p.x)} ${n2(p.y)}`;
+/** 4分の1の円を3次ベジェで近づけるときの係数 */
+const KAPPA = 0.5523;
+
+/** 折れ線の角ごとの、曲がり始め s・制御点 c1 c2・曲がり終わり t（半径はとなりの区間の半分までに縮める） */
+function corners(pts: Point[], r: number): { s: Point; c1: Point; c2: Point; t: Point }[] {
+  const out: { s: Point; c1: Point; c2: Point; t: Point }[] = [];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i]!, a = pts[i - 1]!, b = pts[i + 1]!;
+    const la = Math.hypot(p.x - a.x, p.y - a.y), lb = Math.hypot(b.x - p.x, b.y - p.y);
+    const k = Math.min(r, la / 2, lb / 2);
+    const s = { x: p.x + ((a.x - p.x) * k) / (la || 1), y: p.y + ((a.y - p.y) * k) / (la || 1) };
+    const t = { x: p.x + ((b.x - p.x) * k) / (lb || 1), y: p.y + ((b.y - p.y) * k) / (lb || 1) };
+    out.push({ s, c1: { x: s.x + (p.x - s.x) * KAPPA, y: s.y + (p.y - s.y) * KAPPA }, c2: { x: t.x + (p.x - t.x) * KAPPA, y: t.y + (p.y - t.y) * KAPPA }, t });
+  }
+  return out;
+}
+
+/**
+ * 置いたケーブル：通り道の折れ線の角を、半径 r の3次ベジェで大きく回る SVG の path（流線型）。
+ * 最後の区間はまっすぐなまま入るので、プラグとコンセントの向きは最後の区間の向き。
+ */
+export function cablePath(pts: Point[], r = 24): string {
+  const a = pts[0]!, z = pts[pts.length - 1]!;
+  if (pts.length < 3) {
+    const c1 = { x: a.x + (z.x - a.x) / 3, y: a.y + (z.y - a.y) / 3 }, c2 = { x: a.x + ((z.x - a.x) * 2) / 3, y: a.y + ((z.y - a.y) * 2) / 3 };
+    return `M ${pt(a)} C ${pt(c1)} ${pt(c2)} ${pt(z)}`;
+  }
+  let d = `M ${pt(a)}`;
+  for (const c of corners(pts, r)) d += ` L ${pt(c.s)} C ${pt(c.c1)} ${pt(c.c2)} ${pt(c.t)}`;
+  return `${d} L ${pt(z)}`;
+}
+
+/** ひも：渡した点をすべて通るなめらかな SVG の path（Catmull-Rom を3次ベジェにする） */
+export function smoothPath(pts: Point[]): string {
+  let d = `M ${pt(pts[0]!)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]!, p1 = pts[i]!, p2 = pts[i + 1]!, p3 = pts[i + 2] ?? p2;
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 }, c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    d += ` C ${pt(c1)} ${pt(c2)} ${pt(p2)}`;
+  }
+  return d;
+}
+
+/** cablePath と同じ曲線を、細かい点の並びにする（間に挟む先の探索や、曲線の向きを測るのに使う） */
+export function curvePoints(pts: Point[], r = 24): Point[] {
+  if (pts.length < 3) return pts.map((p) => ({ ...p }));
+  const out: Point[] = [{ ...pts[0]! }];
+  const bez = (a: Point, b: Point, c: Point, d: Point, t: number): Point => {
+    const u = 1 - t;
+    return { x: u * u * u * a.x + 3 * u * u * t * b.x + 3 * u * t * t * c.x + t * t * t * d.x, y: u * u * u * a.y + 3 * u * u * t * b.y + 3 * u * t * t * c.y + t * t * t * d.y };
+  };
+  for (const c of corners(pts, r)) for (let k = 0; k <= 8; k++) out.push(bez(c.s, c.c1, c.c2, c.t, k / 8));
+  out.push({ ...pts[pts.length - 1]! });
+  // 同じ点が続くところはまとめる（向きを測るとき、長さ 0 の区間にならないように）
+  return out.filter((p, i) => i === 0 || Math.hypot(p.x - out[i - 1]!.x, p.y - out[i - 1]!.y) > 1e-9);
 }
 
 function segDist(p: Point, a: Point, b: Point): number {

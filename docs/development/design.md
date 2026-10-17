@@ -45,7 +45,7 @@ devpipe.usage
 
 | 層 | パス | 置くもの | 使ってよい外の部品 |
 | --- | --- | --- | --- |
-| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道（`pipeWires.ts`）・抜き差しと間に挟む（`pipeLinks.ts`）・複製や枠の出し入れなどの編集（`pipeEdit.ts`）・判定のスイッチと不合格の行き先（`pipeCheck.ts`）・右クリックのメニュー（`pipeMenu.ts`）・元に戻す（`editHistory.ts`）・保存した版の決まり（`pipeVersions.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（時計にも触れない） | `node:path` |
+| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道と曲線（`pipeWires.ts`）・抜き差しと間に挟む（`pipeLinks.ts`）・離した点から差す先を決める（`pipeDrop.ts`）・引いているケーブルのひもの動き（`cableRope.ts`）・複製や枠の出し入れなどの編集（`pipeEdit.ts`）・判定のスイッチと不合格の行き先（`pipeCheck.ts`）・右クリックのメニュー（`pipeMenu.ts`）・元に戻す（`editHistory.ts`）・保存した版の決まり（`pipeVersions.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（時計にも触れない） | `node:path` |
 | アプリケーション | `vscode/src/app/` | 口 `WorkDirSource`・`PipeStore`・`VersionStore` と、それを使う手順（`refreshView`・`resolveWorkDir`・作業台の読み込みと保存・置き場所の決め方・保存した版の記録と読み込み） | `node:path` |
 | 画面 | `vscode/src/view/` | 図の状態 → HTML の文字列、パネルとの受け渡しの形 | なし |
 | 基盤 | `vscode/src/infra/` | 口の実装（`fsWorkDirSource.ts`・`fsPipes.ts`・`fsVersions.ts`）。触れる場所はここで絞る | `node:fs`・`node:fs/promises`・`node:os`・`node:path` |

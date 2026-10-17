@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { autoLayout, blockSize, freeSpot, frameOf, newPipe, newStage, pipeFromFiles } from './pipeModel.ts';
 import type { PipeModel, StageModel } from './pipeModel.ts';
-import { blockRect, layoutWires, nearestWire } from './pipeWires.ts';
+import { blockRect, cablePath, curvePoints, layoutWires, nearestWire, roundedPath, smoothPath } from './pipeWires.ts';
 import type { Wire } from './pipeWires.ts';
 
 function stage(over: Partial<StageModel> & { id: string; name: string }): StageModel {
@@ -269,4 +269,89 @@ max_retries = 2
   const m = pipeFromFiles('old', toml, { 'prompts/01_survey.md': '調べる\n' }, null);
   assert.equal(m.stages[0]!.check.on, true);
   assert.deepEqual(layoutWires(m).filter((w) => w.kind === 'return'), []);
+});
+
+// ---- D0007：流線型のケーブルと、ひもの曲線 ----
+
+/** path の文字列の数を読む（M x y C c1x c1y c2x c2y x y …） */
+const nums = (d: string): number[] => (d.match(/-?\d+(\.\d+)?(e-?\d+)?/g) ?? []).map(Number);
+/** 各 C の終わりの点 */
+const cEnds = (d: string): { x: number; y: number }[] =>
+  [...d.matchAll(/C\s*([^A-Za-z]+)/g)].map((m) => { const n = m[1]!.trim().split(/[\s,]+/).map(Number); return { x: n[4]!, y: n[5]! }; });
+const near = (a: { x: number; y: number }, b: { x: number; y: number }, e = 1e-6): boolean => Math.abs(a.x - b.x) < e && Math.abs(a.y - b.y) < e;
+
+test('D0007-AC-30・32: ひもの曲線（smoothPath）と置いたケーブル（cablePath）は、M で始まり曲線の命令を持ち、最後の点で終わる（2点・同じ点の続き・3点以上）', () => {
+  const cases = [
+    [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+    [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 50, y: 20 }],
+    [{ x: 0, y: 0 }, { x: 40, y: 30 }, { x: 80, y: -10 }, { x: 120, y: 5 }],
+    [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 200, y: 100 }],
+  ];
+  for (const pts of cases) {
+    for (const d of [smoothPath(pts), cablePath(pts)]) {
+      assert.match(d, /^M\s*-?[\d.]+[\s,]+-?[\d.]+/, d);
+      assert.match(d, /[CQ]/, d);
+      assert.ok(nums(d).every(Number.isFinite), d);
+      const n = nums(d), last = pts.at(-1)!;
+      assert.deepEqual([n.at(-2), n.at(-1)], [last.x, last.y], d);
+      assert.deepEqual([n[0], n[1]], [pts[0]!.x, pts[0]!.y], d);
+    }
+  }
+});
+
+test('D0007-AC-31: ひもの曲線は、渡した点をすべて順に通る（区間ごとの終わりが渡した点）', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 40, y: 30 }, { x: 80, y: -10 }, { x: 120, y: 5 }, { x: 160, y: 40 }];
+  const ends = cEnds(smoothPath(pts));
+  assert.equal(ends.length, pts.length - 1);
+  ends.forEach((e, i) => assert.ok(near(e, pts[i + 1]!), `${i}: ${JSON.stringify(e)}`));
+});
+
+test('D0007-AC-33: 置いたケーブルの終わりは、次の段・分岐なら右向き、差し戻しなら縦向きでコンセントに入る', () => {
+  const m = sample();
+  for (const w of layoutWires(m)) {
+    if (w.kind === 'start') continue;
+    const c = curvePoints(w.points), a = c.at(-2)!, b = c.at(-1)!;
+    assert.deepEqual(b, w.points.at(-1));
+    if (w.kind === 'return') assert.ok(Math.abs(b.x - a.x) < 1e-6 && Math.abs(b.y - a.y) > 0, `${w.from}→${w.to}`);
+    else assert.ok(Math.abs(b.y - a.y) < 1e-6 && b.x > a.x, `${w.from}→${w.to}`);
+  }
+});
+
+test('D0007-AC-34: 間に挟む先は、描いた曲線との距離で探す（角の内側の曲線の近くでは見つかり、曲線から離れた角の外では見つからない）', () => {
+  const w: Wire = { kind: 'next', from: 'p', to: 'q', points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] };
+  // 角 (100, 0) は曲線で内側へ回るので、角そのものは曲線から離れる
+  const c = curvePoints(w.points);
+  const dist = (p: { x: number; y: number }): number => Math.min(...c.map((q) => Math.hypot(q.x - p.x, q.y - p.y)));
+  const inner = c.reduce((best, q) => (Math.hypot(q.x - 100, q.y) < Math.hypot(best.x - 100, best.y) ? q : best));
+  assert.ok(dist({ x: 100, y: 0 }) > 6, '角そのものは曲線から離れている');
+  assert.equal(nearestWire([w], { x: inner.x - 1, y: inner.y + 1 }, 4), 0);
+  assert.equal(nearestWire([w], { x: 100, y: 0 }, 4), -1);
+});
+
+test('D0007-AC-36（画面で見つけた不具合）：動かしている、つながっていない段はよける相手から外せる（ケーブルの上に重ねても逃げない）', () => {
+  const m = sample(), before = layoutWires(m);
+  // b → c のケーブルの上に、つながっていない段 n を重ねる
+  m.stages.push(stage({ id: 'n', name: 'n', x: 560, y: 90 }));
+  const avoided = layoutWires(m);
+  assert.notDeepEqual(avoided.map((w) => w.points), before.map((w) => w.points), 'ふつうは n をよける');
+  assert.deepEqual(layoutWires(m, { ignore: 'n' }).map((w) => w.points), before.map((w) => w.points));
+});
+
+test('D0007-AC-40: 置いたケーブルは、今の丸め（9px）より大きく角を回る。それでも段の四角には入らない', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }];
+  const gap = (d: { x: number; y: number }[]): number => Math.min(...d.map((q) => Math.hypot(q.x - 100, q.y)));
+  // 今の roundedPath（Q 1つ）の、角に最も近い点：Q の中点
+  const q = nums(roundedPath(pts));
+  const oldMid = { x: 0.25 * q[2]! + 0.5 * q[4]! + 0.25 * q[6]!, y: 0.25 * q[3]! + 0.5 * q[5]! + 0.25 * q[7]! };
+  assert.ok(gap(curvePoints(pts)) > gap([oldMid]) + 3, `新 ${gap(curvePoints(pts))} / 今 ${gap([oldMid])}`);
+  assert.match(cablePath(pts), /C/);
+  // 見本（そのまま・自動で並べたもの）で、曲線の点がつないでいない段の上を通らない
+  for (const m of [sample(), autoLayout(sample())]) {
+    for (const w of layoutWires(m)) {
+      for (const s of m.stages) {
+        if (s.id === w.from || s.id === w.to) continue;
+        assert.equal(segmentsHit(curvePoints(w.points), blockRect(m, s.id)), false, `${w.from}→${w.to} が ${s.id} を通る`);
+      }
+    }
+  }
 });
