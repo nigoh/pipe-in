@@ -103,7 +103,7 @@ test('AC-53: 差し戻しは、後ろの段・枠・終わりへは差せない'
 });
 
 test('AC-53: 並列の枠の中の段の差し戻しは、自分だけ（ほかへは断る）', () => {
-  const m = sample(), r = replug(m, wire('return', 'f1', 'f1', { self: true }), 'a');
+  const m = sample(), r = replug(m, wire('return', 'f1', 'f1'), 'a');
   assert.equal(r.changed, false);
   assert.match(r.message, /枠/);
   assert.equal(st(m, 'f1').onFail, null);

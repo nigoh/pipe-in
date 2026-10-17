@@ -199,7 +199,6 @@ prompt = "x"
     m.stages.push(s);
   });
   for (const w of layoutWires(m)) {
-    if (w.self) continue;
     for (const s of m.stages) {
       if (s.id === w.from || s.id === w.to || frameOf(m, s)) continue;
       assert.equal(segmentsHit(w.points, blockRect(m, s.id)), false, `${w.kind}:${w.from}→${w.to} が ${s.name} を通る`);

@@ -10,8 +10,6 @@ export interface Wire {
   from: string;
   to: string;
   label?: string;
-  /** 自分をやり直す（差し戻しの先が自分） */
-  self?: boolean;
   /** つなぎを持っている段か枠の id（消すときに使う） */
   owner?: string;
   points: Point[];
@@ -153,10 +151,6 @@ function detour(a: Point, b: Point, obs: Rect[]): Point[] | null {
 }
 
 function routeReturn(m: PipeModel, e: Edge, p1: Point, p2: Point, tracks: Track[]): Point[] {
-  if (e.self) {
-    const y0 = p1.y;
-    return [{ x: p1.x + 26, y: y0 }, { x: p1.x + 26, y: y0 + 52 }, { x: p1.x - 26, y: y0 + 52 }, { x: p1.x - 26, y: y0 + 16 }];
-  }
   const ra = blockRect(m, e.from), rb = blockRect(m, e.to);
   const lo = Math.min(p1.x, p2.x), hi = Math.max(p1.x, p2.x);
   const all = [...m.stages.map((s) => blockRect(m, s.id)), ...m.frames.map((f) => blockRect(m, f.id))].filter((r) => r.x + r.w > lo && r.x < hi);

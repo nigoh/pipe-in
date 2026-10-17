@@ -132,7 +132,7 @@ export function targetName(m: PipeModel, id: string | null): string {
 
 /**
  * 新しいブロックを置く場所：狙った点を中心に、ほかのブロック・枠・始まりと終わりから 60 離れた空きを近い順に探す
- * （横はプラグとコンセント、縦は自分をやり直すケーブルが通る分）。
+ * （横はプラグとコンセント、縦は差し戻しのケーブルが通る分）。
  * 押して置いたブロックが重なったり、うっかり並列の枠に入ったりしないように（ドラッグで置くときは使わない）。
  */
 export function freeSpot(m: PipeModel, size: { w: number; h: number }, at: Point): Point {
