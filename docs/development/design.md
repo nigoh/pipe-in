@@ -23,6 +23,7 @@
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言だけ公式の文書を Web で読める）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` は読むだけにする） |
 | /pipe-in の記録を書く（pipe-in record） | `pipe_in/dev/record.py` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
+| ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）と README の画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README の画像と確認用のページが読む） | `tests/fixtures/showcase/`・作り方 `tests/showcase.py` |
 | 画面の確認用のページ（開発用。`npm run preview`） | `vscode/scripts/preview.ts`・ページを作る関数 `vscode/scripts/previewPages.ts` |
