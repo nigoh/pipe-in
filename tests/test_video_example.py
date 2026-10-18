@@ -337,6 +337,11 @@ def test_script_and_mock_prompts_write_data_not_html():
     assert_has_words("03_mock.md", prompt_of("mock"), ["video/mock/options.json", "データ", "HTML", "書かない", "場面"])
 
 
+def test_verify_reads_small_frames():
+    """D0011-AC-68: verify はこまを縮めて（幅 540 以下の JPEG）取り出してから読む。原寸の PNG を読むと SDK の1通の上限（1MB）を超えて落ちるため。"""
+    assert_has_words("05_verify.md", prompt_of("verify"), ["540", "JPEG", "1MB"])
+
+
 @pytest.mark.parametrize("stage", ["render", "verify"])
 def test_render_and_verify_treat_approved_last_round_as_chosen(stage):
     """D0011-AC-67: 見本の最後の回の「選んだ案」が空でも、その回が1案だけなら、人が承認して進めたものとして扱う（承認では誰も記録を埋めないため）。"""
