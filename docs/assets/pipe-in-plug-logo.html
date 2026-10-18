@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pipe-in プラグのロゴ</title>
+<style>
+/* 大きな舞台を1つ。下に段の表示と、動きを調整するつまみ */
+:root{
+  --bg:#F1F5F4; --surface:#FFFFFF; --stage:#FAFCFB; --fg:#13211E; --muted:#566A65; --line:#D8E2DF;
+  --teal:#167D6B; --orange:#F2724B; --on-flood:#FFFFFF; --route-on-flood:#6B2410; --par-on-flood:#0E5A4C; --on-par:#FFFFFF; --ret-on-flood:#8F1222; --grain:.5; --spark:#F59E0B;
+  --step-on:#FDE9E1; --step-on-fg:#9A3A1A;
+  --display:"Outfit","Zen Kaku Gothic New",system-ui,sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1513; --surface:#151E1B; --stage:#101816; --fg:#E3ECE9; --muted:#93A6A1; --line:#25322E;
+  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --grain:.4; --spark:#FFD27A;
+  --step-on:#3D2219; --step-on-fg:#FFB596; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --surface:#151E1B; --stage:#101816; --fg:#E3ECE9; --muted:#93A6A1; --line:#25322E;
+  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --grain:.4; --spark:#FFD27A;
+  --step-on:#3D2219; --step-on-fg:#FFB596; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.7}
+.wrap{max-width:1100px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(24px,3.4vw,34px);line-height:1.25;margin:0}
+h1 span{color:var(--orange)}
+.lead{margin:4px 0 0;color:var(--muted);max-width:66ch;font-size:14px}
+.stage{position:relative;aspect-ratio:16/9;max-width:100%;background:var(--stage);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;opacity:var(--grain);background-size:240px 240px}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.steps li{font-size:13px;padding:3px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);transition:background .2s,color .2s}
+.steps li.on{background:var(--step-on);color:var(--step-on-fg);border-color:transparent;font-weight:700}
+.panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px 24px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.panel .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.panel label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.slider{display:flex;flex-direction:column;gap:2px;font-size:13px;min-width:0}
+.slider span{display:flex;justify-content:space-between;color:var(--muted)}
+.slider output{font-family:var(--mono);font-size:12px;color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--orange)}
+input[type=checkbox]{accent-color:var(--orange)}
+button{font:inherit;font-size:13px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 14px;cursor:pointer}
+button:hover{border-color:var(--orange)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.notes{font-size:14px;max-width:70ch;margin:0;padding-left:1.2em;color:var(--fg)}
+.notes li{margin:2px 0}
+.notes b{color:var(--orange)}
+h2{font-size:15px;margin:6px 0 0}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>pipe-in <span>プラグのロゴ</span></h1>
+    <p class="lead">プラグを狙って差し込み、カチッとはまると電気が通ってオレンジが広がります。抜いて、もう一度。ケーブルはひもの物理演算で動きます。「フローまで見せる」を入れると、作業台の動きまで続けて見られます。</p>
+  </header>
+
+  <div class="stage" id="stage" role="img" aria-label="プラグをコンセントに差し込むと、オレンジが広がり、5つの段のフローができるロゴの動き"></div>
+
+  <ol class="steps" id="steps">
+    <li data-p="0">狙う</li><li data-p="1">差し込む</li><li data-p="2">オレンジが広がる</li><li data-p="3">作業台で組む</li><li data-p="4">流して確かめる</li><li data-p="5">抜いて、もう一度</li>
+  </ol>
+
+  <section class="panel" aria-label="動きの調整">
+    <div class="row">
+      <button type="button" id="restart">最初から</button>
+      <button type="button" id="pause">一時停止</button>
+    </div>
+    <div class="row">
+      <label for="loop"><input type="checkbox" id="loop" checked> くり返す</label>
+      <label for="flow"><input type="checkbox" id="flow"> フローまで見せる</label>
+    </div>
+    <div class="slider"><span><label for="speed">速さ</label><output id="speed-v">1.00</output></span><input type="range" id="speed" min="0.2" max="1.5" step="0.05" value="1"></div>
+    <div class="slider"><span><label for="stiff">ケーブルの硬さ</label><output id="stiff-v">0.015</output></span><input type="range" id="stiff" min="0.002" max="0.05" step="0.001" value="0.015"></div>
+    <div class="slider"><span><label for="grav">重力</label><output id="grav-v">900</output></span><input type="range" id="grav" min="0" max="2500" step="50" value="900"></div>
+    <div class="slider"><span><label for="bounce">プラグの弾み</label><output id="bounce-v">0.45</output></span><input type="range" id="bounce" min="0.2" max="0.9" step="0.05" value="0.45"></div>
+  </section>
+
+  <div>
+    <h2>01 から変えたところ</h2>
+    <ul class="notes">
+      <li><b>ケーブル</b>：48個の点をつないだひもとして計算しています。元のロゴの曲線の形を覚えていて、引っぱられると揺れ、止まると元の形へ戻ります。</li>
+      <li><b>差し込み</b>：遠くから振られて近づき、穴に向きをそろえて、いったん当たって止まります。そこから押し込むと、刃が穴に入って見えなくなります。奥で少し跳ね返り、カチッとはまって火花が出ます。</li>
+      <li><b>広がり</b>：オレンジの縁が届いた部分から順に、文字の色が変わります。</li>
+      <li><b>作業台の機能</b>：画面の下に、作業台と同じ形の知らせで、いま見せている機能を出します。
+        <ol>
+          <li>棚からブロックを置く（形は作業台と同じ：調べる・任せる・文書と図・テスト・コード・確かめる・仕分け・外を見る）</li>
+          <li>並列の枠に入れる（緑の枠。中の段は同時に動く）</li>
+          <li>プラグを引いて、コンセントに差してつなぐ</li>
+          <li>仕分けからの分岐（色の違うケーブル）と、1つの段で受ける合流</li>
+          <li>検査が通ると、上の「検査」が「検査 OK」になる</li>
+          <li>流す：並列の枠の中の2つは、進み具合の棒が同時に伸びる</li>
+          <li>判定：検証で一度 ✗ になり、赤い点線「判定 ↩」で実装へ差し戻し。やり直して ✓</li>
+          <li>最後に「保存」が押される</li>
+        </ol></li>
+      <li><b>紙の質感</b>：細かい粒と短い繊維を描いた模様を、舞台全体に重ねています。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const P = {"p1": "M326.0 10Q273.7 10.0 231.7 -11.2Q189.7 -32.5 164.6 -69.7Q139.5 -107.0 137.5 -154.5V-326.0Q139.5 -373.5 165.0 -411.3Q190.5 -449.2 232.4 -471.1Q274.4 -493.0 326.0 -493Q393.0 -493 446.0 -459.7Q499.0 -426.5 529.5 -369.6Q560.0 -312.7 560.0 -240.7Q560.0 -169.5 529.5 -112.7Q499.0 -56 446.0 -23.0Q393.0 10 326.0 10ZM57.5 202.5V-483.0H189.0V-356.1L166.7 -238.5L187.7 -121.5V202.5ZM303.1 -111.0Q339.3 -111.0 366.9 -127.6Q394.5 -144.2 410.2 -173.7Q426.0 -203.2 426.0 -241.5Q426.0 -280 410.2 -309.3Q394.5 -338.7 366.9 -355.3Q339.4 -372.0 303.4 -372.0Q267.5 -372.0 239.6 -355.4Q211.7 -338.9 196.3 -309.4Q181.0 -280.0 181.0 -241.5Q181.0 -203.2 196.2 -173.7Q211.5 -144.2 239.3 -127.6Q267.2 -111.0 303.1 -111.0Z", "i1s": "M646.0 0V-483H777.5V0.0Z", "i1d": "M711.7 -560.5Q680.0 -560.5 659.0 -582.1Q638.0 -603.7 638.0 -635.5Q638.0 -667.2 659.0 -688.8Q680.0 -710.5 711.7 -710.5Q744.5 -710.5 765.0 -688.8Q785.5 -667.2 785.5 -635.5Q785.5 -603.7 765.0 -582.1Q744.5 -560.5 711.7 -560.5Z", "p2": "M1162.0 10Q1109.7 10.0 1067.7 -11.2Q1025.7 -32.5 1000.6 -69.7Q975.5 -107.0 973.5 -154.5V-326.0Q975.5 -373.5 1001.0 -411.3Q1026.5 -449.2 1068.4 -471.1Q1110.4 -493.0 1162.0 -493Q1229.0 -493 1282.0 -459.7Q1335.0 -426.5 1365.5 -369.6Q1396.0 -312.7 1396.0 -240.7Q1396.0 -169.5 1365.5 -112.7Q1335.0 -56 1282.0 -23.0Q1229.0 10 1162.0 10ZM893.5 202.5V-483.0H1025.0V-356.1L1002.7 -238.5L1023.7 -121.5V202.5ZM1139.1 -111.0Q1175.3 -111.0 1202.9 -127.6Q1230.5 -144.2 1246.2 -173.7Q1262.0 -203.2 1262.0 -241.5Q1262.0 -280 1246.2 -309.3Q1230.5 -338.7 1202.9 -355.3Q1175.4 -372.0 1139.4 -372.0Q1103.5 -372.0 1075.6 -355.4Q1047.7 -338.9 1032.3 -309.4Q1017.0 -280.0 1017.0 -241.5Q1017.0 -203.2 1032.2 -173.7Q1047.5 -144.2 1075.3 -127.6Q1103.2 -111.0 1139.1 -111.0Z", "e": "M1712.7 10.5Q1637.2 10.5 1577.8 -22.0Q1518.5 -54.5 1484.2 -111.8Q1450.0 -169.2 1450.0 -241.5Q1450.0 -313.5 1483.6 -370.3Q1517.2 -427.2 1575.1 -460.3Q1633.0 -493.5 1704.2 -493.5Q1773.7 -493.5 1827.1 -462.3Q1880.5 -431.2 1911.0 -376.7Q1941.5 -322.2 1941.5 -252.5Q1941.5 -239.7 1940.0 -226.2Q1938.5 -212.7 1935.0 -196L1528.5 -195.2V-292.7L1874.0 -293.5L1820.5 -253.2Q1819.0 -296.2 1805.3 -325.1Q1791.7 -354.0 1766.3 -369.2Q1741.0 -384.5 1703.7 -384.5Q1664.7 -384.5 1636.0 -367.2Q1607.2 -350.0 1591.6 -318.6Q1576.0 -287.2 1576.0 -243.5Q1576.0 -199.5 1592.6 -167.1Q1609.2 -134.7 1640.0 -117.3Q1670.7 -100.0 1712.0 -100Q1748.5 -100.0 1778.7 -112.6Q1809.0 -125.2 1831.0 -150.2L1908.0 -72.7Q1872.5 -31.5 1822.0 -10.5Q1771.5 10.5 1712.7 10.5Z", "hy": "M2022.5 -195.5V-314.5H2369.0V-195.5Z", "i2s": "M2485.0 0V-483H2616.5V0.0Z", "n": "M3057.5 0.0V-276.7Q3057.5 -320.0 3030.5 -347.1Q3003.5 -374.2 2961.4 -374.2Q2932.8 -374.2 2910.7 -362.0Q2888.7 -349.7 2876.3 -327.6Q2864.0 -305.5 2864.0 -276.7L2812.7 -303.2Q2812.7 -359.5 2837.3 -402.1Q2862.0 -444.7 2905.4 -468.8Q2948.8 -493.0 3003.7 -493.0Q3057.2 -493.0 3099.1 -466.5Q3141.0 -440 3165.0 -397.2Q3189.0 -354.5 3189.0 -306V0ZM2732.5 0.0V-483.0H2864.0V0Z", "cable": "M714.3 -660.5 L722.0 -659.7 L729.6 -658.9 L736.9 -658.2 L744.0 -657.5 L750.9 -656.8 L757.6 -656.1 L764.0 -655.4 L770.3 -654.7 L776.5 -654.1 L782.5 -653.4 L788.3 -652.8 L793.9 -652.2 L799.5 -651.7 L804.9 -651.1 L810.2 -650.5 L815.3 -650.0 L820.4 -649.5 L825.4 -649.0 L830.3 -648.5 L835.2 -648.0 L839.9 -647.6 L844.7 -647.1 L849.3 -646.7 L854.0 -646.3 L858.6 -645.9 L863.3 -645.5 L867.9 -645.2 L872.5 -644.8 L877.1 -644.5 L881.8 -644.1 L886.5 -643.8 L891.3 -643.5 L896.1 -643.2 L901.0 -643.0 L905.9 -642.7 L911.0 -642.4 L916.1 -642.2 L921.4 -642.0 L926.8 -641.7 L932.3 -641.5 L937.9 -641.3 L943.7 -641.2 L949.6 -641.0 L955.8 -640.8 L962.0 -640.7 L968.5 -640.5 L975.2 -640.4 L982.0 -640.3 L989.1 -640.2 L996.4 -640.1 L1004.0 -640.0 L1011.8 -639.9 L1019.8 -639.8 L1028.1 -639.8 L1036.7 -639.7 L1045.5 -639.7 L1054.7 -639.7 L1064.1 -639.6 L1073.8 -639.6 L1083.7 -639.6 L1098.0 -639.8 L1112.0 -640.5 L1125.9 -641.7 L1139.8 -643.2 L1153.6 -645.2 L1167.3 -647.5 L1181.0 -650.3 L1194.6 -653.4 L1208.1 -656.9 L1221.6 -660.7 L1235.1 -664.8 L1248.6 -669.3 L1262.0 -674.1 L1275.3 -679.1 L1288.7 -684.4 L1302.0 -690.0 L1315.3 -695.8 L1328.6 -701.8 L1341.9 -708.0 L1355.1 -714.4 L1368.4 -721.0 L1381.6 -727.8 L1394.9 -734.7 L1408.1 -741.7 L1421.3 -748.9 L1434.6 -756.1 L1447.8 -763.4 L1461.1 -770.8 L1474.4 -778.2 L1487.7 -785.7 L1501.0 -793.1 L1514.4 -800.6 L1527.8 -808.0 L1541.2 -815.4 L1554.7 -822.8 L1568.2 -830.1 L1581.7 -837.3 L1595.3 -844.4 L1609.0 -851.3 L1622.7 -858.2 L1636.5 -864.8 L1650.3 -871.3 L1664.2 -877.6 L1678.2 -883.7 L1692.3 -889.6 L1706.5 -895.3 L1720.7 -900.6 L1735.1 -905.7 L1749.6 -910.5 L1764.1 -915.0 L1778.8 -919.1 L1793.6 -922.9 L1808.4 -926.3 L1823.5 -929.3 L1838.6 -931.9 L1853.8 -934.1 L1869.2 -935.8 L1884.7 -937.1 L1900.3 -937.9 L1915.8 -938.1 L1927.7 -938.1 L1939.0 -938.1 L1949.8 -938.0 L1960.3 -937.9 L1970.4 -937.8 L1980.1 -937.6 L1989.5 -937.4 L1998.5 -937.1 L2007.3 -936.8 L2015.7 -936.5 L2023.8 -936.1 L2031.6 -935.6 L2039.2 -935.1 L2046.5 -934.6 L2053.6 -934.0 L2060.5 -933.3 L2067.1 -932.6 L2073.6 -931.8 L2079.8 -931.0 L2085.9 -930.0 L2091.8 -929.0 L2097.6 -927.9 L2103.2 -926.8 L2108.7 -925.5 L2114.0 -924.2 L2119.3 -922.8 L2124.4 -921.3 L2129.5 -919.6 L2134.5 -918.0 L2139.3 -916.2 L2144.1 -914.3 L2148.9 -912.3 L2153.6 -910.3 L2158.2 -908.1 L2162.8 -905.9 L2167.4 -903.6 L2171.9 -901.2 L2176.4 -898.7 L2181.0 -896.1 L2185.5 -893.5 L2190.1 -890.7 L2194.8 -887.9 L2199.4 -884.9 L2204.2 -881.9 L2209.0 -878.8 L2214.0 -875.6 L2219.0 -872.3 L2224.2 -868.9 L2229.5 -865.4 L2235.0 -861.8 L2240.7 -858.1 L2246.5 -854.2 L2252.5 -850.3 L2258.8 -846.2 L2265.2 -842.0 L2271.9 -837.7 L2278.9 -833.2 L2286.1 -828.7 L2293.6 -824.0 L2301.5 -819.1 L2275.0 -776.4 L2267.0 -781.4 L2259.3 -786.2 L2251.9 -790.9 L2244.8 -795.4 L2238.0 -799.8 L2231.4 -804.1 L2225.0 -808.2 L2218.9 -812.2 L2213.0 -816.1 L2207.4 -819.9 L2201.9 -823.5 L2196.6 -827.0 L2191.5 -830.3 L2186.6 -833.5 L2181.8 -836.6 L2177.2 -839.6 L2172.7 -842.4 L2168.3 -845.1 L2164.1 -847.7 L2160.0 -850.2 L2155.9 -852.6 L2152.0 -854.8 L2148.1 -857.0 L2144.2 -859.0 L2140.4 -860.9 L2136.7 -862.8 L2132.9 -864.5 L2129.2 -866.1 L2125.4 -867.7 L2121.6 -869.2 L2117.7 -870.6 L2113.8 -871.9 L2109.8 -873.2 L2105.7 -874.4 L2101.4 -875.6 L2097.1 -876.7 L2092.5 -877.7 L2087.8 -878.7 L2083.0 -879.6 L2077.9 -880.4 L2072.6 -881.2 L2067.1 -882.0 L2061.3 -882.7 L2055.3 -883.4 L2049.1 -884.0 L2042.5 -884.5 L2035.7 -885.0 L2028.6 -885.5 L2021.2 -885.9 L2013.5 -886.3 L2005.4 -886.6 L1997.0 -886.9 L1988.2 -887.2 L1979.1 -887.4 L1969.6 -887.5 L1959.7 -887.7 L1949.4 -887.8 L1938.7 -887.8 L1927.6 -887.9 L1916.3 -887.9 L1902.0 -887.7 L1888.0 -887.0 L1874.0 -885.8 L1860.2 -884.3 L1846.4 -882.3 L1832.7 -880.0 L1819.0 -877.2 L1805.4 -874.1 L1791.8 -870.6 L1778.3 -866.8 L1764.8 -862.7 L1751.4 -858.2 L1738.0 -853.5 L1724.6 -848.4 L1711.3 -843.1 L1697.9 -837.5 L1684.6 -831.7 L1671.4 -825.7 L1658.1 -819.5 L1644.8 -813.1 L1631.6 -806.5 L1618.3 -799.7 L1605.1 -792.8 L1591.9 -785.8 L1578.6 -778.7 L1565.4 -771.4 L1552.1 -764.1 L1538.8 -756.7 L1525.6 -749.3 L1512.3 -741.8 L1498.9 -734.4 L1485.6 -726.9 L1472.2 -719.5 L1458.8 -712.1 L1445.3 -704.7 L1431.8 -697.4 L1418.3 -690.2 L1404.7 -683.1 L1391.0 -676.2 L1377.3 -669.3 L1363.5 -662.7 L1349.7 -656.2 L1335.7 -649.9 L1321.7 -643.8 L1307.6 -637.9 L1293.5 -632.3 L1279.2 -626.9 L1264.9 -621.8 L1250.4 -617.0 L1235.8 -612.5 L1221.2 -608.4 L1206.4 -604.6 L1191.5 -601.2 L1176.5 -598.2 L1161.4 -595.6 L1146.1 -593.4 L1130.8 -591.7 L1115.3 -590.4 L1099.6 -589.6 L1084.1 -589.4 L1073.8 -589.4 L1064.0 -589.4 L1054.5 -589.4 L1045.3 -589.5 L1036.4 -589.5 L1027.8 -589.5 L1019.4 -589.6 L1011.3 -589.7 L1003.4 -589.8 L995.8 -589.8 L988.4 -589.9 L981.2 -590.1 L974.3 -590.2 L967.5 -590.3 L960.9 -590.5 L954.5 -590.6 L948.2 -590.8 L942.2 -591.0 L936.2 -591.1 L930.5 -591.3 L924.8 -591.6 L919.3 -591.8 L913.9 -592.0 L908.6 -592.3 L903.3 -592.5 L898.2 -592.8 L893.2 -593.1 L888.2 -593.4 L883.2 -593.7 L878.4 -594.0 L873.5 -594.4 L868.7 -594.7 L864.0 -595.1 L859.2 -595.5 L854.4 -595.9 L849.7 -596.3 L844.9 -596.7 L840.1 -597.1 L835.2 -597.6 L830.4 -598.0 L825.4 -598.5 L820.4 -599.0 L815.4 -599.5 L810.2 -600.0 L805.0 -600.6 L799.7 -601.1 L794.2 -601.7 L788.7 -602.3 L783.0 -602.9 L777.2 -603.5 L771.2 -604.1 L765.1 -604.8 L758.8 -605.4 L752.3 -606.1 L745.7 -606.8 L738.8 -607.5 L731.8 -608.2 L724.5 -609.0 L717.0 -609.7 L709.2 -610.5 Z", "pb": "M2337.7 -845.4 L2396.6 -809.0 L2326.6 -695.8 L2267.8 -732.2 Z", "pr1": "M2399.0 -791.8 L2473.2 -745.9 L2460.1 -724.6 L2385.8 -770.5 Z", "pr2": "M2356.3 -722.6 L2430.5 -676.8 L2417.3 -655.5 L2343.1 -701.3 Z", "holes": ["M2557.2 -696.4 L2602.3 -668.5 L2587.0 -643.8 L2541.9 -671.6 Z", "M2514.5 -627.2 L2559.6 -599.4 L2544.3 -574.6 L2499.2 -602.5 Z"]};
+const VB = {x:-297, y:-1471, w:3880, h:2182};
+const WIRE = "M711.8 -635.5 L900 -618 L1084 -614.5 C1180 -616 1240 -640 1300 -662 L1500 -766 L1700 -863 C1790 -900 1850 -913 1916 -913 C2000 -913 2060 -910 2100 -902 C2150 -890 2200 -856 2288 -797";
+const OUT = {x:2550.8, y:-635.5};
+const C = {x:2332, y:-770};          // プラグの胴の中心（回す軸）
+const D = {x:.8507, y:.5257};        // 差し込む向き
+const Nn = {x:-D.y, y:D.x};          // それと直角（左下向き）
+const F = {x:2488, y:-674.3};        // コンセントの面
+const LOGO_C = {x:1643, y:-380};
+// フローの作業台：pipe-in のパイプ作業台の機能を順に見せる。
+// ブロックを置く → 並列の枠に入れる → プラグを差してつなぐ → 仕分けで分岐 → 合流 → 検査 → 実行（並列は同時に進む）→ 判定で差し戻し → 合格して保存
+// 形は作業台の棚と同じ：調べる＝長方形、任せる＝二重枠、文書と図＝下が波の紙、テスト＝両端に線、コード＝角を落とした形、確かめる＝六角形、仕分け＝ひし形、外を見る＝平行四辺形、並列＝緑の大きな枠
+const BW = 330, BH = 200, IW = 300, IH = 170, DW = 180, DH = 130;
+const col = i => -65 + i * 550;
+const BLOCKS = [
+  {name: "要件定義", id: "requirements", shape: "doc", x: col(0), y: 150, w: BW, h: BH},
+  {name: "仕分け", id: "triage", shape: "diamond", x: col(1), y: 150, w: DW * 2, h: DH * 2},
+  {name: "並列の枠", id: "", shape: "frame", x: col(2), y: -150, w: 360, h: 490},
+  {name: "調べる", id: "survey", shape: "rect", x: col(2), y: -205, w: IW, h: IH, power: 2},
+  {name: "任せる", id: "delegate", shape: "agent", x: col(2), y: 5, w: IW, h: IH, power: 2},
+  {name: "外を見る", id: "web", shape: "para", x: col(2), y: 370, w: BW, h: IH},
+  {name: "設計", id: "design", shape: "doc", x: col(3), y: 150, w: BW, h: BH},
+  {name: "テスト先行", id: "red_tests", shape: "test", x: col(4), y: 150, w: BW, h: BH},
+  {name: "実装", id: "implement", shape: "code", x: col(5), y: 150, w: BW, h: BH},
+  {name: "検証", id: "verify", shape: "hex", x: col(6), y: 150, w: BW, h: BH},
+];
+const DROP_ORDER = [0, 1, 3, 4, 5, 6, 7, 8, 9];
+// out・in はプラグとコンセントの、ブロックの中心からの上下のずれ。at はつなぎ始める時刻（T_CONN から）
+const CONNS = [
+  {from: 0, to: 1, out: 0, in: 0, kind: "next", at: 0},
+  {from: 1, to: 2, out: -50, in: 0, kind: "route", at: .85},
+  {from: 1, to: 5, out: 50, in: 0, kind: "route", at: 1.0},
+  {from: 2, to: 6, out: 0, in: -45, kind: "next", at: 1.85},
+  {from: 5, to: 6, out: 0, in: 45, kind: "next", at: 2.0},
+  {from: 6, to: 7, out: 0, in: 0, kind: "next", at: 2.6},
+  {from: 7, to: 8, out: 0, in: 0, kind: "next", at: 3.1},
+  {from: 8, to: 9, out: 0, in: 0, kind: "next", at: 3.6},
+];
+const SOCK = {w: 56, h: 72}, BODY = {w: 56, h: 60}, PRONG = {w: 36, h: 10};
+const CABLE_N = 16;
+// カチッからの秒
+const T_BOARD = 1.8, T_DROP = 1.95, T_FRAME = 3.2, T_CONN = 4.4, T_CHECK = T_CONN + 3.6 + .85, T_PULSE = T_CHECK + .75, HOLD = 1.8;
+// 光の粒がケーブルを流れる時間（T_PULSE から）。分かれた2本は同時に。並列の枠の中の2つは同時に進む。検証は一度落ち、差し戻しのあとにもう一度流れる
+// 各段は、エージェントを呼んで作業する時間（WORK）を持つ。終わると成果物を返して ✓、次のケーブルへ流れる
+const WORK = [[[0, .55]], [[.85, 1.3]], [], [[1.6, 2.4]], [[1.6, 2.4]], [[1.6, 2.15]], [[2.7, 3.25]], [[3.55, 4.1]], [[4.4, 4.95], [6.4, 6.95]], [[5.25, 5.8], [7.25, 7.8]]];
+const PULSE = [[[.55, .85]], [[1.3, 1.6]], [[1.3, 1.6]], [[2.4, 2.7]], [[2.15, 2.45]], [[3.25, 3.55]], [[4.1, 4.4]], [[4.95, 5.25], [6.95, 7.25]]];
+const CHECK_AT = [.55, 1.3, null, 2.4, 2.4, 2.15, 3.25, 4.1, 4.95, 7.8], CROSS = [5.8, 7.25], RET = [5.95, 6.4], PULSE_END = 7.8, T_SAVE = 8.0;
+const RB = BLOCKS[9], RA = BLOCKS[8];
+const RET_PATH = `M${RB.x} ${RB.y - BH / 2} C${RB.x} -300 ${RA.x} -300 ${RA.x} ${RA.y - BH / 2}`;
+const TOASTS = [
+  [T_BOARD, T_FRAME, "いつもの作業を、ブロックにして置く"],
+  [T_FRAME, T_CONN, "並列の枠に入れた段は、同時に動く"],
+  [T_CONN, T_CONN + .85, "プラグを引いて、コンセントに差す"],
+  [T_CONN + .85, T_CONN + 1.85, "仕分けからは、分岐のケーブル"],
+  [T_CONN + 1.85, T_CONN + 2.6, "2本を1つの段で受けて、合流"],
+  [T_CONN + 2.6, T_CHECK, "次の段へ、順につなぐ"],
+  [T_CHECK, T_PULSE, "検査 OK"],
+  [T_PULSE, T_PULSE + 1.6, "流すと、各段のエージェントが自動で動く"],
+  [T_PULSE + 1.6, T_PULSE + 2.7, "並列の枠の中は、エージェントが同時に動く"],
+  [T_PULSE + 2.7, T_PULSE + 5.8, "エージェントが成果物を返し、段ごとに判定する"],
+  [T_PULSE + 5.8, T_PULSE + 7.25, "不合格なら、前の段へ差し戻して呼び直す"],
+  [T_PULSE + 7.25, T_PULSE + PULSE_END + HOLD + .2, "合格。保存する"],
+];
+const halfAt = (b, dy) => b.shape === "diamond" ? DW * (1 - Math.abs(dy) / DH) : b.shape === "para" ? b.w / 2 - 20 : b.w / 2;
+const GEO = CONNS.map(c => {
+  const a = BLOCKS[c.from], b = BLOCKS[c.to];
+  return {A: {x: a.x + halfAt(a, c.out), y: a.y + c.out}, face: b.x - halfAt(b, c.in) - SOCK.w, sy: b.y + c.in};
+});
+const rr = (w, h, r) => `M${-w + r} ${-h} H${w - r} Q${w} ${-h} ${w} ${-h + r} V${h - r} Q${w} ${h} ${w - r} ${h} H${-w + r} Q${-w} ${h} ${-w} ${h - r} V${-h + r} Q${-w} ${-h} ${-w + r} ${-h} Z`;
+function shapePath(b) {
+  const w = b.w / 2, h = b.h / 2;
+  switch (b.shape) {
+    case "diamond": return `M${-DW} 0 L0 ${-DH} L${DW} 0 L0 ${DH} Z`;
+    case "doc": return `M${-w} ${-h} H${w} V${h - 26} C${w * .6} ${h + 14} ${w * .25} ${h + 14} 0 ${h - 14} C${-w * .3} ${h - 40} ${-w * .6} ${h - 40} ${-w} ${h - 8} Z`;
+    case "hex": return `M${-w} 0 L${-w + 46} ${-h} H${w - 46} L${w} 0 L${w - 46} ${h} H${-w + 46} Z`;
+    case "code": { const c = 40; return `M${-w + c} ${-h} H${w - c} L${w} ${-h + c} V${h - c} L${w - c} ${h} H${-w + c} L${-w} ${h - c} V${-h + c} Z`; }
+    case "para": return `M${-w + 40} ${-h} H${w} L${w - 40} ${h} H${-w} Z`;
+    case "frame": return rr(w, h, 34);
+    default: return `M${-w} ${-h} H${w} V${h} H${-w} Z`;
+  }
+}
+// 字の大きさ：形ごとの内側の余白を除いた幅に収める（テストの両端の線、六角形の斜めの辺にかからないように）
+const PAD = {test: 62, hex: 60, para: 56, code: 46, agent: 40, doc: 32, rect: 32};
+const textW = s => [...s].reduce((n, ch) => n + (/[ -~]/.test(ch) ? .6 : 1), 0);
+const innerW = b => b.shape === "diamond" ? 230 : b.w - 2 * (PAD[b.shape] ?? 32);
+const nameSize = b => Math.floor(Math.min(b.w < BW || b.shape === "diamond" ? 52 : 58, innerW(b) / textW(b.name)));
+const idSize = b => Math.floor(Math.min(34, innerW(b) / textW(b.id)));
+// 形の飾り：二重枠（任せる）と、両端の線（テスト）
+function decoPath(b) {
+  const w = b.w / 2, h = b.h / 2;
+  if (b.shape === "agent") return `M${-w + 18} ${-h + 18} H${w - 18} V${h - 18} H${-w + 18} Z`;
+  if (b.shape === "test") return `M${-w + 30} ${-h} V${h} M${w - 30} ${-h} V${h}`;
+  return "";
+}const H = 1 / 120;                   // 物理の1歩（秒）
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NS = "http://www.w3.org/2000/svg";
+
+// ---- 道具 ----
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = {
+  outCubic: t => 1 - (1 - t) ** 3,
+  inCubic: t => t ** 3,
+  inOut: t => t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2,
+  outBack: t => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; },
+};
+const seg = (t, a, b) => { const v = (t - a) / (b - a); return Number.isFinite(v) ? clamp(v) : (t >= b ? 1 : 0); };
+const hex = s => { s = s.replace("#", ""); if (s.length === 3) s = [...s].map(c => c + c).join("");
+  return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16)); };
+const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let COL;
+const readColors = () => { COL = {teal: hex(css("--teal")), orange: hex(css("--orange")), on: hex(css("--on-flood")), route: hex(css("--route-on-flood")), par: hex(css("--par-on-flood")), ret: hex(css("--ret-on-flood")), spark: css("--spark")}; };
+
+// ---- 絵を組む ----
+const stage = document.getElementById("stage");
+const holes = P.holes.map(d => `<path d="${d}" fill="#000" stroke="#000" stroke-width="6" stroke-linejoin="round"/>`).join("");
+const K = 6000;
+const clipPts = [[F.x + Nn.x * K, F.y + Nn.y * K], [F.x - Nn.x * K, F.y - Nn.y * K],
+  [F.x - Nn.x * K - D.x * K, F.y - Nn.y * K - D.y * K], [F.x + Nn.x * K - D.x * K, F.y + Nn.y * K - D.y * K]].map(p => p.join(",")).join(" ");
+const teal = ["p1", "i1s", "i1d", "p2", "e", "i2s", "n"];
+const check = "M-30 2 L-8 24 L34 -26";
+stage.innerHTML = `<svg viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" xmlns="${NS}">
+  <defs>
+    <mask id="holes" maskUnits="userSpaceOnUse" x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}"><rect x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}" fill="#fff"/>${holes}</mask>
+    <clipPath id="face" clipPathUnits="userSpaceOnUse"><polygon points="${clipPts}"/></clipPath>
+    <pattern id="dots" width="90" height="90" patternUnits="userSpaceOnUse"><circle id="dot" cx="45" cy="45" r="6"/></pattern>
+    <filter id="blur" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="28"/></filter>
+  </defs>
+  <g id="shake">
+    <circle id="flood" r="0"/>
+    <g id="logo">
+      ${teal.map(k => `<path id="${k}" d="${P[k]}"/>`).join("")}
+      <path id="hy" d="${P.hy}"/>
+      <circle id="halo" cx="${OUT.x}" cy="${OUT.y}" r="95" filter="url(#blur)" opacity="0"/>
+      <circle id="outlet" cx="${OUT.x}" cy="${OUT.y}" r="73.8" mask="url(#holes)"/>
+      <path id="rope" fill="none" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle id="cstart" cx="711.8" cy="-635.5" r="39.2"/>
+      <g clip-path="url(#face)"><g id="plug">
+        <path id="pb" d="${P.pb}" stroke-width="34.2" stroke-linejoin="round"/>
+        <path id="pr1" d="${P.pr1}" stroke-width="6" stroke-linejoin="round"/>
+        <path id="pr2" d="${P.pr2}" stroke-width="6" stroke-linejoin="round"/>
+      </g></g>
+      <g id="spark" stroke-linecap="round" stroke-width="14"></g>
+    </g>
+    <g id="board" opacity="0">
+      <rect x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}" fill="url(#dots)"/>
+      <path id="ret" d="${RET_PATH}" fill="none" stroke-width="12" stroke-dasharray="40 28" stroke-linecap="round" opacity="0"/>
+      <text id="retlbl" x="${(RA.x + RB.x) / 2}" y="-250" text-anchor="middle" font-size="44" font-weight="700" font-family="Zen Kaku Gothic New, Hiragino Sans, sans-serif" opacity="0">判定 ↩</text>
+      ${BLOCKS.map(b => b.shape === "frame"
+        ? `<g class="blk"><path d="${shapePath(b)}" stroke-width="12" pathLength="1" stroke-dasharray="1 1"/><path d=""/>
+           <text x="${-b.w / 2 + 28}" y="${-b.h / 2 + 52}" font-size="40" font-weight="700" font-family="Zen Kaku Gothic New, Hiragino Sans, sans-serif">${b.name}</text><text/><rect/><g/></g>`
+        : `<g class="blk"><path d="${shapePath(b)}" stroke-width="12" stroke-linejoin="round"/><path d="${decoPath(b)}" fill="none" stroke-width="10"/>
+        <text y="${b.shape === "diamond" ? 0 : -2}" text-anchor="middle" font-size="${nameSize(b)}" font-weight="700" font-family="Zen Kaku Gothic New, Hiragino Sans, sans-serif">${b.name}</text>
+        <text y="${b.shape === "diamond" ? 48 : 52}" text-anchor="middle" font-size="${idSize(b)}" font-family="JetBrains Mono, ui-monospace, monospace">${b.id}</text>
+        <rect x="${-b.w / 2 + 34}" y="${b.h / 2 - 38}" height="14" rx="7" width="0"/>
+        <g class="badge" transform="scale(0)"><circle r="40" stroke-width="10"/><path d="${check}" transform="scale(.78)" fill="none" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/><path d="M-19 -19 L19 19 M19 -19 L-19 19" fill="none" stroke-width="17" stroke-linecap="round"/>
+          <g><path d="M0 -27 C4 -7 7 -4 27 0 C7 4 4 7 0 27 C-4 7 -7 4 -27 0 C-7 -4 -4 -7 0 -27 Z"/><circle cx="54" r="7"/><circle cx="-27" cy="47" r="7"/><circle cx="-27" cy="-47" r="7"/></g></g></g>`).join("")}
+      ${CONNS.map(() => `<path class="cab" fill="none" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>`).join("")}
+      ${CONNS.map(() => `<g class="bplug"><rect x="${-BODY.w}" y="${-BODY.h / 2}" width="${BODY.w}" height="${BODY.h}" rx="14"/><rect x="-4" y="-22" width="${PRONG.w + 4}" height="${PRONG.h}" rx="3"/><rect x="-4" y="12" width="${PRONG.w + 4}" height="${PRONG.h}" rx="3"/></g>`).join("")}
+      ${CONNS.map(() => `<g class="sock"><rect x="0" y="${-SOCK.h / 2}" width="${SOCK.w}" height="${SOCK.h}" rx="14"/><rect class="slot" x="0" y="-22" width="16" height="10"/><rect class="slot" x="0" y="12" width="16" height="10"/></g>`).join("")}
+      <g id="bspark" stroke-linecap="round" stroke-width="10"></g>
+      ${CONNS.map(() => `<circle class="pls" r="28" opacity="0"/>`).join("")}<circle id="retpls" r="28" opacity="0"/>
+      <g id="tools" font-family="Zen Kaku Gothic New, Hiragino Sans, sans-serif" font-weight="700" font-size="44">
+        <g id="tcheck" transform="translate(3020 -640)"><rect x="0" y="-48" width="270" height="96" rx="48" stroke-width="8"/><text x="135" y="15" text-anchor="middle">検査</text></g>
+        <g id="tsave" transform="translate(3310 -640)"><rect x="0" y="-48" width="170" height="96" rx="48" stroke-width="8"/><text x="85" y="15" text-anchor="middle">保存</text></g>
+      </g>
+      <g id="toast" opacity="0"><rect y="-55" height="110" rx="55"/><text y="17" text-anchor="middle" font-size="50" font-weight="700" font-family="Zen Kaku Gothic New, Hiragino Sans, sans-serif"></text></g>
+    </g>
+  </g>
+</svg>`;
+// 紙のざらつき：細かい粒と短い繊維を描いた小さな絵を、重ね合わせ（overlay）で全体に敷く
+(function paper() {
+  const n = 240, c = document.createElement("canvas"); c.width = c.height = n;
+  const x = c.getContext("2d"), im = x.createImageData(n, n), r = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(12345);
+  for (let i = 0; i < n * n; i++) { const v = 128 + (r() - .5) * 120 + (r() < .02 ? (r() - .5) * 140 : 0);
+    im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
+  x.putImageData(im, 0, 0);
+  x.lineWidth = .7;
+  for (let k = 0; k < 90; k++) {
+    const px = r() * n, py = r() * n, a = r() * Math.PI * 2, l = 6 + r() * 18;
+    x.strokeStyle = r() < .5 ? "rgba(0,0,0,.25)" : "rgba(255,255,255,.3)";
+    x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + .6) * l / 2, py + Math.sin(a + .6) * l / 2, px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+  }
+  const g = document.createElement("div"); g.className = "grain"; g.style.backgroundImage = `url(${c.toDataURL()})`;
+  stage.appendChild(g);
+})();
+const $ = id => document.getElementById(id);
+const el = {flood: $("flood"), logo: $("logo"), rope: $("rope"), plug: $("plug"), halo: $("halo"), spark: $("spark"),
+  shake: $("shake"), board: $("board"), dot: $("dot"), ret: $("ret"), retpls: $("retpls"), retlbl: $("retlbl"), pls: [...document.querySelectorAll(".pls")],
+  tcheck: $("tcheck"), tsave: $("tsave"), toast: $("toast"),
+  blks: [...document.querySelectorAll(".blk")], cabs: [...document.querySelectorAll(".cab")],
+  bplugs: [...document.querySelectorAll(".bplug")], socks: [...document.querySelectorAll(".sock")]};
+const RET_LEN = el.ret.getTotalLength();
+const bsparks = CONNS.map(() => Array.from({length: 7}, () => { const l = document.createElementNS(NS, "line"); $("bspark").appendChild(l); return l; }));
+const sparkLines = Array.from({length: 9}, () => { const l = document.createElementNS(NS, "line"); el.spark.appendChild(l); return l; });
+
+// 色を塗り分ける相手と、その中心（ロゴの座標）
+const paint = [...teal.map(k => ({e: $(k), base: "teal"})), {e: $("outlet"), base: "teal"}, {e: $("hy"), base: "orange"},
+  {e: $("rope"), base: "orange", stroke: true}, {e: $("cstart"), base: "orange"},
+  ...["pb", "pr1", "pr2"].map(k => ({e: $(k), base: "orange", both: true}))];
+paint.forEach(p => { const b = p.e.getBBox(); p.c = {x: b.x + b.width / 2, y: b.y + b.height / 2}; });
+
+// ---- ケーブル（ひも）の準備：元の曲線を48点に分ける ----
+const NP = 48;
+const tmp = document.createElementNS(NS, "path"); tmp.setAttribute("d", WIRE);
+el.spark.appendChild(tmp);
+const LEN = tmp.getTotalLength();
+const rest = Array.from({length: NP}, (_, i) => { const p = tmp.getPointAtLength(LEN * i / (NP - 1)); return {x: p.x, y: p.y}; });
+tmp.remove();
+const SEG = LEN / (NP - 1);
+const E = rest[NP - 1];
+
+// ---- 状態 ----
+const ctl = {speed: 1, stiff: .015, grav: 900, bounce: .45, loop: true, flow: false, paused: false};
+let S;
+function reset(fromStart) {
+  const plug = fromStart || !S ? {s: -650, q: 420, th: -50, vs: 0, vq: 0, vth: 0} : S.plug;
+  S = {t: 0, acc: 0, clicked: false, tClick: Infinity, plug, pts: S && !fromStart ? S.pts : null, conn: initConns(), checkT: BLOCKS.map(() => Infinity)};
+  if (!S.pts) { const B = attach(); S.pts = rest.map((r, i) => { const p = shapeTarget(i, rest[0], B); return {x: p.x, y: p.y, px: p.x, py: p.y}; }); }
+}
+function attach() {   // プラグに付いたケーブルの端
+  const {s, q, th} = S ? S.plug : {s: -650, q: 420, th: -50};
+  const a = th * Math.PI / 180, dx = E.x - C.x, dy = E.y - C.y;
+  return {x: C.x + dx * Math.cos(a) - dy * Math.sin(a) + D.x * s + Nn.x * q, y: C.y + dx * Math.sin(a) + dy * Math.cos(a) + D.y * s + Nn.y * q};
+}
+function shapeTarget(i, A, B) {  // 元の形を、両端に合わせて回して伸び縮みさせた位置
+  const r0 = rest[0], r1 = rest[NP - 1], vx = r1.x - r0.x, vy = r1.y - r0.y, wx = B.x - A.x, wy = B.y - A.y;
+  const den = vx * vx + vy * vy, a = (wx * vx + wy * vy) / den, b = (wy * vx - wx * vy) / den;
+  const dx = rest[i].x - r0.x, dy = rest[i].y - r0.y;
+  return {x: A.x + a * dx - b * dy, y: A.y + b * dx + a * dy};
+}
+
+// ---- 作業台のケーブル：ブロックの右の縁から出て、先にプラグが付いている ----
+// パイプ作業台と同じく、ケーブルの長さは両端の距離に合わせる（引いた分だけ伸び、少しだけたるむ）
+function initConns() {
+  return CONNS.map((_, j) => {
+    const g = GEO[j], p = {x: g.A.x + 30 + BODY.w, y: g.A.y, vx: 0, vy: 0, th: 0}, B = plugEnd(p);
+    const c = {p, clickT: Infinity, pts: Array.from({length: CABLE_N}, (_, i) => {
+      const x = g.A.x + (B.x - g.A.x) * i / (CABLE_N - 1), y = g.A.y;
+      return {x, y, px: x, py: y}; })};
+    for (let k = 0; k < 60; k++) stepCable(c, g.A, B);
+    return c;
+  });
+}
+const plugEnd = p => { const a = p.th * Math.PI / 180; return {x: p.x - BODY.w * Math.cos(a), y: p.y - BODY.w * Math.sin(a)}; };
+function stepCable(c, A, B) {
+  const pts = c.pts, n = pts.length, g = ctl.grav * H * H;
+  const L = (Math.hypot(B.x - A.x, B.y - A.y) * 1.07 + 8) / (n - 1);
+  for (let i = 1; i < n - 1; i++) {
+    const q = pts[i], vx = (q.x - q.px) * .97, vy = (q.y - q.py) * .97;
+    q.px = q.x; q.py = q.y; q.x += vx; q.y += vy + g;
+  }
+  for (let i = 1; i < n - 1; i++) { const q = pts[i], m = pts[i - 1], o = pts[i + 1];
+    q.x += ((m.x + o.x) / 2 - q.x) * .1; q.y += ((m.y + o.y) / 2 - q.y) * .1; }
+  Object.assign(pts[0], {x: A.x, y: A.y, px: A.x, py: A.y});
+  Object.assign(pts[n - 1], {x: B.x, y: B.y, px: B.x, py: B.y});
+  for (let it = 0; it < 6; it++) for (let i = 0; i < n - 1; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+    if (d <= L) continue;
+    const f = (d - L) / d, wa = i === 0 ? 0 : 1, wb = i + 1 === n - 1 ? 0 : 1, sum = wa + wb || 1;
+    a.x += dx * f * wa / sum; a.y += dy * f * wa / sum; b.x -= dx * f * wb / sum; b.y -= dy * f * wb / sum;
+  }
+}
+// プラグを持ち上げ、つなぐ先のコンセントの前で向きをそろえ、当たって止まり、押し込む
+function stepBoard(tk) {
+  if (!(tk >= T_BOARD - .3) || !ctl.flow) return;
+  S.conn.forEach((c, j) => {
+    const g = GEO[j], p = c.p, u = tk - (T_CONN + CONNS[j].at);
+    if (u >= 0) {
+      const T = u < .3 ? {x: (g.A.x + g.face) / 2 + 20, y: Math.min(g.A.y, g.sy) - 200, w: 9, z: .55}
+        : u < .6 ? {x: g.face - 100, y: g.sy, w: 12, z: .6}
+        : u < .72 ? {x: g.face - PRONG.w, y: g.sy, w: 16, z: .8}
+        : {x: g.face + 8, y: g.sy, w: 22, z: 1 - ctl.bounce};
+      const k = (T.w * H) ** 2, cc = 2 * T.z * T.w * H;
+      p.vx += (T.x - p.x) * k - p.vx * cc; p.vy += (T.y - p.y) * k - p.vy * cc;
+      p.x += p.vx; p.y += p.vy;
+      const near = p.x > g.face - 130 && Math.abs(p.y - g.sy) < 160;
+      if (u >= .6 && u < .72 && p.x > g.face - PRONG.w) { p.x = g.face - PRONG.w; p.vx = -Math.abs(p.vx) * .2; }   // 刃が面に当たる
+      if (near) { p.y += (g.sy - p.y) * .25; p.vy *= .6; }                                                          // 穴が向きをそろえる
+      if (p.x > g.face) { p.x = g.face; p.vx = -Math.abs(p.vx) * .25; }                                              // 奥に当たる
+      if (c.clickT === Infinity && p.x >= g.face - 3) c.clickT = S.t;
+      p.th += ((near ? 0 : clamp(p.vy * 3, -28, 28)) - p.th) * .15;                                                  // 動く向きに傾く
+    }
+    stepCable(c, g.A, plugEnd(p));
+  });
+}
+
+// プラグが向かう先。// プラグが向かう先。バネの固さ（ω）と減衰（ζ）も段ごとに変える
+function plugTarget(t) {
+  const U = unplugAt();
+  if (t >= U + .3) return {s: -240, q: 70, th: -14, w: 7, z: .4};
+  if (t < .55) return {s: -380, q: 140, th: -22, w: 6, z: .35};
+  if (t < 1.3) return {s: -170, q: 0, th: 0, w: 9, z: .45};
+  if (t < 1.62) return {s: 52, q: 0, th: 0, w: 16, z: .7};
+  return {s: 132, q: 0, th: 0, w: 22, z: 1 - ctl.bounce};
+}
+const unplugAt = () => S.tClick + (ctl.flow ? T_PULSE + PULSE_END + HOLD : 2.4);
+
+function step() {
+  const t = S.t, p = S.plug, T = plugTarget(t);
+  const k = (T.w * H) ** 2, c = 2 * T.z * T.w * H;
+  p.vs += (T.s - p.s) * k - p.vs * c; p.vq += (T.q - p.q) * k - p.vq * c; p.vth += (T.th - p.th) * k - p.vth * c;
+  p.s += p.vs; p.q += p.vq; p.th += p.vth;
+  const unplugging = t >= unplugAt() + .3;
+  if (t >= 1.3 && t < 1.62 && p.s > 50) { p.s = 50; p.vs = -Math.abs(p.vs) * .2; }   // 刃が面に当たって止まる
+  if (p.s > 30) { p.q *= .7; p.th *= .7; p.vq *= .5; p.vth *= .5; }                     // 穴が向きをそろえる
+  if (p.s > 140) { p.s = 140; p.vs = -Math.abs(p.vs) * .25; }                           // 奥に当たって跳ね返る
+  if (!S.clicked && !unplugging && p.s >= 124) { S.clicked = true; S.tClick = t; }
+
+  // ひも：慣性・重力・元の形へ戻る力・長さの制約
+  const A = rest[0], B = attach(), g = ctl.grav * H * H, pts = S.pts;
+  for (let i = 1; i < NP - 1; i++) {
+    const q = pts[i], tg = shapeTarget(i, A, B);
+    const vx = (q.x - q.px) * .985, vy = (q.y - q.py) * .985;
+    q.px = q.x; q.py = q.y;
+    q.x += vx + (tg.x - q.x) * ctl.stiff; q.y += vy + g + (tg.y - q.y) * ctl.stiff;
+  }
+  for (let i = 1; i < NP - 1; i++) {   // 曲げにくさ：となりの点の真ん中へ少し寄せる
+    const q = pts[i], m = pts[i - 1], n = pts[i + 1];
+    q.x += ((m.x + n.x) / 2 - q.x) * .08; q.y += ((m.y + n.y) / 2 - q.y) * .08;
+  }
+  Object.assign(pts[0], {x: A.x, y: A.y, px: A.x, py: A.y});
+  Object.assign(pts[NP - 1], {x: B.x, y: B.y, px: B.x, py: B.y});
+  for (let it = 0; it < 8; it++) for (let i = 0; i < NP - 1; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+    if (d <= SEG) continue;   // 伸びないが、縮むのは元の形に任せる（折れて波打たないように）
+    const f = (d - SEG) / d * .5;
+    const wa = i === 0 ? 0 : 1, wb = i + 1 === NP - 1 ? 0 : 1, sum = wa + wb || 1;
+    a.x += dx * f * 2 * wa / sum; a.y += dy * f * 2 * wa / sum; b.x -= dx * f * 2 * wb / sum; b.y -= dy * f * 2 * wb / sum;
+  }
+  stepBoard(t - S.tClick);
+  S.t += H;
+}
+
+// ---- 描く ----
+function ropePath(pts) {
+  let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C${(p1.x + (p2.x - p0.x) / 6).toFixed(1)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(1)} ${(p2.x - (p3.x - p1.x) / 6).toFixed(1)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+function render() {
+  const t = S.t, p = S.plug, tk = t - S.tClick, U = unplugAt();
+  el.plug.setAttribute("transform", `translate(${(D.x * p.s + Nn.x * p.q).toFixed(2)} ${(D.y * p.s + Nn.y * p.q).toFixed(2)}) rotate(${p.th.toFixed(3)} ${C.x} ${C.y})`);
+  el.rope.setAttribute("d", ropePath(S.pts));
+
+  // ロゴを上へ寄せる量
+  const shrink = ctl.flow ? ease.inOut(seg(tk, 1.5, 2.2)) * (1 - ease.inOut(seg(t, U + .2, U + .9))) : 0;
+  const sc = 1 - .5 * shrink, ty = -670 * shrink;
+  el.logo.setAttribute("transform", `translate(${LOGO_C.x} ${LOGO_C.y + ty}) scale(${sc}) translate(${-LOGO_C.x} ${-LOGO_C.y})`);
+  const toScreen = q => ({x: LOGO_C.x + (q.x - LOGO_C.x) * sc, y: LOGO_C.y + ty + (q.y - LOGO_C.y) * sc});
+
+  // オレンジの広がり
+  const grow = ease.outCubic(seg(tk, .08, 1.5)), back = ease.inCubic(seg(t, U + .5, U + 1.3));
+  const R = 3400 * grow * (1 - back), o = toScreen(OUT);
+  el.flood.setAttribute("cx", o.x); el.flood.setAttribute("cy", o.y); el.flood.setAttribute("r", R.toFixed(1));
+  el.flood.setAttribute("fill", mix(COL.orange, COL.orange, 0));
+  for (const q of paint) {
+    const c = toScreen(q.c), dist = Math.hypot(c.x - o.x, c.y - o.y), a = clamp((R - dist + 60) / 260);
+    const col = mix(COL[q.base], COL.on, a);
+    if (q.stroke) q.e.setAttribute("stroke", col);
+    else { q.e.setAttribute("fill", col); if (q.both) q.e.setAttribute("stroke", col); }
+  }
+
+  // カチッ：火花・光・揺れ
+  const u = seg(tk, 0, .35);
+  sparkLines.forEach((l, i) => {
+    const a = i / sparkLines.length * Math.PI * 2 + .4, r0 = 50 + u * 70, r1 = 90 + u * 170;
+    l.setAttribute("x1", F.x + Math.cos(a) * r0); l.setAttribute("y1", F.y + Math.sin(a) * r0);
+    l.setAttribute("x2", F.x + Math.cos(a) * r1); l.setAttribute("y2", F.y + Math.sin(a) * r1);
+    l.setAttribute("stroke", COL.spark); l.setAttribute("opacity", tk >= 0 && u < 1 ? (1 - u).toFixed(2) : 0);
+  });
+  el.halo.setAttribute("fill", COL.spark);
+  el.halo.setAttribute("opacity", tk >= 0 ? (Math.max(0, 1 - tk / .7) * .9).toFixed(2) : 0);
+  const sh = tk >= 0 && tk < .18 ? (1 - tk / .18) * 14 : 0;
+  el.shake.setAttribute("transform", sh ? `translate(${(Math.sin(t * 170) * sh).toFixed(1)} ${(Math.cos(t * 210) * sh).toFixed(1)})` : "");
+
+  // 作業台
+  const fo = ctl.flow ? seg(tk, T_BOARD - .2, T_BOARD + .2) * (1 - seg(t, U, U + .4)) : 0;
+  el.board.setAttribute("opacity", fo.toFixed(2));
+  const onC = mix(COL.on, COL.on, 0), orC = mix(COL.orange, COL.orange, 0), rtC = mix(COL.route, COL.route, 0);
+  const paC = mix(COL.par, COL.par, 0), reC = mix(COL.ret, COL.ret, 0);
+  el.dot.setAttribute("fill", onC); el.dot.setAttribute("fill-opacity", ".28");
+  const pt = tk - T_PULSE, frameIn = ease.inOut(seg(tk, T_FRAME, T_FRAME + .6));
+  const drops = BLOCKS.map((_, i) => { const k = DROP_ORDER.indexOf(i); return k < 0 ? frameIn : seg(tk, T_DROP + k * .11, T_DROP + k * .11 + .45); });
+  const vis = i => BLOCKS[i].shape === "frame" ? frameIn : clamp(drops[i] * 3);
+  const poweredAt = i => Math.min(...CONNS.map((c, j) => c.to === i ? S.conn[j].clickT : Infinity));
+  el.blks.forEach((b, i) => {
+    const B = BLOCKS[i], [shape, deco, name, id, prog, badge] = b.children;
+    const onAt = poweredAt(B.power ?? i), on = i === 0 ? seg(tk, T_DROP + .5, T_DROP + .8) : seg(t, onAt, onAt + .25);
+    if (B.shape === "frame") {   // 並列の枠：線が描かれて現れ、つながると色が濃くなる
+      b.setAttribute("transform", `translate(${B.x} ${B.y})`);
+      shape.setAttribute("stroke", paC); shape.setAttribute("stroke-dashoffset", (1 - frameIn).toFixed(3));
+      shape.setAttribute("fill", paC); shape.setAttribute("fill-opacity", (.12 * frameIn + .12 * on).toFixed(3));
+      name.setAttribute("fill", paC); name.setAttribute("opacity", frameIn.toFixed(2));
+      return;
+    }
+    const dy = -320 * (1 - ease.outBack(drops[i]));                                                                             // 上から置かれる
+    const wig = i === 9 && pt >= CROSS[0] ? Math.sin((pt - CROSS[0]) * 40) * 20 * (1 - seg(pt, CROSS[0], CROSS[0] + .45)) : 0;   // 落ちて揺れる
+    const bump = i === 8 ? Math.sin(seg(pt, RET[1], RET[1] + .3) * Math.PI) * .1 : 0;                                          // 差し戻されて弾む
+    b.setAttribute("transform", `translate(${(B.x + wig).toFixed(1)} ${(B.y + dy).toFixed(1)}) scale(${(1 + bump).toFixed(3)})`);
+    b.setAttribute("opacity", vis(i).toFixed(2));
+    shape.setAttribute("fill", mix(COL.orange, COL.on, on)); shape.setAttribute("stroke", onC);
+    shape.setAttribute("stroke-opacity", (.55 + .45 * on).toFixed(2));
+    deco.setAttribute("stroke", mix(COL.on, COL.orange, on)); deco.setAttribute("stroke-opacity", (.55 + .45 * on).toFixed(2));
+    name.setAttribute("fill", mix(COL.on, COL.orange, on)); id.setAttribute("fill", mix(COL.on, COL.orange, on));
+    id.setAttribute("fill-opacity", ".75");
+    // エージェントの作業中：進み具合の棒が伸び、縁が脈打ち、右上の印が回る
+    const wk = WORK[i].find(([a, b]) => pt >= a && pt < b);
+    const pw = WORK[i].filter(([a]) => pt >= a).pop();
+    const pf = pw ? seg(pt, pw[0], pw[1]) : 0;
+    if (B.shape !== "diamond") {
+      prog.setAttribute("width", ((B.w - 68) * pf).toFixed(1)); prog.setAttribute("fill", orC);
+      prog.setAttribute("opacity", pw ? (1 - seg(pt, pw[1] + .2, pw[1] + .45)).toFixed(2) : 0);
+    }
+    shape.setAttribute("stroke-width", wk ? (12 + 7 * (1 + Math.sin(pt * 14)) / 2).toFixed(1) : 12);
+    const ok = CHECK_AT[i] !== null && pt >= CHECK_AT[i] && !wk, ng = !wk && i === 9 && pt >= CROSS[0] && pt < CROSS[1];
+    const bt = wk ? wk[0] : ng ? CROSS[0] : pw ? pw[1] : CHECK_AT[i];
+    const bk = wk || ok || ng ? ease.outBack(seg(pt, bt, bt + .3)) : 0;
+    const bx = B.shape === "diamond" ? 90 : B.w / 2 - 26, by = B.shape === "diamond" ? -92 : -B.h / 2 + 8;
+    badge.setAttribute("transform", `translate(${bx} ${by}) scale(${(bk * (wk ? 1.35 : 1)).toFixed(3)})`);
+    const [bc, bok, bng, bag] = badge.children;
+    bc.setAttribute("fill", wk ? rtC : ng ? reC : orC); bc.setAttribute("stroke", onC);
+    bok.setAttribute("stroke", onC); bok.setAttribute("opacity", ok && !ng ? 1 : 0);
+    bng.setAttribute("stroke", onC); bng.setAttribute("opacity", ng ? 1 : 0);
+    bag.setAttribute("opacity", wk ? 1 : 0); bag.setAttribute("fill", wk ? mix(COL.route, COL.on, 1) : onC);
+    if (wk) {
+      const [star, ...dots] = bag.children;
+      star.setAttribute("transform", `rotate(${(pt * 220).toFixed(1)}) scale(${(.9 + .15 * Math.sin(pt * 12)).toFixed(3)})`);
+      dots.forEach((d, k) => { d.setAttribute("transform", `rotate(${(-pt * 300).toFixed(1)})`); d.setAttribute("fill", onC);
+        d.setAttribute("opacity", (.4 + .6 * (1 + Math.sin(pt * 10 - k * 2)) / 2).toFixed(2)); });
+      star.setAttribute("fill", onC);
+    }
+  });
+  const along = (pts, f) => { const fi = clamp(f) * (pts.length - 1), i0 = Math.floor(fi), i1 = Math.min(pts.length - 1, i0 + 1), r = fi - i0;
+    return {x: pts[i0].x + (pts[i1].x - pts[i0].x) * r, y: pts[i0].y + (pts[i1].y - pts[i0].y) * r}; };
+  S.conn.forEach((c, j) => {
+    const g = GEO[j], kc = CONNS[j].kind === "route" ? rtC : onC, vv = vis(CONNS[j].from).toFixed(2), p = c.p;
+    el.cabs[j].setAttribute("d", ropePath(c.pts)); el.cabs[j].setAttribute("stroke", kc); el.cabs[j].setAttribute("opacity", vv);
+    el.bplugs[j].setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.th.toFixed(2)})`);
+    el.bplugs[j].setAttribute("fill", kc); el.bplugs[j].setAttribute("opacity", vv);
+    const sk = el.socks[j];
+    sk.setAttribute("transform", `translate(${g.face} ${g.sy})`); sk.setAttribute("opacity", vis(CONNS[j].to).toFixed(2));
+    sk.children[0].setAttribute("fill", onC);
+    const plugged = seg(t, c.clickT, c.clickT + .05);
+    for (const s of [sk.children[1], sk.children[2]]) { s.setAttribute("fill", orC); s.setAttribute("opacity", (1 - plugged).toFixed(2)); }
+    const v = seg(t, c.clickT, c.clickT + .3);
+    bsparks[j].forEach((l, i) => {
+      const a = i / 7 * Math.PI * 2 + .3, r0 = 30 + v * 40, r1 = 55 + v * 110;
+      l.setAttribute("x1", g.face + Math.cos(a) * r0); l.setAttribute("y1", g.sy + Math.sin(a) * r0);
+      l.setAttribute("x2", g.face + Math.cos(a) * r1); l.setAttribute("y2", g.sy + Math.sin(a) * r1);
+      l.setAttribute("stroke", onC); l.setAttribute("opacity", t >= c.clickT && v < 1 ? (1 - v).toFixed(2) : 0);
+    });
+    const w = PULSE[j].find(([a, b]) => pt >= a && pt < b), dot = el.pls[j];
+    dot.setAttribute("fill", COL.spark); dot.setAttribute("opacity", w ? 1 : 0);
+    if (w) { const q = along(c.pts, ease.inOut((pt - w[0]) / (w[1] - w[0]))); dot.setAttribute("cx", q.x); dot.setAttribute("cy", q.y); }
+  });
+  // 上の道具：検査は通ると緑に、保存は最後に押される
+  const chk = seg(tk, T_CHECK, T_CHECK + .2), sv = Math.sin(seg(pt, T_SAVE, T_SAVE + .35) * Math.PI);
+  const [cr, ct] = el.tcheck.children, [sr, st] = el.tsave.children;
+  cr.setAttribute("fill", chk ? paC : "none"); cr.setAttribute("stroke", chk ? paC : onC); cr.setAttribute("stroke-opacity", chk ? 1 : .6);
+  ct.setAttribute("fill", chk ? css("--on-par") : onC); ct.textContent = chk ? "検査 OK" : "検査";
+  sr.setAttribute("fill", sv > .01 ? onC : "none"); sr.setAttribute("stroke", onC); sr.setAttribute("stroke-opacity", sv > .01 ? 1 : .6);
+  st.setAttribute("fill", sv > .01 ? orC : onC);
+  el.tsave.setAttribute("transform", `translate(3310 -640) scale(${(1 + sv * .08).toFixed(3)})`);
+  el.tcheck.setAttribute("transform", `translate(3020 -640) scale(${(1 + Math.sin(seg(tk, T_CHECK, T_CHECK + .3) * Math.PI) * .08).toFixed(3)})`);
+  // 下の知らせ（作業台の知らせと同じ形）
+  const ts = TOASTS.find(([a, b]) => tk >= a && tk < b);
+  if (ts) {
+    const [a, b, msg] = ts, tx = el.toast.children[1];
+    if (tx.textContent !== msg) tx.textContent = msg;
+    const wpx = [...msg].reduce((s, ch) => s + (/[ -~]/.test(ch) ? 29 : 50), 0) + 110;
+    const r = el.toast.children[0];
+    r.setAttribute("x", -wpx / 2); r.setAttribute("width", wpx); r.setAttribute("fill", onC); tx.setAttribute("fill", orC);
+    el.toast.setAttribute("transform", `translate(${LOGO_C.x} 610)`);
+    el.toast.setAttribute("opacity", Math.min(seg(tk, a, a + .2), 1 - seg(tk, b - .2, b)).toFixed(2));
+  } else el.toast.setAttribute("opacity", 0);
+
+  // 差し戻し：検証から実装へ、点線をたどって戻る
+  const ro = pt >= CROSS[0] ? seg(pt, CROSS[0], CROSS[0] + .25).toFixed(2) : 0;
+  el.ret.setAttribute("stroke", reC); el.ret.setAttribute("opacity", ro); el.retlbl.setAttribute("fill", reC); el.retlbl.setAttribute("opacity", ro);
+  const rw = pt >= RET[0] && pt < RET[1];
+  el.retpls.setAttribute("fill", COL.spark); el.retpls.setAttribute("opacity", rw ? 1 : 0);
+  if (rw) { const q = el.ret.getPointAtLength(RET_LEN * ease.inOut((pt - RET[0]) / (RET[1] - RET[0]))); el.retpls.setAttribute("cx", q.x); el.retpls.setAttribute("cy", q.y); }
+
+  // 段の表示
+  const ph = t >= U ? 5 : tk >= T_PULSE && ctl.flow ? 4 : tk >= 1.6 && ctl.flow ? 3 : tk >= 0 ? 2 : t >= 1.3 ? 1 : 0;
+  document.querySelectorAll("#steps li").forEach(li => li.classList.toggle("on", +li.dataset.p === ph));
+}
+
+// ---- 回す ----
+let last = 0;
+function frame(now) {
+  const dt = Math.min(1 / 30, (now - last) / 1000 || 0); last = now;
+  if (!ctl.paused) {
+    S.acc += dt * ctl.speed;
+    while (S.acc >= H) { step(); S.acc -= H; }
+    if (S.t >= unplugAt() + 2.2) { if (ctl.loop) reset(false); }
+    if (!ctl.loop && S.t >= unplugAt()) S.t = Math.min(S.t, unplugAt());
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+
+function staticPose() {   // 動きを減らす設定のとき：元のロゴのまま止める
+  S.plug = {s: 0, q: 0, th: 0, vs: 0, vq: 0, vth: 0}; S.t = 1.0;
+  S.pts = rest.map(r => ({x: r.x, y: r.y, px: r.x, py: r.y}));
+  render();
+}
+
+// ---- つまみ ----
+const bindRange = (id, key, fmt) => { const i = $(id), o = $(id + "-v");
+  i.addEventListener("input", () => { ctl[key] = +i.value; o.textContent = fmt(+i.value); }); };
+bindRange("speed", "speed", v => v.toFixed(2));
+bindRange("stiff", "stiff", v => v.toFixed(3));
+bindRange("grav", "grav", v => String(v));
+bindRange("bounce", "bounce", v => v.toFixed(2));
+$("loop").addEventListener("change", e => { ctl.loop = e.target.checked; if (ctl.loop && S.t >= unplugAt()) S.t = unplugAt(); });
+$("flow").addEventListener("change", e => { ctl.flow = e.target.checked; });
+$("restart").addEventListener("click", () => { reset(true); if (reduce) staticPose(); });
+$("pause").addEventListener("click", e => { ctl.paused = !ctl.paused; e.target.textContent = ctl.paused ? "再生" : "一時停止"; });
+const recolor = () => { readColors(); if (reduce) staticPose(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", recolor);
+new MutationObserver(recolor).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+
+readColors();
+reset(true);
+if (reduce) staticPose(); else requestAnimationFrame(frame);
+</script>
+</html>
