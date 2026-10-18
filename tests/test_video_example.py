@@ -337,6 +337,13 @@ def test_script_and_mock_prompts_write_data_not_html():
     assert_has_words("03_mock.md", prompt_of("mock"), ["video/mock/options.json", "データ", "HTML", "書かない", "場面"])
 
 
+@pytest.mark.parametrize("stage", ["render", "verify"])
+def test_render_and_verify_treat_approved_last_round_as_chosen(stage):
+    """D0011-AC-67: 見本の最後の回の「選んだ案」が空でも、その回が1案だけなら、人が承認して進めたものとして扱う（承認では誰も記録を埋めないため）。"""
+    name = {"render": "04_render.md", "verify": "05_verify.md"}[stage]
+    assert_has_words(name, prompt_of(stage), ["最後の回", "空", "1案だけ", "承認"])
+
+
 @pytest.mark.parametrize("stage", ["ask", "script", "mock", "render", "verify"])
 def test_prompts_do_not_send_stage_to_readme(stage):
     """D0011-AC-66: 指示文は README を見に行かせない（利用者のプロジェクトに見本の README は無い）。データの形は指示文の中に書く。"""

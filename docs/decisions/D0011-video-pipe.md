@@ -47,6 +47,8 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
   - D0011-AC-51 受付は標準ライブラリだけを import し、`pipe_in` に依存しない（`tests/test_video_example.py::test_server_uses_only_standard_library`）
 - FR-08 指示文は、流すプロジェクトに無いファイル（見本の README）を見に行かせない。データの形と選んだ記録の表の形は、指示文の中に書く（実機で流して、台本の段が README を探して見つからず、形を自分で決めていたため）
   - D0011-AC-66 どの段の指示文にも README の名前が無く、`script`・`mock` の指示文に `options.json` の形の例と選んだ記録の表がある（`tests/test_video_example.py::test_prompts_do_not_send_stage_to_readme`）
+- FR-09 `render`・`verify` は、選んだ記録の最後の回の「選んだ案」が空でも、その回の案が1案だけなら、人が承認して進めたものとして扱う（実機で流して、見本を承認したあと書き出しの段が「案が選ばれていません」で止まったため。承認ではどの段も記録を埋めず、`render` は記録に書けない）
+  - D0011-AC-67 `render`・`verify` の指示文に、最後の回が空で1案だけなら承認されたものとして扱うことが書いてある（`tests/test_video_example.py::test_render_and_verify_treat_approved_last_round_as_chosen`）
 - 手で・実機で確かめるもの（利用料がかかる、または Playwright・ffmpeg が要る）
   - D0011-AC-17（実機）最後まで流すと、縦長 1080×1920・30fps・H.264・yuv420p の MP4 が1本できる
   - D0011-AC-18・D0011-AC-19（実機）`ask` の答えが字幕に、直した台本がこまに反映される
