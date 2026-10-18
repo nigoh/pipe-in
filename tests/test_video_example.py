@@ -119,7 +119,7 @@ def can_write_of(tmp_path: Path):
 
 
 def test_required_words_check_fails_when_a_word_is_missing():
-    """D0010-AC-07: 語を1つ抜いた文では、検査の関数が足りない語を名指しで失敗にする。"""
+    """D0011-AC-07: 語を1つ抜いた文では、検査の関数が足りない語を名指しで失敗にする。"""
     words = ["意図", "ffprobe", ("curl", "wget")]
     assert_has_words("見本", "意図を聞く。ffprobe を使う。wget は使わない", words)
     with pytest.raises(AssertionError) as e:
@@ -134,21 +134,21 @@ def test_required_words_check_fails_when_a_word_is_missing():
 
 
 def test_video_pipe_passes_check(tmp_path):
-    """D0010-AC-01: 見本のパイプは、定義の読み込みと検査（pipe-in-gen check と同じ）を通る。AC-32：案を出す指示文を入れた最終の形でも同じ。"""
+    """D0011-AC-01: 見本のパイプは、定義の読み込みと検査（pipe-in-gen check と同じ）を通る。AC-32：案を出す指示文を入れた最終の形でも同じ。"""
     pipe = load_video()
     assert pipe.name == "video" and pipe.kind == "linear"
     assert check_pipe(pipe, tmp_path) == []
 
 
 def test_video_pipe_stage_order_and_review():
-    """D0010-AC-02: 段は ask・script・mock・render・verify の順で、verify 以外は review。"""
+    """D0011-AC-02: 段は ask・script・mock・render・verify の順で、verify 以外は review。"""
     pipe = load_video()
     assert [s.name for s in pipe.stages] == STAGE_NAMES
     assert [s.review for s in pipe.stages] == [True, True, True, True, False]
 
 
 def test_ask_is_read_only_and_script_writes_only_choices(tmp_path):
-    """D0010-AC-03: ask は read で何も足せない。script が書けるのは自分の成果物と video/choices.md（と案のデータ）だけ。"""
+    """D0011-AC-03: ask は read で何も足せない。script が書けるのは自分の成果物と video/choices.md（と案のデータ）だけ。"""
     pipe = load_video()
     ask = stage_of(pipe, "ask")
     assert ask.access == "read" and ask.writes == []
@@ -166,7 +166,7 @@ def test_ask_is_read_only_and_script_writes_only_choices(tmp_path):
 
 
 def test_choices_write_scope(tmp_path):
-    """D0010-AC-31: video/choices.md を書けるのは script と mock だけ。mock は video/mock/ の下も書ける。"""
+    """D0011-AC-31: video/choices.md を書けるのは script と mock だけ。mock は video/mock/ の下も書ける。"""
     can, own = can_write_of(tmp_path)
     assert can["script"]("video/choices.md") is True
     assert can["mock"]("video/choices.md") is True
@@ -183,7 +183,7 @@ def test_choices_write_scope(tmp_path):
 
 
 def test_options_json_write_scope(tmp_path):
-    """D0010-AC-64: 案のデータは script が video/script/options.json、mock が video/mock/options.json にだけ書ける。render は見本の崩れの手直しだけ。"""
+    """D0011-AC-64: 案のデータは script が video/script/options.json、mock が video/mock/options.json にだけ書ける。render は見本の崩れの手直しだけ。"""
     can, _ = can_write_of(tmp_path)
     assert can["script"]("video/script/options.json") is True
     assert can["script"]("video/mock/options.json") is False
@@ -196,7 +196,7 @@ def test_options_json_write_scope(tmp_path):
 
 
 def test_verify_has_verdict_command_and_retry():
-    """D0010-AC-04: verify に verdict と command があり、差し戻し先は render（または mock）、回数の上限が整数。"""
+    """D0011-AC-04: verify に verdict と command があり、差し戻し先は render（または mock）、回数の上限が整数。"""
     check = stage_of(load_video(), "verify").check
     assert check is not None
     assert check.verdict is True and check.command
@@ -205,7 +205,7 @@ def test_verify_has_verdict_command_and_retry():
 
 
 def test_bash_only_on_allowed_stages():
-    """D0010-AC-05: Bash を持つのは mock・render・verify だけ。ask・script は持たない。"""
+    """D0011-AC-05: Bash を持つのは mock・render・verify だけ。ask・script は持たない。"""
     pipe = load_video()
     bash_stages = {s.name for s in pipe.stages if s.bash}
     assert bash_stages <= {"mock", "render", "verify"}
@@ -214,14 +214,14 @@ def test_bash_only_on_allowed_stages():
 
 
 def test_bash_stage_prompts_forbid_downloads():
-    """D0010-AC-05: Bash を持つ段の指示文に、curl・wget を使わないことが書いてある。"""
+    """D0011-AC-05: Bash を持つ段の指示文に、curl・wget を使わないことが書いてある。"""
     for s in load_video().stages:
         if s.bash:
             assert_has_words(PROMPT_FILES[s.name], prompt_of(s.name), ["curl", "wget"])
 
 
 def test_video_pipe_opens_no_outside_route(tmp_path):
-    """D0010-AC-06: 外へ出る道（web・mcp・mcp_servers・agents・add_dirs）を開かず、WebFetch・WebSearch・PowerShell は使えない。"""
+    """D0011-AC-06: 外へ出る道（web・mcp・mcp_servers・agents・add_dirs）を開かず、WebFetch・WebSearch・PowerShell は使えない。"""
     raw = raw_toml()
     keys = {"web", "mcp", "mcp_servers", "agents", "add_dirs"}
     assert keys & set(raw.get("pipe", {})) == set()
@@ -234,7 +234,7 @@ def test_video_pipe_opens_no_outside_route(tmp_path):
 
 
 def test_budget_limits():
-    """D0010-AC-25: max_budget_usd は ask・script 0.5、mock 3.0、render 2.0、verify 1.0。"""
+    """D0011-AC-25: max_budget_usd は ask・script 0.5、mock 3.0、render 2.0、verify 1.0。"""
     pipe = load_video()
     assert {s.name: s.max_budget_usd for s in pipe.stages} == {
         "ask": 0.5,
@@ -265,49 +265,49 @@ COMMON_WORDS = ["ロゴ", "描かない", "描き直さない", "人が渡した
 
 
 def test_ask_prompt_mentions_required_words():
-    """D0010-AC-07: ask の指示文に、意図・見せたいもの・長さ・画面の形・音・終わりの文・ロゴ・大きさの上限・推しを聞くことが書いてある。"""
+    """D0011-AC-07: ask の指示文に、意図・見せたいもの・長さ・画面の形・音・終わりの文・ロゴ・大きさの上限・推しを聞くことが書いてある。"""
     assert_has_words("01_ask.md", prompt_of("ask"), ASK_WORDS)
 
 
 def test_ask_prompt_asks_logo_rules_every_time():
-    """D0010-AC-26: ask は、ロゴの使い方の決まりの文書の場所を毎回聞く。"""
+    """D0011-AC-26: ask は、ロゴの使い方の決まりの文書の場所を毎回聞く。"""
     assert_has_words("01_ask.md", prompt_of("ask"), ["video/assets/logo.svg", "決まり", "毎回"])
 
 
 def test_script_prompt_mentions_required_words():
-    """D0010-AC-08: script の指示文に、開始秒・終わり秒・見せるもの・字幕の表と、字幕を 1.5〜3.5 秒に収めることが書いてある。"""
+    """D0011-AC-08: script の指示文に、開始秒・終わり秒・見せるもの・字幕の表と、字幕を 1.5〜3.5 秒に収めることが書いてある。"""
     assert_has_words("02_script.md", prompt_of("script"), SCRIPT_WORDS)
 
 
 def test_mock_prompt_mentions_required_words():
-    """D0010-AC-09: mock の指示文に、台本に無い場面を足さないことと、外部を読み込まない HTML にすることが書いてある。"""
+    """D0011-AC-09: mock の指示文に、台本に無い場面を足さないことと、外部を読み込まない HTML にすることが書いてある。"""
     assert_has_words("03_mock.md", prompt_of("mock"), MOCK_WORDS)
 
 
 def test_render_prompt_mentions_required_words():
-    """D0010-AC-10: render の指示文に、1こまずつ撮ること・H.264・yuv420p・ビットレート・2パス・事前の環境確認が書いてある。"""
+    """D0011-AC-10: render の指示文に、1こまずつ撮ること・H.264・yuv420p・ビットレート・2パス・事前の環境確認が書いてある。"""
     assert_has_words("04_render.md", prompt_of("render"), RENDER_WORDS)
 
 
 def test_verify_prompt_mentions_required_words():
-    """D0010-AC-11: verify の指示文に、こまの取り出し・切れ・重なり・はみ出し・ffprobe での確認が書いてある。"""
+    """D0011-AC-11: verify の指示文に、こまの取り出し・切れ・重なり・はみ出し・ffprobe での確認が書いてある。"""
     assert_has_words("05_verify.md", prompt_of("verify"), VERIFY_WORDS)
 
 
 @pytest.mark.parametrize("stage", STAGE_NAMES)
 def test_every_prompt_forbids_drawing_logo_and_borrowed_audio(stage):
-    """D0010-AC-12: 全部の指示文に、ロゴを描かず人が渡したものだけ使うこと、他人の録音・サンプルを使わないことが書いてある。"""
+    """D0011-AC-12: 全部の指示文に、ロゴを描かず人が渡したものだけ使うこと、他人の録音・サンプルを使わないことが書いてある。"""
     assert_has_words(PROMPT_FILES[stage], prompt_of(stage), COMMON_WORDS)
 
 
 def test_script_prompt_asks_for_options():
-    """D0010-AC-27: script は、初めの回に流れの違う案を2〜3つ番号付きで出し、次の回は選ばれた案だけを直す。"""
+    """D0011-AC-27: script は、初めの回に流れの違う案を2〜3つ番号付きで出し、次の回は選ばれた案だけを直す。"""
     words = ["初めの回", "案", "2", "3", "流れの違う", "番号", "この案の流れ", "次の回", "選ばれた案"]
     assert_has_words("02_script.md", prompt_of("script"), words)
 
 
 def test_mock_prompt_asks_for_three_options_and_compare_page():
-    """D0010-AC-28（AC-40 の進み具合を含む）: mock は、初めの回に見せ方の違う3案を比較ページ用のデータで出し、次の回は選ばれた案だけを作り込む。"""
+    """D0011-AC-28（AC-40 の進み具合を含む）: mock は、初めの回に見せ方の違う3案を比較ページ用のデータで出し、次の回は選ばれた案だけを作り込む。"""
     words = [
         "初めの回", "3案", "見せ方の違う", "比較ページ", "video/mock/options.json", "主な場面", "この案の特徴",
         "進み具合", "次の回", "選ばれた案",
@@ -317,12 +317,12 @@ def test_mock_prompt_asks_for_three_options_and_compare_page():
 
 @pytest.mark.parametrize("stage", ["script", "mock"])
 def test_script_and_mock_prompts_redo_when_none_chosen(stage):
-    """D0010-AC-29: どの案も選ばれなかった（どれもびみょう）ときは、別の方向で出し直すことが書いてある。"""
+    """D0011-AC-29: どの案も選ばれなかった（どれもびみょう）ときは、別の方向で出し直すことが書いてある。"""
     assert_has_words(PROMPT_FILES[stage], prompt_of(stage), ["どれもびみょう", "別の方向", "出し直す"])
 
 
 def test_prompts_use_choices_record():
-    """D0010-AC-30: script・mock は選んだ記録を回の始めに読み、選んだ案と直した点を書く。render・verify は選ばれた1案だけを扱い、無ければ止まる。"""
+    """D0011-AC-30: script・mock は選んだ記録を回の始めに読み、選んだ案と直した点を書く。render・verify は選ばれた1案だけを扱い、無ければ止まる。"""
     for stage in ("script", "mock"):
         assert_has_words(PROMPT_FILES[stage], prompt_of(stage), ["video/choices.md", "回の始め", "選んだ案", "直した点"])
     for stage in ("render", "verify"):
@@ -332,7 +332,7 @@ def test_prompts_use_choices_record():
 
 
 def test_script_and_mock_prompts_write_data_not_html():
-    """D0010-AC-63: script・mock は比較ページの HTML を書かずデータ（options.json）だけを書く。mock は場面の HTML は書く。"""
+    """D0011-AC-63: script・mock は比較ページの HTML を書かずデータ（options.json）だけを書く。mock は場面の HTML は書く。"""
     assert_has_words("02_script.md", prompt_of("script"), ["video/script/options.json", "データ", "HTML", "書かない"])
     assert_has_words("03_mock.md", prompt_of("mock"), ["video/mock/options.json", "データ", "HTML", "書かない", "場面"])
 
@@ -352,7 +352,7 @@ def test_script_and_mock_prompts_write_data_not_html():
     ids=["over", "exact", "under", "no-limit-file", "no-limited-mp4"],
 )
 def test_size_command_exit_codes(tmp_path, limit, limited_size, expected):
-    """D0010-AC-13: 大きさの確認用コマンドは、上限を超える MP4 で 0 以外、上限以内・上限なしで 0 になる（小さなダミーのファイルで確かめる）。"""
+    """D0011-AC-13: 大きさの確認用コマンドは、上限を超える MP4 で 0 以外、上限以内・上限なしで 0 になる（小さなダミーのファイルで確かめる）。"""
     command = stage_of(load_video(), "verify").check.command
     assert command.startswith("python "), command
     out = tmp_path / "video" / "out"
@@ -366,7 +366,7 @@ def test_size_command_exit_codes(tmp_path, limit, limited_size, expected):
 
 
 def test_size_command_is_not_dangerous(tmp_path):
-    """D0010-AC-13: 確認用コマンドは「危ない操作」の検査に掛からず、check_pipe も通る。"""
+    """D0011-AC-13: 確認用コマンドは「危ない操作」の検査に掛からず、check_pipe も通る。"""
     pipe = load_video()
     assert check_pipe(pipe, tmp_path) == []
     assert _dangerous(stage_of(pipe, "verify").check.command) is None
@@ -376,7 +376,7 @@ def test_size_command_is_not_dangerous(tmp_path):
 
 
 def test_no_media_or_logo_files_in_video_example():
-    """D0010-AC-14: examples/video/ に、動画・音声・画像のファイルと、ロゴの実ファイルが無い（コードは例外の2つの名前だけ）。"""
+    """D0011-AC-14: examples/video/ に、動画・音声・画像のファイルと、ロゴの実ファイルが無い（コードは例外の2つの名前だけ）。"""
     files = example_files()
     assert files, "examples/video/ に何も無い"
     media = [p.relative_to(ROOT).as_posix() for p in files if p.suffix.lower() in MEDIA_SUFFIXES]
@@ -388,7 +388,7 @@ def test_no_media_or_logo_files_in_video_example():
 
 
 def test_video_example_has_no_local_info():
-    """D0010-AC-15: examples/video/ の全ファイルに、手元の事情（パス・メール）も秘密のファイルも無い。"""
+    """D0011-AC-15: examples/video/ の全ファイルに、手元の事情（パス・メール）も秘密のファイルも無い。"""
     found = []
     for p in example_files():
         rel = p.relative_to(ROOT).as_posix()
@@ -400,19 +400,19 @@ def test_video_example_has_no_local_info():
 
 
 def test_no_scripts_or_html_in_video_example():
-    """D0010-AC-24: examples/video/ の .js・.mjs・.py・.sh・.html は、受付とテンプレートの2つだけ（どちらかが無くなる・増えると落ちる）。"""
+    """D0011-AC-24: examples/video/ の .js・.mjs・.py・.sh・.html は、受付とテンプレートの2つだけ（どちらかが無くなる・増えると落ちる）。"""
     found = {p.name for p in example_files() if p.suffix.lower() in CODE_SUFFIXES}
     assert found == ALLOWED_CODE
 
 
 def test_template_is_single_html():
-    """D0010-AC-58: 比較・答えるページのテンプレートの HTML が1枚だけある。"""
+    """D0011-AC-58: 比較・答えるページのテンプレートの HTML が1枚だけある。"""
     assert TEMPLATE.is_file()
     assert {p.name for p in example_files() if p.suffix.lower() == ".html"} == {"compare-template.html"}
 
 
 def test_server_uses_only_standard_library():
-    """D0010-AC-51: 受付は標準ライブラリだけを import し、pipe_in に依存せず、shell=True を使わない。.py は受付の1本だけ。"""
+    """D0011-AC-51: 受付は標準ライブラリだけを import し、pipe_in に依存せず、shell=True を使わない。.py は受付の1本だけ。"""
     assert SERVER.is_file(), f"{SERVER.relative_to(ROOT)} がありません"
     source = SERVER.read_text(encoding="utf-8")
     names: set[str] = set()
@@ -444,13 +444,13 @@ def script_rows(text: str) -> list[list[str]]:
 
 
 def test_script_rows_parser_reads_a_table():
-    """D0010-AC-24: 台本の表の読み方そのものの確かめ（見出しと区切りの行は読み飛ばす）。"""
+    """D0011-AC-24: 台本の表の読み方そのものの確かめ（見出しと区切りの行は読み飛ばす）。"""
     text = "| No | 開始秒 | 終わり秒 | 見せるもの | 字幕 |\n| --- | --- | --- | --- | --- |\n| 1 | 0 | 3 | a | b |\n"
     assert script_rows(text) == [["1", "0", "3", "a", "b"]]
 
 
 def test_script_sample_table_is_valid():
-    """D0010-AC-24: 台本の見本の各行が開始・終わり・見せるもの・字幕を持ち、字幕は 1.5〜3.5 秒で、0 秒から 15 秒まですきまなく続く。"""
+    """D0011-AC-24: 台本の見本の各行が開始・終わり・見せるもの・字幕を持ち、字幕は 1.5〜3.5 秒で、0 秒から 15 秒まですきまなく続く。"""
     assert SCRIPT_SAMPLE.is_file(), f"{SCRIPT_SAMPLE.relative_to(ROOT)} がありません"
     rows = script_rows(SCRIPT_SAMPLE.read_text(encoding="utf-8"))
     assert rows, "表の行が無い"
@@ -470,14 +470,14 @@ def test_script_sample_table_is_valid():
 
 
 def test_video_pipe_found_with_pipes_dir():
-    """D0010-AC-23: --pipes-dir examples/video/pipes で video が見つかり、pipe.toml を持つフォルダを返す。"""
+    """D0011-AC-23: --pipes-dir examples/video/pipes で video が見つかり、pipe.toml を持つフォルダを返す。"""
     found = find_pipe("video", PIPES)
     assert found is not None and (found / "pipe.toml").is_file()
     assert found.name == "pipe-in-video"
 
 
 def test_video_example_does_not_change_pipe_lookup(tmp_path, monkeypatch):
-    """D0010-AC-16: 見本は、既定の探す場所のどれにも無い（--pipes-dir で指したときだけ読まれる）。今の作りのままで通る（守り続けるための検査）。"""
+    """D0011-AC-16: 見本は、既定の探す場所のどれにも無い（--pipes-dir で指したときだけ読まれる）。今の作りのままで通る（守り続けるための検査）。"""
     monkeypatch.delenv(PIPES_DIR_ENV, raising=False)
     monkeypatch.delenv(LEGACY_PIPES_DIR_ENV, raising=False)
     assert find_pipe("video", None, project=tmp_path) is None
@@ -489,7 +489,7 @@ def test_video_example_does_not_change_pipe_lookup(tmp_path, monkeypatch):
     ids=["new-place", "legacy-place"],
 )
 def test_video_pipe_found_in_old_and_new_places(tmp_path, monkeypatch, place, folder):
-    """D0010-AC-16: 見本のフォルダを、今の置き場所にも前の版の置き場所にも写すと、find_pipe で見つかり check_pipe が空になる。"""
+    """D0011-AC-16: 見本のフォルダを、今の置き場所にも前の版の置き場所にも写すと、find_pipe で見つかり check_pipe が空になる。"""
     monkeypatch.delenv(PIPES_DIR_ENV, raising=False)
     monkeypatch.delenv(LEGACY_PIPES_DIR_ENV, raising=False)
     assert PIPE_DIR.is_dir(), "見本のパイプのフォルダがありません"
@@ -504,14 +504,14 @@ def test_video_pipe_found_in_old_and_new_places(tmp_path, monkeypatch, place, fo
 
 
 def test_video_readme_has_input_example_and_paths():
-    """D0010-AC-26: README に、ロゴの既定の置き場所・--pipes-dir の付け方・要件メモの入力例（意図の文を含む）がある。"""
+    """D0011-AC-26: README に、ロゴの既定の置き場所・--pipes-dir の付け方・要件メモの入力例（意図の文を含む）がある。"""
     text = read_readme()
     assert_has_words("README.md", text, ["video/assets/logo.svg", "--pipes-dir examples/video/pipes", "意図"])
     assert re.search(r"^#+ .*入力例", text, re.MULTILINE), "要件メモの「入力例」の見出しがありません"
 
 
 def test_readme_has_choices_example():
-    """D0010-AC-33: README に、選んだ記録 video/choices.md の書き方（段・回・出した案・選んだ案・直した点の表）の例がある。"""
+    """D0011-AC-33: README に、選んだ記録 video/choices.md の書き方（段・回・出した案・選んだ案・直した点の表）の例がある。"""
     text = read_readme()
     assert "video/choices.md" in text
     header = [line for line in text.splitlines() if line.lstrip().startswith("|") and "出した案" in line]
@@ -520,7 +520,7 @@ def test_readme_has_choices_example():
 
 
 def test_readme_shows_options_json_shapes():
-    """D0010-AC-62: README に、案のデータ video/script/options.json・video/mock/options.json の形の例がある。"""
+    """D0011-AC-62: README に、案のデータ video/script/options.json・video/mock/options.json の形の例がある。"""
     words = ["video/script/options.json", "video/mock/options.json", '"options"', '"number"', '"scenes"', '"frames"']
     assert_has_words("README.md", read_readme(), words)
 
@@ -540,7 +540,7 @@ HTML_INJECTION = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.writ
 
 
 def test_external_load_patterns_catch_bad_html():
-    """D0010-AC-59: 外部の読み込みの見つけ方そのものが、外のものを読む書き方を見つける。"""
+    """D0011-AC-59: 外部の読み込みの見つけ方そのものが、外のものを読む書き方を見つける。"""
     bad = [
         '<script src="https://cdn.example/x.js"></script>',
         '<img src="//cdn.example/a.png">',
@@ -555,21 +555,21 @@ def test_external_load_patterns_catch_bad_html():
 
 
 def test_template_has_no_external_loads():
-    """D0010-AC-49・AC-59: テンプレートに、外部の読み込み（CDN・外部のフォント・スクリプト・http(s)）が無い。"""
+    """D0011-AC-49・AC-59: テンプレートに、外部の読み込み（CDN・外部のフォント・スクリプト・http(s)）が無い。"""
     text = read_template()
     found = [p for p in EXTERNAL_LOADS if re.search(p, text)]
     assert found == []
 
 
 def test_template_never_uses_html_injection():
-    """D0010-AC-60: テンプレートは、外から来た文字を HTML として入れる書き方（innerHTML など）を使わない。"""
+    """D0011-AC-60: テンプレートは、外から来た文字を HTML として入れる書き方（innerHTML など）を使わない。"""
     text = read_template()
     assert [w for w in HTML_INJECTION if w in text] == []
     assert "textContent" in text and "createElement" in text
 
 
 def test_template_has_validation_and_alert():
-    """D0010-AC-61: テンプレートに、データの形を検査する validateOptions と、原因を出す role="alert" の場所がある。"""
+    """D0011-AC-61: テンプレートに、データの形を検査する validateOptions と、原因を出す role="alert" の場所がある。"""
     text = read_template()
     assert "validateOptions" in text
     assert 'role="alert"' in text
@@ -577,7 +577,7 @@ def test_template_has_validation_and_alert():
 
 
 def test_template_rejects_images_outside_video():
-    """D0010-AC-65: テンプレートは、video/ で始まらない画像（.. を含むものも）を img にせず、検査でエラーの文にする。静的な確かめ（動きは手で）。"""
+    """D0011-AC-65: テンプレートは、video/ で始まらない画像（.. を含むものも）を img にせず、検査でエラーの文にする。静的な確かめ（動きは手で）。"""
     text = read_template()
     assert "validateOptions" in text
     assert re.search(r"""["']video/["']""", text), "video/ で始まるかの検査の語がありません"

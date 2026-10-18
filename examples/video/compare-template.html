@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>案を比べて答える</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1b1f24;
+    --muted: #5a6572;
+    --line: #d0d7de;
+    --accent: #1f6feb;
+    --accent-text: #ffffff;
+    --danger-bg: #ffebe9;
+    --danger-line: #cf222e;
+    --danger-text: #82071e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --text: #e6edf3;
+      --muted: #9ba7b4;
+      --line: #30363d;
+      --accent: #4493f8;
+      --accent-text: #0d1117;
+      --danger-bg: #3d1214;
+      --danger-line: #f85149;
+      --danger-text: #ffdcd7;
+    }
+  }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 15px/1.6 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  #status { color: var(--muted); margin: 0 0 12px; }
+  #alert { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-line); border-radius: 6px; padding: 8px 12px; margin: 0 0 12px; }
+  #alert[hidden] { display: none; }
+  #alert ul { margin: 4px 0 0; padding-left: 20px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card p { margin: 0 0 8px; color: var(--muted); }
+  .frames { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  .frames img { max-width: 120px; max-height: 213px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
+  table.scenes { border-collapse: collapse; width: 100%; font-size: 13px; margin: 0 0 8px; }
+  table.scenes th, table.scenes td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+  label.note { display: block; margin: 4px 0; font-size: 13px; color: var(--muted); }
+  input[type="text"] { box-sizing: border-box; width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; }
+  button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+  pre#log { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px; overflow: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>案を比べて答える</h1>
+  <p id="status"></p>
+  <div id="alert" role="alert" hidden></div>
+  <div id="options" class="cards"></div>
+  <div id="actions" class="actions"></div>
+  <pre id="log" hidden></pre>
+</main>
+<script type="application/json" id="page-data"><!--PAGE-DATA--></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ページのデータ：{token, status, stage, error, options_data, log_tail, round_note}。
+     外から来た文字は、すべて textContent か属性の値としてだけ入れる（HTML としては読ませない）。 */
+  var data = JSON.parse(document.getElementById("page-data").textContent);
+  var token = data.token;
+  var timer = null;
+  var sendError = null;
+
+  var STATUS_TEXT = {
+    "waiting": "確認を待っています",
+    "running": "作っています（終わるまで押せません）",
+    "done": "終わりました",
+    "failed": "失敗しました",
+    "no-review": "止まっている確認はありません"
+  };
+
+  /* 案のデータの形を調べて、何が違うかの文の一覧を返す。空なら正しい。 */
+  function validateOptions(stage, d) {
+    var errs = [];
+    if (!d || typeof d !== "object" || !Array.isArray(d.options)) {
+      errs.push("案のデータの形が違います（options が配列ではありません）");
+      return errs;
+    }
+    if (d.options.length === 0) {
+      errs.push("案が1つもありません");
+    }
+    d.options.forEach(function (o, i) {
+      var at = (i + 1) + "つ目の案：";
+      if (!o || typeof o !== "object") {
+        errs.push(at + "オブジェクトではありません");
+        return;
+      }
+      if (!Number.isInteger(o.number) || o.number < 1) {
+        errs.push(at + "number が 1 以上の整数ではありません");
+      }
+      if (typeof o.title !== "string") {
+        errs.push(at + "title が文字ではありません");
+      }
+      if (typeof o.summary !== "string") {
+        errs.push(at + "summary が文字ではありません");
+      }
+      if (stage === "script") {
+        if (!Array.isArray(o.scenes) || o.scenes.length === 0) {
+          errs.push(at + "scenes が1つ以上の配列ではありません");
+        } else {
+          o.scenes.forEach(function (s, j) {
+            var sat = at + "scenes " + (j + 1) + " 行目：";
+            if (!s || typeof s !== "object") {
+              errs.push(sat + "オブジェクトではありません");
+              return;
+            }
+            if (typeof s.start !== "number" || typeof s.end !== "number") {
+              errs.push(sat + "start と end が数ではありません");
+            }
+            if (typeof s.show !== "string" || typeof s.caption !== "string") {
+              errs.push(sat + "show と caption が文字ではありません");
+            }
+          });
+        }
+      } else if (stage === "mock") {
+        if (!Array.isArray(o.frames) || o.frames.length === 0) {
+          errs.push(at + "frames が1つ以上の配列ではありません");
+        } else {
+          o.frames.forEach(function (f, j) {
+            var fat = at + "frames " + (j + 1) + " 枚目：";
+            if (typeof f !== "string") {
+              errs.push(fat + "文字ではありません");
+            } else if (f.indexOf("video/") !== 0) {
+              errs.push(fat + "video/ で始まる場所ではないので表示しません");
+            } else if (f.indexOf("..") !== -1 || f.indexOf("\\") !== -1) {
+              errs.push(fat + "「..」や「\\」を含む場所は表示しません");
+            }
+          });
+        }
+      }
+    });
+    return errs;
+  }
+
+  function node(tag, text, className) {
+    var e = document.createElement(tag);
+    if (text !== undefined && text !== null) {
+      e.textContent = String(text);
+    }
+    if (className) {
+      e.className = className;
+    }
+    return e;
+  }
+
+  function clear(e) {
+    while (e.firstChild) {
+      e.removeChild(e.firstChild);
+    }
+  }
+
+  function showAlert(messages) {
+    var box = document.getElementById("alert");
+    clear(box);
+    if (!messages.length) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    box.appendChild(node("strong", "案を表示できません"));
+    var ul = node("ul");
+    messages.forEach(function (m) {
+      ul.appendChild(node("li", m));
+    });
+    box.appendChild(ul);
+  }
+
+  function fileUrl(frame) {
+    return "/files/" + frame.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function card(stage, o, canAnswer) {
+    var c = node("section", null, "card");
+    c.appendChild(node("h2", o.number + "案目：" + o.title));
+    c.appendChild(node("p", o.summary));
+    if (stage === "mock") {
+      var frames = node("div", null, "frames");
+      o.frames.forEach(function (f) {
+        var img = document.createElement("img");
+        img.src = fileUrl(f);
+        img.alt = o.number + "案目のこま";
+        frames.appendChild(img);
+      });
+      c.appendChild(frames);
+    } else if (stage === "script") {
+      var table = node("table", null, "scenes");
+      var head = node("tr");
+      ["開始", "終わり", "見せるもの", "字幕"].forEach(function (h) {
+        head.appendChild(node("th", h));
+      });
+      table.appendChild(head);
+      o.scenes.forEach(function (s) {
+        var row = node("tr");
+        [s.start, s.end, s.show, s.caption].forEach(function (v) {
+          row.appendChild(node("td", v));
+        });
+        table.appendChild(row);
+      });
+      c.appendChild(table);
+    }
+    var label = node("label", "直す点（任意）", "note");
+    var input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 1000;
+    input.disabled = !canAnswer;
+    label.appendChild(input);
+    c.appendChild(label);
+    var choose = node("button", "この案にする", "primary");
+    choose.disabled = !canAnswer;
+    choose.addEventListener("click", function () {
+      send({ op: "choose", number: o.number, note: input.value });
+    });
+    c.appendChild(choose);
+    return c;
+  }
+
+  function render() {
+    var status = data.status;
+    var stage = data.stage;
+    var line = STATUS_TEXT[status] || status;
+    if (stage && status !== "no-review") {
+      line += "（段：" + stage + (data.round_note ? "・" + data.round_note : "") + "）";
+    }
+    document.getElementById("status").textContent = line;
+
+    var messages = [];
+    if (sendError) {
+      messages.push(sendError);
+    }
+    var canAnswer = status === "waiting" || status === "failed";
+    var shown = false;
+    var optionsBox = document.getElementById("options");
+    clear(optionsBox);
+    if (stage === "script" || stage === "mock") {
+      if (data.options_data === null || data.options_data === undefined) {
+        if (data.error) {
+          messages.push(data.error);
+        }
+      } else {
+        var problems = validateOptions(stage, data.options_data);
+        if (problems.length) {
+          problems.forEach(function (p) {
+            messages.push(p);
+          });
+        } else {
+          data.options_data.options.forEach(function (o) {
+            optionsBox.appendChild(card(stage, o, canAnswer));
+          });
+          shown = true;
+        }
+      }
+    }
+    showAlert(messages);
+
+    var actions = document.getElementById("actions");
+    clear(actions);
+    if (stage) {
+      var approve = node("button", "これで決定", "primary");
+      approve.disabled = !canAnswer;
+      approve.addEventListener("click", function () {
+        send({ op: "approve" });
+      });
+      actions.appendChild(approve);
+      if (shown) {
+        var none = node("button", "どれもびみょう");
+        none.disabled = !canAnswer;
+        none.addEventListener("click", function () {
+          send({ op: "none" });
+        });
+        actions.appendChild(none);
+      }
+      var quit = node("button", "中止");
+      quit.disabled = !canAnswer;
+      quit.addEventListener("click", function () {
+        if (window.confirm("この実行を中止します。よいですか")) {
+          send({ op: "quit" });
+        }
+      });
+      actions.appendChild(quit);
+    }
+
+    var log = document.getElementById("log");
+    var tail = Array.isArray(data.log_tail) ? data.log_tail : [];
+    log.hidden = tail.length === 0;
+    log.textContent = tail.join("\n");
+
+    if (status === "running") {
+      if (timer === null) {
+        timer = window.setInterval(poll, 2000);
+      }
+    } else if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+  }
+
+  function poll() {
+    fetch("/state").then(function (r) {
+      return r.json();
+    }).then(function (next) {
+      next.token = token;
+      data = next;
+      render();
+    }).catch(function () {
+      sendError = "受付につながりません。受付が動いているか確かめてください";
+      render();
+    });
+  }
+
+  function send(body) {
+    sendError = null;
+    data.status = "running";
+    render();
+    fetch("/action", {
+      method: "POST",
+      headers: { "X-Token": token, "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) {
+          sendError = j && j.error ? String(j.error) : "送れませんでした";
+        }
+      });
+    }).catch(function () {
+      sendError = "受付につながりません。受付が動いているか確かめてください";
+    }).then(function () {
+      poll();
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

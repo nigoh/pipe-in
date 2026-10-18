@@ -1,0 +1,78 @@
+# pipe-in のパイプ：SNS 向けの短い紹介動画を、人の確認を挟みながら作る（見本）
+#
+# 段の並び・書き込める範囲・確認の有無・検証はここで、各段への指示は prompts/ のファイルで決めます。
+# 動画・こま・ロゴなどの大きいものは、プロジェクトの video/ に出ます（追跡しない）。
+
+[pipe]
+kind = "linear"
+label = "動画を作る（聞く → 台本 → 見本 → 書き出し → 確かめる）"
+description = "SNS 向けの短い紹介動画を、人の確認を挟みながら作る"
+input = "required"
+
+[[stages]]
+name = "ask"
+label = "聞く（意図・長さ・画面の形・音・ロゴ）"
+output = "01_ask.md"
+access = "read"
+review = true
+max_turns = 20
+max_budget_usd = 0.5
+prompt_file = "prompts/01_ask.md"
+
+[[stages]]
+name = "script"
+label = "台本（案を出して選ぶ）"
+output = "02_script.md"
+access = "docs"
+docs_dir = "video"
+# 自分の成果物・選んだ記録・案のデータだけ。台本の前に見本を作り込めない
+writes = ["video/choices.md", "video/script/options.json"]
+review = true
+max_turns = 30
+max_budget_usd = 0.5
+prompt_file = "prompts/02_script.md"
+
+[[stages]]
+name = "mock"
+label = "見本（3案の場面とこま）"
+output = "03_mock.md"
+access = "docs"
+docs_dir = "video"
+# 案ごとの置き場所（video/mock/1/ など）・案のデータ・選んだ記録
+writes = ["video/mock/options.json", "video/mock/*/**", "video/choices.md"]
+bash = true  # Playwright でこまを撮る。Bash の中の書き込みは、この絞り込みに掛からない（README）
+review = true
+max_turns = 90
+max_budget_usd = 3.0
+prompt_file = "prompts/03_mock.md"
+
+[[stages]]
+name = "render"
+label = "書き出し（こま撮り → MP4）"
+output = "04_render.md"
+access = "docs"
+docs_dir = "video"
+# 選んだ記録と案のデータは読むだけ。見本の崩れの手直し（video/mock/*/）はできる
+writes = ["video/mock/*/**", "video/render/**", "video/out/**"]
+bash = true  # Playwright と ffmpeg を動かす
+review = true
+max_turns = 80
+max_budget_usd = 2.0
+prompt_file = "prompts/04_render.md"
+
+[[stages]]
+name = "verify"
+label = "確かめる（ffprobe・こまの目視・大きさ）"
+output = "05_verify.md"
+access = "read"
+bash = true  # ffprobe とこまの取り出し
+max_turns = 50
+max_budget_usd = 1.0
+prompt_file = "prompts/05_verify.md"
+# 崩れや大きさの超過があれば、直す点を添えて書き出しの段へ戻す（2回まで）。
+# 大きさは確認用のコマンドが決める：上限のファイルが無ければ合格、あれば limited.mp4 が上限以内のときだけ合格
+[stages.check]
+verdict = true
+command = "python -c \"import sys,pathlib as p;l=p.Path('video/out/size_limit_bytes.txt');m=p.Path('video/out/limited.mp4');sys.exit(0 if not l.exists() else (0 if m.exists() and m.stat().st_size<=int(l.read_text().strip()) else 1))\""
+on_fail = "render"
+max_retries = 2

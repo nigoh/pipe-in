@@ -9,6 +9,9 @@ dist/
 # pipe-in を手元で流した記録（プロンプト・コードの中身・セッション ID・手元のパスを含む）
 /docs/pipeline/
 
+# 動画を作る見本のパイプ（examples/video/）を、このリポジトリを対象に流したときの出力（ロゴ・案・こま・MP4・選んだ記録）
+/video/
+
 # Claude Code の手元だけの設定
 .claude/settings.local.json
 CLAUDE.local.md
