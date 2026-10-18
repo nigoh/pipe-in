@@ -13,6 +13,7 @@
 | [D0007](D0007-cable-physics.md) | コンセントの上で離しても差さる・流線型のケーブル・引くときはひものように動く |
 | [D0008](D0008-audit-advisor.md) | 読むだけの矛盾監査とアドバイザー（/pipe-audit・/pipe-advise と /pipe-in の検証のあと） |
 | [D0009](D0009-readme-screens.md) | README を分かりやすく作り直し、動いている画面とロゴを載せる |
+| [D0010](D0010-video-pipe.md) | 人と確かめながら紹介動画を作るパイプの見本（examples/video）と、ボタンで答える手元の受付 |
 
 ## ひな形
 

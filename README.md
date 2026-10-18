@@ -281,7 +281,7 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 
 ### 見本のパイプ
 
-`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`--pipes-dir examples/video/pipes` で指したときだけ読まれます。
+`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
 `ffmpeg` と Playwright が要ります。流し方・案のデータの形・ブラウザから答える受付（`examples/video/review_server.py`）は `examples/video/pipes/pipe-in-video/README.md`、台本の見本は `examples/video/pipe-in-intro-script.md` にあります。
 
 ### 定義の書き方（`pipe.toml`）

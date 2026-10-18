@@ -10,7 +10,7 @@ pipe-in が確認で止まった（終了コード 5）あとの答えを、ブ�
 
 使い方（最初の実行は端末で `pipe-in --pause …` を打つ）：
     python examples/video/review_server.py [--port 8765] [--project .] [--work-dir docs/pipeline] \\
-        [--pipe-in pipe-in] -- --pipe video --pipes-dir examples/video/pipes
+        [--pipe-in pipe-in] -- --pipe examples/video/pipes/pipe-in-video
 """
 
 from __future__ import annotations
@@ -441,7 +441,7 @@ def main(argv=None) -> int:
         allow_abbrev=False,
         description=(
             "pipe-in の確認の答えを、ブラウザから押せるようにする手元の受付。127.0.0.1 だけで待ち受ける。"
-            " `--` より後ろは、pipe-in にそのまま渡す起動時の引数（例: --pipe video --pipes-dir examples/video/pipes）。"
+            " `--` より後ろは、pipe-in にそのまま渡す起動時の引数（例: --pipe examples/video/pipes/pipe-in-video）。"
         ),
     )
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"待ち受けのポート（既定: {DEFAULT_PORT}）")

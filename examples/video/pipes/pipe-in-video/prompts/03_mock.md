@@ -13,7 +13,7 @@
 - 比較ページの HTML は書かない。書くのは、データ `video/mock/options.json` だけ（形は README）。案の配列 `options` に、`number`・`title`・`summary`（この案の特徴）・`frames`（`video/` で始まる相対パスのこま）を入れる。比較ページは受付がテンプレートから作る。
 - 成果物に、案ごとの特徴と、場面とこまの対応表を書く。
 - 回の終わりに `video/choices.md` へ、その回の行（出した案、選んだ案、直した点）を追記する。前の回の行の「選んだ案」「直した点」は、人の返事を受けた回の始めに埋める。
-- 書き込めるのは、自分の成果物と `video/mock/` の下と `video/choices.md` だけ。ただし Bash の中の書き込みはこの絞り込みに掛からないので、`video/mock/` の外に書かない。
+- 書き込めるのは、自分の成果物と `video/mock/options.json`・`video/mock/<番号>/` の下・`video/choices.md` だけ。ただし Bash の中の書き込みはこの絞り込みに掛からないので、`video/mock/<番号>/` の外に書かない。
 
 ## ロゴと音の決まり
 

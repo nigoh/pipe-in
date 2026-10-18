@@ -1,6 +1,6 @@
 # 台本の見本：pipe-in の紹介動画（縦長・15秒）
 
-動画を作るパイプ（`pipes/pipe-in-video/`）の `script` の段が書く台本の形の見本です。題材は pipe-in 自身で、字幕は README にある事実だけで書いています。
+動画を作るパイプ（`examples/video/pipes/pipe-in-video/`）の `script` の段が書く台本の形の見本です。題材は pipe-in 自身で、字幕は README にある事実だけで書いています。
 
 - 画面の形：縦長（1080×1920）、30fps、音は無し
 - 長さ：15 秒

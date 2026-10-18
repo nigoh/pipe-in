@@ -1,7 +1,7 @@
 # pipe-in-video：動画を作るパイプ（見本）
 
 SNS 向けの短い紹介動画を、人の確認を挟みながら作るパイプです。`聞く → 台本 → 見本 → 書き出し → 確かめる` の5段で、台本と見本は「案を出して人が選ぶ」形で進みます。
-`pipes/` や `.pipe-in/` には入っていない見本なので、`--pipes-dir` で指したときだけ読まれます。
+`pipes/` や `.pipe-in/` には入っていない見本なので、`pipe-in` には `--pipe` にこのフォルダのパスを渡します（名前だけでは見つかりません）。定義の検査は `pipe-in-gen check video --pipes-dir examples/video/pipes` です。
 
 ## 必要なもの
 
@@ -17,10 +17,12 @@ SNS 向けの短い紹介動画を、人の確認を挟みながら作るパイ�
 対象のプロジェクトのフォルダで、確認で止まる形（`--pause`）で始めます。
 
 ```bash
-pipe-in --pipe video --pipes-dir examples/video/pipes --pause --text "<要件メモ>"
+pipe-in --pipe examples/video/pipes/pipe-in-video --pause --text "<要件メモ>"
 ```
 
-確認の返事は、端末で同じ引数に `--review approve`・`--review revise --feedback "…"`・`--review quit` のどれかを付けて流し直します。ブラウザから押したいときは、下の「受付」を使います。`--pause` を付けなければ、端末で確認に答えながら続けて流せます。
+パスはこのリポジトリから見た形です。ほかのフォルダで流すときは、このフォルダの場所に置き換えます。
+
+確認の返事は、端末で要件メモ（`--text`・`--input`）と `--pause` を除いた同じ引数に `--review approve`・`--review revise --feedback "…"`・`--review quit` のどれかを付けて流し直します（例：`pipe-in --pipe examples/video/pipes/pipe-in-video --review approve`。`--review` は `--text` と一緒には使えず、次の確認でもまた止まります）。ブラウザから押したいときは、下の「受付」を使います。`--pause` を付けなければ、端末で確認に答えながら続けて流せます。
 
 動画・こま・案のデータは、プロジェクトの `video/` に出ます（`.gitignore` 済みで、追跡しません）。
 
@@ -120,7 +122,7 @@ pipe-in の紹介動画を作りたい。
 最初の実行は端末で打ちます（`--pause` 付き）。止まったあとの答えは、手元の小さな受付から押せます。
 
 ```bash
-python examples/video/review_server.py -- --pipe video --pipes-dir examples/video/pipes
+python examples/video/review_server.py -- --pipe examples/video/pipes/pipe-in-video
 ```
 
 ブラウザで `http://127.0.0.1:8765/` を開くと、止まっている段の案が出ます。「この案にする」「これで決定」「どれもびみょう」「中止」を押すと、受付が `pipe-in --review …` を呼びます。使い方の決まり：
