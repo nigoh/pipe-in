@@ -14,7 +14,8 @@
 | [D0008](D0008-audit-advisor.md) | 読むだけの矛盾監査とアドバイザー（/pipe-audit・/pipe-advise と /pipe-in の検証のあと） |
 | [D0009](D0009-readme-screens.md) | README を分かりやすく作り直し、動いている画面とロゴを載せる |
 | [D0010](D0010-ui-records.md) | 作業台と実行パネルの初めの形と、読み取れる理由（あとから書く記録） |
-| [D0011](D0011-headless-audit.md) | 会話を開かずに /pipe-audit・/pipe-advise を流す呼び方（claude -p）を決め、文書とテストで守る |
+| [D0011](D0011-video-pipe.md) | 人と確かめながら紹介動画を作るパイプの見本（examples/video）と、ボタンで答える手元の受付 |
+| [D0012](D0012-headless-audit.md) | 会話を開かずに /pipe-audit・/pipe-advise を流す呼び方（claude -p）を決め、文書とテストで守る |
 
 ## ひな形
 

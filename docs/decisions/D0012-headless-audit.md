@@ -1,4 +1,4 @@
-# D0011 会話を開かずに /pipe-audit・/pipe-advise を流す
+# D0012 会話を開かずに /pipe-audit・/pipe-advise を流す
 
 イシュー #9（ロードマップ段階0、親 #3）。
 
@@ -18,18 +18,18 @@
 - FR-06 非対話では人に承認を聞けないので、報告を出して止まるところまでとし、直すのは人が承認したあと会話でする、と書く
 - FR-07 スキルとして開かれなかったときの見分け方を書く
 - FR-08 この決定の記録を書く
-  - D0011-AC-01 2つの SKILL.md の frontmatter に `disable-model-invocation: true` があり、`user-invocable: false` は無い（`::test_スキルの設定は人が呼ぶだけでモデルが勝手に呼べない形を保つ`）
-  - D0011-AC-02 `/pipe-help` に `claude -p "/pipe-audit` と `claude -p "/pipe-advise` で始まる呼び方の行がある（`::test_pipe_helpに会話を開かない呼び方の例がある`）
-  - D0011-AC-03 README に同じ2つの呼び方があり、`/pipe-help` のものと空白をそろえて同じ（`::test_readmeに会話を開かない呼び方の例がある`・`::test_readmeとpipe_helpの呼び方が空白をそろえて同じ`）
-  - D0011-AC-04 `/pipe-help`・README の呼び方の行に、スキルを無効にするオプションを付けていない。この記録には呼び方の行を書かない（`::test_呼び方の例にスキルを無効にするオプションを付けていない`・`::test_D0011に呼び方の行を書かない`）
-  - D0011-AC-05 呼び方の行に `--permission-mode dontAsk`・`--tools`・`--allowedTools` があり、許す道具は Agent・Read・Grep・Glob・WebSearch・公式の文書の WebFetch だけ（`--tools` は Agent・Read・Grep・Glob と助言の Web の道具）。書き込みや実行を許す語が無く、Agent の名前は SKILL.md の `allowed-tools` と一致する（`::test_呼び方は確認なしで断るモードと許す道具の一覧を付けている`・`::test_呼び方に書き込みやコマンド実行を許す語が無い`・`::test_許す道具は読む道具と公式の文書の取得だけ`・`::test_呼び方で許すサブエージェントがスキルのallowed_toolsと一致する`）
-  - D0011-AC-06 `/pipe-help`・README に、報告を出して止まることと、直すのは承認のあと会話でと書いてある（`::test_非対話では報告で止まり直すのは承認のあと会話でと書いてある`）
-  - D0011-AC-07 `/pipe-help`・README に、開かれたかの見分け方（`system/init` の `slash_commands`）が書いてある（`::test_開かれなかったときの見分け方が書いてある`）
-  - D0011-AC-08（実機）決めた呼び方の文字列のとおりに `/pipe-audit` を流すと、スキルとして開かれ、`pipe-in-auditor` が走り、報告で止まり、`git status` に差が出ない
-  - D0011-AC-09（実機）`/pipe-advise` についても同じ。WebFetch は公式の文書の場所だけ
-  - D0011-AC-10（実機）`--bare` を付けると `/pipe-audit` が開かれないことを1回確かめ、D0008 のときの原因の候補のどれに当たるかを書く
-  - D0011-AC-11 D0008-AC-17・AC-19 の既存のテストがそのまま通る（`tests/test_pipe_in_guard.py::test_d0008_ac17_audit_and_advise_skills` ほか）
-  - D0011-AC-12 D0008 の記録は書き換えない。この記録が D0008 の残った課題を解くと書く（`::test_D0008の記録はD0011に触れずそのまま`・`::test_D0011は残った課題を解くと書く`・`::test_決定の記録D0011があり索引に行がある`）
+  - D0012-AC-01 2つの SKILL.md の frontmatter に `disable-model-invocation: true` があり、`user-invocable: false` は無い（`::test_スキルの設定は人が呼ぶだけでモデルが勝手に呼べない形を保つ`）
+  - D0012-AC-02 `/pipe-help` に `claude -p "/pipe-audit` と `claude -p "/pipe-advise` で始まる呼び方の行がある（`::test_pipe_helpに会話を開かない呼び方の例がある`）
+  - D0012-AC-03 README に同じ2つの呼び方があり、`/pipe-help` のものと空白をそろえて同じ（`::test_readmeに会話を開かない呼び方の例がある`・`::test_readmeとpipe_helpの呼び方が空白をそろえて同じ`）
+  - D0012-AC-04 `/pipe-help`・README の呼び方の行に、スキルを無効にするオプションを付けていない。この記録には呼び方の行を書かない（`::test_呼び方の例にスキルを無効にするオプションを付けていない`・`::test_D0012に呼び方の行を書かない`）
+  - D0012-AC-05 呼び方の行に `--permission-mode dontAsk`・`--tools`・`--allowedTools` があり、許す道具は Agent・Read・Grep・Glob・WebSearch・公式の文書の WebFetch だけ（`--tools` は Agent・Read・Grep・Glob と助言の Web の道具）。書き込みや実行を許す語が無く、Agent の名前は SKILL.md の `allowed-tools` と一致する（`::test_呼び方は確認なしで断るモードと許す道具の一覧を付けている`・`::test_呼び方に書き込みやコマンド実行を許す語が無い`・`::test_許す道具は読む道具と公式の文書の取得だけ`・`::test_呼び方で許すサブエージェントがスキルのallowed_toolsと一致する`）
+  - D0012-AC-06 `/pipe-help`・README に、報告を出して止まることと、直すのは承認のあと会話でと書いてある（`::test_非対話では報告で止まり直すのは承認のあと会話でと書いてある`）
+  - D0012-AC-07 `/pipe-help`・README に、開かれたかの見分け方（`system/init` の `slash_commands`）が書いてある（`::test_開かれなかったときの見分け方が書いてある`）
+  - D0012-AC-08（実機）決めた呼び方の文字列のとおりに `/pipe-audit` を流すと、スキルとして開かれ、`pipe-in-auditor` が走り、報告で止まり、`git status` に差が出ない
+  - D0012-AC-09（実機）`/pipe-advise` についても同じ。WebFetch は公式の文書の場所だけ
+  - D0012-AC-10（実機）`--bare` を付けると `/pipe-audit` が開かれないことを1回確かめ、D0008 のときの原因の候補のどれに当たるかを書く
+  - D0012-AC-11 D0008-AC-17・AC-19 の既存のテストがそのまま通る（`tests/test_pipe_in_guard.py::test_d0008_ac17_audit_and_advise_skills` ほか）
+  - D0012-AC-12 D0008 の記録は書き換えない。この記録が D0008 の残った課題を解くと書く（`::test_D0008の記録はD0012に触れずそのまま`・`::test_D0012は残った課題を解くと書く`・`::test_決定の記録D0012があり索引に行がある`）
 
 ## 決めたことと理由
 
@@ -87,7 +87,8 @@ Claude Code 2.1.302、モデル sonnet、上限 5 ドル。どちらもファイ
 ## 確かめたこと
 
 - `tests/test_headless_audit.py` の55件がすべて通る。`.claude/skills/` の3ファイルは、実装の段のサブエージェントが書けないので（フックが止める）、実装の段が渡した文をメインが入れた。
-- `pytest -q` 全体：落ちるのは別件の161件（動画のパイプのテスト。イシュー #33）だけで、この変更の前と同じ数。
+- `pytest -q` 全体：作っていたあいだは別件の161件（動画のパイプのテスト。イシュー #33）が落ちていた。main に動画のパイプ（PR #31）が入ったあとに取り込み、全体の1377件がすべて通ることを確かめた。
+- main に入った動画のパイプが D0011 を使っていたので、この記録の番号を D0012 に振り直した（テストの AC の ID も D0012-AC-xx に）。
 - 実機の AC-08〜10（前回の検証の段）：監査・助言ともに、スキルとして開かれて報告で止まり、ファイルの変更なし。`--bare` では `slash_commands` に `pipe-audit` が無く、認証も読まれずにモデルを呼ばずに終わった。
 - メインの実機の試し（追記）：`--tools` 付きの呼び方でも、監査・助言ともに開かれ、報告で止まり、ファイルの変更なし（約 1.14 ドル・1.22 ドル）。init の tools に Bash・Write・Edit が無い。この環境に入っていたプラグインの MCP の道具は残っていた（`dontAsk` で許可に無いので断られる側）。それまでの試しと合わせた利用料は約 3.7 ドル（すべて上限 5 ドル/回の中）。
 - 2回目の検証（新しい呼び方の文字列そのまま。`--model sonnet` を足した）：監査は組み込みの道具が Task・Glob・Grep・Read だけで、`pipe-in-auditor` を1回呼んで報告で止まった（約 0.27 ドル）。助言は Task・Glob・Grep・Read・WebFetch・WebSearch だけで、`pipe-in-advisor` を1回、WebFetch 9回はすべて https://code.claude.com/docs/en/… で、報告で止まった（約 0.54 ドル）。どちらも作業フォルダのファイルは前後で同じ。この機能の実機の利用料は合わせて約 4.5 ドル（どれも1回 5 ドルの上限の中）。

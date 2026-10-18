@@ -27,6 +27,7 @@
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）と README の画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README の画像と確認用のページが読む） | `tests/fixtures/showcase/`・作り方 `tests/showcase.py` |
 | 画面の確認用のページ（開発用。`npm run preview`） | `vscode/scripts/preview.ts`・ページを作る関数 `vscode/scripts/previewPages.ts` |
+| 動画を作るパイプの見本（`--pipes-dir examples/video/pipes` で流す。受付とテンプレートの2つ以外のコードは置かない） | `examples/video/pipes/pipe-in-video/`・`examples/video/` |
 | 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
 
 新しいものを置く場所に迷ったら、まずこの表の近いものの隣に置き、表に1行足します（表のパスが実物と合っているかは `tests/test_rules.py` が検査します）。

@@ -297,6 +297,11 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 | `diagrams` | ソースの調査 → 図を描く → 図とソースの突き合わせ | フロー図・シーケンス図・状態遷移図・クラス図（Mermaid）|
 | `spec-qa` | 仕様とソースの対応 → 食い違いと検討事項 → QA の観点とテストケース | 対応表・食い違いの一覧・テストケース案。どの段もコードは書かない |
 
+### 見本のパイプ
+
+`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
+`ffmpeg` と Playwright が要ります。流し方・案のデータの形・ブラウザから答える受付（`examples/video/review_server.py`）は `examples/video/pipes/pipe-in-video/README.md`、台本の見本は `examples/video/pipe-in-intro-script.md` にあります。
+
 ### 定義の書き方（`pipe.toml`）
 
 ```toml

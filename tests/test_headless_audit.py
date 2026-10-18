@@ -1,4 +1,4 @@
-"""D0011（会話を開かずに /pipe-audit・/pipe-advise を流す呼び方）と、文書・SKILL.md の食い違いの検査。
+"""D0012（会話を開かずに /pipe-audit・/pipe-advise を流す呼び方）と、文書・SKILL.md の食い違いの検査。
 
 - /pipe-help と README に、同じ `claude -p "/pipe-audit …"`・`claude -p "/pipe-advise …"` の呼び方の例がある
 - 例は読むだけに絞られ（--tools で組み込みの道具そのものを絞り、--allowedTools は確認なしで通す許可）、--bare などを付けていない
@@ -23,7 +23,7 @@ SKILLS = ROOT / ".claude" / "skills"
 HELP = SKILLS / "pipe-help" / "SKILL.md"
 README = ROOT / "README.md"
 DECISIONS = ROOT / "docs" / "decisions"
-RECORD = DECISIONS / "D0011-headless-audit.md"
+RECORD = DECISIONS / "D0012-headless-audit.md"
 D0008 = DECISIONS / "D0008-audit-advisor.md"
 DECISIONS_README = DECISIONS / "README.md"
 
@@ -168,61 +168,61 @@ def doc_calls() -> list[tuple[str, str]]:
     return out
 
 
-# ---- D0011-AC-01：SKILL.md の frontmatter ----------------------------------------------------
+# ---- D0012-AC-01：SKILL.md の frontmatter ----------------------------------------------------
 
 
 @pytest.mark.parametrize("name", SKILL_NAMES)
 def test_スキルの設定は人が呼ぶだけでモデルが勝手に呼べない形を保つ(name):
-    """D0011-AC-01: SKILL.md の frontmatter に disable-model-invocation: true があり、user-invocable: false は無い（守り続ける検査）。"""
+    """D0012-AC-01: SKILL.md の frontmatter に disable-model-invocation: true があり、user-invocable: false は無い（守り続ける検査）。"""
     lines = frontmatter(read(SKILLS / name / "SKILL.md"))
     assert "disable-model-invocation: true" in lines
     assert not any(re.match(r"user-invocable:\s*false", line) for line in lines)
 
 
-# ---- D0011-AC-02・03：呼び方の例 -------------------------------------------------------------
+# ---- D0012-AC-02・03：呼び方の例 -------------------------------------------------------------
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
 def test_pipe_helpに会話を開かない呼び方の例がある(start):
-    """D0011-AC-02: /pipe-help の SKILL.md に、claude -p "/pipe-audit と claude -p "/pipe-advise で始まる呼び方の行がある。"""
+    """D0012-AC-02: /pipe-help の SKILL.md に、claude -p "/pipe-audit と claude -p "/pipe-advise で始まる呼び方の行がある。"""
     call_for(read(HELP), start)
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
 def test_readmeに会話を開かない呼び方の例がある(start):
-    """D0011-AC-03: README.md に、同じ2つの呼び方の行がある。"""
+    """D0012-AC-03: README.md に、同じ2つの呼び方の行がある。"""
     call_for(read(README), start)
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
 def test_readmeとpipe_helpの呼び方が空白をそろえて同じ(start):
-    """D0011-AC-03: README の呼び方の行（文字列とオプション）が、/pipe-help のものと一致する。"""
+    """D0012-AC-03: README の呼び方の行（文字列とオプション）が、/pipe-help のものと一致する。"""
     assert call_for(read(README), start) == call_for(read(HELP), start)
 
 
-# ---- D0011-AC-04：付けないオプション ---------------------------------------------------------
+# ---- D0012-AC-04：付けないオプション ---------------------------------------------------------
 
 
 @pytest.mark.parametrize("option", NO_SKILL_OPTIONS)
 @pytest.mark.parametrize("doc", ["pipe-help", "README"])
 def test_呼び方の例にスキルを無効にするオプションを付けていない(doc, option):
-    """D0011-AC-04: /pipe-help・README の呼び方の行に --bare・--disable-slash-commands が無い。"""
+    """D0012-AC-04: /pipe-help・README の呼び方の行に --bare・--disable-slash-commands が無い。"""
     path = {"pipe-help": HELP, "README": README}[doc]
     lines = call_lines(read(path))
     assert lines, "呼び方の行が1つも無い（検査が空振りしないように）"
     assert not [line for line in lines if has_word(line, option)]
 
 
-def test_D0011に呼び方の行を書かない():
-    """D0011-AC-04: D0011 に `claude -p "` で始まる呼び方の行を書かない（文書の呼び方は pipe-help と README に1か所ずつ）。"""
+def test_D0012に呼び方の行を書かない():
+    """D0012-AC-04: D0012 に `claude -p "` で始まる呼び方の行を書かない（文書の呼び方は pipe-help と README に1か所ずつ）。"""
     assert call_lines(read(RECORD)) == []
 
 
-# ---- D0011-AC-05：読むだけ -------------------------------------------------------------------
+# ---- D0012-AC-05：読むだけ -------------------------------------------------------------------
 
 
 def test_呼び方は確認なしで断るモードと許す道具の一覧を付けている():
-    """D0011-AC-05: /pipe-help・README の呼び方の行すべてに --permission-mode dontAsk と --allowedTools がある。"""
+    """D0012-AC-05: /pipe-help・README の呼び方の行すべてに --permission-mode dontAsk と --allowedTools がある。"""
     calls = doc_calls()
     assert {n for n, _ in calls} == {"pipe-help", "README"}, "どちらの文書にも呼び方の行が要る"
     for name, line in calls:
@@ -232,14 +232,14 @@ def test_呼び方は確認なしで断るモードと許す道具の一覧を�
 
 @pytest.mark.parametrize("word", WRITE_WORDS)
 def test_呼び方に書き込みやコマンド実行を許す語が無い(word):
-    """D0011-AC-05: /pipe-help・README の呼び方の行に、書き込み・Bash・PowerShell を許す語が無い。"""
+    """D0012-AC-05: /pipe-help・README の呼び方の行に、書き込み・Bash・PowerShell を許す語が無い。"""
     calls = doc_calls()
     assert calls, "呼び方の行が1つも無い（検査が空振りしないように）"
     assert not [(n, line) for n, line in calls if has_word(line, word)]
 
 
 def test_許す道具は読む道具と公式の文書の取得だけ():
-    """D0011-AC-05: --allowedTools に書いた道具が Agent(…)・Read・Grep・Glob・WebSearch・WebFetch(domain:…) だけ。"""
+    """D0012-AC-05: --allowedTools に書いた道具が Agent(…)・Read・Grep・Glob・WebSearch・WebFetch(domain:…) だけ。"""
     calls = doc_calls()
     assert calls, "呼び方の行が1つも無い（検査が空振りしないように）"
     for name, line in calls:
@@ -250,7 +250,7 @@ def test_許す道具は読む道具と公式の文書の取得だけ():
 
 @pytest.mark.parametrize("skill,start", [("pipe-audit", AUDIT_START), ("pipe-advise", ADVISE_START)])
 def test_呼び方で許すサブエージェントがスキルのallowed_toolsと一致する(skill, start):
-    """D0011-AC-05: 呼び方の Agent(…) が、SKILL.md の allowed-tools の Agent(…) と一致する。"""
+    """D0012-AC-05: 呼び方の Agent(…) が、SKILL.md の allowed-tools の Agent(…) と一致する。"""
     declared = [
         line.split(":", 1)[1].strip()
         for line in frontmatter(read(SKILLS / skill / "SKILL.md"))
@@ -263,7 +263,7 @@ def test_呼び方で許すサブエージェントがスキルのallowed_tools�
 
 
 def test_呼び方の行は承認された2行と同じ():
-    """D0011-AC-05: pipe-help・README の呼び方の行が、承認された監査・助言の2行（空白をそろえて）と一致する。"""
+    """D0012-AC-05: pipe-help・README の呼び方の行が、承認された監査・助言の2行（空白をそろえて）と一致する。"""
     for text in (read(HELP), read(README)):
         assert call_for(text, AUDIT_START) == EXPECTED_AUDIT
         assert call_for(text, ADVISE_START) == EXPECTED_ADVISE
@@ -271,7 +271,7 @@ def test_呼び方の行は承認された2行と同じ():
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
 def test_呼び方にtoolsで組み込みの道具を絞る指定がある(start):
-    """D0011-AC-05: 呼び方の行に --tools があり、値（カンマ区切り）が Agent・Read・Grep・Glob・WebFetch・WebSearch の中だけ（Bash・Write・Edit などが入れば落ちる）。"""
+    """D0012-AC-05: 呼び方の行に --tools があり、値（カンマ区切り）が Agent・Read・Grep・Glob・WebFetch・WebSearch の中だけ（Bash・Write・Edit などが入れば落ちる）。"""
     for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
         tools = tools_option(call_for(text, start))
         assert tools, f"{name}: --tools が無い"
@@ -279,7 +279,7 @@ def test_呼び方にtoolsで組み込みの道具を絞る指定がある(start
 
 
 def test_監査の呼び方にはWebの道具を付けない():
-    """D0011-AC-05: 監査の行の --tools にも --allowedTools にも WebFetch・WebSearch が無い。"""
+    """D0012-AC-05: 監査の行の --tools にも --allowedTools にも WebFetch・WebSearch が無い。"""
     for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
         line = call_for(text, AUDIT_START)
         tools = tools_option(line)
@@ -289,20 +289,20 @@ def test_監査の呼び方にはWebの道具を付けない():
 
 
 def test_助言の呼び方のWebFetchの行き先がガードの公式の場所と同じ():
-    """D0011-AC-05: 助言の行の WebFetch(domain:…) の集合が、pipe_in_guard.py の DOC_HOSTS と GITHUB_HOSTS を合わせた集合とちょうど同じ。"""
+    """D0012-AC-05: 助言の行の WebFetch(domain:…) の集合が、pipe_in_guard.py の DOC_HOSTS と GITHUB_HOSTS を合わせた集合とちょうど同じ。"""
     expected = guard_hosts(read(GUARD))
     for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
         got = webfetch_domains(call_for(text, ADVISE_START))
         assert got == expected, f"{name}: 足りない={sorted(expected - got)} 余分={sorted(got - expected)}"
 
 
-# ---- D0011-AC-06・07：書いておくべき説明（それぞれの節の中だけを見る） -------------------------
+# ---- D0012-AC-06・07：書いておくべき説明（それぞれの節の中だけを見る） -------------------------
 
 
 @pytest.mark.parametrize("doc", ["pipe-help", "README"])
 @pytest.mark.parametrize("word", ["報告", "止まり", "承認", "会話"], ids=["report", "stop", "approve", "chat"])
 def test_非対話では報告で止まり直すのは承認のあと会話でと書いてある(doc, word):
-    """D0011-AC-06: /pipe-help の「会話を開かずに流す」の節と README の「Claude Code で開発するとき」の節の中に、報告を出して止まること、直すのは承認のあと会話でと書いてある。"""
+    """D0012-AC-06: /pipe-help の「会話を開かずに流す」の節と README の「Claude Code で開発するとき」の節の中に、報告を出して止まること、直すのは承認のあと会話でと書いてある。"""
     text = doc_section(doc)
     assert call_lines(text), "その節に呼び方の例が無い"
     assert word in text
@@ -311,7 +311,7 @@ def test_非対話では報告で止まり直すのは承認のあと会話で�
 @pytest.mark.parametrize("doc", ["pipe-help", "README"])
 @pytest.mark.parametrize("word", ["slash_commands", "system/init", "--output-format stream-json --verbose"])
 def test_開かれなかったときの見分け方が書いてある(doc, word):
-    """D0011-AC-07: 上と同じ節の中に、system/init の slash_commands で開かれたかを見分ける方法が書いてある。"""
+    """D0012-AC-07: 上と同じ節の中に、system/init の slash_commands で開かれたかを見分ける方法が書いてある。"""
     text = doc_section(doc)
     assert call_lines(text), "その節に呼び方の例が無い"
     assert word in text
@@ -319,29 +319,29 @@ def test_開かれなかったときの見分け方が書いてある(doc, word)
 
 @pytest.mark.parametrize("doc", ["pipe-help", "README"])
 def test_見分け方は助言のpipe_adviseも確かめると書いてある(doc):
-    """D0011-AC-07: 同じ節に、slash_commands で `pipe-audit`（/pipe-advise のときは `pipe-advise`）も確かめると書いてある。"""
+    """D0012-AC-07: 同じ節に、slash_commands で `pipe-audit`（/pipe-advise のときは `pipe-advise`）も確かめると書いてある。"""
     text = doc_section(doc)
     assert "slash_commands" in text
     assert "`pipe-audit`" in text and "`pipe-advise`" in text
 
 
-# ---- D0011-AC-12・FR-08：決定の記録 ----------------------------------------------------------
+# ---- D0012-AC-12・FR-08：決定の記録 ----------------------------------------------------------
 
 
-def test_D0008の記録はD0011に触れずそのまま():
-    """D0011-AC-12: D0008 の記録に D0011 が出てこない（守り続ける検査）。"""
-    assert "D0011" not in read(D0008)
+def test_D0008の記録はD0012に触れずそのまま():
+    """D0012-AC-12: D0008 の記録に D0012 が出てこない（守り続ける検査）。"""
+    assert "D0012" not in read(D0008)
 
 
-def test_D0011は残った課題を解くと書く():
-    """D0011-AC-12: D0011 に「D0008 の残った課題を解く」がある。"""
+def test_D0012は残った課題を解くと書く():
+    """D0012-AC-12: D0012 に「D0008 の残った課題を解く」がある。"""
     assert "D0008 の残った課題を解く" in read(RECORD)
 
 
-def test_決定の記録D0011があり索引に行がある():
-    """D0011-AC-12: docs/decisions/D0011-headless-audit.md があり、docs/decisions/README.md に D0011 の行がある（FR-08）。"""
+def test_決定の記録D0012があり索引に行がある():
+    """D0012-AC-12: docs/decisions/D0012-headless-audit.md があり、docs/decisions/README.md に D0012 の行がある（FR-08）。"""
     assert read(RECORD).strip()
-    assert any("D0011" in line for line in read(DECISIONS_README).splitlines())
+    assert any("D0012" in line for line in read(DECISIONS_README).splitlines())
 
 
 # ---- 検査そのものの検査 ----------------------------------------------------------------------
@@ -353,7 +353,7 @@ GOOD_AUDIT = (
 
 
 def test_検査は禁止語を付けた呼び方を見つけ説明の文は見逃す():
-    """D0011-AC-04/05: call_lines と禁止語の検査が、--bare・acceptEdits を付けた呼び方を見つけ、コードブロック外の説明は対象にしない。"""
+    """D0012-AC-04/05: call_lines と禁止語の検査が、--bare・acceptEdits を付けた呼び方を見つけ、コードブロック外の説明は対象にしない。"""
     text = "\n".join(
         [
             "`--bare` は付けません。",
@@ -373,7 +373,7 @@ def test_検査は禁止語を付けた呼び方を見つけ説明の文は見�
 
 
 def test_検査は許さない道具と抜けたallowedToolsを見つける():
-    """D0011-AC-05: allowed_tools と ALLOWED_TOOL が、許す一覧に無い道具と --allowedTools の無い呼び方を見つける。"""
+    """D0012-AC-05: allowed_tools と ALLOWED_TOOL が、許す一覧に無い道具と --allowedTools の無い呼び方を見つける。"""
     assert allowed_tools(GOOD_AUDIT) == ["Agent(pipe-in-auditor)", "Read", "Grep", "Glob"]
     assert all(ALLOWED_TOOL.match(t) for t in allowed_tools(GOOD_AUDIT))
     assert allowed_tools('claude -p "/pipe-audit x" --permission-mode dontAsk') == []
@@ -386,7 +386,7 @@ def test_検査は許さない道具と抜けたallowedToolsを見つける():
 
 
 def test_検査はtoolsに入った許さない道具を見つける():
-    """D0011-AC-05: tools_option が --tools の値を読み、Bash・Write・Edit・PowerShell が入れば許す一覧からはみ出す。Web の道具は監査の検査で見つかる。"""
+    """D0012-AC-05: tools_option が --tools の値を読み、Bash・Write・Edit・PowerShell が入れば許す一覧からはみ出す。Web の道具は監査の検査で見つかる。"""
     assert tools_option(GOOD_AUDIT) == ["Agent", "Read", "Grep", "Glob"]
     assert set(tools_option(GOOD_AUDIT) or []) <= TOOLS_OK
     assert tools_option('claude -p "/pipe-audit x" --allowedTools Read') is None
@@ -398,7 +398,7 @@ def test_検査はtoolsに入った許さない道具を見つける():
 
 
 def test_検査はWebFetchの行き先の過不足を見つける():
-    """D0011-AC-05: guard_hosts がガードの文字を読み、webfetch_domains との集合の違いで過不足が見える。"""
+    """D0012-AC-05: guard_hosts がガードの文字を読み、webfetch_domains との集合の違いで過不足が見える。"""
     guard = 'DOC_HOSTS = ("a.example", "b.example")\n# メモ\nGITHUB_HOSTS = ("g.example",)\n'
     assert guard_hosts(guard) == {"a.example", "b.example", "g.example"}
     line = 'claude -p "/pipe-advise x" --allowedTools Read "WebFetch(domain:a.example)" "WebFetch(domain:z.example)"'
@@ -410,7 +410,7 @@ def test_検査はWebFetchの行き先の過不足を見つける():
 
 
 def test_検査は節の外の語を数えない():
-    """D0011-AC-06/07: section が見出しの節だけを返し、前後の節の語や、見出しが無い場合は数えない。"""
+    """D0012-AC-06/07: section が見出しの節だけを返し、前後の節の語や、見出しが無い場合は数えない。"""
     text = "## 上\n外の語 slash_commands\n### 対象\n中の語\n#### 孫\n孫の語\n### 次\n次の語 報告\n## 別\n別の語\n"
     body = section(text, "対象")
     assert "中の語" in body and "孫の語" in body
@@ -420,6 +420,6 @@ def test_検査は節の外の語を数えない():
 
 
 def test_検査はfrontmatterの欠けを見つける():
-    """D0011-AC-01: frontmatter の読み方が、設定の無いファイルでは空になる。"""
+    """D0012-AC-01: frontmatter の読み方が、設定の無いファイルでは空になる。"""
     assert frontmatter("本文だけ") == []
     assert "disable-model-invocation: true" in frontmatter("---\ndisable-model-invocation: true\n---\n本文")

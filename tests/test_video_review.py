@@ -63,7 +63,7 @@ STATE_NAME = "state.json"
 
 
 def test_build_command_shapes():
-    """D0010-AC-41: 3種類の操作が [実行ファイル, 起動時の引数, --review, 種類, …] になる。revise だけ --feedback と値が続く。"""
+    """D0011-AC-41: 3種類の操作が [実行ファイル, 起動時の引数, --review, 種類, …] になる。revise だけ --feedback と値が続く。"""
     m = rs()
     assert m.build_command("pipe-in", BASE, "approve") == ["pipe-in", *BASE, "--review", "approve"]
     assert m.build_command("pipe-in", BASE, "quit") == ["pipe-in", *BASE, "--review", "quit"]
@@ -74,13 +74,13 @@ def test_build_command_shapes():
 
 @pytest.mark.parametrize("kind", ["run", "", "approve; rm -r", "Approve", "APPROVE", " approve", "approve\n", "revise2"])
 def test_build_command_rejects_other_kinds(kind):
-    """D0010-AC-42: revise・approve・quit 以外の操作名（大文字小文字違い・空・つなげた文）は断る。"""
+    """D0011-AC-42: revise・approve・quit 以外の操作名（大文字小文字違い・空・つなげた文）は断る。"""
     with pytest.raises(ValueError):
         rs().build_command("pipe-in", BASE, kind, "x" if kind else None)
 
 
 def test_build_command_rejects_feedback_for_approve_and_quit():
-    """D0010-AC-42: approve・quit に feedback を付けるのは断る。"""
+    """D0011-AC-42: approve・quit に feedback を付けるのは断る。"""
     m = rs()
     for kind in ("approve", "quit"):
         with pytest.raises(ValueError):
@@ -89,13 +89,13 @@ def test_build_command_rejects_feedback_for_approve_and_quit():
 
 @pytest.mark.parametrize("word", ["--review", "--feedback", "--yes", "--pause", "--auto"])
 def test_build_command_rejects_extra_pipe_in_options(word):
-    """D0010-AC-42: 起動時の引数に、受付が決める部分（--review・--feedback・--yes・--pause・--auto）が混ざるのを断る。"""
+    """D0011-AC-42: 起動時の引数に、受付が決める部分（--review・--feedback・--yes・--pause・--auto）が混ざるのを断る。"""
     with pytest.raises(ValueError):
         rs().build_command("pipe-in", [*BASE, word], "approve")
 
 
 def test_build_command_has_no_door_for_extra_arguments():
-    """D0010-AC-42: 関数の引数に、任意の追加引数を受ける口（*args・**kwargs）が無い。"""
+    """D0011-AC-42: 関数の引数に、任意の追加引数を受ける口（*args・**kwargs）が無い。"""
     params = inspect.signature(rs().build_command).parameters
     assert list(params) == ["exe", "base_args", "kind", "feedback"]
     assert not [p for p in params.values() if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD)]
@@ -115,7 +115,7 @@ FEEDBACKS = [
 
 @pytest.mark.parametrize("text", FEEDBACKS)
 def test_feedback_is_one_argument(text):
-    """D0010-AC-43: 直す点に ; && $(…) 改行 引用符 -- で始まる語 日本語が入っていても、文は --feedback の次の1つの要素のまま。"""
+    """D0011-AC-43: 直す点に ; && $(…) 改行 引用符 -- で始まる語 日本語が入っていても、文は --feedback の次の1つの要素のまま。"""
     cmd = rs().build_command("pipe-in", BASE, "revise", text)
     assert len(cmd) == 1 + len(BASE) + 4
     assert cmd[-2:] == ["--feedback", text]
@@ -123,7 +123,7 @@ def test_feedback_is_one_argument(text):
 
 
 def test_command_is_run_without_shell(monkeypatch, tmp_path):
-    """D0010-AC-43: 呼ぶときは、リストのまま shell=False で呼ぶ（偽の subprocess.run で確かめる）。"""
+    """D0011-AC-43: 呼ぶときは、リストのまま shell=False で呼ぶ（偽の subprocess.run で確かめる）。"""
     m = rs()
     seen: list[tuple[tuple, dict]] = []
 
@@ -142,13 +142,13 @@ def test_command_is_run_without_shell(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("bad", [0, -1, 1.5, "1", True, None])
 def test_parse_action_rejects_bad_numbers(bad):
-    """D0010-AC-44: 案の番号は 1 以上の整数だけ。0・負・小数・文字・真偽・空は断る。"""
+    """D0011-AC-44: 案の番号は 1 以上の整数だけ。0・負・小数・文字・真偽・空は断る。"""
     with pytest.raises(ValueError):
         rs().parse_action({"op": "choose", "number": bad, "note": ""})
 
 
 def test_parse_action_number_and_length():
-    """D0010-AC-44: 1・3 は通り、直す点は 1000 文字まで（1001 文字は断る）。文は数字で始まる。"""
+    """D0011-AC-44: 1・3 は通り、直す点は 1000 文字まで（1001 文字は断る）。文は数字で始まる。"""
     m = rs()
     a = m.parse_action({"op": "choose", "number": 3, "note": ""})
     assert (a.kind, a.feedback) == ("revise", "3案目にする。")
@@ -166,7 +166,7 @@ def test_parse_action_number_and_length():
 
 
 def test_parse_action_approve_and_quit_have_no_feedback():
-    """D0010-AC-41: approve・quit の操作は feedback なしの Action になる。"""
+    """D0011-AC-41: approve・quit の操作は feedback なしの Action になる。"""
     m = rs()
     assert (m.parse_action({"op": "approve"}).kind, m.parse_action({"op": "approve"}).feedback) == ("approve", None)
     assert (m.parse_action({"op": "quit"}).kind, m.parse_action({"op": "quit"}).feedback) == ("quit", None)
@@ -174,7 +174,7 @@ def test_parse_action_approve_and_quit_have_no_feedback():
 
 @pytest.mark.parametrize("note", ["", "; rm -r /", "任意の文", "x" * 5000])
 def test_none_of_them_uses_fixed_sentence(note):
-    """D0010-AC-45: 「どれもびみょう」は、人の入力が何でも決まった文の revise になる（人の文は混ざらない）。"""
+    """D0011-AC-45: 「どれもびみょう」は、人の入力が何でも決まった文の revise になる（人の文は混ざらない）。"""
     m = rs()
     assert m.NONE_OF_THEM == "どれもびみょう。別の方向で出し直して"
     a = m.parse_action({"op": "none", "number": 2, "note": note})
@@ -186,13 +186,13 @@ def test_none_of_them_uses_fixed_sentence(note):
 
 @pytest.mark.parametrize("host", ["0.0.0.0", "::", "localhost", "", "192.168.1.5", "8.8.8.8", "example.com"])
 def test_check_bind_rejects_other_addresses(host):
-    """D0010-AC-46: 127.0.0.1 以外（0.0.0.0・::・localhost・空・外のアドレス）の待ち受けは断る。"""
+    """D0011-AC-46: 127.0.0.1 以外（0.0.0.0・::・localhost・空・外のアドレス）の待ち受けは断る。"""
     with pytest.raises(ValueError):
         rs().check_bind(host)
 
 
 def test_bind_address_is_loopback_only(tmp_path, monkeypatch, capsys):
-    """D0010-AC-46: 待ち受けは 127.0.0.1 の定数。main は --host の引数を持たず、既定のポートは 8765。"""
+    """D0011-AC-46: 待ち受けは 127.0.0.1 の定数。main は --host の引数を持たず、既定のポートは 8765。"""
     m = rs()
     m.check_bind("127.0.0.1")
     assert m.HOST == "127.0.0.1"
@@ -217,7 +217,7 @@ def test_bind_address_is_loopback_only(tmp_path, monkeypatch, capsys):
 
 
 def test_main_rejects_forbidden_start_args_and_missing_exe(tmp_path, monkeypatch):
-    """D0010-AC-42: 起動時の引数に --review などがあると断る。pipe-in が見つからないときは起動時に終わる。"""
+    """D0011-AC-42: 起動時の引数に --review などがあると断る。pipe-in が見つからないときは起動時に終わる。"""
     m = rs()
     monkeypatch.setattr(m, "serve", lambda *a, **k: None)
     for word in ["--review", "--feedback", "--yes", "--pause", "--auto"]:
@@ -251,12 +251,12 @@ OK_HOST = "127.0.0.1:8765"
     ],
 )
 def test_request_checks_host_token_and_method(method, path, host, token_header, expected):
-    """D0010-AC-47: Host が違う・合言葉が無い／違う・/action に POST 以外は、断る（403・405）。正しい組み合わせは通る（None）。"""
+    """D0011-AC-47: Host が違う・合言葉が無い／違う・/action に POST 以外は、断る（403・405）。正しい組み合わせは通る（None）。"""
     assert rs().check_request(method, path, host, 8765, token_header, TOKEN) == expected
 
 
 def test_token_is_compared_in_constant_time():
-    """D0010-AC-47: 合言葉は hmac.compare_digest で比べる。"""
+    """D0011-AC-47: 合言葉は hmac.compare_digest で比べる。"""
     assert SERVER_PATH.is_file(), f"{SERVER_PATH.relative_to(ROOT)} がありません（受付をまだ作っていない）"
     assert "hmac.compare_digest" in SERVER_PATH.read_text(encoding="utf-8")
 
@@ -294,18 +294,18 @@ def project(tmp_path):
     ],
 )
 def test_served_path_stays_inside_video(project, rel):
-    """D0010-AC-48: ..・絶対パス・%2e%2e・NUL・\\・video/ の外・フォルダ・無いファイルは配らない（None）。"""
+    """D0011-AC-48: ..・絶対パス・%2e%2e・NUL・\\・video/ の外・フォルダ・無いファイルは配らない（None）。"""
     assert rs().resolve_served_path(project, rel) is None
 
 
 def test_served_path_allows_files_inside_video(project):
-    """D0010-AC-48: video/ の中のファイルは配る。"""
+    """D0011-AC-48: video/ の中のファイルは配る。"""
     got = rs().resolve_served_path(project, "video/mock/1/a.png")
     assert got is not None and got.resolve() == (project / "video/mock/1/a.png").resolve()
 
 
 def test_served_path_refuses_symlink_leaving_video(project, tmp_path):
-    """D0010-AC-48: video/ の中から外のファイル・フォルダを指す記号リンクは配らない。作れない環境では skip。"""
+    """D0011-AC-48: video/ の中から外のファイル・フォルダを指す記号リンクは配らない。作れない環境では skip。"""
     try:
         (project / "video" / "link.png").symlink_to(tmp_path / "x.png")
         (project / "video" / "linkdir").symlink_to(project, target_is_directory=True)
@@ -317,7 +317,7 @@ def test_served_path_refuses_symlink_leaving_video(project, tmp_path):
 
 
 def test_served_path_rejects_image_outside_video(project):
-    """D0010-AC-65: データの frames に ../x.png・/etc/x.png のような video/ の外の場所が入っていても、配る道（AC-48 と同じ）は断る。"""
+    """D0011-AC-65: データの frames に ../x.png・/etc/x.png のような video/ の外の場所が入っていても、配る道（AC-48 と同じ）は断る。"""
     m = rs()
     assert m.resolve_served_path(project, "../x.png") is None
     assert m.resolve_served_path(project, "/etc/x.png") is None
@@ -330,7 +330,7 @@ EVIL = "</script><img src=x onerror=alert(1)>&  "
 
 
 def test_embed_json_escapes_markup():
-    """D0010-AC-60: embed_json は < > & と U+2028/2029 をエスケープし、json.loads で元に戻る。"""
+    """D0011-AC-60: embed_json は < > & と U+2028/2029 をエスケープし、json.loads で元に戻る。"""
     m = rs()
     out = m.embed_json({"x": "</script><img onerror=1>"})
     assert "<" not in out and ">" not in out
@@ -341,7 +341,7 @@ def test_embed_json_escapes_markup():
 
 
 def test_render_page_replaces_marker_only():
-    """D0010-AC-49: render_page は目印をデータに置き換える。目印が無いテンプレートは断る。"""
+    """D0011-AC-49: render_page は目印をデータに置き換える。目印が無いテンプレートは断る。"""
     m = rs()
     page = m.render_page(TEMPLATE, {"error": EVIL})
     assert "<!--PAGE-DATA-->" not in page
@@ -357,7 +357,7 @@ def page_data(html: str) -> dict:
 
 
 def test_page_escapes_untrusted_text():
-    """D0010-AC-49: <script> を含む案の文と失敗の出力を渡しても、ページの文字列に閉じタグ・生のタグが現れない。"""
+    """D0011-AC-49: <script> を含む案の文と失敗の出力を渡しても、ページの文字列に閉じタグ・生のタグが現れない。"""
     m = rs()
     data = {
         "options_data": {"options": [{"number": 1, "title": "<script>alert(1)</script>", "summary": "s", "frames": []}]},
@@ -374,7 +374,7 @@ def test_page_escapes_untrusted_text():
 
 
 def test_pending_stage_and_options_path():
-    """D0010-AC-52: state.json の pending_review.stage を読む。壊れた JSON・形違いは None。script・mock の案のデータの場所を返す。"""
+    """D0011-AC-52: state.json の pending_review.stage を読む。壊れた JSON・形違いは None。script・mock の案のデータの場所を返す。"""
     m = rs()
     assert m.pending_stage(json.dumps({"pending_review": {"stage": "script"}})) == "script"
     assert m.pending_stage(json.dumps({"pending_review": None})) is None
@@ -394,13 +394,13 @@ def test_pending_stage_and_options_path():
     ids=["broken", "list", "string", "null", "options-not-list", "no-options", "empty"],
 )
 def test_load_options_reports_cause(text):
-    """D0010-AC-61: 案のデータが壊れている・オブジェクトでない・options が配列でないときは、(None, 原因の文)。"""
+    """D0011-AC-61: 案のデータが壊れている・オブジェクトでない・options が配列でないときは、(None, 原因の文)。"""
     data, error = rs().load_options(text)
     assert data is None and isinstance(error, str) and error
 
 
 def test_load_options_reads_good_data():
-    """D0010-AC-61: 正しいデータは (データ, None)。"""
+    """D0011-AC-61: 正しいデータは (データ, None)。"""
     good = {"round": 1, "options": [{"number": 1, "title": "t", "summary": "s", "frames": ["video/mock/1/frames/a.png"]}]}
     assert rs().load_options(json.dumps(good)) == (good, None)
 
@@ -410,7 +410,7 @@ def test_load_options_reads_good_data():
 
 @pytest.mark.parametrize("code,expected", [(5, "next"), (0, "done"), (1, "failed"), (2, "failed"), (137, "failed"), (None, "failed")])
 def test_classify_exit(code, expected):
-    """D0010-AC-50: 終了コード 5 は次の確認、0 は終わり、ほか（None を含む）は失敗。"""
+    """D0011-AC-50: 終了コード 5 は次の確認、0 は終わり、ほか（None を含む）は失敗。"""
     assert rs().classify_exit(code) == expected
 
 
@@ -420,7 +420,7 @@ def tail_text(snapshot: dict) -> str:
 
 
 def test_controller_serializes_and_classifies():
-    """D0010-AC-50: 実行中の2つ目の操作は断る。5・0・1・None で waiting・done・failed に変わる。失敗の出力は末尾 8 行。"""
+    """D0011-AC-50: 実行中の2つ目の操作は断る。5・0・1・None で waiting・done・failed に変わる。失敗の出力は末尾 8 行。"""
     m = rs()
     act = m.parse_action({"op": "approve"})
     c = m.Controller()
@@ -518,7 +518,7 @@ GOOD_OPTIONS = {
 
 
 def test_http_listens_on_loopback_only(project, monkeypatch):
-    """D0010-AC-46: make_handler で立てたサーバーは 127.0.0.1 で待ち受ける（受付が使う定数の HOST と同じ）。"""
+    """D0011-AC-46: make_handler で立てたサーバーは 127.0.0.1 で待ち受ける（受付が使う定数の HOST と同じ）。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     with running(m, project, options=GOOD_OPTIONS) as server:
@@ -526,7 +526,7 @@ def test_http_listens_on_loopback_only(project, monkeypatch):
 
 
 def test_http_rejects_bad_requests(project, monkeypatch):
-    """D0010-AC-47: Host 違い・合言葉なし／違い・GET /action・中身の悪い操作は 4xx で、pipe-in を呼ばない。正しいものは呼ぶ。"""
+    """D0011-AC-47: Host 違い・合言葉なし／違い・GET /action・中身の悪い操作は 4xx で、pipe-in を呼ばない。正しいものは呼ぶ。"""
     m = rs()
     fake = Calls()
     monkeypatch.setattr(m, "run_command", fake)
@@ -548,7 +548,7 @@ def test_http_rejects_bad_requests(project, monkeypatch):
 
 
 def test_http_serves_inside_video_with_security_headers(project, monkeypatch):
-    """D0010-AC-48: video/ の中は配り、外を指す道は 4xx で中身を返さない。応答に CSP と nosniff が付き、合言葉は /state に出ない。"""
+    """D0011-AC-48: video/ の中は配り、外を指す道は 4xx で中身を返さない。応答に CSP と nosniff が付き、合言葉は /state に出ない。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     with running(m, project, options=GOOD_OPTIONS) as server:
@@ -577,7 +577,7 @@ def test_http_serves_inside_video_with_security_headers(project, monkeypatch):
 
 
 def test_state_never_serves_outside_frames(project, monkeypatch):
-    """D0010-AC-65: データの frames に video/ の外（../x.png・/etc/x.png）の場所があっても、その場所を /files/ で取りにいくと配られない。"""
+    """D0011-AC-65: データの frames に video/ の外（../x.png・/etc/x.png）の場所があっても、その場所を /files/ で取りにいくと配られない。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     evil = {
@@ -602,7 +602,7 @@ def test_state_never_serves_outside_frames(project, monkeypatch):
     ids=["missing", "broken", "not-object", "options-not-list"],
 )
 def test_page_when_options_missing_or_broken(project, monkeypatch, stage, options):
-    """D0010-AC-61: 案のデータが無い・壊れている・配列でないとき、GET / は落ちずに 200 で、データの error に原因の文が入る。"""
+    """D0011-AC-61: 案のデータが無い・壊れている・配列でないとき、GET / は落ちずに 200 で、データの error に原因の文が入る。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     with running(m, project, options=options, stage=stage) as server:
@@ -615,7 +615,7 @@ def test_page_when_options_missing_or_broken(project, monkeypatch, stage, option
 
 
 def test_page_with_good_options_has_no_error(project, monkeypatch):
-    """D0010-AC-35: 正しい案のデータは、そのままページのデータに入り、error は空。状態は waiting。"""
+    """D0011-AC-35: 正しい案のデータは、そのままページのデータに入り、error は空。状態は waiting。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     with running(m, project, options=GOOD_OPTIONS) as server:
@@ -626,7 +626,7 @@ def test_page_with_good_options_has_no_error(project, monkeypatch):
 
 
 def test_page_without_pending_review_says_no_review(project, monkeypatch):
-    """D0010-AC-52: 止まっている確認が無い（pending_review なし）ときは、状態 no-review のページを返す。"""
+    """D0011-AC-52: 止まっている確認が無い（pending_review なし）ときは、状態 no-review のページを返す。"""
     m = rs()
     monkeypatch.setattr(m, "run_command", Calls())
     with running(m, project, state={"pending_review": None}) as server:
@@ -636,7 +636,7 @@ def test_page_without_pending_review_says_no_review(project, monkeypatch):
 
 
 def test_failure_output_is_escaped_in_page(project, monkeypatch):
-    """D0010-AC-49: 失敗した pipe-in の標準エラーに <script> があっても、ページに生のタグ・閉じタグで出ない。"""
+    """D0011-AC-49: 失敗した pipe-in の標準エラーに <script> があっても、ページに生のタグ・閉じタグで出ない。"""
     m = rs()
     finished = threading.Event()
 
@@ -660,7 +660,7 @@ def test_failure_output_is_escaped_in_page(project, monkeypatch):
 
 
 def test_second_action_is_refused_while_running(project, monkeypatch):
-    """D0010-AC-50: pipe-in を呼んでいる間の2つ目の操作は 409 で断り、呼ばない。終わると状態が変わる。"""
+    """D0011-AC-50: pipe-in を呼んでいる間の2つ目の操作は 409 で断り、呼ばない。終わると状態が変わる。"""
     m = rs()
     finished = threading.Event()
 
