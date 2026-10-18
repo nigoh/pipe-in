@@ -8,6 +8,8 @@ allowed-tools: Agent(pipe-in-auditor)
 
 # /pipe-audit — 文書・定義・コードの食い違いを並べる
 
+会話を開かずに流すときは `/pipe-help` の「会話を開かずに流す」を見る。そのときは手順 2 の報告で止まり、3 以降は人が承認したあと会話でする。
+
 範囲: $ARGUMENTS（例: `.claude/ docs/development/`。空なら全部）
 
 CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を守る。
