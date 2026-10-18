@@ -65,6 +65,7 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
 - **`verify` が不合格なら `render` へ戻す。** 要件では「見本の崩れなら `mock`」としていたが、設計で `render` だけにした（監査 A-04）。崩れが見本の HTML にあるときも、`render` は `video/mock/<番号>/` の下を直せる。戻し先を1つにすると、差し戻しの道が単純になる。
 - **書ける範囲を段ごとに絞る。** `script` は `video/choices.md` と `video/script/options.json`、`mock` は `video/mock/options.json`・`video/mock/<番号>/` の下・`video/choices.md`、`render` は `video/mock/<番号>/` の下・`video/render/`・`video/out/`。受け入れたリスク：書き込みの絞り込みは Bash の中には掛からない。指示文と README にそう書いて、範囲の外に書かないように言う。
 - **見本は既定の探す場所に置かない。** ひな形ではなく、Playwright・ffmpeg に頼り、題材も pipe-in に寄っているため。`pipe-in` には `--pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスを渡す。`pipe-in` 本体には `--pipes-dir` が無いので、要件と設計で書いていた `pipe-in --pipe video --pipes-dir …` の形を README で直した（監査 A-01）。端末で答えるときは要件メモ（`--text`）を外す（`--review` と一緒に使えないため。監査 A-02）。
+- **チャット（Claude のデスクトップ・アプリ）から動かすときは、案をアーティファクトで見せる（あとから足した。人が決めた）。** クラウドの作業環境で動かすと、受付の `127.0.0.1` に人のブラウザが届かない。そこで Claude が `options.json` を読んで見るだけのページをアーティファクトで出し、人はチャットで答え、Claude が同じ `pipe-in --review …` にして流す。ページにボタンは置かない（アーティファクトから受付に届かないため）。受付とテンプレートは変えず、決まりはパイプの README に書いた。
 - **段の記録は `docs/pipeline/video/` に出る。** pipe-in はパイプごとに記録のフォルダを分けるため（設計の表の `docs/pipeline/` は誤り。監査 A-06）。受付は既定でここを読む。
 - **ロゴは人から受け取り、描かない。音は既定で無し。** 付けるときも他人の録音・サンプルを使わない。動画・画像・ロゴの実ファイルは見本に入れない。
 - **利用料の上限は `ask`・`script` 0.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル。** `mock` は3案を作るので高くした。
