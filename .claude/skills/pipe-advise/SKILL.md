@@ -8,6 +8,8 @@ allowed-tools: Agent(pipe-in-advisor)
 
 # /pipe-advise — 公式の文書と照らして助言する
 
+会話を開かずに流すときは `/pipe-help` の「会話を開かずに流す」を見る。そのときは手順 2 の報告で止まり、3 以降は人が承認したあと会話でする。
+
 テーマ: $ARGUMENTS（例: フック・サブエージェント・Agent SDK のオプション。空なら全部）
 
 CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を守る。
