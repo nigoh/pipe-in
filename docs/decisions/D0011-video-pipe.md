@@ -28,7 +28,7 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
 - FR-04 流し方の見本と案内を置く
   - D0011-AC-23 `examples/video/pipes` を探す場所に指すと `video` が見つかる（`::test_video_pipe_found_with_pipes_dir`）。`pipe-in` 本体には `--pipe` にフォルダのパスを渡す
   - D0011-AC-24 台本の見本（縦長 15 秒）があり、字幕は 1.5〜3.5 秒。`.py` は受付の1本、`.html` はテンプレートの1枚だけ（`::test_script_sample_table_is_valid`・`::test_no_scripts_or_html_in_video_example`）
-  - D0011-AC-25 利用料の上限が `ask`・`script` 0.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル（`::test_budget_limits`）
+  - D0011-AC-25 利用料の上限が `ask` 0.5、`script` 1.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル（`::test_budget_limits`）
   - D0011-AC-26 README に入力例・ロゴの置き場所 `video/assets/logo.svg`・定義の検査のしかた、`ask` にロゴの決まりの場所を毎回聞くこと（`::test_video_readme_has_input_example_and_paths`・`::test_ask_prompt_asks_logo_rules_every_time`）
 - FR-05 台本は2〜3案、見本は3案を出して人が選び、選んだ案だけを作り込む。「どれもびみょう」なら別の方向で出し直す。選んだ記録は `video/choices.md` に残す
   - D0011-AC-27・D0011-AC-28・D0011-AC-29・D0011-AC-30 指示文に、案の数と番号・選ばれた案だけを直す・出し直し・選んだ記録を読む／書く・選ばれていなければ止まる、が書いてある（`::test_script_prompt_asks_for_options`・`::test_mock_prompt_asks_for_three_options_and_compare_page`・`::test_script_and_mock_prompts_redo_when_none_chosen`・`::test_prompts_use_choices_record`）
@@ -45,6 +45,8 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
   - D0011-AC-49 ページに出す外から来た文字をエスケープし、外部の URL を含まない（`::test_embed_json_escapes_markup`・`::test_page_escapes_untrusted_text`・`::test_failure_output_is_escaped_in_page`）
   - D0011-AC-50 同時に動かすのは1つ。終了コード 5 は次の確認、0 は終わり、ほかは失敗（`::test_classify_exit`・`::test_controller_serializes_and_classifies`・`::test_second_action_is_refused_while_running`）
   - D0011-AC-51 受付は標準ライブラリだけを import し、`pipe_in` に依存しない（`tests/test_video_example.py::test_server_uses_only_standard_library`）
+- FR-08 指示文は、流すプロジェクトに無いファイル（見本の README）を見に行かせない。データの形と選んだ記録の表の形は、指示文の中に書く（実機で流して、台本の段が README を探して見つからず、形を自分で決めていたため）
+  - D0011-AC-66 どの段の指示文にも README の名前が無く、`script`・`mock` の指示文に `options.json` の形の例と選んだ記録の表がある（`tests/test_video_example.py::test_prompts_do_not_send_stage_to_readme`）
 - 手で・実機で確かめるもの（利用料がかかる、または Playwright・ffmpeg が要る）
   - D0011-AC-17（実機）最後まで流すと、縦長 1080×1920・30fps・H.264・yuv420p の MP4 が1本できる
   - D0011-AC-18・D0011-AC-19（実機）`ask` の答えが字幕に、直した台本がこまに反映される
@@ -65,9 +67,10 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
 - **`verify` が不合格なら `render` へ戻す。** 要件では「見本の崩れなら `mock`」としていたが、設計で `render` だけにした（監査 A-04）。崩れが見本の HTML にあるときも、`render` は `video/mock/<番号>/` の下を直せる。戻し先を1つにすると、差し戻しの道が単純になる。
 - **書ける範囲を段ごとに絞る。** `script` は `video/choices.md` と `video/script/options.json`、`mock` は `video/mock/options.json`・`video/mock/<番号>/` の下・`video/choices.md`、`render` は `video/mock/<番号>/` の下・`video/render/`・`video/out/`。受け入れたリスク：書き込みの絞り込みは Bash の中には掛からない。指示文と README にそう書いて、範囲の外に書かないように言う。
 - **見本は既定の探す場所に置かない。** ひな形ではなく、Playwright・ffmpeg に頼り、題材も pipe-in に寄っているため。`pipe-in` には `--pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスを渡す。`pipe-in` 本体には `--pipes-dir` が無いので、要件と設計で書いていた `pipe-in --pipe video --pipes-dir …` の形を README で直した（監査 A-01）。端末で答えるときは要件メモ（`--text`）を外す（`--review` と一緒に使えないため。監査 A-02）。
+- **チャット（Claude のデスクトップ・アプリ）から動かすときは、案をアーティファクトで見せる（あとから足した。人が決めた）。** クラウドの作業環境で動かすと、受付の `127.0.0.1` に人のブラウザが届かない。そこで Claude が `options.json` を読んで見るだけのページをアーティファクトで出し、人はチャットで答え、Claude が同じ `pipe-in --review …` にして流す。ページにボタンは置かない（アーティファクトから受付に届かないため）。受付とテンプレートは変えず、決まりはパイプの README に書いた。
 - **段の記録は `docs/pipeline/video/` に出る。** pipe-in はパイプごとに記録のフォルダを分けるため（設計の表の `docs/pipeline/` は誤り。監査 A-06）。受付は既定でここを読む。
 - **ロゴは人から受け取り、描かない。音は既定で無し。** 付けるときも他人の録音・サンプルを使わない。動画・画像・ロゴの実ファイルは見本に入れない。
-- **利用料の上限は `ask`・`script` 0.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル。** `mock` は3案を作るので高くした。
+- **利用料の上限は `ask` 0.5、`script` 1.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル。** `mock` は3案を作るので高くした。`script` は初め 0.5 にしていたが、実機で流すと直しを何回も受け、回を重ねるほど前の回の中身を読み直すため、2回続けて上限で途中で止まった（0.87〜1.09 ドル）。人が決めて 1.5 に上げた。
 - 監査で見つかった、指示文が書ける範囲を広く書いていたところ（A-05）と、台本の見本のパイプの場所（A-03）を直した。
 
 ## 対象外・残った課題

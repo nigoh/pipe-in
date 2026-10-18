@@ -234,11 +234,11 @@ def test_video_pipe_opens_no_outside_route(tmp_path):
 
 
 def test_budget_limits():
-    """D0011-AC-25: max_budget_usd は ask・script 0.5、mock 3.0、render 2.0、verify 1.0。"""
+    """D0011-AC-25: max_budget_usd は ask 0.5、script 1.5、mock 3.0、render 2.0、verify 1.0。"""
     pipe = load_video()
     assert {s.name: s.max_budget_usd for s in pipe.stages} == {
         "ask": 0.5,
-        "script": 0.5,
+        "script": 1.5,
         "mock": 3.0,
         "render": 2.0,
         "verify": 1.0,
@@ -335,6 +335,17 @@ def test_script_and_mock_prompts_write_data_not_html():
     """D0011-AC-63: script・mock は比較ページの HTML を書かずデータ（options.json）だけを書く。mock は場面の HTML は書く。"""
     assert_has_words("02_script.md", prompt_of("script"), ["video/script/options.json", "データ", "HTML", "書かない"])
     assert_has_words("03_mock.md", prompt_of("mock"), ["video/mock/options.json", "データ", "HTML", "書かない", "場面"])
+
+
+@pytest.mark.parametrize("stage", ["ask", "script", "mock", "render", "verify"])
+def test_prompts_do_not_send_stage_to_readme(stage):
+    """D0011-AC-66: 指示文は README を見に行かせない（利用者のプロジェクトに見本の README は無い）。データの形は指示文の中に書く。"""
+    text = prompt_of(stage)
+    assert "README" not in text, f"{stage} の指示文が README を指している"
+    if stage == "script":
+        assert_has_words("02_script.md", text, ['"options"', '"scenes"', '"caption"', "| 段 | 回 |"])
+    if stage == "mock":
+        assert_has_words("03_mock.md", text, ['"options"', '"frames"', "video/mock/1/frames/"])
 
 
 # ---- 確認用のコマンド（AC-13） ------------------------------------------------------------
