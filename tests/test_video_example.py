@@ -234,11 +234,11 @@ def test_video_pipe_opens_no_outside_route(tmp_path):
 
 
 def test_budget_limits():
-    """D0011-AC-25: max_budget_usd は ask・script 0.5、mock 3.0、render 2.0、verify 1.0。"""
+    """D0011-AC-25: max_budget_usd は ask 0.5、script 1.5、mock 3.0、render 2.0、verify 1.0。"""
     pipe = load_video()
     assert {s.name: s.max_budget_usd for s in pipe.stages} == {
         "ask": 0.5,
-        "script": 0.5,
+        "script": 1.5,
         "mock": 3.0,
         "render": 2.0,
         "verify": 1.0,

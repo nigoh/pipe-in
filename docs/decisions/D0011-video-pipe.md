@@ -28,7 +28,7 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
 - FR-04 流し方の見本と案内を置く
   - D0011-AC-23 `examples/video/pipes` を探す場所に指すと `video` が見つかる（`::test_video_pipe_found_with_pipes_dir`）。`pipe-in` 本体には `--pipe` にフォルダのパスを渡す
   - D0011-AC-24 台本の見本（縦長 15 秒）があり、字幕は 1.5〜3.5 秒。`.py` は受付の1本、`.html` はテンプレートの1枚だけ（`::test_script_sample_table_is_valid`・`::test_no_scripts_or_html_in_video_example`）
-  - D0011-AC-25 利用料の上限が `ask`・`script` 0.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル（`::test_budget_limits`）
+  - D0011-AC-25 利用料の上限が `ask` 0.5、`script` 1.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル（`::test_budget_limits`）
   - D0011-AC-26 README に入力例・ロゴの置き場所 `video/assets/logo.svg`・定義の検査のしかた、`ask` にロゴの決まりの場所を毎回聞くこと（`::test_video_readme_has_input_example_and_paths`・`::test_ask_prompt_asks_logo_rules_every_time`）
 - FR-05 台本は2〜3案、見本は3案を出して人が選び、選んだ案だけを作り込む。「どれもびみょう」なら別の方向で出し直す。選んだ記録は `video/choices.md` に残す
   - D0011-AC-27・D0011-AC-28・D0011-AC-29・D0011-AC-30 指示文に、案の数と番号・選ばれた案だけを直す・出し直し・選んだ記録を読む／書く・選ばれていなければ止まる、が書いてある（`::test_script_prompt_asks_for_options`・`::test_mock_prompt_asks_for_three_options_and_compare_page`・`::test_script_and_mock_prompts_redo_when_none_chosen`・`::test_prompts_use_choices_record`）
@@ -70,7 +70,7 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
 - **チャット（Claude のデスクトップ・アプリ）から動かすときは、案をアーティファクトで見せる（あとから足した。人が決めた）。** クラウドの作業環境で動かすと、受付の `127.0.0.1` に人のブラウザが届かない。そこで Claude が `options.json` を読んで見るだけのページをアーティファクトで出し、人はチャットで答え、Claude が同じ `pipe-in --review …` にして流す。ページにボタンは置かない（アーティファクトから受付に届かないため）。受付とテンプレートは変えず、決まりはパイプの README に書いた。
 - **段の記録は `docs/pipeline/video/` に出る。** pipe-in はパイプごとに記録のフォルダを分けるため（設計の表の `docs/pipeline/` は誤り。監査 A-06）。受付は既定でここを読む。
 - **ロゴは人から受け取り、描かない。音は既定で無し。** 付けるときも他人の録音・サンプルを使わない。動画・画像・ロゴの実ファイルは見本に入れない。
-- **利用料の上限は `ask`・`script` 0.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル。** `mock` は3案を作るので高くした。
+- **利用料の上限は `ask` 0.5、`script` 1.5、`mock` 3.0、`render` 2.0、`verify` 1.0 ドル。** `mock` は3案を作るので高くした。`script` は初め 0.5 にしていたが、実機で流すと直しを何回も受け、回を重ねるほど前の回の中身を読み直すため、2回続けて上限で途中で止まった（0.87〜1.09 ドル）。人が決めて 1.5 に上げた。
 - 監査で見つかった、指示文が書ける範囲を広く書いていたところ（A-05）と、台本の見本のパイプの場所（A-03）を直した。
 
 ## 対象外・残った課題
