@@ -337,6 +337,17 @@ def test_script_and_mock_prompts_write_data_not_html():
     assert_has_words("03_mock.md", prompt_of("mock"), ["video/mock/options.json", "データ", "HTML", "書かない", "場面"])
 
 
+@pytest.mark.parametrize("stage", ["ask", "script", "mock", "render", "verify"])
+def test_prompts_do_not_send_stage_to_readme(stage):
+    """D0011-AC-66: 指示文は README を見に行かせない（利用者のプロジェクトに見本の README は無い）。データの形は指示文の中に書く。"""
+    text = prompt_of(stage)
+    assert "README" not in text, f"{stage} の指示文が README を指している"
+    if stage == "script":
+        assert_has_words("02_script.md", text, ['"options"', '"scenes"', '"caption"', "| 段 | 回 |"])
+    if stage == "mock":
+        assert_has_words("03_mock.md", text, ['"options"', '"frames"', "video/mock/1/frames/"])
+
+
 # ---- 確認用のコマンド（AC-13） ------------------------------------------------------------
 
 
