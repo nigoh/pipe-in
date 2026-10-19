@@ -1,11 +1,12 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
-import { WAITING_MESSAGE } from '../domain/pipelineView.ts';
+import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
 import type { PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import type { ArtifactEntry } from '../domain/artifacts.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
 import { escapeHtml } from './escape.ts';
 import { renderFlowSvg } from './flowSvg.ts';
+import { REASONS_STYLE, renderReasons } from './reasonsHtml.ts';
 import { USAGE_STYLE, renderUsage } from './usageHtml.ts';
 
 export { escapeHtml };
@@ -66,20 +67,58 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 .run[aria-pressed="true"] { border-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground, transparent); color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)); }
 .banner-msg.is-waiting { color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .warnings { margin: 0; padding-left: 1.2em; color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
+.flow .node[data-reasons] { cursor: pointer; }
+.flow .node[data-reasons]:focus-visible .shape { outline: 2px solid var(--vscode-focusBorder); }
+.flow .node.is-picked .shape { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-width: 3; }
+.flow .loop.is-picked .loop-path { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-width: 3.2; stroke-dasharray: none; opacity: 1; marker-end: url(#mk-pick); }
+.flow .loop.is-picked .loop-label { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); font-weight: 700; }
+.flow .head.is-pick { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); }
 `;
 
 // render を受けたら本体を差し替え、ターミナルが末尾近くなら末尾まで送る。ボタンで openArtifact・selectRun、読み込み後に ready を送る。
+// 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
 const SCRIPT = `
 (function () {
   const vscode = acquireVsCodeApi();
   const root = document.querySelector('.root');
+  let picked = null;
   function nearBottom(el) { return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 40; }
   function follow(wasNear) { const t = root.querySelector('.terminal'); if (t && wasNear) t.scrollTop = t.scrollHeight; }
+  function applyPick() {
+    const nodes = Array.from(root.querySelectorAll('[data-reasons]'));
+    if (picked !== null && !nodes.some(function (g) { return g.getAttribute('data-reasons') === picked; })) picked = null;
+    const pickedNode = nodes.find(function (g) { return g.getAttribute('data-reasons') === picked; });
+    const loopId = pickedNode ? pickedNode.getAttribute('data-reasons-loop') : null;
+    nodes.forEach(function (g) {
+      const on = g === pickedNode;
+      g.setAttribute('aria-pressed', on ? 'true' : 'false');
+      g.classList.toggle('is-picked', on);
+    });
+    root.querySelectorAll('[data-loop]').forEach(function (l) {
+      l.classList.toggle('is-picked', loopId !== null && l.getAttribute('data-loop') === loopId);
+    });
+    root.querySelectorAll('[data-reasons-for]').forEach(function (s) {
+      s.hidden = s.getAttribute('data-reasons-for') !== picked;
+    });
+  }
+  function togglePick(g) {
+    const id = g.getAttribute('data-reasons');
+    picked = picked === id ? null : id;
+    applyPick();
+  }
   window.addEventListener('message', function (event) {
     const msg = event.data;
     if (!msg || msg.type !== 'render' || typeof msg.html !== 'string') return;
     const wasNear = nearBottom(root.querySelector('.terminal'));
+    const active = document.activeElement;
+    const focusNode = active && active.closest ? active.closest('[data-reasons]') : null;
+    const focusId = focusNode ? focusNode.getAttribute('data-reasons') : null;
     root.innerHTML = msg.html;
+    applyPick();
+    if (focusId !== null) {
+      const again = Array.from(root.querySelectorAll('[data-reasons]')).find(function (g) { return g.getAttribute('data-reasons') === focusId; });
+      if (again) again.focus();
+    }
     follow(wasNear);
   });
   root.addEventListener('click', function (event) {
@@ -87,7 +126,17 @@ const SCRIPT = `
     if (button && !button.disabled) vscode.postMessage({ type: 'openArtifact', name: button.getAttribute('data-artifact') });
     const run = event.target.closest('button[data-run]');
     if (run) vscode.postMessage({ type: 'selectRun', id: run.getAttribute('data-run') });
+    const node = event.target.closest('[data-reasons]');
+    if (node) togglePick(node);
   });
+  root.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const node = event.target.closest('[data-reasons]');
+    if (!node) return;
+    event.preventDefault();
+    togglePick(node);
+  });
+  applyPick();
   follow(true);
   vscode.postMessage({ type: 'ready' });
 })();
@@ -103,7 +152,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunP
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pipe-in</title>
-<style nonce="${n}">${STYLE}${USAGE_STYLE}</style>
+<style nonce="${n}">${STYLE}${REASONS_STYLE}${USAGE_STYLE}</style>
 </head>
 <body>
 <div class="root">${renderViewBody(view, picker)}</div>
@@ -116,9 +165,10 @@ export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunP
 export function renderViewBody(view: PipelineView, picker?: RunPicker): string {
   return `${renderRunPicker(picker)}${renderBanner(view)}
 <div class="layout">
-${renderFlowSvg(view.nodes)}
+${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)))}
 <div class="right">
 ${renderWarnings(view.warnings)}
+${renderReasons(view)}
 ${renderTerminal(view, view.terminal)}
 ${renderArtifacts(view.artifacts)}
 ${renderUsage(view.usage)}
