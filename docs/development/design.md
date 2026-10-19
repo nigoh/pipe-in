@@ -9,7 +9,8 @@
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
 | 段の設定の型・protected_paths | `pipe_in/engine/spec.py` |
 | 止める操作（pipe-in が流す段の PreToolUse フック） | `pipe_in/engine/guard.py` |
-| SDK の呼び出し | `pipe_in/engine/runner.py` |
+| SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
+| 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
 | 設定の読み込み | `pipe_in/engine/config.py` |
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
@@ -26,7 +27,7 @@
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
-| 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む） | `tests/fixtures/showcase/`・作り方 `tests/showcase.py` |
+| 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
 | 画面の確認用のページ（開発用。`npm run preview`） | `vscode/scripts/preview.ts`・ページを作る関数 `vscode/scripts/previewPages.ts` |
 | 動画を作るパイプの見本（`pipe-in --pipe examples/video/pipes/pipe-in-video` で流し、`pipe-in-gen check video --pipes-dir examples/video/pipes` で確かめる。受付とテンプレートの2つ以外のコードは置かない） | `examples/video/pipes/pipe-in-video/`・`examples/video/` |
 | 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
@@ -53,12 +54,12 @@ pipe_in.usage
 
 | 層 | パス | 置くもの | 使ってよい外の部品 |
 | --- | --- | --- | --- |
-| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道と曲線（`pipeWires.ts`）・抜き差しと間に挟む（`pipeLinks.ts`）・離した点から差す先を決める（`pipeDrop.ts`）・引いているケーブルのひもの動き（`cableRope.ts`）・複製や枠の出し入れなどの編集（`pipeEdit.ts`）・判定のスイッチと不合格の行き先（`pipeCheck.ts`）・右クリックのメニュー（`pipeMenu.ts`）・元に戻す（`editHistory.ts`）・保存した版の決まり（`pipeVersions.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（時計にも触れない） | `node:path` |
+| ドメイン | `vscode/src/domain/` | 段・実行の記録・段のログ・成果物・図の状態（「今」は `ViewClock` を引数で受ける）・記録の時刻の読み方（`timestamp.ts`）、パイプのモデル（`pipeModel.ts`）・ケーブルの通り道と曲線（`pipeWires.ts`）・抜き差しと間に挟む（`pipeLinks.ts`）・離した点から差す先を決める（`pipeDrop.ts`）・引いているケーブルのひもの動き（`cableRope.ts`）・複製や枠の出し入れなどの編集（`pipeEdit.ts`）・判定のスイッチと不合格の行き先（`pipeCheck.ts`）・右クリックのメニュー（`pipeMenu.ts`）・元に戻す（`editHistory.ts`）・保存した版の決まり（`pipeVersions.ts`）・小さな TOML の読み手（`toml.ts`）。純粋な関数だけ（時計にも触れない） | `node:path` |
 | アプリケーション | `vscode/src/app/` | 口 `WorkDirSource`・`PipeStore`・`VersionStore` と、それを使う手順（`refreshView`・`resolveWorkDir`・作業台の読み込みと保存・置き場所と保存先の決め方・保存した版の記録と読み込み）、名前の表と前の版の名前の読み替え（`names.ts`） | `node:path` |
-| 画面 | `vscode/src/view/` | 図の状態 → HTML の文字列、パネルとの受け渡しの形 | なし |
+| 画面 | `vscode/src/view/` | 図の状態 → HTML の文字列（時間の書き方 `duration.ts`・右の欄の「時間」の節 `timesHtml.ts` を含む）、パネルのスクリプト（数え上げ・戻る矢印の光り）、パネルとの受け渡しの形 | なし |
 | 基盤 | `vscode/src/infra/` | 口の実装（`fsWorkDirSource.ts`・`fsPipes.ts`・`fsVersions.ts`）。触れる場所はここで絞る | `node:fs`・`node:fs/promises`・`node:os`・`node:path` |
 | パネルの中 | `vscode/src/webview/` | 作業台の画面の操作（ビルドで1つの pipeEditor.js に束ねる）。判断は domain の関数に任せる | なし |
-| 入口 | `vscode/src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。判断は持たない | `vscode` を import してよいのはここだけ |
+| 入口 | `vscode/src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。判断は持たない。拡張ホストの側で時計（今の時刻）を読むのもここだけ（パネルのスクリプトは、描き直しを受けた時刻からの差だけを数える） | `vscode` を import してよいのはここだけ |
 
 - 層の決まりは `vscode/src/architecture.test.ts` が検査します（テストのファイルと `vscode/src/test/` の補助は除く）。
 - 本体の記録の形の知識は `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts` の中だけに置きます。本体の記録の形が変わったら、ここを直します。

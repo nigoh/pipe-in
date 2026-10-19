@@ -536,6 +536,49 @@ def test_review_without_pending_is_error(tmp_path):
         review(tmp_path, FakeRunner([]), Decision("approve"))
 
 
+def test_d0017_ac04_pause_writes_since_and_review_resumes(tmp_path):
+    """D0017-AC-04: 確認待ちで止まった state.json の pending_review.since にオフセットつきの時刻が入り、--review で続きから再開できる。"""
+    from datetime import datetime
+
+    before = datetime.now().astimezone().replace(microsecond=0)
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    after = datetime.now().astimezone()
+    pending = state_of(tmp_path)["pending_review"]
+    assert pending["stage"] == "requirements"
+    since = datetime.fromisoformat(pending["since"])  # 無ければ KeyError
+    assert since.tzinfo is not None
+    assert before <= since <= after
+    r = FakeRunner([])
+    assert review(tmp_path, r, Decision("approve")) == Exit.AWAITING_REVIEW
+    s = state_of(tmp_path)
+    assert s["pending_review"]["stage"] == "design"
+    assert datetime.fromisoformat(s["pending_review"]["since"]).tzinfo is not None  # 次の確認待ちにも付く
+
+
+def test_d0017_ac04_since_goes_away_after_review(tmp_path):
+    """D0017-AC-04: 再開して最後まで流れれば pending_review ごと消える（since だけ残らない）。"""
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    review(tmp_path, FakeRunner([]), Decision("approve"))
+    review(tmp_path, FakeRunner([]), Decision("approve"))
+    assert "since" in state_of(tmp_path)["pending_review"]
+    assert review(tmp_path, FakeRunner(["pass"]), Decision("approve")) == Exit.PASSED
+    assert state_of(tmp_path).get("pending_review") is None
+
+
+def test_d0017_ac05_review_works_without_since(tmp_path):
+    """D0017-AC-05: since の無い古い pending_review（stage・doc・session_id だけ）でも --review で再開できる（今の作りで通る：守り続ける検査）。"""
+    import json
+
+    run(DevPipeline(paused_cfg(tmp_path), runner=FakeRunner([])))
+    path = tmp_path / "docs/pipeline" / st.STATE
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["pending_review"].pop("since", None)
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    r = FakeRunner([])
+    assert review(tmp_path, r, Decision("approve")) == Exit.AWAITING_REVIEW
+    assert r.names() == ["design"]
+
+
 def test_cli_review_needs_feedback_for_revise(tmp_path):
     from pipe_in.cli import main
 

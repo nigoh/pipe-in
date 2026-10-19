@@ -170,6 +170,25 @@ export class FakeNode {
   get textContent(): string {
     return this.children.map((c) => (c instanceof FakeText ? c.text : c.textContent)).join('');
   }
+  /** 子を、1つの文字に替える（本物の textContent と同じ）。 */
+  set textContent(value: string) {
+    const node = new FakeText(String(value));
+    node.parent = this;
+    this.children = value === '' ? [] : [node];
+  }
+
+  /** この節に付いた動き（Web Animations の getAnimations の偽物）。is-new が付いている間だけ1つ持つ。 */
+  private animation: FakeAnimation | null = null;
+  /** getAnimations を持たない環境（document.noAnimations）では undefined（スクリプトは有無を見分ける） */
+  get getAnimations(): (() => FakeAnimation[]) | undefined {
+    if (this.document.noAnimations) return undefined;
+    return () => {
+      const flashing = (this.attrs.get('class') ?? '').split(/\s+/).includes('is-new');
+      if (!flashing) this.animation = null;
+      else if (this.animation === null) this.animation = { currentTime: 0 };
+      return this.animation === null ? [] : [this.animation];
+    };
+  }
 
   set innerHTML(html: string) {
     this.children = [];
@@ -204,9 +223,18 @@ export class FakeNode {
   }
 }
 
+/** Web Animations の Animation の偽物（currentTime だけ）。 */
+export interface FakeAnimation {
+  currentTime: number | null;
+}
+
 /** 文書。根でもある。 */
 export class FakeDocument extends FakeNode {
   activeElement: FakeNode | null = null;
+  /** 'visible' か 'hidden'（D0017：見えていないあいだは数え上げを止める） */
+  visibilityState: 'visible' | 'hidden' = 'visible';
+  /** true なら、どの節も getAnimations を持たない */
+  noAnimations = false;
   constructor() {
     super('#document', new Map(), null);
   }
@@ -258,8 +286,37 @@ export function extractScript(html: string): string {
   return m[1];
 }
 
+export interface BootOptions {
+  /** prefers-reduced-motion: reduce に合う（既定 false＝no-preference） */
+  reducedMotion?: boolean;
+  /** window.matchMedia を持たない環境（スクリプトは安全側で「動きを減らす」と見る） */
+  noMatchMedia?: boolean;
+  /** getAnimations を持たない環境 */
+  noAnimations?: boolean;
+  /** 起動時の visibilityState（既定 'visible'） */
+  visibility?: 'visible' | 'hidden';
+  /** 偽の時計の始まり（ミリ秒。既定 1.7e12） */
+  startMs?: number;
+}
+
 export interface PanelHarness {
   doc: FakeDocument;
+  /** 偽の時計の今（Date.now() が返す値） */
+  now(): number;
+  /** 偽の時計を ms 進め、期限の来た setInterval・setTimeout を、期限の順に呼ぶ */
+  advance(ms: number): void;
+  /** 偽の時計を（戻すことも含めて）ms の値にする。タイマーは呼ばない */
+  setNow(ms: number): void;
+  /** 登録されている setInterval を、時計を動かさずに1回ずつ呼ぶ（時計が戻ったあとの表示を見るため） */
+  tick(): void;
+  /** visibilityState を替え、document に visibilitychange を届ける */
+  setVisibility(state: 'visible' | 'hidden'): void;
+  /** 今動いている（clearInterval されていない）setInterval の数 */
+  activeIntervals(): number;
+  /** これまでに setInterval で作られた数 */
+  createdIntervals(): number;
+  /** 節の文字 */
+  text(el: FakeNode): string;
   /** スクリプトが拡張へ送ったメッセージ（postMessage に渡されたもの） */
   posted: unknown[];
   root: FakeNode;
@@ -273,21 +330,59 @@ export interface PanelHarness {
 }
 
 /** renderPanelHtml の出力を偽物の DOM に読み込み、本物の SCRIPT を node:vm で動かす。 */
-export function bootPanel(html: string): PanelHarness {
+export function bootPanel(html: string, opts: BootOptions = {}): PanelHarness {
   const script = extractScript(html);
   const body = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
   const doc = new FakeDocument();
   parseInto(doc, body, doc);
+  doc.visibilityState = opts.visibility ?? 'visible';
+  doc.noAnimations = opts.noAnimations === true;
   const posted: unknown[] = [];
   const windowListeners = new Map<string, Listener[]>();
+
+  // 偽の時計とタイマー（本物の時間は使わない。sleep しない）
+  let nowMs = opts.startMs ?? 1_700_000_000_000;
+  interface Timer {
+    id: number;
+    fn: () => void;
+    every: number | null;
+    due: number;
+  }
+  const timers = new Map<number, Timer>();
+  let nextId = 1;
+  let created = 0;
+  const add = (fn: () => void, ms: number, repeat: boolean): number => {
+    const id = nextId++;
+    timers.set(id, { id, fn, every: repeat ? Math.max(1, Number(ms) || 0) : null, due: nowMs + Math.max(0, Number(ms) || 0) });
+    return id;
+  };
+  const sandboxApi = {
+    Date: { now: () => nowMs },
+    setInterval: (fn: () => void, ms: number): number => {
+      created++;
+      return add(fn, ms, true);
+    },
+    clearInterval: (id: number): void => void timers.delete(id),
+    setTimeout: (fn: () => void, ms: number): number => add(fn, ms, false),
+    clearTimeout: (id: number): void => void timers.delete(id),
+  };
+  const mediaMatches = (query: string): boolean => {
+    const reduce = /:\s*reduce\b/.test(query);
+    const noPreference = /:\s*no-preference\b/.test(query);
+    if (reduce) return opts.reducedMotion === true;
+    if (noPreference) return opts.reducedMotion !== true;
+    return false;
+  };
   const window = {
     addEventListener(type: string, listener: Listener): void {
       windowListeners.set(type, [...(windowListeners.get(type) ?? []), listener]);
     },
+    ...(opts.noMatchMedia ? {} : { matchMedia: (query: string) => ({ media: query, matches: mediaMatches(query) }) }),
   };
   const sandbox = {
     document: doc,
     window,
+    ...sandboxApi,
     // vm の中で作られたオブジェクトは、こちらの Object と別物（deepEqual が合わない）なので、JSON を通して写す
     acquireVsCodeApi: () => ({ postMessage: (m: unknown) => posted.push(JSON.parse(JSON.stringify(m))) }),
     console,
@@ -302,6 +397,33 @@ export function bootPanel(html: string): PanelHarness {
   };
   return {
     doc,
+    now: () => nowMs,
+    advance(ms) {
+      const target = nowMs + ms;
+      for (;;) {
+        const due = [...timers.values()].filter((t) => t.due <= target).sort((a, b) => a.due - b.due || a.id - b.id)[0];
+        if (due === undefined) break;
+        nowMs = Math.max(nowMs, due.due);
+        if (due.every === null) timers.delete(due.id);
+        else due.due += due.every;
+        due.fn();
+      }
+      nowMs = target;
+    },
+    setNow(ms) {
+      nowMs = ms;
+      for (const t of timers.values()) t.due = Math.max(t.due, nowMs); // 時計が戻ったあと、過ぎた期限を溜めて連続で呼ばない
+    },
+    tick() {
+      for (const t of [...timers.values()]) if (t.every !== null) t.fn();
+    },
+    setVisibility(state) {
+      doc.visibilityState = state;
+      doc.dispatch('visibilitychange');
+    },
+    activeIntervals: () => [...timers.values()].filter((t) => t.every !== null).length,
+    createdIntervals: () => created,
+    text: (el) => el.textContent,
     posted,
     root,
     send(data) {

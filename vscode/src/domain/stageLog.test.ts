@@ -12,6 +12,42 @@ test('AC-07: 07_implement_2.jsonl → 通し番号 7、段 implement、回 2', (
   assert.deepEqual(parseStageLogName('07_implement_2.jsonl'), { seq: 7, stage: 'implement', attempt: 2 });
 });
 
+test('D0017-AC-06: Prompt 行の at が startedAt になる（オフセットつきも、オフセットなしの古い書き方も）', () => {
+  for (const at of ['2026-10-17T10:00:00+09:00', '2026-10-17T10:00:00Z', '2026-10-17T10:00:00']) {
+    const log = parseStageLog(logText([promptLine('design', at), assistantText('x')]));
+    assert.equal(log.startedAt, at);
+  }
+});
+
+test('D0017-AC-06: Prompt が2つあるとき、items を数えるのと同じ最後の Prompt 行の at を使う', () => {
+  const log = parseStageLog(
+    logText([promptLine('design', '2026-10-17T10:00:00+00:00'), resultLine(), promptLine('design', '2026-10-17T10:05:00+00:00'), assistantText('再開')]),
+  );
+  assert.equal(log.startedAt, '2026-10-17T10:05:00+00:00');
+});
+
+for (const [label, at] of [
+  ['無い', undefined],
+  ['数', 1792230000],
+  ['オブジェクト', { a: 1 }],
+  ['配列', ['2026-10-17T10:00:00']],
+  ['null', null],
+  ['空の文字', ''],
+  ['"x"', 'x'],
+  ['存在しない日付', '2026-02-30T10:00:00'],
+] as const) {
+  test(`D0017-AC-06: at が${label}なら startedAt は null（例外を投げない）`, () => {
+    const log = parseStageLog(logText([promptLine('design', at), assistantText('x')]));
+    assert.equal(log.startedAt, null);
+    assert.equal(log.hasPrompt, true);
+  });
+}
+
+test('D0017-AC-06: Prompt 行が無いログの startedAt は null', () => {
+  assert.equal(parseStageLog(logText([assistantText('A')])).startedAt, null);
+  assert.equal(parseStageLog('').startedAt, null);
+});
+
 test('AC-08: ツールの呼び出しの部品 → 種類はツールの呼び出し、ツール名 Read、対象 a.md', () => {
   const log = parseStageLog(logText([promptLine('requirements'), assistantTool('Read', { file_path: 'a.md' })]));
   assert.deepEqual(log.items, [{ kind: 'tool', tool: 'Read', target: 'a.md' }]);

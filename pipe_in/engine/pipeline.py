@@ -16,6 +16,7 @@ from typing import Any
 
 from ..usage.metrics import summarize_runs
 from ..usage.report import usage_sections
+from . import clock
 from .checkpoint import Decision, ask_human
 from .config import Config
 from .runner import StageRun, StageRunner, run_stage_sdk
@@ -164,7 +165,12 @@ class BasePipeline:
     # ---- 文書を書く段（人の確認つき） -------------------------------------
 
     def _pause(self, stage: str, doc_name: str, run: StageRun) -> Exit:
-        self.pending = {"stage": stage, "doc": self.cfg.rel(self.doc(doc_name)), "session_id": run.session_id}
+        self.pending = {
+            "stage": stage,
+            "doc": self.cfg.rel(self.doc(doc_name)),
+            "session_id": run.session_id,
+            "since": clock.now_with_offset(),
+        }
         return Exit.AWAITING_REVIEW
 
     async def _doc_stage(

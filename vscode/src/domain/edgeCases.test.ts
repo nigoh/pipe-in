@@ -17,6 +17,8 @@ import {
   stageRunEntry,
   stateJson,
 } from '../test/fixtures.ts';
+import { clockAt, runningSnapshot, waitingSnapshot } from '../test/liveFixtures.ts';
+import { renderPanelHtml, renderViewBody } from '../view/panelHtml.ts';
 
 function node(view: PipelineView, id: NodeId) {
   const n = view.nodes.find((x) => x.id === id);
@@ -452,6 +454,70 @@ test('AC-41 追加: state.json・名前の読めるログ・00_input.md（空で
   );
   // 00_input.md 以外の成果物だけあっても、記録なしの表示は有効（FR-14 の3つに入らない）
   assert.notEqual(buildPipelineView(snapshot({ artifacts: { '02_design.md': 'x' } })).noRecords, null);
+});
+
+// ---- 動きと時間（D0017）：壊れた時刻 ----
+
+const BROKEN_TIMES: [string, unknown][] = [
+  ['数', 1792230000],
+  ['オブジェクト', { a: 1 }],
+  ['配列', ['2026-10-17T10:00:00']],
+  ['空の文字', ''],
+  ['"x"', 'x'],
+  ['存在しない日付', '2026-02-30T10:00:00'],
+  ['null', null],
+  ['真偽', true],
+];
+
+for (const [label, broken] of BROKEN_TIMES) {
+  test(`D0017-AC-32: Prompt の at が${label}でも、図の状態の組み立てからパネルの HTML まで例外を投げず、runningSec は出ない`, () => {
+    const snap = runningSnapshot({ at: broken });
+    const view = buildPipelineView(snap, clockAt(83));
+    assert.equal(view.runningStage, 'design');
+    assert.equal((node(view, 'design') as unknown as { runningSec: unknown }).runningSec, null);
+    assert.ok(renderPanelHtml(view, 'n').length > 0);
+    assert.ok(renderViewBody(view).length > 0);
+  });
+
+  test(`D0017-AC-32: pending_review.since が${label}でも、組み立てから HTML まで例外を投げず、waitingSec は出ない`, () => {
+    const view = buildPipelineView(waitingSnapshot({ since: broken }), clockAt(40));
+    assert.equal(view.pendingReview?.stage, 'requirements');
+    assert.equal((node(view, 'review:requirements') as unknown as { waitingSec: unknown }).waitingSec, null);
+    assert.ok(renderPanelHtml(view, 'n').length > 0);
+  });
+
+  test(`D0017-AC-32: started_at が${label}でも、組み立てから HTML まで例外を投げず、全体の経過は出ない`, () => {
+    for (const snap of [runningSnapshot({ startedAt: broken }), waitingSnapshot({ startedAt: broken })]) {
+      const view = buildPipelineView(snap, clockAt(83));
+      assert.equal((view as unknown as { elapsed: unknown }).elapsed, null);
+      assert.ok(renderPanelHtml(view, 'n').length > 0);
+    }
+  });
+}
+
+test('D0017-AC-32: updated_at が壊れていても、終わった記録の組み立てから HTML まで例外を投げない', () => {
+  for (const [, broken] of BROKEN_TIMES) {
+    const snap = snapshot({ stateJson: stateJson({ final: 'PASSED', startedAt: '2026-10-17T10:00:00', updatedAt: broken }) });
+    const view = buildPipelineView(snap, clockAt(83));
+    assert.ok(renderPanelHtml(view, 'n').length > 0);
+  }
+});
+
+test('D0017-AC-32: 時計の値が壊れていて（NaN・無限大）も、例外を投げず HTML まで組み立てが終わる', () => {
+  for (const nowMs of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    const view = buildPipelineView(runningSnapshot(), { nowMs, localOffsetMin: 0 });
+    assert.ok(renderPanelHtml(view, 'n').length > 0);
+  }
+});
+
+test('D0017-AC-31: パイプを持つ前の記録（stages 無し）・driver つきの記録で、時計を渡しても節は11個で時間の要素が出ない', () => {
+  const noPipe = buildPipelineView(snapshot({ stateJson: stateJson({ runs: [stageRunEntry({ stage: 'requirements', seq: 1 })] }) }), clockAt(83));
+  assert.equal(noPipe.nodes.length, 11);
+  for (const n of noPipe.nodes as unknown as { runningSec: unknown; waitingSec: unknown }[]) {
+    assert.equal(n.runningSec, null);
+    assert.equal(n.waitingSec, null);
+  }
+  assert.doesNotMatch(renderViewBody(noPipe), /data-elapsed/);
 });
 
 test('FR-05 追加: どの記録も壊れた写しでも例外を投げず、節は11個', () => {

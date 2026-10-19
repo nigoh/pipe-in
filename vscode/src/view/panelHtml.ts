@@ -1,12 +1,14 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
 import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
-import type { PipelineView, TerminalView } from '../domain/pipelineView.ts';
+import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import type { ArtifactEntry } from '../domain/artifacts.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
+import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
 import { renderFlowSvg } from './flowSvg.ts';
 import { REASONS_STYLE, renderReasons } from './reasonsHtml.ts';
+import { TIMES_STYLE, renderTimes } from './timesHtml.ts';
 import { USAGE_STYLE, renderUsage } from './usageHtml.ts';
 
 export { escapeHtml };
@@ -50,9 +52,20 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 .flow .is-failed .node-status { fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .flow .is-skipped .shape { stroke-dasharray: 4 3; }
 .flow .is-skipped text { opacity: 0.6; }
+.flow .is-waiting .shape { stroke: var(--vscode-charts-yellow, var(--vscode-foreground)); stroke-width: 2.4; }
+.flow .is-waiting .node-status { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); }
+.flow .node-wait { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.flow .elapsed { fill: var(--vscode-charts-blue); font-variant-numeric: tabular-nums; }
+.elapsed { color: var(--vscode-foreground); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: no-preference) {
   .flow .is-running .shape { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { stroke-opacity: 0.35; } }
+  .flow .edge.is-flowing { stroke-width: 2; stroke-dasharray: 2 8; stroke-linecap: round; animation: flow 0.9s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -10; } }
+  .flow .is-waiting .shape { animation: attention 2.4s ease-in-out infinite; }
+  @keyframes attention { 50% { stroke-opacity: 0.3; } }
+  .flow .loop.is-new .loop-path { animation: flash 1.4s ease-out 1; }
+  @keyframes flash { from { stroke-width: 6; } }
 }
 .right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .terminal-title { margin: 0 0 4px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
@@ -77,11 +90,78 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 
 // render を受けたら本体を差し替え、ターミナルが末尾近くなら末尾まで送る。ボタンで openArtifact・selectRun、読み込み後に ready を送る。
 // 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
+// 時間の数え上げ（D0017）：[data-elapsed] は「基準の秒」。基準を受けた時刻（このパネルの時計）からの差だけを足し、記録の時刻は読まない。
+// タイマーは1つだけ。見えていない間と、数える要素が無いときは回さない。拡張へ送るメッセージは増やさない。
+// 戻る矢印の光り：data-count が前の描き直しより増えたときだけ is-new を付け（動きを減らす設定では付けない）、
+// 光り始めから FLASH_MS のあいだは描き直しをまたいで付け直す。
 const SCRIPT = `
 (function () {
   const vscode = acquireVsCodeApi();
   const root = document.querySelector('.root');
+  const FLASH_MS = 1400;
   let picked = null;
+  let baseMs = Date.now();
+  let timerId = null;
+  let loopMemo = null;
+  let flashMemo = {};
+  function fmt(sec) {
+    const t = isFinite(sec) && sec > 0 ? Math.floor(sec) : 0;
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = String(t % 60).padStart(2, '0');
+    return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + s : m + ':' + s;
+  }
+  function paint() {
+    const dt = Math.max(0, Math.floor((Date.now() - baseMs) / 1000));
+    root.querySelectorAll('[data-elapsed]').forEach(function (el) {
+      const raw = el.getAttribute('data-elapsed');
+      if (raw === null || !/^-?\\d+(\\.\\d+)?$/.test(raw)) return;
+      el.textContent = fmt(Number(raw) + dt);
+    });
+  }
+  function stopTimer() {
+    if (timerId !== null) { clearInterval(timerId); timerId = null; }
+  }
+  function startTimer() {
+    stopTimer();
+    if (document.visibilityState === 'hidden') return;
+    if (root.querySelectorAll('[data-elapsed]').length === 0) return;
+    paint();
+    timerId = setInterval(paint, 1000);
+  }
+  function reducedMotion() {
+    return typeof window.matchMedia !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function flashOn(l, elapsed) {
+    l.classList.add('is-new');
+    if (typeof l.getAnimations !== 'function') return;
+    l.getAnimations({ subtree: true }).forEach(function (a) { a.currentTime = elapsed; });
+  }
+  function markNewLoops() {
+    const counts = {};
+    root.querySelectorAll('[data-loop]').forEach(function (l) {
+      counts[l.getAttribute('data-loop')] = Number(l.getAttribute('data-count')) || 0;
+    });
+    const pressed = root.querySelector('button[data-run][aria-pressed="true"]');
+    const run = pressed ? pressed.getAttribute('data-run') : '';
+    const sameRun = loopMemo !== null && loopMemo.run === run;
+    if (!sameRun) flashMemo = {};
+    const now = Date.now();
+    if (!reducedMotion()) {
+      root.querySelectorAll('[data-loop]').forEach(function (l) {
+        const id = l.getAttribute('data-loop');
+        if (sameRun && id in loopMemo.counts && counts[id] > loopMemo.counts[id]) {
+          flashMemo[id] = now;
+          flashOn(l, 0);
+        } else if (id in flashMemo) {
+          const age = now - flashMemo[id];
+          if (age < FLASH_MS) flashOn(l, age);
+          else delete flashMemo[id];
+        }
+      });
+    }
+    loopMemo = { run: run, counts: counts };
+  }
   function nearBottom(el) { return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 40; }
   function follow(wasNear) { const t = root.querySelector('.terminal'); if (t && wasNear) t.scrollTop = t.scrollHeight; }
   function applyPick() {
@@ -114,7 +194,10 @@ const SCRIPT = `
     const focusNode = active && active.closest ? active.closest('[data-reasons]') : null;
     const focusId = focusNode ? focusNode.getAttribute('data-reasons') : null;
     root.innerHTML = msg.html;
+    baseMs = Date.now();
     applyPick();
+    markNewLoops();
+    startTimer();
     if (focusId !== null) {
       const again = Array.from(root.querySelectorAll('[data-reasons]')).find(function (g) { return g.getAttribute('data-reasons') === focusId; });
       if (again) again.focus();
@@ -136,7 +219,19 @@ const SCRIPT = `
     event.preventDefault();
     togglePick(node);
   });
+  root.addEventListener('animationend', function (event) {
+    const flashing = event.target && event.target.closest ? event.target.closest('.is-new') : null;
+    if (!flashing) return;
+    flashing.classList.remove('is-new');
+    delete flashMemo[flashing.getAttribute('data-loop')];
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') stopTimer();
+    else startTimer();
+  });
   applyPick();
+  markNewLoops();
+  startTimer();
   follow(true);
   vscode.postMessage({ type: 'ready' });
 })();
@@ -152,7 +247,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunP
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pipe-in</title>
-<style nonce="${n}">${STYLE}${REASONS_STYLE}${USAGE_STYLE}</style>
+<style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}</style>
 </head>
 <body>
 <div class="root">${renderViewBody(view, picker)}</div>
@@ -169,6 +264,7 @@ ${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)))}
 <div class="right">
 ${renderWarnings(view.warnings)}
 ${renderReasons(view)}
+${renderTimes(view)}
 ${renderTerminal(view, view.terminal)}
 ${renderArtifacts(view.artifacts)}
 ${renderUsage(view.usage)}
@@ -199,7 +295,15 @@ function renderBanner(view: PipelineView): string {
   } else {
     msg = '<p class="banner-msg"></p>';
   }
-  return `<div class="banner">${msg}<span class="cost">合計 ${formatCost(view.totalCostUsd)}</span></div>`;
+  return `<div class="banner">${msg}<span class="cost">${renderElapsed(view.elapsed)}合計 ${formatCost(view.totalCostUsd)}</span></div>`;
+}
+
+/** バナーの全体の経過。数え上げる（live）ときだけ基準の秒（data-elapsed）を持たせ、固定の値は文字だけ。無ければ空。 */
+function renderElapsed(elapsed: Elapsed | null): string {
+  if (elapsed === null) return '';
+  const text = formatDuration(elapsed.seconds);
+  const attr = elapsed.live ? ` data-elapsed="${Math.floor(elapsed.seconds)}"` : '';
+  return `経過 <span class="elapsed"${attr}>${text}</span>・`;
 }
 
 function renderItem(item: OutputItem): string {

@@ -6,6 +6,7 @@ import { DEFAULT_WORK_DIR, refreshView, resolveWorkDir } from './refreshView.ts'
 import type { WorkDirSource } from './refreshView.ts';
 import { buildPipelineView } from '../domain/pipelineView.ts';
 import { snapshot, stateJson } from '../test/fixtures.ts';
+import { clockAt, runningSnapshot } from '../test/liveFixtures.ts';
 
 test('FR-01: 既定の work_dir は docs/pipeline で、設定が空・空白・未設定なら既定を使う', () => {
   const root = path.resolve('/ws');
@@ -27,6 +28,16 @@ test('FR-02/14: 口が例外を投げても、例外を出さず記録なしの�
   const view = await refreshView(source, '/ws/docs/pipeline');
   assert.deepEqual(view.noRecords, { message: '記録がありません', workDir: '/ws/docs/pipeline' });
   assert.equal(view.nodes.length, 11);
+});
+
+test('D0017-AC-08: refreshView は第3引数の時計を buildPipelineView へ渡し、渡さなければ時計なしと同じ', async () => {
+  const snap = runningSnapshot();
+  const source = { read: async () => snap };
+  const clock = clockAt(83);
+  assert.deepStrictEqual(await refreshView(source, '/ignored', clock), buildPipelineView(snap, clock));
+  assert.deepStrictEqual(await refreshView(source, '/ignored'), buildPipelineView(snap));
+  const timed = (await refreshView(source, '/ignored', clock)).nodes.find((n) => n.id === 'design') as unknown as { runningSec: number | null };
+  assert.equal(timed.runningSec, 83);
 });
 
 test('FR-12: refreshView は口の写しから buildPipelineView と同じ図の状態を作る', async () => {

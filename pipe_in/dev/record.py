@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..engine import clock
 from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
@@ -138,11 +139,12 @@ class Recorder:
             raise RecordError("attempt は 1 以上にしてください")
         seq = max((r["seq"] for r in state["runs"] if "seq" in r), default=0) + 1
         log = f"{seq:02d}_{stage}" + (f"_{attempt}" if attempt else "") + ".jsonl"
-        now = self._stamp()
+        t = self.now()  # 1回だけ読み、began_at（従来どおりずれなし）と at（ずれつき）に同じ時刻を使う
+        now = t.isoformat(timespec="seconds")
         logs = self.work_dir / LOGS
         logs.mkdir(parents=True, exist_ok=True)
         prompt = f"/pipe-dev の{label}" + (f"（{attempt} 回目）" if attempt else "")
-        line = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER, "at": now}
+        line = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER, "at": clock.with_offset(t)}
         (logs / log).write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
         state["open"] = {"stage": stage, "seq": seq, "attempt": attempt, "note": note, "log": log, "began_at": now}
         state["pending_review"] = None
@@ -198,7 +200,10 @@ class Recorder:
         state = self._load()
         self._open_run(state)
         self._stage(stage)
-        state["pending_review"] = {"stage": stage, "doc": self.cfg.rel(self.work_dir / OUTPUTS[stage]), "session_id": None}
+        state["pending_review"] = {"stage": stage, "doc": self.cfg.rel(self.work_dir / OUTPUTS[stage]),
+            "session_id": None,
+            "since": clock.with_offset(self.now()),
+        }
         self._save(state)
 
     def review(self, stage: str, action: str, feedback: str = "") -> None:

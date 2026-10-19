@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..engine import clock
 from ..engine.checkpoint import Decision
 from ..engine.config import Config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, BasePipeline, Exit, ShellResult, one_line, run_shell
@@ -231,6 +232,7 @@ class LinearPipeline(BasePipeline):
                     "doc": self.cfg.rel(self.doc(s.output)),
                     "session_id": run.session_id,
                     "next": END if nxt is None else self.stage_order[nxt],
+                    "since": clock.now_with_offset(),
                 }
                 return _Step(exit=Exit.AWAITING_REVIEW)
             decision = self.ask(s.name, self.doc(s.output))

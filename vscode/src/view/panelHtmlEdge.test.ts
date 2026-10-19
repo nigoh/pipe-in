@@ -13,6 +13,7 @@ import {
   stageRunEntry,
   stateJson,
 } from '../test/fixtures.ts';
+import { BASE_AT, STARTED_AT, clockAt } from '../test/liveFixtures.ts';
 
 const EXTERNAL = [/(src|href)\s*=\s*["']?https?:/i, /url\(\s*["']?https?:/i, /@import/i];
 const HARD_COLORS = [/#[0-9a-fA-F]{3,8}\b/, /rgba?\(/, /hsla?\(/];
@@ -126,7 +127,69 @@ test('FR-08/10 追加: 修正の依頼・差し戻しの回数と段の数値が
   );
   assert.match(body, /修正の依頼 2 回/);
   assert.match(body, /差し戻し 2 回/);
-  assert.match(body, /16 ターン・\$0\.300・50s/);
+  assert.match(body, /16 ターン・\$0\.300・0:50/); // D0017: 時間の書き方が m:ss になった（50s → 0:50）
+});
+
+test('D0017-AC-19: パイプの記録でも、動いている段のログに at が無い・確認待ちに since が無いなら、時間・点滅・点の印が出ない', () => {
+  const stages = [
+    { name: 'survey', label: 'ソースの調査', output: '01_survey.md', review: true },
+    { name: 'draw', label: '図を描く', output: '02_diagrams.md', review: true },
+  ];
+  const running = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({ pipe: 'diagrams', stages, runs: [stageRunEntry({ stage: 'survey', seq: 1 })] }),
+      stageLogs: [{ fileName: '02_draw.jsonl', text: logText([promptLine('draw')]) }],
+    }),
+    clockAt(60),
+  );
+  const waiting = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({
+        pipe: 'diagrams',
+        stages,
+        runs: [stageRunEntry({ stage: 'survey', seq: 1 })],
+        pendingReview: { stage: 'survey', doc: 'docs/pipeline/01_survey.md', session_id: 's' },
+      }),
+    }),
+    clockAt(60),
+  );
+  for (const view of [running, waiting]) {
+    const html = renderViewBody(view);
+    for (const token of ['data-elapsed', 'is-flowing', 'node-wait']) assert.ok(!html.includes(token), token);
+    // 確認待ちのバナーは class="banner-msg is-waiting" を今も持つので、節の印は <g class="node …"> で見る
+    assert.doesNotMatch(html, /<g class="node [^"]*\bis-waiting\b/);
+  }
+});
+
+test('D0017-AC-19: パイプの記録で at・since が読めるときは、動いている段の経過と確認の待ち時間・点の印が出る', () => {
+  const stages = [
+    { name: 'survey', label: 'ソースの調査', output: '01_survey.md', review: true },
+    { name: 'draw', label: '図を描く', output: '02_diagrams.md', review: true },
+  ];
+  const running = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({ pipe: 'diagrams', stages, runs: [stageRunEntry({ stage: 'survey', seq: 1 })], startedAt: STARTED_AT }),
+      stageLogs: [{ fileName: '02_draw.jsonl', text: logText([promptLine('draw', BASE_AT)]) }],
+    }),
+    clockAt(60),
+  );
+  const html = renderViewBody(running);
+  assert.match(html, /data-elapsed="60"/);
+  assert.match(html, /is-flowing/);
+  const waiting = buildPipelineView(
+    snapshot({
+      stateJson: stateJson({
+        pipe: 'diagrams',
+        stages,
+        runs: [stageRunEntry({ stage: 'survey', seq: 1 })],
+        pendingReview: { stage: 'survey', doc: 'docs/pipeline/01_survey.md', session_id: 's', since: BASE_AT },
+        startedAt: STARTED_AT,
+      }),
+    }),
+    clockAt(60),
+  );
+  assert.match(renderViewBody(waiting), /<g class="node [^"]*\bis-waiting\b/);
+  assert.match(renderViewBody(waiting), /node-wait/);
 });
 
 test('FR-06 追加: 節の状態は文字でも出て、状態ごとにクラス（色）が分かれる', () => {

@@ -157,7 +157,9 @@ async function currentView(): Promise<CurrentView | null> {
   const candidates = await listRunCandidates(target.abs);
   const runId = pickRun(candidates, selectedRun);
   const runAbs = resolveRunDir(target.abs, runId, candidates) ?? target.abs;
-  const view = await refreshView(createFsWorkDirSource(runAbs, runAbs), runAbs);
+  // 時計を読むのはここだけ（ドメインは「今」を引数で受ける）
+  const clock = { nowMs: Date.now(), localOffsetMin: -new Date().getTimezoneOffset() };
+  const view = await refreshView(createFsWorkDirSource(runAbs, runAbs), runAbs, clock);
   shown = { runAbs, artifacts: view.artifacts.map((a) => a.name) };
   return { view, picker: { choices: candidates.map(({ id, label }) => ({ id, label })), selected: runId } };
 }

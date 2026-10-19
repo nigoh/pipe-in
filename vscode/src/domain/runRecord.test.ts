@@ -11,6 +11,42 @@ test('AC-03: state.json がないとき、例外が出ず、段の実行0件・f
   assert.equal(record.totalCostUsd, 0);
 });
 
+const pendingOf = (since: unknown) =>
+  parseRunRecord(
+    stateJson({ pendingReview: { stage: 'design', doc: 'docs/pipeline/02_design.md', session_id: 's', ...(since === undefined ? {} : { since }) } }),
+  ).pendingReview;
+
+test('D0017-AC-07: pending_review.since が読まれる（stage・doc は今までどおり）', () => {
+  for (const since of ['2026-10-17T10:00:00+09:00', '2026-10-17T10:00:00']) {
+    const pending = pendingOf(since);
+    assert.ok(pending !== null);
+    assert.equal(pending.since, since);
+    assert.equal(pending.stage, 'design');
+    assert.equal(pending.doc, 'docs/pipeline/02_design.md');
+  }
+});
+
+for (const [label, since] of [
+  ['無い', undefined],
+  ['数', 1792230000],
+  ['オブジェクト', { a: 1 }],
+  ['null', null],
+  ['空の文字', ''],
+  ['"x"', 'x'],
+  ['存在しない日付', '2026-02-30T10:00:00'],
+] as const) {
+  test(`D0017-AC-07: since が${label}なら null（pending_review そのものは残り、例外を投げない）`, () => {
+    const pending = pendingOf(since);
+    assert.ok(pending !== null, '確認待ちの印は残る');
+    assert.equal(pending.since, null);
+    assert.equal(pending.stage, 'design');
+  });
+}
+
+test('D0017-AC-07: 確認待ちが無い記録では pendingReview は null のまま', () => {
+  assert.equal(parseRunRecord(stateJson({})).pendingReview, null);
+});
+
 test('AC-04: 途中で切れた JSON でも、例外が出ず AC-03 と同じ結果', () => {
   const record = parseRunRecord('{"runs": [');
   assert.deepEqual(record.stageRuns, []);

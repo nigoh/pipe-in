@@ -8,8 +8,13 @@ README の画像と、拡張の確認用のページ（vscode/scripts/previewPag
 - 使用量の数字は見本（段ごとに決めた表から入れる）。session_id はどこも null。
 - 時計は決まった時刻から少しずつ進むものに差し替え、終わったら戻す（開始の時刻が毎回同じになる）。
 
+途中で止めた見本も作る（D0017。確認用ページの「動いている」「確認待ち」の素材）：
+- showcase_running：実装の 2 回目（07_implement_2）が動いている途中
+- showcase_running_next：検証の 2 回目（08_test_2）が動いている途中（showcase_running の次の描き直しの素材）
+- showcase_waiting：要件定義の確認で止まり、人の答えを待っている
+
 作り直す：python tests/showcase.py（本体の記録の形が変わったときだけ。tests/test_showcase.py が形のずれを知らせる）。
-テストからは build_showcase(tmp_path) だけを使う（main() は呼ばない）。
+テストからは build_showcase(tmp_path)・build_showcase_partial(tmp_path, …) だけを使う（main() は呼ばない）。
 """
 
 from __future__ import annotations
@@ -21,7 +26,8 @@ import json
 import shutil
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +37,9 @@ if str(ROOT) not in sys.path:
 
 from pipe_in.dev import specs as st  # noqa: E402
 from pipe_in.dev.pipeline import DevPipeline  # noqa: E402
+from pipe_in.engine import clock  # noqa: E402
 from pipe_in.engine import pipeline as engine_pipeline  # noqa: E402
+from pipe_in.engine import runner as engine_runner  # noqa: E402
 from pipe_in.engine.checkpoint import Decision  # noqa: E402
 from pipe_in.engine.config import load_config  # noqa: E402
 from pipe_in.engine.pipeline import Exit  # noqa: E402
@@ -40,6 +48,13 @@ from pipe_in.usage.metrics import StageMetrics  # noqa: E402
 
 MEMO = "ユーザー一覧に CSV 出力ボタンを追加したい"
 FIXTURE = Path(__file__).parent / "fixtures" / "showcase"
+
+# 途中で止めた見本：名前 → (止める段の呼び出し, 確認で止めるか)
+PARTIAL_FIXTURES: dict[str, tuple[str | None, bool]] = {
+    "showcase_running": ("07_implement_2", False),
+    "showcase_running_next": ("08_test_2", False),
+    "showcase_waiting": (None, True),
+}
 
 MODEL = "claude-opus-5-5"
 CLAUDE_CODE_VERSION = "2.1.301"
@@ -338,17 +353,34 @@ def _messages(log_name: str, structured: Any) -> list[dict[str, Any]]:
     ]
 
 
-class ShowcaseRunner:
-    """段の代わりに成果物とログを書き、決めた数字の使用量を返す（runner の口：tests/test_pipeline.py の FakeRunner と同じ）。"""
+class ShowcaseStop(Exception):
+    """stop_at の段の途中で台本を止めた（動いている途中の見本を作るため）。"""
 
-    def __init__(self) -> None:
+
+class ShowcaseRunner:
+    """段の代わりに成果物とログを書き、決めた数字の使用量を返す（runner の口：tests/test_pipeline.py の FakeRunner と同じ）。
+
+    stop_at を渡すと、その段の呼び出しでは成果物を書かず、ログの始まり（Prompt 行・始まりの行・最初の発言）だけを
+    書いて ShowcaseStop を投げる（段が動いている途中の記録になる）。
+    """
+
+    def __init__(self, stop_at: str | None = None) -> None:
         self.calls: list[str] = []
+        self.stop_at = stop_at
 
     async def __call__(self, spec, prompt, cfg, *, resume, log_name) -> StageRun:
         if log_name not in USAGE:
             raise RuntimeError(f"台本に無い段の呼び出しです: {log_name}（台本か本体の流れが変わった）")
         self.calls.append(log_name)
         work = cfg.work_dir
+        log_dir = work / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        if log_name == self.stop_at:
+            with (log_dir / f"{log_name}.jsonl").open("a", encoding="utf-8") as log:
+                log.write(engine_runner.prompt_line(spec.name, resume, prompt, clock.now_with_offset()) + "\n")
+                for msg in _messages(log_name, None)[:2]:
+                    log.write(json.dumps(msg, ensure_ascii=False) + "\n")
+            raise ShowcaseStop(log_name)
         _write_artifact(work, log_name)
         structured: Any = None
         if spec.name == "red":
@@ -357,11 +389,9 @@ class ShowcaseRunner:
             structured = VERDICTS[log_name]
         messages = _messages(log_name, structured)
 
-        log_dir = work / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
         metrics = StageMetrics()
         with (log_dir / f"{log_name}.jsonl").open("a", encoding="utf-8") as log:
-            log.write(json.dumps({"_type": "Prompt", "stage": spec.name, "resume": resume, "prompt": prompt}, ensure_ascii=False) + "\n")
+            log.write(engine_runner.prompt_line(spec.name, resume, prompt, clock.now_with_offset()) + "\n")  # 本体と同じ関数で書く
             for msg in messages:
                 line = json.dumps(msg, ensure_ascii=False)
                 log.write(line + "\n")
@@ -381,35 +411,61 @@ class ShowcaseRunner:
         )
 
 
-def _ticking_clock() -> type[datetime]:
-    """呼ぶたびに START から TICK ずつ進む now() を持つ datetime（本体の pipeline の datetime と差し替える）。"""
+def _ticking_clock() -> tuple[type[datetime], Callable[[], str]]:
+    """呼ぶたびに START から TICK ずつ進む時計。本体の pipeline の datetime と差し替える now() を持つ datetime と、
+    clock.now_with_offset と差し替える関数（同じ進みを共有する。UTC の +00:00 つきで、手元の時刻帯が入らない）を返す。"""
     state = {"t": START}
+
+    def tick() -> datetime:
+        current = state["t"]
+        state["t"] = current + TICK
+        return current
 
     class Clock(datetime):
         @classmethod
         def now(cls, tz=None):  # noqa: ANN001
-            current = state["t"]
-            state["t"] = current + TICK
-            return current
+            return tick()
 
-    return Clock
+    def now_with_offset() -> str:
+        return tick().replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
+
+    return Clock, now_with_offset
+
+
+def _run_script(project: Path, *, stop_at: str | None, pause: bool) -> tuple[Path, Exit | None]:
+    """台本を流す。stop_at の段で止めたときは結果が None。時計は終わったら戻す。"""
+    project.mkdir(parents=True, exist_ok=True)
+    cfg = load_config(project, None, auto_approve=False, pause_for_review=pause)
+    answers = iter(ANSWERS)
+    original = (engine_pipeline.datetime, clock.now_with_offset)
+    engine_pipeline.datetime, clock.now_with_offset = _ticking_clock()
+    try:
+        pipeline = DevPipeline(cfg, runner=ShowcaseRunner(stop_at), ask=lambda stage, doc: next(answers))
+        try:
+            result: Exit | None = asyncio.run(pipeline.run(MEMO))
+        except ShowcaseStop:
+            result = None
+    finally:
+        engine_pipeline.datetime, clock.now_with_offset = original
+    return cfg.work_dir, result
 
 
 def build_showcase(project: Path) -> Path:
     """project の中で台本どおりに開発フローを流し、work_dir（project/docs/pipeline）を返す。"""
-    project.mkdir(parents=True, exist_ok=True)
-    cfg = load_config(project, None, auto_approve=False)
-    answers = iter(ANSWERS)
-    original = engine_pipeline.datetime
-    engine_pipeline.datetime = _ticking_clock()
-    try:
-        pipeline = DevPipeline(cfg, runner=ShowcaseRunner(), ask=lambda stage, doc: next(answers))
-        result = asyncio.run(pipeline.run(MEMO))
-    finally:
-        engine_pipeline.datetime = original
+    work, result = _run_script(project, stop_at=None, pause=False)
     if result != Exit.PASSED:
-        raise RuntimeError(f"見本の台本が最後まで流れませんでした（{result.name}）")
-    return cfg.work_dir
+        raise RuntimeError(f"見本の台本が最後まで流れませんでした（{result.name if result else '途中で止まった'}）")
+    return work
+
+
+def build_showcase_partial(project: Path, stop_at: str | None, pause: bool = False) -> Path:
+    """台本を途中で止めて流し、work_dir を返す。stop_at の段が動いている途中で止めるか、pause なら最初の確認で止める。"""
+    work, result = _run_script(project, stop_at=stop_at, pause=pause)
+    if stop_at is not None and result is not None:
+        raise RuntimeError(f"{stop_at} の前に台本が終わりました（{result.name}）")
+    if pause and not json.loads((work / "state.json").read_text(encoding="utf-8")).get("pending_review"):
+        raise RuntimeError("確認待ちで止まりませんでした")
+    return work
 
 
 def shape(value: Any) -> Any:
@@ -421,15 +477,22 @@ def shape(value: Any) -> Any:
     return type(value).__name__
 
 
-def main() -> None:
-    """tests/fixtures/showcase/ を作り直す（一時フォルダで流して写す。前の中身は消す）。"""
+def _replace(dest: Path, build: Callable[[Path], Path]) -> None:
+    """一時フォルダで流して dest へ写す（前の中身は消す）。"""
     with tempfile.TemporaryDirectory() as tmp:
         with contextlib.redirect_stdout(io.StringIO()):
-            work = build_showcase(Path(tmp) / "myapp")
-        if FIXTURE.exists():
-            shutil.rmtree(FIXTURE)
-        shutil.copytree(work, FIXTURE)
-    print(f"{FIXTURE.relative_to(ROOT).as_posix()}/ を作り直しました")
+            work = build(Path(tmp) / "myapp")
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(work, dest)
+    print(f"{dest.relative_to(ROOT).as_posix()}/ を作り直しました")
+
+
+def main() -> None:
+    """tests/fixtures/showcase/ と、途中で止めた見本（PARTIAL_FIXTURES）を作り直す。"""
+    _replace(FIXTURE, build_showcase)
+    for name, (stop_at, pause) in PARTIAL_FIXTURES.items():
+        _replace(FIXTURE.parent / name, lambda project, s=stop_at, p=pause: build_showcase_partial(project, s, pause=p))
 
 
 if __name__ == "__main__":

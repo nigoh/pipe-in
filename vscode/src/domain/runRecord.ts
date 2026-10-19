@@ -3,6 +3,7 @@ import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import { STAGES, isStage, isStageName } from './stage.ts';
 import type { Stage } from './stage.ts';
+import { isTimestampText } from './timestamp.ts';
 
 export type ReviewAction = 'approved' | 'revise' | 'quit';
 export type VerdictStatus = 'pass' | 'fail' | 'blocked';
@@ -99,6 +100,8 @@ export interface PendingReview {
   stage: Stage;
   /** 確認する文書のパス（プロジェクトからの相対） */
   doc: string;
+  /** 待ち始めた時刻（本体が足した since）。無い・読めない記録では null */
+  since: string | null;
 }
 
 export interface RunRecord {
@@ -273,7 +276,7 @@ export function isDevRecord(record: RunRecord): boolean {
 
 function parsePendingReview(value: unknown): PendingReview | null {
   if (!isJsonObject(value) || !isStageName(value.stage) || typeof value.doc !== 'string') return null;
-  return { stage: value.stage, doc: value.doc };
+  return { stage: value.stage, doc: value.doc, since: isTimestampText(value.since) ? value.since : null };
 }
 
 // ---- 使用量（本体 0.2 の metrics・usage_summary） ----------------------------

@@ -1,0 +1,578 @@
+{
+  "started_at": "2026-10-17T10:00:00",
+  "updated_at": "2026-10-17T10:12:45",
+  "pipe": "dev",
+  "stages": [
+    {
+      "name": "requirements",
+      "label": "要件定義",
+      "output": "01_requirements.md",
+      "review": true
+    },
+    {
+      "name": "design",
+      "label": "設計",
+      "output": "02_design.md",
+      "review": true
+    },
+    {
+      "name": "red",
+      "label": "テスト先行",
+      "output": "03_red_tests.md",
+      "review": true
+    },
+    {
+      "name": "implement",
+      "label": "実装",
+      "output": "04_implementation.md",
+      "review": false
+    },
+    {
+      "name": "test",
+      "label": "検証",
+      "output": "05_test_report.md",
+      "review": false
+    }
+  ],
+  "final": null,
+  "total_cost_usd": 1.5,
+  "usage_summary": {
+    "tokens": {
+      "input": 194,
+      "cache_write": 127700,
+      "cache_write_1h": 0,
+      "cache_write_5m": 0,
+      "cache_read": 1007500,
+      "output": 26700,
+      "thinking": 7700,
+      "web_search": 0,
+      "web_fetch": 0,
+      "cache_reuse_rate": 0.8874
+    },
+    "by_model": {
+      "claude-opus-5-5": {
+        "tokens": {
+          "input": 194,
+          "cache_write": 127700,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 1007500,
+          "output": 26700,
+          "thinking": 7700,
+          "web_search": 0,
+          "web_fetch": 0
+        },
+        "cost_usd": 1.5
+      }
+    },
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "rate_limits": {
+      "five_hour": {
+        "first": 0.04,
+        "last": 0.15,
+        "resets_at": 1792213200,
+        "peak": 0.15,
+        "reset_seen": false
+      },
+      "seven_day": {
+        "first": 0.21,
+        "last": 0.23,
+        "resets_at": 1792713600,
+        "peak": 0.23,
+        "reset_seen": false
+      }
+    },
+    "duration_api_ms": 319700
+  },
+  "pending_review": null,
+  "warnings": [],
+  "runs": [
+    {
+      "stage": "requirements",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "要件定義書を書きました（AC-01〜AC-02）",
+      "cost_usd": 0.21,
+      "num_turns": 9,
+      "duration_sec": 48.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 24,
+          "cache_write": 21800,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 88400,
+          "output": 3900,
+          "thinking": 1100,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.802
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 24,
+              "cache_write": 21800,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 88400,
+              "output": 3900,
+              "thinking": 1100,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.21
+          }
+        },
+        "duration_api_ms": 40100,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.04,
+            "last": 0.04,
+            "resets_at": 1792213200,
+            "peak": 0.04,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.21,
+            "last": 0.21,
+            "resets_at": 1792713600,
+            "peak": 0.21,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 1,
+      "attempt": null,
+      "note": ""
+    },
+    {
+      "stage": "requirements",
+      "review": "revise",
+      "feedback": "AC-02 を『文字コード』と『列の順』に分けて"
+    },
+    {
+      "stage": "requirements",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "AC-02 を分けて、AC-01〜AC-03 にしました",
+      "cost_usd": 0.09,
+      "num_turns": 4,
+      "duration_sec": 21.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 8,
+          "cache_write": 4100,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 102600,
+          "output": 1500,
+          "thinking": 400,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.9615
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 8,
+              "cache_write": 4100,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 102600,
+              "output": 1500,
+              "thinking": 400,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.09
+          }
+        },
+        "duration_api_ms": 17300,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.05,
+            "last": 0.05,
+            "resets_at": 1792213200,
+            "peak": 0.05,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.21,
+            "last": 0.21,
+            "resets_at": 1792713600,
+            "peak": 0.21,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 2,
+      "attempt": null,
+      "note": "指摘を反映"
+    },
+    {
+      "stage": "requirements",
+      "review": "approved"
+    },
+    {
+      "stage": "design",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "設計書を書きました（出力の関数・ボタン・テストの置き場所）",
+      "cost_usd": 0.27,
+      "num_turns": 12,
+      "duration_sec": 66.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 31,
+          "cache_write": 26300,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 141900,
+          "output": 5200,
+          "thinking": 1600,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.8435
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 31,
+              "cache_write": 26300,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 141900,
+              "output": 5200,
+              "thinking": 1600,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.27
+          }
+        },
+        "duration_api_ms": 55800,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.07,
+            "last": 0.07,
+            "resets_at": 1792213200,
+            "peak": 0.07,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.22,
+            "last": 0.22,
+            "resets_at": 1792713600,
+            "peak": 0.22,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 3,
+      "attempt": null,
+      "note": ""
+    },
+    {
+      "stage": "design",
+      "review": "approved"
+    },
+    {
+      "stage": "red",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "AC-01〜AC-03 のテストを書き、落ちることを確かめました",
+      "cost_usd": 0.34,
+      "num_turns": 18,
+      "duration_sec": 94.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 46,
+          "cache_write": 29700,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 233500,
+          "output": 6100,
+          "thinking": 1800,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.887
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 46,
+              "cache_write": 29700,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 233500,
+              "output": 6100,
+              "thinking": 1800,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.34
+          }
+        },
+        "duration_api_ms": 71200,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.1,
+            "last": 0.1,
+            "resets_at": 1792213200,
+            "peak": 0.1,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.22,
+            "last": 0.22,
+            "resets_at": 1792713600,
+            "peak": 0.22,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 4,
+      "attempt": null,
+      "note": ""
+    },
+    {
+      "stage": "red",
+      "result": {
+        "status": "red",
+        "summary": "AC-01〜AC-03 の 3 件とも、出力の関数がまだ無いため落ちる",
+        "tests": [
+          {
+            "criterion": "AC-01",
+            "test": "tests/test_users_export.py::test_ac01_button_downloads_csv"
+          },
+          {
+            "criterion": "AC-02",
+            "test": "tests/test_users_export.py::test_ac02_utf8_with_bom"
+          },
+          {
+            "criterion": "AC-03",
+            "test": "tests/test_users_export.py::test_ac03_column_order"
+          }
+        ],
+        "commands": [
+          "pytest -q tests/test_users_export.py"
+        ]
+      }
+    },
+    {
+      "stage": "red",
+      "review": "approved"
+    },
+    {
+      "stage": "implement",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "CSV の出力とボタンを作りました",
+      "cost_usd": 0.41,
+      "num_turns": 23,
+      "duration_sec": 121.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 58,
+          "cache_write": 33200,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 312800,
+          "output": 7400,
+          "thinking": 2100,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.9039
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 58,
+              "cache_write": 33200,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 312800,
+              "output": 7400,
+              "thinking": 2100,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.41
+          }
+        },
+        "duration_api_ms": 96400,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.13,
+            "last": 0.13,
+            "resets_at": 1792213200,
+            "peak": 0.13,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.23,
+            "last": 0.23,
+            "resets_at": 1792713600,
+            "peak": 0.23,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 5,
+      "attempt": 1,
+      "note": ""
+    },
+    {
+      "stage": "test",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "AC-02 が不合格（BOM が無い）",
+      "cost_usd": 0.18,
+      "num_turns": 10,
+      "duration_sec": 57.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 27,
+          "cache_write": 12600,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 128300,
+          "output": 2600,
+          "thinking": 700,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.9104
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 27,
+              "cache_write": 12600,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 128300,
+              "output": 2600,
+              "thinking": 700,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.18
+          }
+        },
+        "duration_api_ms": 38900,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.15,
+            "last": 0.15,
+            "resets_at": 1792213200,
+            "peak": 0.15,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.23,
+            "last": 0.23,
+            "resets_at": 1792713600,
+            "peak": 0.23,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 6,
+      "attempt": 1,
+      "note": ""
+    },
+    {
+      "stage": "test",
+      "attempt": 1,
+      "verdict": {
+        "status": "fail",
+        "summary": "AC-02 が不合格（BOM が無い）",
+        "failures": [
+          {
+            "criterion": "AC-02",
+            "detail": "出力の先頭に BOM が無く、Excel で開くと文字化けする"
+          }
+        ],
+        "commands": [
+          "pytest -q"
+        ],
+        "command_check": null
+      }
+    }
+  ]
+}

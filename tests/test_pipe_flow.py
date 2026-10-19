@@ -246,6 +246,23 @@ def test_ac02_pause_keeps_routed_next(tmp_path):
     assert r2.names() == ["ui", "report"]
 
 
+def test_d0017_ac04_pipe_pause_writes_since_and_review_resumes(tmp_path):
+    """D0017-AC-04: 利用者のパイプも、確認待ちで止まると pending_review.since にオフセットつきの時刻を書き、続きから再開できる。"""
+    import re
+
+    toml = ROUTED.replace('[stages.routes]', 'review = true\n[stages.routes]', 1)
+    pipe = make_pipe(tmp_path, toml)
+    cfg = cfg_for(tmp_path, pipe, auto_approve=False, pause_for_review=True)
+    r = ScriptedRunner(pipe, {"classify": [{"choice": "ui"}]})
+    assert asyncio.run(LinearPipeline(cfg, pipe, runner=r).run("x")) == Exit.AWAITING_REVIEW
+    pending = state(tmp_path, pipe)["pending_review"]
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}", pending["since"])
+    r2 = ScriptedRunner(pipe)
+    p = LinearPipeline(cfg_for(tmp_path, pipe, auto_approve=False, pause_for_review=True), pipe, runner=r2)
+    assert asyncio.run(p.review(Decision("approve"))) == Exit.PASSED
+    assert r2.names() == ["ui", "report"]
+
+
 @pytest.mark.parametrize(
     "toml,word",
     [
