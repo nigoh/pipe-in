@@ -11,8 +11,8 @@ README（リポジトリの `README.md` と `vscode/README.md`）に載せる画
 | `run-panel-dark.png` | 「実行を見る」パネル（暗い） | `out/preview/run-panel-dark.html` |
 | `pipe-editor-light.png` | パイプ作業台（明るい） | `out/preview/pipe-editor-light.html` |
 | `pipe-editor-dark.png` | パイプ作業台（暗い） | `out/preview/pipe-editor-dark.html` |
-| `pipe-in-plug-logo.html` | ロゴの動き。ロゴからプラグを狙って差し込み、カチッとはまってオレンジが広がる（ケーブルはひもの物理演算）。ブラウザで開くとくり返し動き、「フローまで見せる」で作業台の動きまで続く。外から何も読み込まない | （撮らない） |
-| `pipe-in-plug-logo.gif` | 上の動きの、差し込んでオレンジが広がりきるまで（幅 800・約4秒） | `pipe-in-plug-logo.html` を時刻を進めながら撮った |
+| `pipe-in-plug-logo.html` | ロゴの動き。止まったロゴを一拍見せてから、プラグを運んでコンセントの真上で向きをそろえ、上から差し込む。カチッとはまってオレンジが広がる（ケーブルはひもの物理演算）。カメラは全体から始めてコンセントへ寄り、広がりと一緒に引く（型は5つから選べる）。ブラウザで開くとくり返し動き、「フローまで見せる」で作業台の動きまで続く。外から何も読み込まない。決めたことは [D0013](../decisions/D0013-plug-logo-motion.md) | （撮らない） |
+| `pipe-in-plug-logo.gif` | 上の動きの、はじめの間から差し込んでオレンジが広がりきるまで（幅 800・約6秒・カメラは「全体から寄る」） | `pipe-in-plug-logo.html` を時刻を進めながら撮った（1秒に15枚・40色） |
 
 画像は、見本の記録（`tests/fixtures/showcase/`）と見本のパイプを、拡張の本物の画面で写したものです。費用・トークン・利用枠の数字は見本です。
 

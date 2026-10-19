@@ -7,7 +7,7 @@
 /* 大きな舞台を1つ。下に段の表示と、動きを調整するつまみ */
 :root{
   --bg:#F1F5F4; --surface:#FFFFFF; --stage:#FAFCFB; --fg:#13211E; --muted:#566A65; --line:#D8E2DF;
-  --teal:#167D6B; --orange:#F2724B; --on-flood:#FFFFFF; --route-on-flood:#6B2410; --par-on-flood:#0E5A4C; --on-par:#FFFFFF; --ret-on-flood:#8F1222; --grain:.5; --spark:#F59E0B;
+  --teal:#167D6B; --orange:#F2724B; --on-flood:#FFFFFF; --route-on-flood:#6B2410; --par-on-flood:#0E5A4C; --on-par:#FFFFFF; --ret-on-flood:#8F1222; --spark:#F59E0B;
   --step-on:#FDE9E1; --step-on-fg:#9A3A1A;
   --display:"Outfit","Zen Kaku Gothic New",system-ui,sans-serif;
   --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
@@ -15,11 +15,11 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0E1513; --surface:#151E1B; --stage:#101816; --fg:#E3ECE9; --muted:#93A6A1; --line:#25322E;
-  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --grain:.4; --spark:#FFD27A;
+  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --spark:#FFD27A;
   --step-on:#3D2219; --step-on-fg:#FFB596; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0E1513; --surface:#151E1B; --stage:#101816; --fg:#E3ECE9; --muted:#93A6A1; --line:#25322E;
-  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --grain:.4; --spark:#FFD27A;
+  --teal:#5FC4AB; --orange:#FF8A65; --on-flood:#2A140B; --route-on-flood:#FFF3EC; --par-on-flood:#0B3D33; --on-par:#E8FFF8; --ret-on-flood:#5A0A14; --spark:#FFD27A;
   --step-on:#3D2219; --step-on-fg:#FFB596; color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.7}
 .wrap{max-width:1100px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
@@ -28,7 +28,6 @@ h1 span{color:var(--orange)}
 .lead{margin:4px 0 0;color:var(--muted);max-width:66ch;font-size:14px}
 .stage{position:relative;aspect-ratio:16/9;max-width:100%;background:var(--stage);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;opacity:var(--grain);background-size:240px 240px}
 .steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
 .steps li{font-size:13px;padding:3px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);transition:background .2s,color .2s}
 .steps li.on{background:var(--step-on);color:var(--step-on-fg);border-color:transparent;font-weight:700}
@@ -47,12 +46,19 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline
 .notes li{margin:2px 0}
 .notes b{color:var(--orange)}
 h2{font-size:15px;margin:6px 0 0}
+.camrow{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:14px;grid-column:1/-1}
+.camrow b{font-size:13px;color:var(--muted)}
+.mini{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:560px){.mini{grid-template-columns:1fr}}
+.mini svg{width:100%;height:auto;display:block;background:var(--stage);border:1px solid var(--line);border-radius:8px}
+.mini p{margin:0;font-size:13px;color:var(--muted)}
+.mini output{font-family:var(--mono);font-size:12px;color:var(--fg)}
 </style>
 
 <div class="wrap">
   <header>
     <h1>pipe-in <span>プラグのロゴ</span></h1>
-    <p class="lead">プラグを狙って差し込み、カチッとはまると電気が通ってオレンジが広がります。抜いて、もう一度。ケーブルはひもの物理演算で動きます。「フローまで見せる」を入れると、作業台の動きまで続けて見られます。</p>
+    <p class="lead">止まったロゴを一拍見せてから、プラグを運んでコンセントの真上で向きをそろえ、上から差し込みます。カチッとはまると電気が通ってオレンジが広がります。抜いて、もう一度。カメラは全体から始めてコンセントへ寄り、広がりと一緒に引きます。ケーブルはひもの物理演算で動きます。「フローまで見せる」を入れると、作業台の動きまで続けて見られます。</p>
   </header>
 
   <div class="stage" id="stage" role="img" aria-label="プラグをコンセントに差し込むと、オレンジが広がり、5つの段のフローができるロゴの動き"></div>
@@ -70,17 +76,42 @@ h2{font-size:15px;margin:6px 0 0}
       <label for="loop"><input type="checkbox" id="loop" checked> くり返す</label>
       <label for="flow"><input type="checkbox" id="flow"> フローまで見せる</label>
     </div>
+    <div class="camrow" role="radiogroup" aria-label="カメラ">
+      <b>カメラ</b>
+      <label for="cam-fixed"><input type="radio" name="cam" id="cam-fixed" value="fixed"> 固定（今の版）</label>
+      <label for="cam-intro"><input type="radio" name="cam" id="cam-intro" value="intro" checked> 全体から寄る</label>
+      <label for="cam-push"><input type="radio" name="cam" id="cam-push" value="push"> 寄って引く</label>
+      <label for="cam-hand"><input type="radio" name="cam" id="cam-hand" value="hand"> 手持ち</label>
+      <label for="cam-dolly"><input type="radio" name="cam" id="cam-dolly" value="dolly"> ゆっくり寄る</label>
+    </div>
     <div class="slider"><span><label for="speed">速さ</label><output id="speed-v">1.00</output></span><input type="range" id="speed" min="0.2" max="1.5" step="0.05" value="1"></div>
     <div class="slider"><span><label for="stiff">ケーブルの硬さ</label><output id="stiff-v">0.015</output></span><input type="range" id="stiff" min="0.002" max="0.05" step="0.001" value="0.015"></div>
     <div class="slider"><span><label for="grav">重力</label><output id="grav-v">900</output></span><input type="range" id="grav" min="0" max="2500" step="50" value="900"></div>
+    <div class="slider"><span><label for="pre">最初の間（秒）</label><output id="pre-v">1.2</output></span><input type="range" id="pre" min="0" max="3" step="0.1" value="1.2"></div>
     <div class="slider"><span><label for="bounce">プラグの弾み</label><output id="bounce-v">0.45</output></span><input type="range" id="bounce" min="0.2" max="0.9" step="0.05" value="0.45"></div>
   </section>
+
+  <div class="mini">
+    <svg id="overview" aria-label="全体図。枠がいまカメラに映っている範囲"></svg>
+    <div>
+      <h2>全体図とカメラの型</h2>
+      <p>左の図は舞台全体で、点線の枠がいまカメラに映っている範囲です。倍率 <output id="camz">1.00</output></p>
+      <ul class="notes">
+        <li><b>固定</b>：main に入っている今の動きのまま。カメラは動かない。</li>
+        <li><b>全体から寄る</b>：はじめはロゴ全体を見せ、プラグが穴に向きをそろえるころから、コンセントを中心にゆっくり寄っていく。刃が面に当たると面に大きく寄り、カチッで一瞬押し込み、オレンジが広がるのに合わせて全体へ引く。フローは寄って引くと同じ。</li>
+        <li><b>寄って引く</b>：プラグとコンセントの間に寄って狙いを見せ、刃が面に当たると面に大きく寄る。カチッで一瞬さらに押し込み、オレンジが広がるのに合わせて全体へ引く。フローでは、つないでいるケーブル・流れる光の粒・差し戻しを追い、保存で全体へ戻る。</li>
+        <li><b>手持ち</b>：寄って引くと同じ動きに、人が持っているような小さな揺れを足す。</li>
+        <li><b>ゆっくり寄る</b>：差し込むまでの間、少しずつコンセントへ寄るだけ。カチッのあと広がりと一緒に全体へ戻る。</li>
+      </ul>
+    </div>
+  </div>
 
   <div>
     <h2>01 から変えたところ</h2>
     <ul class="notes">
       <li><b>ケーブル</b>：48個の点をつないだひもとして計算しています。元のロゴの曲線の形を覚えていて、引っぱられると揺れ、止まると元の形へ戻ります。</li>
-      <li><b>差し込み</b>：遠くから振られて近づき、穴に向きをそろえて、いったん当たって止まります。そこから押し込むと、刃が穴に入って見えなくなります。奥で少し跳ね返り、カチッとはまって火花が出ます。</li>
+      <li><b>差し込み</b>：穴は紙から手前に向いているので、プラグは少し斜め上から見た立体にし、手前（上）から降ろして差します。運ばれて穴の真上で向きをそろえ、降りて刃の先が面に当たって止まります。押し込むと手ごたえがあり、刃が穴に沈んで見えなくなります。胴の底が面に当たるとカチッとはまり、コンセントが少し沈んで戻ります。影は高いほど大きく薄く、近づくと小さく濃くなります。</li>
+      <li><b>カメラ</b>：舞台のどこを映すかをばねで追います。はじめは「全体から寄る」：止まったロゴを全体で見せ、穴の真上で向きをそろえるころからコンセントへ寄り、カチッで一瞬押し込み、オレンジが広がるのに合わせて全体へ引きます。下の知らせは画面に貼り、寄っても切れません。</li>
       <li><b>広がり</b>：オレンジの縁が届いた部分から順に、文字の色が変わります。</li>
       <li><b>作業台の機能</b>：画面の下に、作業台と同じ形の知らせで、いま見せている機能を出します。
         <ol>
@@ -93,7 +124,6 @@ h2{font-size:15px;margin:6px 0 0}
           <li>判定：検証で一度 ✗ になり、赤い点線「判定 ↩」で実装へ差し戻し。やり直して ✓</li>
           <li>最後に「保存」が押される</li>
         </ol></li>
-      <li><b>紙の質感</b>：細かい粒と短い繊維を描いた模様を、舞台全体に重ねています。</li>
     </ul>
   </div>
 </div>
@@ -225,6 +255,7 @@ stage.innerHTML = `<svg viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" xmlns="${NS}">
     <mask id="holes" maskUnits="userSpaceOnUse" x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}"><rect x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}" fill="#fff"/>${holes}</mask>
     <clipPath id="face" clipPathUnits="userSpaceOnUse"><polygon points="${clipPts}"/></clipPath>
     <pattern id="dots" width="90" height="90" patternUnits="userSpaceOnUse"><circle id="dot" cx="45" cy="45" r="6"/></pattern>
+    <filter id="pblur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur id="pblurstd" stdDeviation="4"/></filter>
     <filter id="blur" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="28"/></filter>
   </defs>
   <g id="shake">
@@ -233,14 +264,17 @@ stage.innerHTML = `<svg viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" xmlns="${NS}">
       ${teal.map(k => `<path id="${k}" d="${P[k]}"/>`).join("")}
       <path id="hy" d="${P.hy}"/>
       <circle id="halo" cx="${OUT.x}" cy="${OUT.y}" r="95" filter="url(#blur)" opacity="0"/>
-      <circle id="outlet" cx="${OUT.x}" cy="${OUT.y}" r="73.8" mask="url(#holes)"/>
-      <path id="rope" fill="none" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+      <g id="socket"><circle id="outlet" cx="${OUT.x}" cy="${OUT.y}" r="73.8" mask="url(#holes)"/>
+        <g id="recess" fill="#000" fill-opacity=".45" stroke="#000" stroke-opacity=".45" stroke-width="6" stroke-linejoin="round">${P.holes.map(d => `<path d="${d}"/>`).join("")}</g></g>
       <circle id="cstart" cx="711.8" cy="-635.5" r="39.2"/>
-      <g clip-path="url(#face)"><g id="plug">
-        <path id="pb" d="${P.pb}" stroke-width="34.2" stroke-linejoin="round"/>
-        <path id="pr1" d="${P.pr1}" stroke-width="6" stroke-linejoin="round"/>
-        <path id="pr2" d="${P.pr2}" stroke-width="6" stroke-linejoin="round"/>
-      </g></g>
+      <!-- プラグは少し斜め上から見た立体：影 → 刃 → 胴の側面 → 胴の上面 → ケーブルの根元 -->
+      <path id="pshadow" fill="#000" filter="url(#pblur)"/>
+      <path id="pr1"/><path class="pshade" fill="#000" fill-opacity=".28"/>
+      <path id="pr2"/><path class="pshade" fill="#000" fill-opacity=".28"/>
+      <path id="pside"/><path class="pshade" fill="#000" fill-opacity=".22"/>
+      <path id="pb"/>
+      <path id="rope" fill="none" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle id="psleeve" r="36"/>
       <g id="spark" stroke-linecap="round" stroke-width="14"></g>
     </g>
     <g id="board" opacity="0">
@@ -269,24 +303,8 @@ stage.innerHTML = `<svg viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" xmlns="${NS}">
     </g>
   </g>
 </svg>`;
-// 紙のざらつき：細かい粒と短い繊維を描いた小さな絵を、重ね合わせ（overlay）で全体に敷く
-(function paper() {
-  const n = 240, c = document.createElement("canvas"); c.width = c.height = n;
-  const x = c.getContext("2d"), im = x.createImageData(n, n), r = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(12345);
-  for (let i = 0; i < n * n; i++) { const v = 128 + (r() - .5) * 120 + (r() < .02 ? (r() - .5) * 140 : 0);
-    im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
-  x.putImageData(im, 0, 0);
-  x.lineWidth = .7;
-  for (let k = 0; k < 90; k++) {
-    const px = r() * n, py = r() * n, a = r() * Math.PI * 2, l = 6 + r() * 18;
-    x.strokeStyle = r() < .5 ? "rgba(0,0,0,.25)" : "rgba(255,255,255,.3)";
-    x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + .6) * l / 2, py + Math.sin(a + .6) * l / 2, px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
-  }
-  const g = document.createElement("div"); g.className = "grain"; g.style.backgroundImage = `url(${c.toDataURL()})`;
-  stage.appendChild(g);
-})();
 const $ = id => document.getElementById(id);
-const el = {flood: $("flood"), logo: $("logo"), rope: $("rope"), plug: $("plug"), halo: $("halo"), spark: $("spark"),
+const el = {pshadow: $("pshadow"), pblur: $("pblurstd"), pr: [$("pr1"), $("pr2")], pside: $("pside"), pb: $("pb"), psleeve: $("psleeve"), pshade: [...document.querySelectorAll(".pshade")], socket: $("socket"), recess: $("recess"), flood: $("flood"), logo: $("logo"), rope: $("rope"), plug: $("plug"), halo: $("halo"), spark: $("spark"),
   shake: $("shake"), board: $("board"), dot: $("dot"), ret: $("ret"), retpls: $("retpls"), retlbl: $("retlbl"), pls: [...document.querySelectorAll(".pls")],
   tcheck: $("tcheck"), tsave: $("tsave"), toast: $("toast"),
   blks: [...document.querySelectorAll(".blk")], cabs: [...document.querySelectorAll(".cab")],
@@ -298,8 +316,9 @@ const sparkLines = Array.from({length: 9}, () => { const l = document.createElem
 // 色を塗り分ける相手と、その中心（ロゴの座標）
 const paint = [...teal.map(k => ({e: $(k), base: "teal"})), {e: $("outlet"), base: "teal"}, {e: $("hy"), base: "orange"},
   {e: $("rope"), base: "orange", stroke: true}, {e: $("cstart"), base: "orange"},
-  ...["pb", "pr1", "pr2"].map(k => ({e: $(k), base: "orange", both: true}))];
-paint.forEach(p => { const b = p.e.getBBox(); p.c = {x: b.x + b.width / 2, y: b.y + b.height / 2}; });
+  ...["pb", "pr1", "pr2", "pside", "psleeve"].map(k => ({e: $(k), base: "orange"}))];
+paint.forEach(p => { const b = p.e.getBBox(); p.c = b.width ? {x: b.x + b.width / 2, y: b.y + b.height / 2} : {x: OUT.x, y: OUT.y}; });
+const plugPaint = paint.filter(q => ["pb", "pr1", "pr2", "pside", "psleeve"].includes(q.e.id));   // 動くので、色を変える中心も毎回そろえる
 
 // ---- ケーブル（ひも）の準備：元の曲線を48点に分ける ----
 const NP = 48;
@@ -311,18 +330,63 @@ tmp.remove();
 const SEG = LEN / (NP - 1);
 const E = rest[NP - 1];
 
+// ---- 立体のプラグ ----
+// 穴は紙から手前に向いている。プラグは手前（上）から降りてきて、刃をまっすぐ穴に差す。
+// 高さ z は刃の先の高さ（0 で面に触れる、負で穴に入っている）。少し斜め上から見るので、高さは画面の上へのずれ（OY 倍）になる。
+const OY = .85, PL = 58, BT = 52;                  // 刃の長さ・胴の厚み
+const ANG = Math.atan2(D.y, D.x);                  // 穴の向き
+const SLOTS = P.holes.map(d => { const v = d.match(/-?[\d.]+/g).map(Number), q = [];
+  for (let i = 0; i < 8; i += 2) q.push({x: v[i], y: v[i + 1]});
+  const cx = q.reduce((a, b) => a + b.x, 0) / 4, cy = q.reduce((a, b) => a + b.y, 0) / 4;
+  const u = x => (x.x - cx) * Math.cos(-ANG) - (x.y - cy) * Math.sin(-ANG), w = x => (x.x - cx) * Math.sin(-ANG) + (x.y - cy) * Math.cos(-ANG);
+  const lc = {u: (cx - OUT.x) * Math.cos(-ANG) - (cy - OUT.y) * Math.sin(-ANG), v: (cx - OUT.x) * Math.sin(-ANG) + (cy - OUT.y) * Math.cos(-ANG)};
+  return {c: lc, pts: q.map(x => ({u: u(x) * .86, v: w(x) * .78}))}; });   // 刃の断面は穴より少し小さい
+const FOOT = (() => { const a = 50, b = 66, r = 20, out = [];   // 胴の底の形（角の丸い長方形）
+  for (const [cx, cy, a0] of [[a - r, b - r, 0], [-a + r, b - r, 90], [-a + r, -b + r, 180], [a - r, -b + r, 270]])
+    for (let k = 0; k <= 6; k++) { const t = (a0 + k * 15) * Math.PI / 180; out.push({u: cx + r * Math.cos(t), v: cy + r * Math.sin(t)}); }
+  return out; })();
+const world = (p, l, z) => { const c = Math.cos(p.a), s = Math.sin(p.a);
+  return {x: p.x + l.u * c - l.v * s, y: p.y + l.u * s + l.v * c - z * OY}; };
+const poly = pts => "M" + pts.map(q => `${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join(" L") + " Z";
+function hull(pts) {   // 凸包（胴の側面・刃の柱を1枚の形にする）
+  pts = [...pts].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cr = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x), lo = [], up = [];
+  for (const q of pts) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of pts.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function drawPlug(p) {
+  const zb = p.z + PL, zt = zb + BT;
+  for (const q of plugPaint) q.c = world(p, {u: 0, v: 0}, zb);
+  // 影：紙（コンセントの面）に落ちる。高いほど大きくぼけて薄い
+  const h = Math.max(0, zb);
+  el.pshadow.setAttribute("d", poly(FOOT.map(l => { const q = world(p, l, 0); return {x: q.x + h * .25, y: q.y + h * .2}; })));
+  el.pshadow.setAttribute("fill-opacity", (.32 * Math.max(.15, 1 - h / 420)).toFixed(3));
+  el.pblur.setAttribute("stdDeviation", (3 + h * .12).toFixed(1));
+  // 刃：面より下（穴の中）は見えない
+  SLOTS.forEach((sl, i) => {
+    const z0 = Math.max(0, p.z), at = z => sl.pts.map(l => world(p, {u: sl.c.u + l.u, v: sl.c.v + l.v}, z));
+    const d = zb > z0 ? poly(hull([...at(z0), ...at(zb)])) : "";
+    el.pr[i].setAttribute("d", d); el.pshade[i].setAttribute("d", d);
+  });
+  const bottom = FOOT.map(l => world(p, l, zb)), top = FOOT.map(l => world(p, l, zt));
+  const side = poly(hull([...bottom, ...top]));
+  el.pside.setAttribute("d", side); el.pshade[2].setAttribute("d", side);
+  el.pb.setAttribute("d", poly(top));
+  const c = world(p, {u: 0, v: 0}, zt); el.psleeve.setAttribute("cx", c.x); el.psleeve.setAttribute("cy", c.y);
+}
+
 // ---- 状態 ----
-const ctl = {speed: 1, stiff: .015, grav: 900, bounce: .45, loop: true, flow: false, paused: false};
+const ctl = {speed: 1, stiff: .015, grav: 900, bounce: .45, loop: true, flow: false, paused: false, cam: "intro", pre: 1.2};
 let S;
 function reset(fromStart) {
-  const plug = fromStart || !S ? {s: -650, q: 420, th: -50, vs: 0, vq: 0, vth: 0} : S.plug;
-  S = {t: 0, acc: 0, clicked: false, tClick: Infinity, plug, pts: S && !fromStart ? S.pts : null, conn: initConns(), checkT: BLOCKS.map(() => Infinity)};
+  const plug = fromStart || !S ? {x: OUT.x - 1000, y: OUT.y - 120, z: 430, a: ANG - .7, vx: 0, vy: 0, vz: 0, va: 0} : S.plug;
+  S = {t: 0, acc: 0, wait: ctl.pre, clicked: false, tClick: Infinity, plug, pts: S && !fromStart ? S.pts : null, conn: initConns(), checkT: BLOCKS.map(() => Infinity)};
   if (!S.pts) { const B = attach(); S.pts = rest.map((r, i) => { const p = shapeTarget(i, rest[0], B); return {x: p.x, y: p.y, px: p.x, py: p.y}; }); }
 }
-function attach() {   // プラグに付いたケーブルの端
-  const {s, q, th} = S ? S.plug : {s: -650, q: 420, th: -50};
-  const a = th * Math.PI / 180, dx = E.x - C.x, dy = E.y - C.y;
-  return {x: C.x + dx * Math.cos(a) - dy * Math.sin(a) + D.x * s + Nn.x * q, y: C.y + dx * Math.sin(a) + dy * Math.cos(a) + D.y * s + Nn.y * q};
+function attach() {   // プラグに付いたケーブルの端：胴の上面の真ん中
+  const p = S ? S.plug : {x: OUT.x - 1000, y: OUT.y - 120, z: 430, a: ANG - .7};
+  return world(p, {u: 0, v: 0}, p.z + PL + BT);
 }
 function shapeTarget(i, A, B) {  // 元の形を、両端に合わせて回して伸び縮みさせた位置
   const r0 = rest[0], r1 = rest[NP - 1], vx = r1.x - r0.x, vy = r1.y - r0.y, wx = B.x - A.x, wy = B.y - A.y;
@@ -388,25 +452,27 @@ function stepBoard(tk) {
 
 // プラグが向かう先。// プラグが向かう先。バネの固さ（ω）と減衰（ζ）も段ごとに変える
 function plugTarget(t) {
-  const U = unplugAt();
-  if (t >= U + .3) return {s: -240, q: 70, th: -14, w: 7, z: .4};
-  if (t < .55) return {s: -380, q: 140, th: -22, w: 6, z: .35};
-  if (t < 1.3) return {s: -170, q: 0, th: 0, w: 9, z: .45};
-  if (t < 1.62) return {s: 52, q: 0, th: 0, w: 16, z: .7};
-  return {s: 132, q: 0, th: 0, w: 22, z: 1 - ctl.bounce};
+  const U = unplugAt(), X = OUT.x, Y = OUT.y;
+  if (t >= U + .3) return {x: X - 420, y: Y - 60, z: 320, a: ANG - .4, w: 7, d: .45};          // まっすぐ上へ抜いて、離す
+  if (t < .55) return {x: X - 560, y: Y - 40, z: 380, a: ANG - .5, w: 6, d: .35};              // 持ち上げて運ぶ
+  if (t < 1.3) return {x: X, y: Y, z: 150, a: ANG, w: 8, d: .5};                               // 穴の真上へ。向きをそろえる
+  if (t < 1.62) return {x: X, y: Y, z: -6, a: ANG, w: 14, d: .7};                              // 降ろす：刃の先が面に当たる
+  if (!S.clicked && t < 2.0) return {x: X, y: Y, z: -PL * .62 * ease.inOut(seg(t, 1.62, 2.0)), a: ANG, w: 30, d: 1};   // 穴の中の手ごたえ：じわっと押す
+  if (!S.clicked) return {x: X, y: Y, z: -PL - 30, a: ANG, w: 26, d: .9};                    // 抜けて、奥までカチッ
+  return {x: X, y: Y, z: -PL, a: ANG, w: 22, d: 1 - ctl.bounce};
 }
 const unplugAt = () => S.tClick + (ctl.flow ? T_PULSE + PULSE_END + HOLD : 2.4);
 
 function step() {
   const t = S.t, p = S.plug, T = plugTarget(t);
-  const k = (T.w * H) ** 2, c = 2 * T.z * T.w * H;
-  p.vs += (T.s - p.s) * k - p.vs * c; p.vq += (T.q - p.q) * k - p.vq * c; p.vth += (T.th - p.th) * k - p.vth * c;
-  p.s += p.vs; p.q += p.vq; p.th += p.vth;
+  const k = (T.w * H) ** 2, c = 2 * T.d * T.w * H;
+  for (const [x, v] of [["x", "vx"], ["y", "vy"], ["z", "vz"], ["a", "va"]]) { p[v] += (T[x] - p[x]) * k - p[v] * c; p[x] += p[v]; }
   const unplugging = t >= unplugAt() + .3;
-  if (t >= 1.3 && t < 1.62 && p.s > 50) { p.s = 50; p.vs = -Math.abs(p.vs) * .2; }   // 刃が面に当たって止まる
-  if (p.s > 30) { p.q *= .7; p.th *= .7; p.vq *= .5; p.vth *= .5; }                     // 穴が向きをそろえる
-  if (p.s > 140) { p.s = 140; p.vs = -Math.abs(p.vs) * .25; }                           // 奥に当たって跳ね返る
-  if (!S.clicked && !unplugging && p.s >= 124) { S.clicked = true; S.tClick = t; }
+  if (!unplugging && p.z < 60) {   // 穴の真上に寄せ、向きをそろえる（刃が入る前に）
+    p.x += (OUT.x - p.x) * .25; p.y += (OUT.y - p.y) * .25; p.a += (ANG - p.a) * .25; p.vx *= .6; p.vy *= .6; p.va *= .6; }
+  if (!unplugging && t < 1.62 && p.z < 0) { p.z = 0; p.vz = Math.abs(p.vz) * .2; }   // 刃の先が面に当たって止まる
+  if (p.z < -PL) { p.z = -PL; p.vz = Math.abs(p.vz) * .25; }                          // 胴の底が面に当たって跳ね返る
+  if (!S.clicked && !unplugging && p.z <= -PL + 5) { S.clicked = true; S.tClick = t; }
 
   // ひも：慣性・重力・元の形へ戻る力・長さの制約
   const A = rest[0], B = attach(), g = ctl.grav * H * H, pts = S.pts;
@@ -444,7 +510,10 @@ function ropePath(pts) {
 }
 function render() {
   const t = S.t, p = S.plug, tk = t - S.tClick, U = unplugAt();
-  el.plug.setAttribute("transform", `translate(${(D.x * p.s + Nn.x * p.q).toFixed(2)} ${(D.y * p.s + Nn.y * p.q).toFixed(2)}) rotate(${p.th.toFixed(3)} ${C.x} ${C.y})`);
+  drawPlug(p);
+  // 押し込まれたコンセントが少し奥へ沈み、戻る
+  const rk = tk >= 0 ? Math.sin(seg(tk, 0, .12) * Math.PI / 2) * (1 - seg(tk, .12, .5)) * .04 : 0;
+  el.socket.setAttribute("transform", rk ? `translate(${OUT.x} ${OUT.y}) scale(${(1 - rk).toFixed(4)}) translate(${-OUT.x} ${-OUT.y})` : "");
   el.rope.setAttribute("d", ropePath(S.pts));
 
   // ロゴを上へ寄せる量
@@ -459,7 +528,7 @@ function render() {
   el.flood.setAttribute("cx", o.x); el.flood.setAttribute("cy", o.y); el.flood.setAttribute("r", R.toFixed(1));
   el.flood.setAttribute("fill", mix(COL.orange, COL.orange, 0));
   for (const q of paint) {
-    const c = toScreen(q.c), dist = Math.hypot(c.x - o.x, c.y - o.y), a = clamp((R - dist + 60) / 260);
+    const c = toScreen(q.c), dist = Math.hypot(c.x - o.x, c.y - o.y), a = R > 0 ? clamp((R - dist + 60) / 260) : 0;
     const col = mix(COL[q.base], COL.on, a);
     if (q.stroke) q.e.setAttribute("stroke", col);
     else { q.e.setAttribute("fill", col); if (q.both) q.e.setAttribute("stroke", col); }
@@ -469,8 +538,9 @@ function render() {
   const u = seg(tk, 0, .35);
   sparkLines.forEach((l, i) => {
     const a = i / sparkLines.length * Math.PI * 2 + .4, r0 = 50 + u * 70, r1 = 90 + u * 170;
-    l.setAttribute("x1", F.x + Math.cos(a) * r0); l.setAttribute("y1", F.y + Math.sin(a) * r0);
-    l.setAttribute("x2", F.x + Math.cos(a) * r1); l.setAttribute("y2", F.y + Math.sin(a) * r1);
+    const r2 = 1.6;   // 胴のまわりに出す
+    l.setAttribute("x1", OUT.x + Math.cos(a) * r0 * r2); l.setAttribute("y1", OUT.y - 40 + Math.sin(a) * r0 * r2);
+    l.setAttribute("x2", OUT.x + Math.cos(a) * r1 * r2); l.setAttribute("y2", OUT.y - 40 + Math.sin(a) * r1 * r2);
     l.setAttribute("stroke", COL.spark); l.setAttribute("opacity", tk >= 0 && u < 1 ? (1 - u).toFixed(2) : 0);
   });
   el.halo.setAttribute("fill", COL.spark);
@@ -537,6 +607,7 @@ function render() {
   });
   const along = (pts, f) => { const fi = clamp(f) * (pts.length - 1), i0 = Math.floor(fi), i1 = Math.min(pts.length - 1, i0 + 1), r = fi - i0;
     return {x: pts[i0].x + (pts[i1].x - pts[i0].x) * r, y: pts[i0].y + (pts[i1].y - pts[i0].y) * r}; };
+  const pulses = [];
   S.conn.forEach((c, j) => {
     const g = GEO[j], kc = CONNS[j].kind === "route" ? rtC : onC, vv = vis(CONNS[j].from).toFixed(2), p = c.p;
     el.cabs[j].setAttribute("d", ropePath(c.pts)); el.cabs[j].setAttribute("stroke", kc); el.cabs[j].setAttribute("opacity", vv);
@@ -556,7 +627,7 @@ function render() {
     });
     const w = PULSE[j].find(([a, b]) => pt >= a && pt < b), dot = el.pls[j];
     dot.setAttribute("fill", COL.spark); dot.setAttribute("opacity", w ? 1 : 0);
-    if (w) { const q = along(c.pts, ease.inOut((pt - w[0]) / (w[1] - w[0]))); dot.setAttribute("cx", q.x); dot.setAttribute("cy", q.y); }
+    if (w) { const q = along(c.pts, ease.inOut((pt - w[0]) / (w[1] - w[0]))); dot.setAttribute("cx", q.x); dot.setAttribute("cy", q.y); pulses.push(q); }
   });
   // 上の道具：検査は通ると緑に、保存は最後に押される
   const chk = seg(tk, T_CHECK, T_CHECK + .2), sv = Math.sin(seg(pt, T_SAVE, T_SAVE + .35) * Math.PI);
@@ -584,19 +655,96 @@ function render() {
   el.ret.setAttribute("stroke", reC); el.ret.setAttribute("opacity", ro); el.retlbl.setAttribute("fill", reC); el.retlbl.setAttribute("opacity", ro);
   const rw = pt >= RET[0] && pt < RET[1];
   el.retpls.setAttribute("fill", COL.spark); el.retpls.setAttribute("opacity", rw ? 1 : 0);
-  if (rw) { const q = el.ret.getPointAtLength(RET_LEN * ease.inOut((pt - RET[0]) / (RET[1] - RET[0]))); el.retpls.setAttribute("cx", q.x); el.retpls.setAttribute("cy", q.y); }
+  if (rw) { const q = el.ret.getPointAtLength(RET_LEN * ease.inOut((pt - RET[0]) / (RET[1] - RET[0]))); el.retpls.setAttribute("cx", q.x); el.retpls.setAttribute("cy", q.y); pulses.push(q); }
+
+  moveCamera(t, tk, U, toScreen, pulses);
 
   // 段の表示
   const ph = t >= U ? 5 : tk >= T_PULSE && ctl.flow ? 4 : tk >= 1.6 && ctl.flow ? 3 : tk >= 0 ? 2 : t >= 1.3 ? 1 : 0;
   document.querySelectorAll("#steps li").forEach(li => li.classList.toggle("on", +li.dataset.p === ph));
 }
 
+// ---- カメラ ----
+// 舞台（viewBox）のうち、どこをどの倍率で映すかを決め、バネで追う。時刻は物理と同じ S.t を使う（速さ・一時停止に従う）
+const HOME = {x: VB.x + VB.w / 2, y: VB.y + VB.h / 2, z: 1};
+const svgMain = stage.querySelector("svg");
+const cam = {x: HOME.x, y: HOME.y, z: 1, vx: 0, vy: 0, vz: 0, t: -1, kicked: false};
+function camTarget(t, tk, U, toScreen, pulses) {
+  const home = {...HOME, w: 2.6};
+  if (ctl.cam === "fixed" || reduce) return {...home, w: 40};   // 動きを減らす設定のときは全体のまま
+  const o = toScreen(OUT), f = toScreen({x: OUT.x, y: OUT.y - 70}), p = S.plug;
+  const plug = toScreen(world(p, {u: 0, v: 0}, p.z + PL));
+  if (ctl.cam === "dolly") {   // 差し込むまで少しずつ寄り、広がりと一緒に戻る
+    const k = ease.inOut(seg(t, .2, 1.7)) * (1 - ease.inOut(seg(tk, .15, 1.4))) * (1 - seg(t, U, U + .6));
+    return {x: home.x + (f.x - home.x) * .55 * k, y: home.y + (f.y - home.y) * .55 * k, z: 1 + .45 * k, w: 3.5};
+  }
+  if (ctl.cam === "intro" && !(tk >= 0) && t < U) {
+    if (t < .7) return {...home, w: 3};                                                     // まず全体
+    if (t < 1.3) return {x: o.x - 120, y: o.y - 120, z: 2, w: 2.2};                          // コンセントへゆっくり寄る
+    return {x: f.x, y: f.y, z: 3.1, w: 4};                                             // 当たる：面に寄る
+  }
+  // 寄って引く・手持ち（全体から寄るも、カチッのあとは同じ）
+  if (t >= U) return t < U + 1.2 ? {x: o.x - 60, y: o.y - 160, z: 2.3, w: 4} : home;   // 抜くところに寄る
+  if (!(tk >= 0)) {
+    if (t < 1.3) return {x: (plug.x + o.x) / 2, y: (plug.y + o.y) / 2, z: 2.2, w: 3.5};   // 狙う：プラグと穴を一緒に
+    return {x: f.x, y: f.y, z: 3.4, w: 6};                                          // 当たる：面に寄る
+  }
+  if (tk < .22) return {x: f.x, y: f.y, z: 3.6, w: 10};
+  if (!ctl.flow || tk < T_CONN) return {...home, w: 3.4};                                               // 広がりに合わせて全体へ
+  if (tk < T_CHECK) {   // つないでいるケーブルを追う
+    const j = CONNS.reduce((a, c, i) => tk >= T_CONN + c.at ? i : a, 0), g = GEO[j];
+    return {x: (g.A.x + g.face) / 2, y: (g.A.y + g.sy) / 2 - 40, z: 2, w: 3};
+  }
+  if (tk < T_PULSE) return {x: 3150, y: -560, z: 2.4, w: 3};                               // 検査 OK
+  if (pulses.length) {  // 光の粒（分かれたときは真ん中）
+    const q = pulses.reduce((a, b) => ({x: a.x + b.x / pulses.length, y: a.y + b.y / pulses.length}), {x: 0, y: 0});
+    return {x: q.x, y: q.y, z: pulses.length > 1 ? 1.55 : 1.9, w: 2.6};
+  }
+  const pt = tk - T_PULSE;
+  if (pt >= CROSS[0] && pt < RET[1] + .3) return {x: (RA.x + RB.x) / 2, y: -80, z: 1.8, w: 3};   // 不合格と差し戻し
+  if (pt < T_SAVE) { const b = BLOCKS.findIndex((_, i) => WORK[i].some(([a, c]) => pt >= a && pt < c + .2));   // 作業中の段
+    if (b >= 0) return {x: BLOCKS[b].x, y: BLOCKS[b].y, z: 1.9, w: 2.6}; }
+  return home;
+}
+function moveCamera(t, tk, U, toScreen, pulses) {
+  let tg = camTarget(t, tk, U, toScreen, pulses);
+  if (ctl.cam === "hand") {   // 人が持っているような揺れ
+    const a = 1 / tg.z;
+    tg = {...tg, x: tg.x + (Math.sin(t * 1.3) * 22 + Math.sin(t * 3.1 + 1) * 9) * a / .5, y: tg.y + (Math.sin(t * 1.7 + 2) * 16 + Math.sin(t * 2.6) * 8) * a / .5};
+  }
+  let dt = t - cam.t;
+  if (dt < 0 || dt > .5 || cam.t < 0 || reduce) { Object.assign(cam, {x: tg.x, y: tg.y, z: tg.z, vx: 0, vy: 0, vz: 0, kicked: false}); dt = 0; }
+  cam.t = t;
+  if (tk >= 0 && !cam.kicked) { cam.kicked = true; if (ctl.cam !== "fixed" && ctl.cam !== "dolly") cam.vz += 2.4; }   // カチッで一瞬押し込む
+  if (!(tk >= 0)) cam.kicked = false;
+  for (let h = Math.min(dt, 1 / 60); dt > 1e-6; dt -= h, h = Math.min(dt, 1 / 60)) {
+    const w = tg.w;
+    cam.vx += (w * w * (tg.x - cam.x) - 2 * w * cam.vx) * h; cam.x += cam.vx * h;
+    cam.vy += (w * w * (tg.y - cam.y) - 2 * w * cam.vy) * h; cam.y += cam.vy * h;
+    cam.vz += (w * w * (tg.z - cam.z) - 2 * w * cam.vz) * h; cam.z += cam.vz * h;
+  }
+  const z = Math.max(1, cam.z), w = VB.w / z, h = VB.h / z;
+  const x = clamp(cam.x - w / 2, VB.x, VB.x + VB.w - w), y = clamp(cam.y - h / 2, VB.y, VB.y + VB.h - h);
+  svgMain.setAttribute("viewBox", `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
+  camRect.setAttribute("x", x); camRect.setAttribute("y", y); camRect.setAttribute("width", w); camRect.setAttribute("height", h);
+  camZ.textContent = z.toFixed(2);
+  // 下の知らせは画面に貼る（カメラが寄っても同じ大きさ・同じ位置）
+  el.toast.setAttribute("transform", `translate(${(x + w / 2).toFixed(1)} ${(y + h - 101 / z).toFixed(1)}) scale(${(1 / z).toFixed(4)})`);
+}
+// 全体図：同じ絵を小さく使い回し、カメラの枠を重ねる
+const ov = $("overview");
+ov.setAttribute("viewBox", `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+ov.innerHTML = `<use href="#shake"/><rect id="camrect" fill="none" stroke="var(--fg)" stroke-width="26" stroke-dasharray="70 40" rx="16"/>`;
+const camRect = $("camrect"), camZ = $("camz");
+document.querySelectorAll('input[name="cam"]').forEach(r => r.addEventListener("change", e => { ctl.cam = e.target.value; }));
+
 // ---- 回す ----
 let last = 0;
 function frame(now) {
   const dt = Math.min(1 / 30, (now - last) / 1000 || 0); last = now;
   if (!ctl.paused) {
-    S.acc += dt * ctl.speed;
+    if (S.wait > 0) S.wait -= dt * ctl.speed;   // 始める前の間：止まったロゴを見せる
+    else S.acc += dt * ctl.speed;
     while (S.acc >= H) { step(); S.acc -= H; }
     if (S.t >= unplugAt() + 2.2) { if (ctl.loop) reset(false); }
     if (!ctl.loop && S.t >= unplugAt()) S.t = Math.min(S.t, unplugAt());
@@ -605,9 +753,9 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-function staticPose() {   // 動きを減らす設定のとき：元のロゴのまま止める
-  S.plug = {s: 0, q: 0, th: 0, vs: 0, vq: 0, vth: 0}; S.t = 1.0;
-  S.pts = rest.map(r => ({x: r.x, y: r.y, px: r.x, py: r.y}));
+function staticPose() {   // 動きを減らす設定のとき：差した姿で止める
+  S.plug = {x: OUT.x, y: OUT.y, z: -PL, a: ANG, vx: 0, vy: 0, vz: 0, va: 0}; S.t = 1.0;
+  const B = attach(); S.pts = rest.map((r, i) => { const q = shapeTarget(i, rest[0], B); return {x: q.x, y: q.y, px: q.x, py: q.y}; });
   render();
 }
 
@@ -618,6 +766,7 @@ bindRange("speed", "speed", v => v.toFixed(2));
 bindRange("stiff", "stiff", v => v.toFixed(3));
 bindRange("grav", "grav", v => String(v));
 bindRange("bounce", "bounce", v => v.toFixed(2));
+bindRange("pre", "pre", v => v.toFixed(1));
 $("loop").addEventListener("change", e => { ctl.loop = e.target.checked; if (ctl.loop && S.t >= unplugAt()) S.t = unplugAt(); });
 $("flow").addEventListener("change", e => { ctl.flow = e.target.checked; });
 $("restart").addEventListener("click", () => { reset(true); if (reduce) staticPose(); });
