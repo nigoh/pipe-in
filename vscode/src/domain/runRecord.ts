@@ -29,10 +29,17 @@ export interface RedResult {
   status: 'red' | 'blocked';
   summary: string;
 }
+/** 検証の不合格で、直す点の1つ。 */
+export interface VerdictFailure {
+  criterion: string;
+  detail: string;
+}
 export interface Verdict {
   attempt: number | null;
   status: VerdictStatus;
   summary: string;
+  /** 直す点。無い・読めない記録では空 */
+  failures: VerdictFailure[];
 }
 
 /** トークン数（本体の Tokens のうち、表に出すもの）。 */
@@ -212,6 +219,7 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (val
       attempt: numOrNull(entry.attempt),
       status: verdict.status as VerdictStatus,
       summary: str(verdict.summary),
+      failures: parseFailures(verdict.failures),
     });
     return;
   }
@@ -220,6 +228,18 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (val
     record.redResults.push({ status: result.status as RedResult['status'], summary: str(result.summary) });
   }
   // command_check を持つ要素・知らない形の要素は捨てる
+}
+
+/** 判定の failures を読む。配列でなければ空。criterion か detail のどちらかが文字列の要素だけ残し、ない側は空の文字にする。 */
+function parseFailures(value: unknown): VerdictFailure[] {
+  if (!Array.isArray(value)) return [];
+  const failures: VerdictFailure[] = [];
+  for (const item of value) {
+    if (!isJsonObject(item)) continue;
+    if (typeof item.criterion !== 'string' && typeof item.detail !== 'string') continue;
+    failures.push({ criterion: str(item.criterion), detail: str(item.detail) });
+  }
+  return failures;
 }
 
 // ---- 段の並び・確認待ち（パイプを持つようになってからの記録） --------------------------

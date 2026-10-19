@@ -2,7 +2,7 @@
 import { artifactDefsFor, buildArtifactList, isArtifactReady } from './artifacts.ts';
 import type { ArtifactEntry, ArtifactName } from './artifacts.ts';
 import { isDevRecord, parseRunRecord } from './runRecord.ts';
-import type { RunRecord, StageDef, StageRun, TokenCounts, UsageSummary } from './runRecord.ts';
+import type { RunRecord, StageDef, StageRun, TokenCounts, UsageSummary, VerdictFailure } from './runRecord.ts';
 import { STAGE_LABELS } from './stage.ts';
 import type { DevStage, Stage } from './stage.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
@@ -115,6 +115,97 @@ export interface PipelineView {
   pendingReview: PendingReviewView | null;
   /** 注意（state.json の warnings） */
   warnings: string[];
+  /** 検証の不合格（開発フローだけ。古い順） */
+  sendBacks: SendBack[];
+  /** 確認の直し（開発フローもパイプも。古い順） */
+  revisions: ReviseNote[];
+}
+
+/** 検証の不合格1件。 */
+export interface SendBack {
+  /** 何回目の検証か（記録の attempt。無ければ不合格の並びの番号） */
+  attempt: number;
+  /** 戻り先の段（常に 'implement'）と表示の名前 */
+  target: Stage;
+  targetLabel: string;
+  summary: string;
+  failures: VerdictFailure[];
+  /** 不合格のあとに実装のやり直しがあれば true。不合格のまま終わったなら false */
+  sentBack: boolean;
+}
+
+/** 確認の直し（revise）1件。 */
+export interface ReviseNote {
+  stage: Stage;
+  /** 段の表示の名前 */
+  label: string;
+  /** その段の何回目の修正の依頼か（1から） */
+  attempt: number;
+  feedback: string | null;
+}
+
+/** 節を選んだときに出す理由。 */
+export type NodeReasons =
+  | { kind: 'sendBack'; items: SendBack[] }
+  | { kind: 'revise'; stage: Stage; label: string; items: ReviseNote[] };
+
+const REVIEW_NODE_PREFIX = 'review:';
+
+/** 検証の不合格を古い順に並べる。パイプの記録では空（パイプの check の戻り先は記録に残らない）。 */
+function buildSendBacks(record: RunRecord, labels: Readonly<Record<Stage, string>>): SendBack[] {
+  if (!isDevRecord(record)) return [];
+  const implementAttempts = record.stageRuns.filter((r) => r.stage === 'implement').map((r) => r.attempt);
+  const sendBacks: SendBack[] = [];
+  record.verdicts.forEach((verdict, index) => {
+    if (verdict.status !== 'fail') return;
+    const attempt = verdict.attempt;
+    const sentBack =
+      attempt === null
+        ? index < record.verdicts.length - 1
+        : implementAttempts.some((a) => a !== null && a > attempt);
+    sendBacks.push({
+      attempt: attempt ?? sendBacks.length + 1,
+      target: 'implement',
+      targetLabel: labels.implement ?? 'implement',
+      summary: verdict.summary,
+      failures: verdict.failures,
+      sentBack,
+    });
+  });
+  return sendBacks;
+}
+
+/** 確認の直し（revise）を古い順に並べ、段ごとに回数を数える。 */
+function buildRevisions(record: RunRecord, labels: Readonly<Record<Stage, string>>): ReviseNote[] {
+  const counts = new Map<Stage, number>();
+  const notes: ReviseNote[] = [];
+  for (const review of record.reviews) {
+    if (review.action !== 'revise') continue;
+    const attempt = (counts.get(review.stage) ?? 0) + 1;
+    counts.set(review.stage, attempt);
+    notes.push({ stage: review.stage, label: labels[review.stage] ?? review.stage, attempt, feedback: review.feedback });
+  }
+  return notes;
+}
+
+/** 理由を持つ（選べる）節の id。図に無い節は入れない。 */
+export function reasonNodeIds(view: PipelineView): NodeId[] {
+  const revised = new Set(view.revisions.map((r) => r.stage));
+  return view.nodes
+    .filter((n) => {
+      if (n.id === 'implement' || n.id === 'verdict') return view.sendBacks.length > 0;
+      return n.id.startsWith(REVIEW_NODE_PREFIX) && revised.has(n.id.slice(REVIEW_NODE_PREFIX.length));
+    })
+    .map((n) => n.id);
+}
+
+/** 節の理由。履歴の無い節（と図に無い節）は null。 */
+export function nodeReasons(view: PipelineView, nodeId: NodeId): NodeReasons | null {
+  if (!reasonNodeIds(view).includes(nodeId)) return null;
+  if (nodeId === 'implement' || nodeId === 'verdict') return { kind: 'sendBack', items: view.sendBacks };
+  const stage = nodeId.slice(REVIEW_NODE_PREFIX.length);
+  const items = view.revisions.filter((r) => r.stage === stage);
+  return { kind: 'revise', stage, label: view.stageLabels[stage] ?? stage, items };
 }
 
 /** 使用量の表の1行：段の実行1回分。metrics のない古い段の実行は tokens が null。 */
@@ -326,5 +417,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
         ? null
         : { ...record.pendingReview, label: stageLabels[record.pendingReview.stage] ?? record.pendingReview.stage },
     warnings: record.warnings,
+    sendBacks: buildSendBacks(record, stageLabels),
+    revisions: buildRevisions(record, stageLabels),
   };
 }

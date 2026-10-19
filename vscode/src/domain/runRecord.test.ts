@@ -48,3 +48,44 @@ test('AC-05: 段の実行・確認の結果・テスト先行の結果・判定�
   assert.equal(record.verdicts.length, 1);
   assert.equal(record.verdicts[0].status, 'pass');
 });
+
+// ---- D0016：検証の不合格の「直す点」（failures）を読む ----
+
+const failEntry = (failures?: unknown): object => ({
+  stage: 'test',
+  attempt: 1,
+  verdict: { status: 'fail', summary: '不合格', ...(failures === undefined ? {} : { failures }) },
+});
+
+test('D0016-AC-01: 不合格の判定の failures（criterion・detail）を読む', () => {
+  const record = parseRunRecord(
+    stateJson({ runs: [failEntry([{ criterion: 'AC-02', detail: '出力の先頭に BOM が無い' }, { criterion: 'AC-03', detail: '列の順が違う' }])] }),
+  );
+  assert.equal(record.verdicts.length, 1);
+  assert.deepEqual(record.verdicts[0].failures, [
+    { criterion: 'AC-02', detail: '出力の先頭に BOM が無い' },
+    { criterion: 'AC-03', detail: '列の順が違う' },
+  ]);
+});
+
+// 読めない形の failures。例外を投げず、読める要素だけを残す（片方だけ文字列なら、もう片方は空の文字列）
+const UNREADABLE_FAILURES: [string, unknown, { criterion: string; detail: string }[]][] = [
+  ['failures が無い', undefined, []],
+  ['null', null, []],
+  ['文字列', 'AC-02 が不合格', []],
+  ['数', 3, []],
+  ['配列でないオブジェクト', { criterion: 'AC-02', detail: 'd' }, []],
+  ['要素が数・文字列・null・空のオブジェクトだけ', [1, 'AC-02', null, {}], []],
+  ['要素の criterion・detail が文字列でない', [{ criterion: 1, detail: 2 }], []],
+  ['criterion だけ文字列', [{ criterion: 'AC-01' }], [{ criterion: 'AC-01', detail: '' }]],
+  ['detail だけ文字列', [{ detail: '直して' }], [{ criterion: '', detail: '直して' }]],
+  ['読めない要素の間の読める要素', [1, { criterion: 'AC-02', detail: 'd' }, null], [{ criterion: 'AC-02', detail: 'd' }]],
+];
+for (const [label, failures, expected] of UNREADABLE_FAILURES) {
+  test(`D0016-AC-02: failures が読めない形（${label}）でも例外を投げず、読める要素だけが残る`, () => {
+    const record = parseRunRecord(stateJson({ runs: [failEntry(failures)] }));
+    assert.equal(record.verdicts.length, 1);
+    assert.deepEqual(record.verdicts[0].failures, expected);
+    assert.equal(record.verdicts[0].summary, '不合格');
+  });
+}

@@ -77,7 +77,18 @@ const MARKS: Readonly<Record<PipelineNode['status'], string>> = {
   skipped: '–',
 };
 
-function renderNode(p: Placed): string {
+/** 節に対応する矢印の id（renderLoops の data-loop と同じ値）。 */
+function loopIdOf(id: NodeId): string {
+  return id.startsWith(REVIEW_PREFIX) ? `revise:${id.slice(REVIEW_PREFIX.length)}` : 'send-back';
+}
+
+/** 選べる節の印（キーボードで届き、押した状態を伝える）。 */
+function pickAttrs(id: NodeId): string {
+  const e = escapeHtml(id);
+  return ` data-reasons="${e}" data-reasons-loop="${escapeHtml(loopIdOf(id))}" tabindex="0" role="button" aria-pressed="false"`;
+}
+
+function renderNode(p: Placed, pickable: ReadonlySet<NodeId>): string {
   const { node, shape, y, h } = p;
   const status = NODE_STATUS_LABELS[node.status];
   const parts = [outline(p)];
@@ -96,7 +107,8 @@ function renderNode(p: Placed): string {
     parts.push(`<text class="node-label${strong}" x="${CX - hw + 12}" y="${y + h / 2 + 4}">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${CX + hw - 10}" y="${y + h / 2 + 4}" text-anchor="end">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
   }
-  return `<g class="node is-${node.status}" data-node="${escapeHtml(node.id)}"><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
+  const pick = pickable.has(node.id) ? pickAttrs(node.id) : '';
+  return `<g class="node is-${node.status}" data-node="${escapeHtml(node.id)}"${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
 }
 
 function renderEdges(placed: Placed[]): string {
@@ -151,13 +163,19 @@ const DEFS = `<defs>
 <marker id="mk-edge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
 <marker id="mk-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
 <marker id="mk-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head is-hot" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="mk-pick" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head is-pick" d="M0,0 L10,5 L0,10 z"/></marker>
 </defs>`;
 
-/** 節（開発フローは NODE_ORDER の11個、パイプは段の並び）を、縦の流れ図にする。 */
-export function renderFlowSvg(nodes: PipelineNode[]): string {
+/**
+ * 節（開発フローは NODE_ORDER の11個、パイプは段の並び）を、縦の流れ図にする。
+ * pickable は理由を持つ（押して選べる）節の id。空なら印を付けない。
+ */
+export function renderFlowSvg(nodes: PipelineNode[], pickable: ReadonlySet<NodeId> = new Set()): string {
   const placed = place(nodes);
+  // role="img" の中身は読み上げの対象から外れるので、押せる節があるときは group にする
+  const role = placed.some((p) => pickable.has(p.node.id)) ? 'group' : 'img';
   const last = placed.at(-1);
   const height = last ? last.y + last.h + TOP : TOP * 2;
   const summary = nodes.map((n) => `${n.label} ${NODE_STATUS_LABELS[n.status]}`).join('、');
-  return `<svg class="flow" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-label="${escapeHtml(`パイプラインの図：${summary}`)}">${DEFS}${renderEdges(placed)}${renderLoops(placed)}${placed.map(renderNode).join('')}</svg>`;
+  return `<svg class="flow" viewBox="0 0 ${WIDTH} ${height}" role="${role}" aria-label="${escapeHtml(`パイプラインの図：${summary}`)}">${DEFS}${renderEdges(placed)}${renderLoops(placed)}${placed.map((p) => renderNode(p, pickable)).join('')}</svg>`;
 }
