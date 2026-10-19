@@ -1,0 +1,391 @@
+{
+ "n_total": 200,
+ "conds": {
+  "A": {
+   "n": 50,
+   "eval1_pass": 42,
+   "eval1_ci": [
+    0.715,
+    0.917
+   ],
+   "eval_pass": 42,
+   "eval_ci": [
+    0.715,
+    0.917
+   ],
+   "eval_items_mean": 13.82,
+   "blind_mean": 0.794,
+   "blind_sd": 0.0643,
+   "blind_ci": [
+    0.7755,
+    0.8115
+   ],
+   "blind_pass": 32,
+   "blind_items": {
+    "instruction_following": 0.92,
+    "factual_accuracy": 0.79,
+    "clarity": 0.703,
+    "structure": 0.73,
+    "style": 0.828
+   },
+   "writes_mean": 1,
+   "writes_dist": {
+    "1": 50,
+    "2": 0,
+    "3": 0
+   },
+   "calls_judge": 0,
+   "cost_mean": 0.00317,
+   "by_topic": {
+    "pipein": {
+     "n": 17,
+     "eval_pass": 14,
+     "blind_mean": 0.772
+    },
+    "nightjar": {
+     "n": 17,
+     "eval_pass": 14,
+     "blind_mean": 0.787
+    },
+    "leafnote": {
+     "n": 16,
+     "eval_pass": 14,
+     "blind_mean": 0.825
+    }
+   }
+  },
+  "B": {
+   "n": 50,
+   "eval1_pass": 40,
+   "eval1_ci": [
+    0.67,
+    0.888
+   ],
+   "eval_pass": 50,
+   "eval_ci": [
+    0.929,
+    1.0
+   ],
+   "eval_items_mean": 14,
+   "blind_mean": 0.801,
+   "blind_sd": 0.0522,
+   "blind_ci": [
+    0.786,
+    0.815
+   ],
+   "blind_pass": 33,
+   "blind_items": {
+    "instruction_following": 0.97,
+    "factual_accuracy": 0.748,
+    "clarity": 0.708,
+    "structure": 0.743,
+    "style": 0.838
+   },
+   "writes_mean": 1.22,
+   "writes_dist": {
+    "1": 40,
+    "2": 9,
+    "3": 1
+   },
+   "calls_judge": 0,
+   "cost_mean": 0.00351,
+   "by_topic": {
+    "pipein": {
+     "n": 17,
+     "eval_pass": 17,
+     "blind_mean": 0.768
+    },
+    "nightjar": {
+     "n": 17,
+     "eval_pass": 17,
+     "blind_mean": 0.812
+    },
+    "leafnote": {
+     "n": 16,
+     "eval_pass": 16,
+     "blind_mean": 0.825
+    }
+   }
+  },
+  "C": {
+   "n": 50,
+   "eval1_pass": 41,
+   "eval1_ci": [
+    0.692,
+    0.902
+   ],
+   "eval_pass": 48,
+   "eval_ci": [
+    0.865,
+    0.989
+   ],
+   "eval_items_mean": 13.96,
+   "blind_mean": 0.8225,
+   "blind_sd": 0.0439,
+   "blind_ci": [
+    0.8095,
+    0.8345
+   ],
+   "blind_pass": 43,
+   "blind_items": {
+    "instruction_following": 0.955,
+    "factual_accuracy": 0.823,
+    "clarity": 0.733,
+    "structure": 0.757,
+    "style": 0.845
+   },
+   "writes_mean": 1.48,
+   "writes_dist": {
+    "1": 31,
+    "2": 14,
+    "3": 5
+   },
+   "calls_judge": 74,
+   "cost_mean": 0.05037,
+   "by_topic": {
+    "pipein": {
+     "n": 17,
+     "eval_pass": 16,
+     "blind_mean": 0.803
+    },
+    "nightjar": {
+     "n": 17,
+     "eval_pass": 16,
+     "blind_mean": 0.826
+    },
+    "leafnote": {
+     "n": 16,
+     "eval_pass": 16,
+     "blind_mean": 0.839
+    }
+   }
+  },
+  "D": {
+   "n": 50,
+   "eval1_pass": 41,
+   "eval1_ci": [
+    0.692,
+    0.902
+   ],
+   "eval_pass": 50,
+   "eval_ci": [
+    0.929,
+    1.0
+   ],
+   "eval_items_mean": 14,
+   "blind_mean": 0.821,
+   "blind_sd": 0.0486,
+   "blind_ci": [
+    0.8075,
+    0.8345
+   ],
+   "blind_pass": 38,
+   "blind_items": {
+    "instruction_following": 0.97,
+    "factual_accuracy": 0.79,
+    "clarity": 0.728,
+    "structure": 0.748,
+    "style": 0.87
+   },
+   "writes_mean": 1.52,
+   "writes_dist": {
+    "1": 31,
+    "2": 12,
+    "3": 7
+   },
+   "calls_judge": 76,
+   "cost_mean": 0.0518,
+   "by_topic": {
+    "pipein": {
+     "n": 17,
+     "eval_pass": 17,
+     "blind_mean": 0.799
+    },
+    "nightjar": {
+     "n": 17,
+     "eval_pass": 17,
+     "blind_mean": 0.825
+    },
+    "leafnote": {
+     "n": 16,
+     "eval_pass": 16,
+     "blind_mean": 0.841
+    }
+   }
+  }
+ },
+ "pairs": [
+  {
+   "pair": "A vs B",
+   "eval_rate_diff": -0.16,
+   "p_eval": 0.00577,
+   "blind_diff": -0.007,
+   "blind_diff_ci": [
+    -0.03,
+    0.0155
+   ],
+   "cliffs_delta": -0.026,
+   "p_blind": 0.58627,
+   "p_eval_holm": 0.03462,
+   "p_blind_holm": 1.0
+  },
+  {
+   "pair": "A vs C",
+   "eval_rate_diff": -0.12,
+   "p_eval": 0.09165,
+   "blind_diff": -0.0285,
+   "blind_diff_ci": [
+    -0.05,
+    -0.0065
+   ],
+   "cliffs_delta": -0.252,
+   "p_blind": 0.01285,
+   "p_eval_holm": 0.36659,
+   "p_blind_holm": 0.0771
+  },
+  {
+   "pair": "A vs D",
+   "eval_rate_diff": -0.16,
+   "p_eval": 0.00577,
+   "blind_diff": -0.027,
+   "blind_diff_ci": [
+    -0.0495,
+    -0.0045
+   ],
+   "cliffs_delta": -0.236,
+   "p_blind": 0.02305,
+   "p_eval_holm": 0.03462,
+   "p_blind_holm": 0.11524
+  },
+  {
+   "pair": "B vs C",
+   "eval_rate_diff": 0.04,
+   "p_eval": 0.49495,
+   "blind_diff": -0.0215,
+   "blind_diff_ci": [
+    -0.04,
+    -0.0025
+   ],
+   "cliffs_delta": -0.251,
+   "p_blind": 0.03485,
+   "p_eval_holm": 1.0,
+   "p_blind_holm": 0.13939
+  },
+  {
+   "pair": "B vs D",
+   "eval_rate_diff": 0.0,
+   "p_eval": 1.0,
+   "blind_diff": -0.02,
+   "blind_diff_ci": [
+    -0.04,
+    0.0
+   ],
+   "cliffs_delta": -0.21,
+   "p_blind": 0.059,
+   "p_eval_holm": 1.0,
+   "p_blind_holm": 0.17699
+  },
+  {
+   "pair": "C vs D",
+   "eval_rate_diff": -0.04,
+   "p_eval": 0.49495,
+   "blind_diff": 0.0015,
+   "blind_diff_ci": [
+    -0.0165,
+    0.0195
+   ],
+   "cliffs_delta": 0.016,
+   "p_blind": 0.9172,
+   "p_eval_holm": 1.0,
+   "p_blind_holm": 1.0
+  }
+ ],
+ "factorial_eval_pass": {
+  "eval_main": 0.1,
+  "p_eval": 0.0022,
+  "judge_main": 0.06,
+  "p_judge": 0.1016,
+  "interaction": -0.12,
+  "p_interaction": 0.1026
+ },
+ "factorial_blind": {
+  "eval_main": 0.0027,
+  "p_eval": 0.7259,
+  "judge_main": 0.0242,
+  "p_judge": 0.001,
+  "interaction": -0.0085,
+  "p_interaction": 0.5795
+ },
+ "factorial_eval1": {
+  "eval_main": -0.02,
+  "p_eval": 0.8536,
+  "judge_main": -0.0,
+  "p_judge": 1.0,
+  "interaction": 0.04,
+  "p_interaction": 0.8542
+ },
+ "judge_reliability": {
+  "n": 200,
+  "pearson_overall": 0.601,
+  "mean_abs_diff": 0.0357,
+  "same_overall": 94,
+  "pass_agree": 163,
+  "pass_kappa": 0.51,
+  "item_exact": {
+   "instruction_following": 172,
+   "factual_accuracy": 178,
+   "clarity": 166,
+   "structure": 173,
+   "style": 152
+  },
+  "off_scale_runs": 0,
+  "parse_errors": 0
+ },
+ "judge_vs_eval": {
+  "eval_ng_if1": 2,
+  "eval_ng_iflt1": 18,
+  "eval_ok_if1": 351,
+  "eval_ok_iflt1": 29,
+  "eval_ng_pass": 8,
+  "eval_ng_n": 20
+ },
+ "loop_vs_blind": {
+  "n": 100,
+  "pearson": 0.387,
+  "loop_mean": 0.835,
+  "blind_mean": 0.8217,
+  "pass_agree": 81
+ },
+ "eval_transitions": {
+  "B": {
+   "ng_to_ok": 10,
+   "ng_to_ng": 1,
+   "ok_to_ng": 0,
+   "ok_to_ok": 0
+  },
+  "C": {
+   "ng_to_ok": 10,
+   "ng_to_ng": 0,
+   "ok_to_ng": 3,
+   "ok_to_ok": 11
+  },
+  "D": {
+   "ng_to_ok": 12,
+   "ng_to_ng": 1,
+   "ok_to_ng": 3,
+   "ok_to_ok": 10
+  }
+ },
+ "round1_fail_items": {
+  "文字数が 120〜124 字（空白・改行を除く）": 19,
+  "1文が 38〜44 字": 10,
+  "「の」を使わない": 10,
+  "「です」「ます」を使わない": 2,
+  "読点は1文に2つまで": 1
+ },
+ "judge_advice_with_banned_english": {
+  "rounds": 150,
+  "with_banned_word": 5
+ },
+ "cost_total": 16.036
+}

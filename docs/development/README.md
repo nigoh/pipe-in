@@ -28,4 +28,5 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 手元の事情（ユーザー名の入ったパス・メールアドレス）と秘密のファイルを載せない | `tests/test_rules.py` |
 | 決定の記録の形・テストの AC の ID が記録にある | `tests/test_rules.py` |
 | CLAUDE.md と design.md の置き場所の表が実物と食い違わない | `tests/test_rules.py` |
+| 調べた結果の目次がすべての調査を指し、本文に決めた節がある | `tests/test_research.py` |
 | テストがリポジトリの実物（`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/`）を変えない | `tests/conftest.py`（テストが通っても、最後に失敗にする） |

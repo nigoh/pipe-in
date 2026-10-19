@@ -21,6 +21,7 @@
 | [D0015](D0015-rubric-judge.md) | 調べもの型の報告を、1つの審査役がルーブリックで採点する（pipe-in-judge・/pipe-judge と /pipe-in の助言のあと） |
 | [D0016](D0016-sendback-reasons.md) | 差し戻しと修正の依頼の理由を、図の節を選んで見られるようにする |
 | [D0017](D0017-live-flow.md) | 実行の図で、動いている様子と各段の時間をリアルタイムで見られるようにする（アニメーション・経過時間） |
+| [D0018](D0018-research-docs.md) | 調べた結果を docs/research/ に残す（最初は eval と LLM as judge の比較） |
 
 ## ひな形
 

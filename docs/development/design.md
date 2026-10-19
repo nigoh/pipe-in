@@ -26,6 +26,7 @@
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
+| 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
 | 画面の確認用のページ（開発用。`npm run preview`） | `vscode/scripts/preview.ts`・ページを作る関数 `vscode/scripts/previewPages.ts` |
