@@ -138,7 +138,7 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
 - 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）ができる）
+  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）ができる）
   2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
   3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`）も同じように開いて撮る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
   4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る

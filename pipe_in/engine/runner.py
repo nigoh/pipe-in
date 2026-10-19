@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from . import clock
 from .config import Config
 from .guard import make_guard_hook
 from ..usage.metrics import StageMetrics
@@ -56,6 +57,11 @@ def _to_jsonable(msg: Any) -> Any:
         data["_type"] = type(msg).__name__
         return data
     return {"_type": type(msg).__name__, "repr": repr(msg)}
+
+
+def prompt_line(stage: str, resume: str | None, prompt: str, at: str) -> str:
+    """段のログの最初の行（Prompt）の JSON 1行。at は段の始まりの時刻（UTC からのずれつき）。"""
+    return json.dumps({"_type": "Prompt", "stage": stage, "resume": resume, "prompt": prompt, "at": at}, ensure_ascii=False)
 
 
 def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str, Any]:
@@ -134,7 +140,7 @@ async def run_stage_sdk(
     started = time.monotonic()
 
     with log_path.open("a", encoding="utf-8") as log:
-        log.write(json.dumps({"_type": "Prompt", "stage": spec.name, "resume": resume, "prompt": prompt}, ensure_ascii=False) + "\n")
+        log.write(prompt_line(spec.name, resume, prompt, clock.now_with_offset()) + "\n")
         async with ClaudeSDKClient(options=options) as client:
             await client.query(prompt)
             async for msg in client.receive_response():

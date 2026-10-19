@@ -5,13 +5,26 @@
 // 「実行を見る」パネルの明るい・暗いのページ（run-panel-*.html）も、画面用の見本の記録から作る（中身は previewPages.ts）。
 // CSP は本物と同じに残す（style="…" 属性が捨てられるなど、パネルの中だけで起きる崩れをここでも見つけるため）。
 // 置き換えのスクリプトとテーマの色には nonce を付けて入れる。out/ は .gitignore 済み。
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { folderFor } from '../src/app/pipeEditor.ts';
 import { pipeFromFiles } from '../src/domain/pipeModel.ts';
 import { renderPipeEditorHtml } from '../src/view/pipeEditorHtml.ts';
-import { PANEL_PAGES, SHOWCASE_DIR, panelPreviewHtml, readShowcaseView, withTheme } from './previewPages.ts';
+import {
+  PANEL_PAGES,
+  RUNNING_DIR,
+  RUNNING_NEXT_DIR,
+  RUNNING_SEC,
+  SHOWCASE_DIR,
+  WAITING_DIR,
+  WAITING_SEC,
+  panelKind,
+  panelPreviewHtml,
+  readLiveView,
+  readShowcaseView,
+  withTheme,
+} from './previewPages.ts';
 import type { Theme } from './previewPages.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -111,10 +124,23 @@ for (const [page, model, theme] of PAGES) {
   writeFileSync(path.join(OUT, `${page}.html`), html, 'utf8');
 }
 
-// 「実行を見る」パネルのページ：画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の読み取りと renderPanelHtml で
-const view = await readShowcaseView(SHOWCASE_DIR);
+// 「実行を見る」パネルのページ：画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の読み取りと renderPanelHtml で HTML にしたもの。
+// 動いている・確認待ちの見本（D0017）は、始まりの時刻から決まった秒数が経った時点を「今」にして組み立てる。
+// 動いている見本のページには、次の見本（差し戻しの回数が増えたもの）を render で送る補助 window.__previewNext() も入れる
+for (const dir of [SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR]) {
+  if (!existsSync(path.join(dir, 'state.json'))) {
+    throw new Error(`見本の記録 ${path.basename(dir)}/ がありません。python tests/showcase.py で作ってください`);
+  }
+}
+const views = {
+  done: await readShowcaseView(SHOWCASE_DIR),
+  running: await readLiveView(RUNNING_DIR, RUNNING_SEC),
+  waiting: await readLiveView(WAITING_DIR, WAITING_SEC),
+};
+const runningNext = await readLiveView(RUNNING_NEXT_DIR, 5);
 for (const [page, theme] of PANEL_PAGES) {
-  writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(view, theme), 'utf8');
+  const kind = panelKind(page);
+  writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined), 'utf8');
 }
 const written = [...PAGES.map(([p]) => p), ...PANEL_PAGES.map(([p]) => p)];
 console.log(`out/preview/ に ${written.map((p) => `${p}.html`).join('・')} を作りました`);

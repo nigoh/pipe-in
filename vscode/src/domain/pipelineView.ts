@@ -7,6 +7,7 @@ import { STAGE_LABELS } from './stage.ts';
 import type { DevStage, Stage } from './stage.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
+import { elapsedSec, parseInstant } from './timestamp.ts';
 
 /** 記録の写し。ファイルの中身だけ。基盤の層が作る。 */
 export interface WorkDirSnapshot {
@@ -67,10 +68,41 @@ export interface StageMetrics {
   durationSec: number;
 }
 
+/** 「今」。時計は読まず、入口（extension.ts）が作って渡す。localOffsetMin は手元の UTC からのずれ（分）。 */
+export interface ViewClock {
+  nowMs: number;
+  localOffsetMin: number;
+}
+
+/** 全体の経過。live なら数え上げる（動いている・確認待ち）、そうでなければ固定の値。 */
+export interface Elapsed {
+  seconds: number;
+  live: boolean;
+}
+
+/** 段の実行1回分の時間。 */
+export interface StageTimeRun {
+  seq: number;
+  attempt: number | null;
+  durationSec: number;
+}
+
+/** 実行が2回以上ある段の、回ごとの時間と合計（右の欄の「時間」の節）。確認待ちの時間は入れない。 */
+export interface StageTimes {
+  stage: Stage;
+  label: string;
+  runs: StageTimeRun[];
+  totalSec: number;
+}
+
 export interface PipelineNode {
   id: NodeId;
   label: string;
   status: NodeStatus;
+  /** 動いている段の節だけ、始まりの時刻からの経過秒。時計や始まりの時刻が無ければ null（組み立てでは必ず入る。節を手で作る側のために省けるようにしてある） */
+  runningSec?: number | null;
+  /** 確認待ちの確認の節だけ、待ち始めの時刻からの経過秒。ほかは null（同上） */
+  waitingSec?: number | null;
   /** 確認の節だけ数値（0 以上）。ほかは null */
   reviseCount: number | null;
   /** 実装の節だけ数値（0 以上）。ほかは null */
@@ -119,6 +151,10 @@ export interface PipelineView {
   sendBacks: SendBack[];
   /** 確認の直し（開発フローもパイプも。古い順） */
   revisions: ReviseNote[];
+  /** 全体の経過（バナー用）。始まりの時刻が読めない・数え上げる時刻が無い記録では null */
+  elapsed: Elapsed | null;
+  /** 実行が2回以上ある段の、回ごとの時間と合計 */
+  stageTimes: StageTimes[];
 }
 
 /** 検証の不合格1件。 */
@@ -276,7 +312,17 @@ function sumMetrics(runs: StageRun[]): StageMetrics | null {
 }
 
 function makeNode(id: NodeId, status: NodeStatus, extra: Partial<PipelineNode> = {}): PipelineNode {
-  return { id, label: NODE_LABELS[id] ?? id, status, reviseCount: null, sendBackCount: null, metrics: null, ...extra };
+  return {
+    id,
+    label: NODE_LABELS[id] ?? id,
+    status,
+    runningSec: null,
+    waitingSec: null,
+    reviseCount: null,
+    sendBackCount: null,
+    metrics: null,
+    ...extra,
+  };
 }
 
 /** 段の節。countSendBack なら差し戻しの回数（2回目以降の実行の数）も数える（開発フローの実装）。 */
@@ -385,7 +431,80 @@ function stageLabelsOf(record: RunRecord, dev: boolean): Readonly<Record<Stage, 
   return Object.fromEntries((record.stages ?? []).map((s) => [s.name, s.label]));
 }
 
-export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
+// ---- 時間（D0017）：今の時刻は引数 clock で受ける -----------------------------------
+
+/** 記録の時刻の文字を UTC のミリ秒にする。読めなければ null。 */
+function instantOf(text: string | null, clock: ViewClock | undefined): number | null {
+  return text === null ? null : parseInstant(text, clock?.localOffsetMin ?? 0);
+}
+
+/** 今の時刻からの経過秒。時計や記録の時刻が無ければ null。 */
+function secondsSince(text: string | null, clock: ViewClock | undefined): number | null {
+  if (clock === undefined) return null;
+  const from = instantOf(text, clock);
+  return from === null ? null : elapsedSec(from, clock.nowMs);
+}
+
+/** 動いている段の節に runningSec、確認待ちの確認の節に waitingSec を付ける（付けられるときだけ）。 */
+function withLiveSeconds(
+  nodes: PipelineNode[],
+  runningLog: ReadLog | null,
+  pending: RunRecord['pendingReview'],
+  clock: ViewClock | undefined,
+): PipelineNode[] {
+  const runningSec = runningLog === null ? null : secondsSince(runningLog.log.startedAt, clock);
+  // 動いている段があるあいだは、確認待ちの印は古い。待ち時間は出さない
+  const waitingStage = runningLog === null && pending !== null ? pending.stage : null;
+  const waitingSec = waitingStage === null ? null : secondsSince(pending?.since ?? null, clock);
+  return nodes.map((node) => {
+    if (runningSec !== null && node.id === runningLog?.name.stage) return { ...node, runningSec };
+    if (waitingSec !== null && node.id === `${REVIEW_NODE_PREFIX}${waitingStage}` && node.status === 'pending') {
+      return { ...node, waitingSec };
+    }
+    return node;
+  });
+}
+
+/** 全体の経過。終わった・止まっている実行は updated_at までの固定。動いている・確認待ちは「今」まで数え上げる。 */
+function overallElapsed(
+  record: RunRecord,
+  runningLog: ReadLog | null,
+  nodes: PipelineNode[],
+  clock: ViewClock | undefined,
+): Elapsed | null {
+  const from = instantOf(record.startedAt, clock);
+  if (from === null) return null;
+  const active = record.final === null && (runningLog !== null || record.pendingReview !== null);
+  if (active && clock !== undefined) {
+    // 段の始まりの時刻・待ち始めの時刻が読めない記録（古い版）では数え上げない（FR-18）
+    const counting = nodes.some((n) => n.runningSec !== null || n.waitingSec !== null);
+    return counting ? { seconds: elapsedSec(from, clock.nowMs), live: true } : null;
+  }
+  const to = instantOf(record.updatedAt, clock);
+  return to === null ? null : { seconds: elapsedSec(from, to), live: false };
+}
+
+/** 実行が2回以上ある段の、回ごとの時間と合計。段は最初に出た順、回は通し番号の順。 */
+function buildStageTimes(record: RunRecord, labels: Readonly<Record<Stage, string>>): StageTimes[] {
+  const byStage = new Map<Stage, StageRun[]>();
+  for (const run of [...record.stageRuns].sort((a, b) => a.seq - b.seq)) {
+    byStage.set(run.stage, [...(byStage.get(run.stage) ?? []), run]);
+  }
+  const out: StageTimes[] = [];
+  for (const [stage, runs] of byStage) {
+    if (runs.length < 2) continue;
+    const total = runs.reduce((s, r) => s + r.durationSec, 0);
+    out.push({
+      stage,
+      label: labels[stage] ?? stage,
+      runs: runs.map(({ seq, attempt, durationSec }) => ({ seq, attempt, durationSec })),
+      totalSec: Math.round(total * 10) / 10,
+    });
+  }
+  return out;
+}
+
+export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock): PipelineView {
   const record = parseRunRecord(snapshot.stateJson);
   const dev = isDevRecord(record);
   const stageLabels = stageLabelsOf(record, dev);
@@ -393,6 +512,10 @@ export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
   const runningLog = findRunningLog(logs, record);
   const runningStage = runningLog?.name.stage ?? null;
   const shown = runningLog ?? logs.at(-1) ?? null;
+  const baseNodes = dev
+    ? buildDevNodes(snapshot, record, runningStage)
+    : buildPipeNodes(snapshot, record, record.stages ?? [], runningStage);
+  const nodes = withLiveSeconds(baseNodes, runningLog, record.pendingReview, clock);
 
   const noRecords =
     snapshot.stateJson === null && logs.length === 0 && !('00_input.md' in snapshot.artifacts)
@@ -400,9 +523,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
       : null;
 
   return {
-    nodes: dev
-      ? buildDevNodes(snapshot, record, runningStage)
-      : buildPipeNodes(snapshot, record, record.stages ?? [], runningStage),
+    nodes,
     stageLabels,
     runningStage,
     terminal: shown ? { source: shown.name, items: shown.log.items } : { source: null, items: [] },
@@ -415,9 +536,15 @@ export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {
     pendingReview:
       record.pendingReview === null
         ? null
-        : { ...record.pendingReview, label: stageLabels[record.pendingReview.stage] ?? record.pendingReview.stage },
+        : {
+            stage: record.pendingReview.stage,
+            label: stageLabels[record.pendingReview.stage] ?? record.pendingReview.stage,
+            doc: record.pendingReview.doc,
+          },
     warnings: record.warnings,
     sendBacks: buildSendBacks(record, stageLabels),
     revisions: buildRevisions(record, stageLabels),
+    elapsed: overallElapsed(record, runningLog, nodes, clock),
+    stageTimes: buildStageTimes(record, stageLabels),
   };
 }

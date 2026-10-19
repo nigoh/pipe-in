@@ -2,6 +2,7 @@
 import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import type { Stage } from './stage.ts';
+import { isTimestampText } from './timestamp.ts';
 
 export interface StageLogName {
   seq: number;
@@ -29,6 +30,8 @@ export interface StageLog {
   items: OutputItem[];
   hasPrompt: boolean;
   finished: boolean;
+  /** 段の始まりの時刻（最後の Prompt 行の at の文字）。無い・読めない・Prompt が無いなら null */
+  startedAt: string | null;
 }
 
 /** 1行ずつ JSON として読む。読めない行・オブジェクトでない行は飛ばす。 */
@@ -65,7 +68,8 @@ export function parseStageLog(text: string): StageLog {
       if (item) items.push(item);
     }
   }
-  return { items, hasPrompt: lastPrompt >= 0, finished };
+  const at = lastPrompt >= 0 ? lines[lastPrompt].at : null;
+  return { items, hasPrompt: lastPrompt >= 0, finished, startedAt: isTimestampText(at) ? at : null };
 }
 
 /** 発言の部品1つを出力の項目にする。ツールの結果・考え中・知らない部品は null。 */

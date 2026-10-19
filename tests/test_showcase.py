@@ -114,6 +114,119 @@ def test_d0009_ac15_showcase_has_usage_and_no_session_id():
                 assert row["session_id"] is None, path.name
 
 
+# ---- D0017：動きと各段の時間（見本は 4 つ：完了・動いている ×2・確認待ち） ----
+
+OFFSET_TEXT = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}"
+# 見本の名前 → (止める段のログ名, 確認で止めるか)。台本の途中で止めた記録（表は showcase.py の1か所に置く）
+PARTIALS = showcase.PARTIAL_FIXTURES
+ALL_FIXTURES = ["showcase", *PARTIALS]
+
+
+def fixture_dir(name: str) -> Path:
+    return FIXTURE.parent / name
+
+
+def prompt_lines(work: Path) -> list[tuple[str, dict]]:
+    out = []
+    for path in sorted((work / "logs").glob("*.jsonl")):
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        out += [(path.name, row) for row in rows if row.get("_type") == "Prompt"]
+    return out
+
+
+@pytest.mark.parametrize("name", ALL_FIXTURES)
+def test_d0017_showcase_prompt_lines_have_at_with_offset(name):
+    """D0017-AC-34: どの見本でも、段のログの Prompt 行に at があり、オフセットつきの決まった時刻（+00:00）で、手元の時刻帯が入らない。"""
+    import re
+
+    work = fixture_dir(name)
+    assert work.is_dir(), f"見本の記録 {work.as_posix()} がありません。python tests/showcase.py で作ってください"
+    rows = prompt_lines(work)
+    assert rows, name
+    for log_name, row in rows:
+        assert re.fullmatch(OFFSET_TEXT, row.get("at", "")), f"{name}/{log_name}: {row.get('at')!r}"
+        assert row["at"].endswith("+00:00"), f"{name}/{log_name}"
+
+
+def test_d0017_showcase_running_is_open_on_07_implement_2():
+    """D0017-AC-34: showcase_running は 07_implement_2 が動いている（ResultMessage が無い）。差し戻しは 1 回あったが、実装の 2 回目はまだ終わっていない。"""
+    work = fixture_dir("showcase_running")
+    assert work.is_dir()
+    state = load_state(work)
+    assert state["final"] is None and state["pending_review"] is None
+    stage_runs = [h for h in state["runs"] if "seq" in h]
+    assert [h["stage"] for h in stage_runs][-2:] == ["implement", "test"]
+    assert stage_runs[-1]["seq"] == 6
+    log = work / "logs" / "07_implement_2.jsonl"
+    types = [json.loads(line)["_type"] for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert types[0] == "Prompt" and "ResultMessage" not in types
+    assert not (work / "99_summary.md").exists()
+
+
+def test_d0017_showcase_running_next_is_open_on_08_test_2():
+    """D0017-AC-37: showcase_running_next は 08_test_2 が動き、実装は 2 回終わっている（差し戻しの矢印の回数が 1 に増えた見本）。"""
+    work = fixture_dir("showcase_running_next")
+    assert work.is_dir()
+    state = load_state(work)
+    assert state["final"] is None
+    implements = [h for h in state["runs"] if h.get("stage") == "implement" and "seq" in h]
+    assert [h["attempt"] for h in implements] == [1, 2]
+    log = work / "logs" / "08_test_2.jsonl"
+    types = [json.loads(line)["_type"] for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert types[0] == "Prompt" and "ResultMessage" not in types
+
+
+def test_d0017_showcase_waiting_stops_at_requirements_review_with_since():
+    """D0017-AC-35: showcase_waiting は要件定義の確認で止まり、pending_review.since にオフセットつきの待ち始めの時刻がある。"""
+    import re
+
+    work = fixture_dir("showcase_waiting")
+    assert work.is_dir()
+    state = load_state(work)
+    assert state["final"] is None
+    pending = state["pending_review"]
+    assert pending["stage"] == "requirements"
+    assert re.fullmatch(OFFSET_TEXT, pending["since"]) and pending["since"].endswith("+00:00")
+    assert [h["stage"] for h in state["runs"] if "seq" in h] == ["requirements"]
+
+
+@pytest.mark.parametrize("name", list(PARTIALS))
+def test_d0017_showcase_partial_matches_engine_shape(name, tmp_path):
+    """D0017-AC-34: 台本の途中で止めた見本は、今の本体で止めて作り直したものと形が同じ（state.json・logs/・成果物）。"""
+    stop_at, pause = PARTIALS[name]
+    remade_work = showcase.build_showcase_partial(tmp_path / "myapp", stop_at, pause=pause)
+    work = fixture_dir(name)
+    assert work.is_dir(), f"見本の記録 {work.as_posix()} がありません。python tests/showcase.py で作ってください"
+    assert showcase.shape(load_state(work)) == showcase.shape(load_state(remade_work)), REMAKE
+    assert log_shapes(work) == log_shapes(remade_work), REMAKE
+    assert top_files(work) == top_files(remade_work), REMAKE
+
+
+@pytest.mark.parametrize("name", list(PARTIALS))
+def test_d0017_showcase_partial_has_no_local_info(name, tmp_path):
+    """D0017-AC-34: 台本の途中で止めた見本にも手元の情報が無く、作り直したものに一時フォルダのパスが入らない。"""
+    work = fixture_dir(name)
+    assert work.is_dir()
+    found = []
+    for path in sorted(p for p in work.rglob("*") if p.is_file()):
+        found += [f"{path.relative_to(work).as_posix()}: {f}" for f in test_rules.local_info_in(path.read_text(encoding="utf-8"))]
+    assert found == []
+    stop_at, pause = PARTIALS[name]
+    remade_work = showcase.build_showcase_partial(tmp_path / "myapp", stop_at, pause=pause)
+    needles = {str(tmp_path), tmp_path.as_posix(), json.dumps(str(tmp_path))[1:-1]}
+    leaked = [p.name for p in sorted(remade_work.rglob("*")) if p.is_file() and any(n in p.read_text(encoding="utf-8") for n in needles)]
+    assert leaked == []
+
+
+def test_d0017_showcase_runner_still_rejects_calls_outside_the_script(tmp_path):
+    """D0017-AC-34: ShowcaseRunner は台本の外の呼び出しを今までどおり RuntimeError にする（stop_at を足しても緩めない）。"""
+    import asyncio
+
+    runner = showcase.ShowcaseRunner()
+    with pytest.raises(RuntimeError):
+        asyncio.run(runner(None, "x", None, resume=None, log_name="99_unknown"))
+
+
 def test_d0009_ac15_showcase_has_no_local_info(remade, tmp_path):
     """D0009-AC-15: 見本のどのファイルにも手元の情報（ユーザー名の入ったパス・メールアドレス）が無く、作り直したものに一時フォルダのパスが入らない。"""
     found = []

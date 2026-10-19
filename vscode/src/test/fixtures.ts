@@ -2,9 +2,9 @@
 // 本体 が work_dir に書く形（要件定義書「本体 が今書いている記録」）に合わせる。
 import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
 
-/** 段のログの始まりの行（`Prompt`）。 */
-export function promptLine(stage: string): string {
-  return JSON.stringify({ _type: 'Prompt', stage, resume: null, prompt: `${stage} の依頼文` });
+/** 段のログの始まりの行（`Prompt`）。at（段の始まりの時刻。D0017）は渡したときだけ入れる（壊れた値もそのまま入れて試せる）。 */
+export function promptLine(stage: string, at?: unknown): string {
+  return JSON.stringify({ _type: 'Prompt', stage, resume: null, prompt: `${stage} の依頼文`, ...(at === undefined ? {} : { at }) });
 }
 
 /** 文章の部品を1つ持つ発言。 */
@@ -137,11 +137,13 @@ export function stateJson(p: {
   stages?: unknown;
   pendingReview?: unknown;
   warnings?: unknown;
-  updatedAt?: string;
+  /** 時刻は壊れた値（数・オブジェクトなど）も入れて試せる（D0017） */
+  updatedAt?: unknown;
+  startedAt?: unknown;
 }): string {
   return JSON.stringify({
-    started_at: '2026-10-16T00:00:00',
-    updated_at: p.updatedAt ?? '2026-10-16T00:00:00',
+    started_at: p.startedAt === undefined ? '2026-10-16T00:00:00' : p.startedAt,
+    updated_at: p.updatedAt === undefined ? '2026-10-16T00:00:00' : p.updatedAt,
     ...(p.pipe === undefined ? {} : { pipe: p.pipe }),
     ...(p.stages === undefined ? {} : { stages: p.stages }),
     final: p.final ?? null,

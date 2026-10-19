@@ -83,14 +83,22 @@ def test_ac01_running_matches_fixture(tmp_path):
     assert state(tmp_path) == fixture_state("running")
     log = tmp_path / "docs" / "pipeline" / "logs" / "01_requirements.jsonl"
     want = (FIXTURES / "running" / "logs" / "01_requirements.jsonl").read_text(encoding="utf-8")
-    assert [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()] == [json.loads(x) for x in want.splitlines()]
+    # D0017: Prompt 行の at は、UTC からのずれつきの書き方に替わった（見本は古い書き方のまま残す）。at の書き方は D0017-AC-02 が確かめる
+    got_lines = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
+    want_lines = [json.loads(x) for x in want.splitlines()]
+    for line in (*got_lines, *want_lines):
+        line.pop("at", None)
+    assert got_lines == want_lines
     assert (tmp_path / "docs" / "pipeline" / "00_input.md").read_text(encoding="utf-8").strip() == "足したい機能のメモ"
 
 
 def test_ac01_waiting_matches_fixture(tmp_path):
     """D0006-AC-22: 確認待ちの記録が見本と同じ（driver のほかは今と同じ形）。"""
     up_to_waiting(recorder(tmp_path))
-    assert state(tmp_path) == fixture_state("waiting")
+    # D0017: pending_review に since（待ち始めの時刻）が足された（見本は古い形のまま残す）。since は D0017-AC-01 が確かめる
+    got = state(tmp_path)
+    got["pending_review"].pop("since", None)
+    assert got == fixture_state("waiting")
 
 
 def test_ac01_finished_matches_fixture(tmp_path):
@@ -298,6 +306,67 @@ def test_ac02_record_never_calls_the_sdk(tmp_path, monkeypatch):
     r = recorder(tmp_path)
     up_to_waiting(r)
     to_finish(r)
+
+
+# ---- D0017：確認待ちの時刻（since）と Prompt 行の at --------------------------------
+
+OFFSET_TEXT = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)"
+
+
+def test_d0017_ac01_wait_writes_since_with_offset(tmp_path):
+    """D0017-AC-01: record wait が pending_review.since にオフセットつきの ISO 8601 の時刻を書く（stage・doc は従来どおり）。"""
+    import re
+
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.begin("requirements")
+    r.done("requirements")
+    r.wait("requirements")
+    pending = state(tmp_path)["pending_review"]
+    assert pending["stage"] == "requirements"
+    assert pending["doc"] == "docs/pipeline/01_requirements.md"
+    assert re.fullmatch(OFFSET_TEXT, pending["since"]), pending.get("since")
+    assert datetime.fromisoformat(pending["since"]) == FIXED.astimezone()  # 呼んだ時刻と同じ瞬間
+
+
+def test_d0017_ac02_begin_prompt_at_has_offset(tmp_path):
+    """D0017-AC-02: record begin が書く Prompt 行の at がオフセットつき。began_at は従来どおり（オフセットなし）で、done の秒数は変わらない。"""
+    import re
+
+    clock = [FIXED]
+    r = recorder(tmp_path, now=lambda: clock[0])
+    r.start("メモ")
+    r.begin("requirements")
+    log = tmp_path / "docs/pipeline/logs/01_requirements.jsonl"
+    first = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    assert re.fullmatch(OFFSET_TEXT, first["at"]), first.get("at")
+    assert datetime.fromisoformat(first["at"]) == FIXED.astimezone()
+    assert state(tmp_path)["open"]["began_at"] == "2026-10-17T10:00:00"
+    clock[0] = FIXED + timedelta(seconds=90)
+    r.done("requirements")
+    assert state(tmp_path)["runs"][-1]["duration_sec"] == 90.0
+
+
+def test_d0017_ac05_record_commands_work_without_since(tmp_path):
+    """D0017-AC-05: since の無い古い pending_review でも、record の review・begin・done・finish が今までどおり動く（今の作りで通る：守り続ける検査）。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.begin("requirements")
+    r.done("requirements")
+    r.wait("requirements")
+    path = tmp_path / "docs" / "pipeline" / "state.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["pending_review"].pop("since", None)  # 古い形（stage・doc・session_id だけ）
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    r.wait("requirements")  # 古い印があっても、もう一度付けられる
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["pending_review"].pop("since", None)
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    r.review("requirements", "approved")
+    r.begin("design")
+    r.done("design")
+    r.finish("PASSED")
+    assert state(tmp_path)["final"] == "PASSED" and state(tmp_path)["pending_review"] is None
 
 
 def test_ac02_record_module_does_not_import_the_sdk():

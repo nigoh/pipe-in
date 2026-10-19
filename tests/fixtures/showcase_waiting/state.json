@@ -1,0 +1,169 @@
+{
+  "started_at": "2026-10-17T10:00:00",
+  "updated_at": "2026-10-17T10:03:00",
+  "pipe": "dev",
+  "stages": [
+    {
+      "name": "requirements",
+      "label": "要件定義",
+      "output": "01_requirements.md",
+      "review": true
+    },
+    {
+      "name": "design",
+      "label": "設計",
+      "output": "02_design.md",
+      "review": true
+    },
+    {
+      "name": "red",
+      "label": "テスト先行",
+      "output": "03_red_tests.md",
+      "review": true
+    },
+    {
+      "name": "implement",
+      "label": "実装",
+      "output": "04_implementation.md",
+      "review": false
+    },
+    {
+      "name": "test",
+      "label": "検証",
+      "output": "05_test_report.md",
+      "review": false
+    }
+  ],
+  "final": null,
+  "total_cost_usd": 0.21,
+  "usage_summary": {
+    "tokens": {
+      "input": 24,
+      "cache_write": 21800,
+      "cache_write_1h": 0,
+      "cache_write_5m": 0,
+      "cache_read": 88400,
+      "output": 3900,
+      "thinking": 1100,
+      "web_search": 0,
+      "web_fetch": 0,
+      "cache_reuse_rate": 0.802
+    },
+    "by_model": {
+      "claude-opus-5-5": {
+        "tokens": {
+          "input": 24,
+          "cache_write": 21800,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 88400,
+          "output": 3900,
+          "thinking": 1100,
+          "web_search": 0,
+          "web_fetch": 0
+        },
+        "cost_usd": 0.21
+      }
+    },
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "rate_limits": {
+      "five_hour": {
+        "first": 0.04,
+        "last": 0.04,
+        "resets_at": 1792213200,
+        "peak": 0.04,
+        "reset_seen": false
+      },
+      "seven_day": {
+        "first": 0.21,
+        "last": 0.21,
+        "resets_at": 1792713600,
+        "peak": 0.21,
+        "reset_seen": false
+      }
+    },
+    "duration_api_ms": 40100
+  },
+  "pending_review": {
+    "stage": "requirements",
+    "doc": "docs/pipeline/01_requirements.md",
+    "session_id": null,
+    "since": "2026-10-17T10:02:15+00:00"
+  },
+  "warnings": [],
+  "runs": [
+    {
+      "stage": "requirements",
+      "session_id": null,
+      "is_error": false,
+      "subtype": "success",
+      "result": "要件定義書を書きました（AC-01〜AC-02）",
+      "cost_usd": 0.21,
+      "num_turns": 9,
+      "duration_sec": 48.0,
+      "denials": [],
+      "errors": [],
+      "metrics": {
+        "model": "claude-opus-5-5",
+        "claude_code_version": "2.1.301",
+        "api_key_source": "none",
+        "permission_mode": "default",
+        "cost_basis": "list",
+        "tokens": {
+          "input": 24,
+          "cache_write": 21800,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0,
+          "cache_read": 88400,
+          "output": 3900,
+          "thinking": 1100,
+          "web_search": 0,
+          "web_fetch": 0,
+          "cache_reuse_rate": 0.802
+        },
+        "by_model": {
+          "claude-opus-5-5": {
+            "tokens": {
+              "input": 24,
+              "cache_write": 21800,
+              "cache_write_1h": 0,
+              "cache_write_5m": 0,
+              "cache_read": 88400,
+              "output": 3900,
+              "thinking": 1100,
+              "web_search": 0,
+              "web_fetch": 0
+            },
+            "cost_usd": 0.21
+          }
+        },
+        "duration_api_ms": 40100,
+        "stop_reason": null,
+        "terminal_reason": null,
+        "permission_denials": [],
+        "rate_limits": {
+          "five_hour": {
+            "first": 0.04,
+            "last": 0.04,
+            "resets_at": 1792213200,
+            "peak": 0.04,
+            "reset_seen": false
+          },
+          "seven_day": {
+            "first": 0.21,
+            "last": 0.21,
+            "resets_at": 1792713600,
+            "peak": 0.21,
+            "reset_seen": false
+          }
+        },
+        "overage_status": null
+      },
+      "seq": 1,
+      "attempt": null,
+      "note": ""
+    }
+  ]
+}

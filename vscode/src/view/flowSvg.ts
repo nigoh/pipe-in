@@ -2,6 +2,7 @@
 // 色は CSS（panelHtml.ts の STYLE）でクラスに付ける。ここでは形と位置だけを決める。
 import { NODE_STATUS_LABELS } from '../domain/pipelineView.ts';
 import type { NodeId, PipelineNode } from '../domain/pipelineView.ts';
+import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
 
 type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final';
@@ -49,7 +50,7 @@ function place(nodes: PipelineNode[]): Placed[] {
 }
 
 const mid = (p: Placed) => p.y + p.h / 2;
-const fmtSec = (s: number) => `${Math.round(s)}s`;
+const WAITING_LABEL = '確認待ち';
 
 function halfWidth(shape: Shape): number {
   if (shape === 'review' || shape === 'final' || shape === 'doc') return REVIEW_W / 2;
@@ -96,19 +97,37 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>): string {
     parts.push(`<text class="node-label is-strong" x="${LEFT + 12}" y="${y + 20}">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${RIGHT - 10}" y="${y + 20}" text-anchor="end">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
     const m = node.metrics;
-    const detail = m ? `${m.numTurns} ターン・$${m.costUsd.toFixed(3)}・${fmtSec(m.durationSec)}` : '';
-    if (detail) parts.push(`<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">${escapeHtml(detail)}</text>`);
+    if (node.runningSec != null) {
+      // 動いている段：2行目は経過だけ（前の回の詳細は幅が足りない。回ごとは右の欄の「時間」）。基準の秒はパネルのスクリプトが数え上げる
+      const sec = Math.floor(node.runningSec);
+      parts.push(
+        `<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">経過 <tspan class="elapsed" data-elapsed="${sec}">${formatDuration(sec)}</tspan></text>`,
+      );
+    } else {
+      const detail = m ? `${m.numTurns} ターン・$${m.costUsd.toFixed(3)}・${formatDuration(m.durationSec)}` : '';
+      if (detail) parts.push(`<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">${escapeHtml(detail)}</text>`);
+    }
   } else if (shape === 'verdict') {
     parts.push(`<text class="node-label" x="${CX}" y="${mid(p) + 4}" text-anchor="middle">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${CX + VERDICT_HALF_W + 8}" y="${mid(p) + 4}">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
   } else {
     const hw = halfWidth(shape);
     const strong = shape === 'final' ? ' is-strong' : '';
+    // 確認待ちの確認の節：状態の文字を「確認待ち」にし、節の左に待ち時間を置く
+    const waitingSec = node.waitingSec ?? null;
+    const shown = waitingSec !== null ? `${MARKS[node.status]} ${WAITING_LABEL}` : `${MARKS[node.status]} ${status}`;
     parts.push(`<text class="node-label${strong}" x="${CX - hw + 12}" y="${y + h / 2 + 4}">${escapeHtml(node.label)}</text>`);
-    parts.push(`<text class="node-status" x="${CX + hw - 10}" y="${y + h / 2 + 4}" text-anchor="end">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
+    parts.push(`<text class="node-status" x="${CX + hw - 10}" y="${y + h / 2 + 4}" text-anchor="end">${escapeHtml(shown.trim())}</text>`);
+    if (waitingSec !== null) {
+      const sec = Math.floor(waitingSec);
+      parts.push(
+        `<text class="node-wait" x="${CX - hw - 6}" y="${y + h / 2 + 4}" text-anchor="end" data-elapsed="${sec}">${formatDuration(sec)}</text>`,
+      );
+    }
   }
   const pick = pickable.has(node.id) ? pickAttrs(node.id) : '';
-  return `<g class="node is-${node.status}" data-node="${escapeHtml(node.id)}"${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
+  const waitingMark = node.waitingSec != null ? ' is-waiting' : '';
+  return `<g class="node is-${node.status}${waitingMark}" data-node="${escapeHtml(node.id)}"${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
 }
 
 function renderEdges(placed: Placed[]): string {
@@ -116,17 +135,21 @@ function renderEdges(placed: Placed[]): string {
   for (let i = 1; i < placed.length; i++) {
     const from = placed[i - 1];
     const to = placed[i];
-    edges.push(`<line class="edge" x1="${CX}" y1="${from.y + from.h}" x2="${CX}" y2="${to.y - 2}" marker-end="url(#mk-edge)"/>`);
+    // 動いている段へ入る矢印にだけ、流れる点の印を付ける（始まりの時刻が読めて経過が出ているとき）
+    const flowing = to.node.runningSec != null ? ' is-flowing' : '';
+    edges.push(`<line class="edge${flowing}" x1="${CX}" y1="${from.y + from.h}" x2="${CX}" y2="${to.y - 2}" marker-end="url(#mk-edge)"/>`);
   }
   const verdict = placed.find((p) => p.node.id === 'verdict');
   const label = verdict ? `<text class="edge-label" x="${CX + 8}" y="${verdict.y + verdict.h + GAP / 2 + 4}">合格</text>` : '';
   return edges.join('') + label;
 }
 
-function loop(id: string, hot: boolean, d: string, label: string, labelAttrs: string, title: string): string {
+function loop(id: string, count: number, d: string, label: string, labelAttrs: string, title: string): string {
+  const hot = count > 0;
   const cls = hot ? 'loop is-hot' : 'loop';
   const marker = hot ? 'mk-hot' : 'mk-loop';
-  return `<g class="${cls}" data-loop="${id}"><title>${escapeHtml(title)}</title><path class="loop-path" d="${d}" marker-end="url(#${marker})"/><text class="loop-label" ${labelAttrs}>${escapeHtml(label)}</text></g>`;
+  // data-count は戻った回数。パネルのスクリプトが前の描き直しと比べ、増えたときに一度だけ光らせる
+  return `<g class="${cls}" data-loop="${id}" data-count="${count}"><title>${escapeHtml(title)}</title><path class="loop-path" d="${d}" marker-end="url(#${marker})"/><text class="loop-label" ${labelAttrs}>${escapeHtml(label)}</text></g>`;
 }
 
 function renderLoops(placed: Placed[]): string {
@@ -141,7 +164,7 @@ function renderLoops(placed: Placed[]): string {
     const y2 = mid(target);
     const d = `M${CX + REVIEW_W / 2},${y1} L${LOOP_RIGHT_X},${y1} L${LOOP_RIGHT_X},${y2} L${RIGHT + 2},${y2}`;
     const label = n > 0 ? `修正 ${n}回` : '修正';
-    loops.push(loop(`revise:${stage}`, n > 0, d, label, `x="${LOOP_RIGHT_X + 5}" y="${(y1 + y2) / 2 + 4}"`, `修正の依頼 ${n} 回`));
+    loops.push(loop(`revise:${stage}`, n, d, label, `x="${LOOP_RIGHT_X + 5}" y="${(y1 + y2) / 2 + 4}"`, `修正の依頼 ${n} 回`));
   }
   const verdict = at('verdict');
   const implement = at('implement');
@@ -153,7 +176,7 @@ function renderLoops(placed: Placed[]): string {
     const label = n > 0 ? `差し戻し ${n}回` : '不合格：差し戻し';
     const ym = (y1 + y2) / 2;
     loops.push(
-      loop('send-back', n > 0, d, label, `x="${LOOP_LEFT_X - 8}" y="${ym}" text-anchor="middle" transform="rotate(-90 ${LOOP_LEFT_X - 8} ${ym})"`, `差し戻し ${n} 回`),
+      loop('send-back', n, d, label, `x="${LOOP_LEFT_X - 8}" y="${ym}" text-anchor="middle" transform="rotate(-90 ${LOOP_LEFT_X - 8} ${ym})"`, `差し戻し ${n} 回`),
     );
   }
   return loops.join('');

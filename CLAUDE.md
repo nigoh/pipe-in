@@ -19,7 +19,7 @@ npm ci                        # 型検査・ビルドに使う。テストだけ
 npm test                      # node:test（Node 22 以上）
 npm run typecheck
 npm run build
-npm run preview               # 画面の確認用のページ（out/preview/ の作業台 pipe-editor-*.html とパネル run-panel-light.html・run-panel-dark.html）。Playwright（MCP）で開いて確かめる。手順は /pipe-in の「5. 検証」。README とガイドの画像の撮り直しは docs/assets/README.md
+npm run preview               # 画面の確認用のページ（out/preview/ の作業台 pipe-editor-*.html とパネル run-panel-light.html・run-panel-dark.html、動いている・確認待ちのパネル run-panel-running-*.html・run-panel-waiting-*.html）。Playwright（MCP）で開いて確かめる。手順は /pipe-in の「5. 検証」。README とガイドの画像の撮り直しは docs/assets/README.md
 ```
 
 変更したら、触った側のテストを流してから終える。Python と拡張の両方に触れたら両方流す。

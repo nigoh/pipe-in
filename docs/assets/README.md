@@ -18,13 +18,13 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
 ## 撮り直す
 
-1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。
+1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。見本は4つ（`showcase/`：完了、`showcase_running/`・`showcase_running_next/`：動いている途中、`showcase_waiting/`：確認待ち）で、まとめて作り直されます。画像に使うのは完了の見本だけで、残りの3つは確認用のページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`）の素材です。
 
    ```bash
    python tests/showcase.py
    ```
 
-2. 確認用のページを作る。`vscode/out/preview/` に `run-panel-light.html`・`run-panel-dark.html`・`pipe-editor-light.html`・`pipe-editor-dark.html` などができます。
+2. 確認用のページを作る。`vscode/out/preview/` に `run-panel-light.html`・`run-panel-dark.html`・`pipe-editor-light.html`・`pipe-editor-dark.html` などができます。動き（脈打ち・点の流れ・点滅）を見るためのページ `run-panel-running-*.html`・`run-panel-waiting-*.html` もできますが、動きは静止画に写らないので、画像には撮りません。
 
    ```bash
    cd vscode
