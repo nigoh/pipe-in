@@ -1,6 +1,6 @@
 # docs/assets/
 
-README（リポジトリの `README.md` と `vscode/README.md`）に載せる画像の置き場所と、画像の撮り直し方。
+README（リポジトリの `README.md` と `vscode/README.md`）とガイド（`docs/guide/vscode.md`）に載せる画像の置き場所と、画像の撮り直し方。
 
 ## ここにあるもの
 
@@ -47,7 +47,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）に載せる画
 5. 確かめる。
 
    ```bash
-   python -m pytest -q tests/test_readme.py   # 横 1600px 以下・600KB 以下か、README から使われているか
+   python -m pytest -q tests/test_readme.py tests/test_guide.py   # 横 1600px 以下・600KB 以下か、README とガイドから使われているか
    ```
 
    画像を開いて、ユーザー名の入ったパス・メールアドレス・本物のプロジェクトの名前が写っていないかを目で見ます。

@@ -1,7 +1,7 @@
 // 拡張機能の宣言（package.json）の検査。AC-01・AC-02。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -95,11 +95,19 @@ test('AC-57・D0006-AC-15: 名前は「パイプ作業台」。コマンドの�
   assert.equal(edit?.title, 'pipe-in: パイプ作業台を開く');
 });
 
-test('AC-57: 拡張・README・スキル・エージェント・CLAUDE.md に、古い名前が残っていない', () => {
+test('AC-57・D0014-AC-29: 拡張・README・ガイド・スキル・エージェント・CLAUDE.md に、古い名前が残っていない', () => {
   // この検査自体が古い名前を含まないよう、文字をつないで作る
   const OLD = new RegExp('作' + '図');
   const root = fileURLToPath(new URL('..', import.meta.url));
+  // README から移したガイドの文書（docs/guide/*.md）も見る。フォルダが空でも通ってしまわないよう、10個あることも確かめる
+  const guide = path.join(root, '..', 'docs', 'guide');
+  assert.ok(existsSync(guide), 'docs/guide/ が無い');
+  const guideFiles = readdirSync(guide)
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => path.join(guide, name));
+  assert.equal(guideFiles.length, 10, 'docs/guide/ の .md が10個でない');
   const files = [
+    ...guideFiles,
     ...listFiles(path.join(root, 'src')),
     ...listFiles(path.join(root, 'scripts')),
     path.join(root, 'package.json'),

@@ -183,7 +183,8 @@ ALLOWED: dict[str, str] = {
     "vscode/src/app/names.ts": "古い設定・コマンド ID の読み替え",
     "vscode/src/app/pipeEditor.ts": "古い置き場所・フォルダ名を読む",
     "vscode/src/infra/fsPipes.ts": "古いフォルダ名を受け付ける",
-    "README.md": "「devpipe から移る」の節（test_readme_old_name_only_in_migration_section で節の中だけに絞る）",
+    "README.md": "「devpipe から移る」の短い案内（test_readme_old_name_only_in_migration_section で節の中だけに絞る）",
+    "docs/guide/migrate.md": "前の名前から移る手順（README から移した）",
     "docs/decisions/D0001-plugin-pipe-build.md": "歴史。書き換えない",
     "docs/decisions/D0002-dev-rules.md": "歴史。書き換えない",
     "docs/decisions/D0003-rebase-on-main-change.md": "歴史。書き換えない",
@@ -261,7 +262,7 @@ def test_old_name_pattern(text, found):
 
 
 def test_old_name_only_in_allowed_files():
-    """D0006-AC-26: 古い名前を含むファイルの集まりが、ALLOWED とちょうど一致する。"""
+    """D0006-AC-26・D0014-AC-28: 古い名前を含むファイルの集まりが、ALLOWED とちょうど一致する。"""
     found = files_with_old_name()
     unexpected = sorted(found - ALLOWED.keys())
     gone = sorted(ALLOWED.keys() - found)

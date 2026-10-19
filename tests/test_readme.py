@@ -1,5 +1,8 @@
-"""README（D0009）：冒頭の並び・節の順・切れたリンクが無い・情報を落とさない・アラート・画像・CLI の出力・撮り直しの手順。
+"""README（D0009）：アンカーの作り方・アラートの見つけ方・すぐ試すの順・画像の上限・拡張の README の画像・撮り直しの手順。
 
+D0014 で、README の形の検査（冒頭の並び・節の順・切れたリンク・要点と目次・名指しの見出し・コマンドと表の項目・アラート・画像・CLI の出力）は
+tests/test_guide.py へ移した（README は入口だけになり、くわしい説明は docs/guide/ に移ったため）。ここに残すのは、今も成り立つ検査と、
+test_guide.py が使う補助の関数。
 古い名前は、この文書に直接書かない（tests/test_rename.py の一覧に無いファイルなので）。要るときは OLD で文字をつないで作る。
 """
 
@@ -21,24 +24,8 @@ ASSETS = ROOT / "docs" / "assets"
 RAW_PREFIX = "https://raw.githubusercontent.com/nigoh/pipe-in/main/"
 
 OLD = "dev" + "pipe"
-MIGRATION_TITLE = f"{OLD} から移る"
 
 IMAGES = ["run-panel-light.png", "run-panel-dark.png", "pipe-editor-light.png", "pipe-editor-dark.png"]
-
-SECTIONS = [
-    "すぐ試す",
-    "使い方",
-    "VSCode の拡張",
-    "パイプ（目的に合わせた段の並び）",
-    "安全のしくみ",
-    "記録と使用量",
-    "設定（pipeline.toml）",
-    "終了コード",
-    MIGRATION_TITLE,
-    "中身を直したいとき",
-    "注意",
-    "ライセンス",
-]
 
 
 def readme() -> str:
@@ -212,43 +199,7 @@ def code_blocks(md: str, lang: str) -> list[list[str]]:
     return out
 
 
-# ---- D0009-AC-01: 冒頭の並び ------------------------------------------------------
-
-
-def test_d0009_ac01_top_order():
-    """D0009-AC-01: 最初の ## の前に、ロゴの <picture> → 一文 → パネルの画像の <picture> → 要点の箇条書き → 目次、がこの順にある。"""
-    top = top_part(readme())
-    pics = pictures(top)
-    logo = next((p for p in pics if "pipe-in-logo" in p["src"]), None)
-    panel = next((p for p in pics if "run-panel-" in p["src"]), None)
-    assert logo is not None, "冒頭にロゴの <picture> が無い"
-    assert panel is not None, "冒頭にパネルの画像の <picture> が無い"
-    sentence = re.search(r"^pipe-in は.*要件定義 → 設計 → テスト先行 → 実装 → 検証", top, re.M)
-    assert sentence is not None, "冒頭に「pipe-in は、要件メモから 要件定義 → … → 検証 …」の一文が無い"
-    bullet = re.search(r"^- .*\]\(#", top, re.M)
-    assert bullet is not None, "冒頭に、節へのリンクのある要点の箇条書きが無い"
-    toc = re.search(r"^\*\*目次\*\*", top, re.M)
-    assert toc is not None, "冒頭に「**目次**」の行が無い"
-    order = [logo["end"], sentence.start(), panel["start"], bullet.start(), toc.start()]
-    assert order == sorted(order), "冒頭の並びが ロゴ → 一文 → パネルの画像 → 要点 → 目次 になっていない"
-    assert logo["end"] <= sentence.start() < panel["start"]
-    assert panel["end"] <= bullet.start()
-
-
-# ---- D0009-AC-02: ## の順 ---------------------------------------------------------
-
-
-def test_d0009_ac02_section_order():
-    """D0009-AC-02: ## の見出しを上から並べると、決めた12の節の順と一致する。"""
-    assert [t for d, t in headings(readme()) if d == 2] == SECTIONS
-
-
-# ---- D0009-AC-03: 切れたリンクが無い ------------------------------------------------
-
-
-def test_d0009_ac03_no_broken_links():
-    """D0009-AC-03: README の ](#…) と href="#…" は、すべて見出しのアンカーか <a id> を指す。"""
-    assert broken_links(readme()) == []
+# ---- D0009-AC-03: アンカーの作り方（D0014 のリンクの検査も使う） ----------------------------
 
 
 @pytest.mark.parametrize(
@@ -286,141 +237,7 @@ def test_d0009_ac03_broken_link_finder():
     assert broken_links(md) == ["無い", "コメント", "x"]
 
 
-# ---- D0009-AC-04: 要点と目次のリンク ------------------------------------------------
-
-
-def test_d0009_ac04_points_link_to_sections():
-    """D0009-AC-04: 冒頭の要点の箇条書きは5〜7項目で、どの項目にも README の中の節へのリンクがある。"""
-    top = top_part(readme())
-    points = [line for line in top.splitlines() if line.startswith("- ")]
-    assert 5 <= len(points) <= 7, points
-    assert [p for p in points if "](#" not in p] == []
-
-
-def test_d0009_ac04_toc_lists_all_sections():
-    """D0009-AC-04: 目次のリンクは ## の節のアンカーの並びと同じで、移行の節へは #migrate、その見出しの直前に <a id="migrate"></a> がある。"""
-    md = readme()
-    toc = next((line for line in top_part(md).splitlines() if line.startswith("**目次**")), None)
-    assert toc is not None, "冒頭に「**目次**」の行が無い"
-    expected = ["migrate" if t == MIGRATION_TITLE else github_anchor(t) for t in SECTIONS]
-    assert [unquote(a) for a in re.findall(r"\]\(#([^)\s]+)\)", toc)] == expected
-    lines = md.splitlines()
-    at = lines.index(f"## {MIGRATION_TITLE}")
-    before = [line for line in lines[:at] if line.strip()]
-    assert before and before[-1].strip() == '<a id="migrate"></a>'
-
-
-# ---- D0009-AC-05: 他のファイルが名指しする見出し ------------------------------------------
-
-
-def test_d0009_ac05_named_headings_exist():
-    """D0009-AC-05: 「## 使い方」・「パイプ」で始まる ##・「### Claude Code のプラグイン」・移行の節の見出しがある。"""
-    hs = headings(readme())
-    assert (2, "使い方") in hs
-    assert any(d == 2 and t.startswith("パイプ") for d, t in hs)
-    assert (3, "Claude Code のプラグイン") in hs
-    assert (2, MIGRATION_TITLE) in hs
-
-
-# ---- D0009-AC-07: コマンドが残る -----------------------------------------------------
-
-COMMANDS = [
-    "pipe-in --project ~/src/myapp --input request.md",
-    'pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタンを追加したい"',
-    "pipe-in --project ~/src/myapp --input request.md --yes",
-    'pipe-in --project ~/src/myapp --input request.md --test-cmd "pytest -q"',
-    "python -m pipe_in",
-    "pipe-in --project ~/src/myapp --from design",
-    "pipe-in --project ~/src/myapp --from red",
-    "pipe-in --project ~/src/myapp --from implement",
-    "pipe-in --project ~/src/myapp --from test",
-    'pipe-in --project ~/src/myapp --input request.md --pause --test-cmd "pytest -q"',
-    'pipe-in --project ~/src/myapp --review approve --test-cmd "pytest -q"',
-    'pipe-in --project ~/src/myapp --review revise --feedback "AC-03 を分けて"',
-    "pipe-in --project ~/src/myapp --review quit",
-    'pipe-in record start --text "要件メモ"',
-    "pipe-in record begin requirements",
-    'pipe-in record done requirements --summary "…"',
-    "pipe-in record wait requirements",
-    "pipe-in record review requirements approved",
-    'pipe-in record red red --summary "…"',
-    'pipe-in record verdict pass --attempt 1 --summary "…"',
-    "pipe-in record finish PASSED",
-    "pipe-in-gen list --project ~/src/myapp",
-    "pipe-in-gen new diagrams --from diagrams --project ~/src/myapp",
-    'pipe-in-gen design apidoc --purpose "ソースから API の文書を作り、突き合わせたい" --project ~/src/myapp',
-    "pipe-in-gen check diagrams --project ~/src/myapp",
-    'pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"',
-    "/plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>",
-    "/plugin install pipe-in@pipe-in",
-    "pip install -e .",
-    "pip install -e '.[dev]' && pytest",
-    f"pip uninstall {OLD}",
-    "pip install -e '.[dev]'",
-    f"/plugin marketplace remove {OLD}",
-    "/plugin marketplace add nigoh/pipe-in",
-    f"code --uninstall-extension nok.{OLD}-vscode",
-    "mkdir -p .pipe-in/pipes",
-    f"git mv .{OLD}/pipes/{OLD}-<名前> .pipe-in/pipes/pipe-in-<名前>",
-    "git remote set-url origin https://github.com/nigoh/pipe-in.git",
-]
-
-
-@pytest.mark.parametrize("command", COMMANDS)
-def test_d0009_ac07_commands_kept(command):
-    """D0009-AC-07: 並べ直す前の README にあったコマンドの行が、README に残っている。"""
-    assert command in readme()
-
-
-# ---- D0009-AC-08: 表の項目が残る ----------------------------------------------------
-
-TABLE_ITEMS = [
-    # 作られるファイル
-    "`00_input.md`", "`01_requirements.md`", "`02_design.md`", "`03_red_tests.md`", "`04_implementation.md`",
-    "`05_test_report.md`", "`99_summary.md`", "`state.json`", "`logs/*.jsonl`",
-    # 段ごとの役割と書き込める範囲
-    "要件定義", "設計", "テスト先行", "実装", "検証",
-    # access
-    "`read`", "`docs`", "`tests`", "`code`",
-    # pipeline.toml のほかの項目
-    "`domain_dir`", "`setting_sources`", "`protected_paths`", "`extra_test_globs`",
-    # 終了コード
-    "0", "1", "2", "3", "4", "5", "130",
-    # まとめに出る使用量
-    "トークンの内訳", "モデル別", "環境", "利用枠",
-    # プラグインで入るもの
-    "スキル `/pipe-in:pipe-build`", "エージェント `pipe-builder`", "フック（`pipe-in-gen guard-hook`）",
-    # ひな形
-    "`dev`", "`diagrams`", "`spec-qa`",
-    # 中身を直したいとき
-    "開発フローの各段への指示（文書の構成、守ること）",
-    "開発フローの段の順番、確認、差し戻しの流れ",
-    "開発フローの段ごとのツールと書き込み範囲",
-    "どのパイプにも共通の流れ（記録・確認・まとめ）",
-    "止める操作",
-    "SDK の呼び出し",
-    "パイプの読み込み・検査・流れ・権限の型",
-    "パイプの生成・環境の検出・ひな形",
-]
-
-
-@pytest.mark.parametrize("item", TABLE_ITEMS)
-def test_d0009_ac08_table_items_kept(item):
-    """D0009-AC-08: 並べ直す前の README の表の行（行の頭の項目）が、README の表に残っている。"""
-    assert re.search(rf"^\|\s*{re.escape(item)}\s*\|", readme(), re.M), item
-
-
-# ---- D0009-AC-09: アラート -----------------------------------------------------------
-
-
-def test_d0009_ac09_alerts():
-    """D0009-AC-09: GitHub のアラートが3つ以上あり、「概算」「.pipe-in/ をコミットの前に見る」「--yes」がそれぞれアラートの中にある。"""
-    found = alerts(readme())
-    assert len(found) >= 3, found
-    bodies = [body for _, body in found]
-    assert any("概算" in b for b in bodies), "費用が概算であることのアラートが無い"
-    assert any(".pipe-in/" in b and "コミット" in b for b in bodies), ".pipe-in/ をコミットの前に見るアラートが無い"
-    assert any("--yes" in b for b in bodies), "--yes のアラートが無い"
+# ---- D0009-AC-09: アラートの見つけ方（D0014 のアラートの検査も使う） ---------------------------
 
 
 def test_d0009_ac09_alert_finder():
@@ -438,7 +255,7 @@ def test_d0009_ac09_alert_finder():
 
 
 def test_d0009_ac10_quick_start_order():
-    """D0009-AC-10: 「すぐ試す」の中で git clone → venv → 両方の activate → pip install → pipe-in --project の順に出てくる。"""
+    """D0009-AC-10・D0014-AC-05: 「すぐ試す」の中で git clone → venv → 両方の activate → pip install → pipe-in --project の順に出てくる。"""
     sec = section(readme(), "すぐ試す")
     assert sec, "## すぐ試す が無い"
     clone = sec.find("git clone")
@@ -453,7 +270,7 @@ def test_d0009_ac10_quick_start_order():
     assert sec.find("pipe-in --project", pip) > pip, "pip install のあとに最初の pipe-in --project が無い"
 
 
-# ---- D0009-AC-11: <picture> --------------------------------------------------------
+# ---- <picture> の検査の補助（D0009-AC-13 と D0014-AC-19 が使う） -------------------------------
 
 
 def _picture_problems(pics: list[dict], resolve) -> list[str]:
@@ -478,15 +295,6 @@ def _used_names(pics: list[dict], resolve) -> set[str]:
             if ref and resolve(ref).resolve() == (ASSETS / Path(ref).name).resolve():
                 out.add(Path(ref).name)
     return out
-
-
-def test_d0009_ac11_pictures():
-    """D0009-AC-11: README の <picture> はどれも暗い表示の <source> と alt・width のある <img> を持ち、指すファイルが実在し、パネルと作業台の明暗4枚を使っている。"""
-    pics = pictures(readme())
-    resolve = lambda ref: ROOT / ref  # noqa: E731
-    assert pics, "<picture> が無い"
-    assert _picture_problems(pics, resolve) == []
-    assert set(IMAGES) <= _used_names(pics, resolve), f"使われていない画像: {sorted(set(IMAGES) - _used_names(pics, resolve))}"
 
 
 # ---- D0009-AC-12: PNG の上限 --------------------------------------------------------
@@ -536,64 +344,11 @@ def _vscode_resolve(ref: str) -> Path:
 
 
 def test_d0009_ac13_vscode_readme_pictures():
-    """D0009-AC-13: vscode/README.md に、パネルと作業台の明暗の画像の <picture> があり、指すパス（../docs/assets/… か raw の URL）が実在する。"""
+    """D0009-AC-13・D0014-AC-20: vscode/README.md に、パネルと作業台の明暗の画像の <picture> があり、指すパス（../docs/assets/… か raw の URL）が実在する。"""
     pics = pictures(VSCODE_README.read_text(encoding="utf-8"))
     assert pics, "vscode/README.md に <picture> が無い"
     assert _picture_problems(pics, _vscode_resolve) == []
     assert set(IMAGES) <= _used_names(pics, _vscode_resolve)
-
-
-# ---- D0009-AC-17: CLI の出力 -------------------------------------------------------
-
-
-def python_project(tmp_path: Path) -> Path:
-    project = tmp_path / "myapp"
-    (project / "src").mkdir(parents=True)
-    (project / "docs").mkdir()
-    (project / "pyproject.toml").write_text(
-        '[project]\nname = "myapp"\n[project.optional-dependencies]\ndev = ["pytest>=8"]\n', encoding="utf-8"
-    )
-    return project
-
-
-def _normalize(out: str, project: Path) -> list[str]:
-    for p in {str(project), project.as_posix()}:
-        out = out.replace(p, "<対象>")
-    lines = [line.rstrip() for line in out.replace("\\", "/").splitlines()]
-    while lines and not lines[-1]:
-        lines.pop()
-    return lines
-
-
-def test_d0009_ac17_cli_output_matches(tmp_path, monkeypatch, capsys):
-    """D0009-AC-17: README の pipe-in-gen new / check の出力は、tmp_path で流した本物の出力と（手元のパスの置き換えを除いて）一致する。"""
-    import os
-
-    from pipe_in.pipe import definition as pd
-    from pipe_in_generator import cli
-
-    monkeypatch.delenv("PIPE_IN_PIPES_DIR", raising=False)
-    monkeypatch.delenv("DEV" + "PIPE_PIPES_DIR", raising=False)
-
-    def fake_default() -> Path:
-        env = pd.env_pipes_dir(os.environ)
-        return Path(env) if env else tmp_path / "repo-pipes"
-
-    monkeypatch.setattr(pd, "default_pipes_dir", fake_default)
-    project = python_project(tmp_path).resolve()
-    monkeypatch.chdir(project)
-
-    blocks = [b for b in code_blocks(readme(), "text") if b and b[0].startswith("$ pipe-in-gen ")]
-    assert [b[0][len("$ pipe-in-gen "):].strip() for b in blocks] == ["new diagrams --from diagrams", "check diagrams"]
-    for block in blocks:
-        argv = block[0][len("$ pipe-in-gen "):].split()
-        capsys.readouterr()
-        assert cli.main(argv) == 0, argv
-        got = _normalize(capsys.readouterr().out, project)
-        want = [line.rstrip() for line in block[1:]]
-        while want and not want[-1]:
-            want.pop()
-        assert got == want, argv
 
 
 # ---- D0009-AC-18: 撮り直しの手順 -----------------------------------------------------

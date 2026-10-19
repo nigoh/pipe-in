@@ -11,12 +11,12 @@ disable-model-invocation: true
 
 （空なら、新しく作るのか、どのパイプを直すのかと、対象プロジェクトの場所を聞いてから始める）
 
-パイプは1つのフォルダ（`pipe.toml`・`prompts/`・`README.md`）です。書き方は `pipe-in-gen --help` と pipe-in の README の「パイプ」の節にあります。
+パイプは1つのフォルダ（`pipe.toml`・`prompts/`・`README.md`）です。書き方は `pipe-in-gen --help` で確かめる。人が読む説明は公開リポジトリの `docs/guide/pipes.md`（https://github.com/nigoh/pipe-in/blob/main/docs/guide/pipes.md）にあります（プラグインには入っていないので、この会話では開かない）。
 ここに書いたのは進め方だけです。この会話では、ファイルを書くのは pipe-builder に任せ、自分では書きません。
 
 ## 0. 前提を確かめる
 
-- `pipe-in-gen --help` が動くかを確かめる。動かなければ、pipe-in の入れ方（pipe-in のリポジトリで `pip install -e .`）を案内して止まる。
+- `pipe-in-gen --help` が動くかを確かめる。動かなければ、pipe-in の入れ方（`git clone https://github.com/nigoh/pipe-in.git` で取ってきて、そのフォルダで `pip install -e .`）を案内して止まる。
   pipe-builder の書き込みを絞るフックも `pipe-in-gen` で動くので、これが無いまま先に進まない。
 - 対象プロジェクトのフォルダを決める（指定がなければ今のフォルダ。違いそうなら聞く）。
 - `pipe-in-gen list --project <対象>` で、ひな形とすでにあるパイプを見る。

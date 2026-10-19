@@ -21,7 +21,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 決まり | 検査するテスト |
 | --- | --- |
 | 依存の向き（本体・ジェネレーター） | `tests/test_architecture.py` |
-| 前の名前が、決まったファイル（読み替え・移行の節・歴史）にしか残っていない | `tests/test_rename.py` |
+| 前の名前が、決まったファイル（読み替え・移行の案内・歴史）にしか残っていない | `tests/test_rename.py` |
 | プラグインの pipe-builder・/pipe-in のサブエージェント（監査と助言を含む）が書ける場所と Bash・助言の Web の行き先 | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
 | 拡張の層ごとに使ってよい部品・`vscode` を import するのは入口だけ | `vscode/src/architecture.test.ts` |
 | パネルの CSP（インラインの style を使わない） | `vscode/src/webview/csp.test.ts` |

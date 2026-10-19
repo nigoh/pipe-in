@@ -5,7 +5,7 @@ pipe-in が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物
 書くのは、作業台で「保存」を押したときの、開いたパイプのフォルダ（新しいパイプは `.pipe-in/pipes/pipe-in-<名前>/`）の中（`pipe.toml`・`prompts/*.md`・`layout.json`・無いときの `README.md`）だけ。
 作業台の「保存した版」は、プロジェクトではなく VSCode が拡張に用意する保存場所に書く。
 
-前の名前の拡張から移るときの手順（設定・コマンド・古い拡張の外し方）は、リポジトリの [README の移行の節](../README.md#migrate) にある。
+前の名前の拡張から移るときの手順（設定・コマンド・古い拡張の外し方）は、リポジトリの [移行の文書](../docs/guide/migrate.md) にある。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/run-panel-dark.png">

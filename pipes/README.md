@@ -29,4 +29,4 @@ pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心�
 パイプの指示文には、対象プロジェクトの事情（社内の名前・仕様の中身など）が入りやすいためです。
 共有したいパイプは、中身を確かめてから、ひな形として `generator/templates/` に足してください。
 
-置き場所は、環境変数 `PIPE_IN_PIPES_DIR` で変えられます（前の版の環境変数も読みます。README の移行の節を見てください）。
+置き場所は、環境変数 `PIPE_IN_PIPES_DIR` で変えられます（前の版の環境変数も読みます。[docs/guide/migrate.md](../docs/guide/migrate.md) を見てください）。

@@ -12,8 +12,8 @@ disable-model-invocation: true
 ## 答え方
 
 - 引数が空なら、下の「一覧」をそのまま見せる（表は崩さない）。最後に「`/pipe-help パイプ` のように付けると、そこだけ詳しく答えます」と1行添える。
-- 引数があれば、一覧の中から当てはまる所だけを選び、README.md・vscode/README.md・pipes/README.md の該当する節を読んで、手順を具体的に答える。コマンドは実際の書き方で示す。
-- このリポジトリの今の版で確かめられることだけを答える（コマンドやオプションは `pipe-in --help`・`pipe-in-gen --help` か README で確かめる）。書かれていないことは「書かれていない」と言う。
+- 引数があれば、一覧の中から当てはまる所だけを選び、README.md・`docs/guide/` の文書・vscode/README.md・pipes/README.md の該当する節を読んで、手順を具体的に答える。コマンドは実際の書き方で示す。
+- このリポジトリの今の版で確かめられることだけを答える（コマンドやオプションは `pipe-in --help`・`pipe-in-gen --help` か README・`docs/guide/` で確かめる）。書かれていないことは「書かれていない」と言う。
 - 何も実行しない（流す・作る・保存するのは、人に言われてから）。
 
 ## 一覧
@@ -67,7 +67,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | 目的から段を組ませる（Claude が設計する。利用料がかかる） | `pipe-in-gen design <名前> --purpose "…" --project <対象>` |
 | 定義の誤りを調べる | `pipe-in-gen check <名前> --project <対象>` |
 
-作ったパイプは対象の `.pipe-in/pipes/pipe-in-<名前>/`（pipe.toml・prompts/・README.md）に置かれる（`--pipes-dir` か `PIPE_IN_PIPES_DIR` で変えられる。前の版の置き場所も読む。README の移行の節を参照）。
+作ったパイプは対象の `.pipe-in/pipes/pipe-in-<名前>/`（pipe.toml・prompts/・README.md）に置かれる（`--pipes-dir` か `PIPE_IN_PIPES_DIR` で変えられる。前の版の置き場所も読む。`docs/guide/migrate.md` を参照）。
 
 ### VSCode 拡張（コマンドパレット）
 
@@ -79,6 +79,6 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 ### もっと詳しく
 
 - 開発のルール（原則・仕様・設計・テスト・進め方）：docs/development/、決めたことの記録：docs/decisions/
-- pipe-in 全体：README.md（パイプの書き方・検証と差し戻し・分岐と並列・Agent SDK の設定・終了コード）
+- pipe-in 全体：`docs/guide/`（目次 `docs/guide/README.md`。流し方 `usage.md`・パイプの書き方と検証・分岐・Agent SDK の設定 `pipes.md`・終了コード `records.md` など）
 - VSCode 拡張と作業台：vscode/README.md
-- パイプの置き場所とプラグイン：README.md の「パイプ」「Claude Code のプラグイン」
+- プラグイン：`docs/guide/plugin.md`

@@ -17,6 +17,7 @@
 | [D0011](D0011-video-pipe.md) | 人と確かめながら紹介動画を作るパイプの見本（examples/video）と、ボタンで答える手元の受付 |
 | [D0012](D0012-headless-audit.md) | 会話を開かずに /pipe-audit・/pipe-advise を流す呼び方（claude -p）を決め、文書とテストで守る |
 | [D0013](D0013-plug-logo-motion.md) | プラグのロゴの動きを、一拍おいて全体から寄るカメラと、上から差す立体のプラグにする |
+| [D0014](D0014-readme-guide.md) | README を入口にし、くわしい説明を docs/guide/ に移す |
 
 ## ひな形
 

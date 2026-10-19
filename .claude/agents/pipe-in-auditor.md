@@ -13,7 +13,7 @@ color: yellow
 
 ## 対象
 
-- CLAUDE.md・README.md・`vscode/README.md`・`pipes/README.md`
+- CLAUDE.md・README.md・`docs/guide/`・`vscode/README.md`・`pipes/README.md`
 - `docs/development/`・`docs/decisions/`
 - `.claude/`（スキル・エージェントの定義・フック・settings.json）
 - `plugin/`・`.claude-plugin/`

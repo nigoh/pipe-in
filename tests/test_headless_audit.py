@@ -1,6 +1,6 @@
 """D0012（会話を開かずに /pipe-audit・/pipe-advise を流す呼び方）と、文書・SKILL.md の食い違いの検査。
 
-- /pipe-help と README に、同じ `claude -p "/pipe-audit …"`・`claude -p "/pipe-advise …"` の呼び方の例がある
+- /pipe-help とガイドの開発の文書（docs/guide/develop.md。D0014 で README から移した）に、同じ `claude -p "/pipe-audit …"`・`claude -p "/pipe-advise …"` の呼び方の例がある
 - 例は読むだけに絞られ（--tools で組み込みの道具そのものを絞り、--allowedTools は確認なしで通す許可）、--bare などを付けていない
 - 助言の行の WebFetch の行き先が、.claude/hooks/pipe_in_guard.py の DOC_HOSTS・GITHUB_HOSTS と同じ
 - 報告で止まること・開かれなかったときの見分け方が、それぞれの節の中に書いてある
@@ -22,6 +22,8 @@ GUARD = ROOT / ".claude" / "hooks" / "pipe_in_guard.py"
 SKILLS = ROOT / ".claude" / "skills"
 HELP = SKILLS / "pipe-help" / "SKILL.md"
 README = ROOT / "README.md"
+GUIDE = ROOT / "docs" / "guide"
+DEVELOP = GUIDE / "develop.md"
 DECISIONS = ROOT / "docs" / "decisions"
 RECORD = DECISIONS / "D0012-headless-audit.md"
 D0008 = DECISIONS / "D0008-audit-advisor.md"
@@ -63,7 +65,7 @@ EXPECTED_ADVISE = (
 # 説明を探す節（文書の名前: (ファイル, 見出しの語)）
 SECTION_OF = {
     "pipe-help": (HELP, "会話を開かずに流す"),
-    "README": (README, "Claude Code で開発するとき"),
+    "develop": (DEVELOP, "Claude Code で開発するとき"),
 }
 
 
@@ -161,9 +163,9 @@ def has_word(line: str, word: str) -> bool:
 
 
 def doc_calls() -> list[tuple[str, str]]:
-    """(文書の名前, 呼び方の行) を、pipe-help と README から集める。"""
+    """(文書の名前, 呼び方の行) を、pipe-help とガイドの開発の文書から集める。"""
     out: list[tuple[str, str]] = []
-    for name, path in (("pipe-help", HELP), ("README", README)):
+    for name, path in (("pipe-help", HELP), ("develop", DEVELOP)):
         out += [(name, squash(line)) for line in call_lines(read(path))]
     return out
 
@@ -189,32 +191,39 @@ def test_pipe_helpに会話を開かない呼び方の例がある(start):
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
-def test_readmeに会話を開かない呼び方の例がある(start):
-    """D0012-AC-03: README.md に、同じ2つの呼び方の行がある。"""
-    call_for(read(README), start)
+def test_D0014_AC_30_ガイドの開発の文書に会話を開かない呼び方の例がある(start):
+    """D0014-AC-30: docs/guide/develop.md に、同じ2つの呼び方の行がある（D0012-AC-03 の README を、移した先に付け直した）。"""
+    call_for(read(DEVELOP), start)
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
-def test_readmeとpipe_helpの呼び方が空白をそろえて同じ(start):
-    """D0012-AC-03: README の呼び方の行（文字列とオプション）が、/pipe-help のものと一致する。"""
-    assert call_for(read(README), start) == call_for(read(HELP), start)
+def test_D0014_AC_30_ガイドとpipe_helpの呼び方が空白をそろえて同じ(start):
+    """D0014-AC-30: docs/guide/develop.md の呼び方の行（文字列とオプション）が、/pipe-help のものと一致する。"""
+    assert call_for(read(DEVELOP), start) == call_for(read(HELP), start)
+
+
+def test_D0014_AC_30_呼び方の行はpipe_helpと開発の文書の2か所だけ():
+    """D0014-AC-30: README.md・ガイドのほかの文書・D0014 の記録に `claude -p "` で始まる呼び方の行が無い。"""
+    others = [README] + sorted(p for p in GUIDE.glob("*.md") if p != DEVELOP) + sorted(DECISIONS.glob("D0014-*.md"))
+    found = [p.relative_to(ROOT).as_posix() for p in others if call_lines(read(p))]
+    assert found == []
 
 
 # ---- D0012-AC-04：付けないオプション ---------------------------------------------------------
 
 
 @pytest.mark.parametrize("option", NO_SKILL_OPTIONS)
-@pytest.mark.parametrize("doc", ["pipe-help", "README"])
+@pytest.mark.parametrize("doc", ["pipe-help", "develop"])
 def test_呼び方の例にスキルを無効にするオプションを付けていない(doc, option):
-    """D0012-AC-04: /pipe-help・README の呼び方の行に --bare・--disable-slash-commands が無い。"""
-    path = {"pipe-help": HELP, "README": README}[doc]
+    """D0012-AC-04・D0014-AC-30: /pipe-help・docs/guide/develop.md の呼び方の行に --bare・--disable-slash-commands が無い。"""
+    path = {"pipe-help": HELP, "develop": DEVELOP}[doc]
     lines = call_lines(read(path))
     assert lines, "呼び方の行が1つも無い（検査が空振りしないように）"
     assert not [line for line in lines if has_word(line, option)]
 
 
 def test_D0012に呼び方の行を書かない():
-    """D0012-AC-04: D0012 に `claude -p "` で始まる呼び方の行を書かない（文書の呼び方は pipe-help と README に1か所ずつ）。"""
+    """D0012-AC-04: D0012 に `claude -p "` で始まる呼び方の行を書かない（文書の呼び方は pipe-help と docs/guide/develop.md に1か所ずつ）。"""
     assert call_lines(read(RECORD)) == []
 
 
@@ -222,9 +231,9 @@ def test_D0012に呼び方の行を書かない():
 
 
 def test_呼び方は確認なしで断るモードと許す道具の一覧を付けている():
-    """D0012-AC-05: /pipe-help・README の呼び方の行すべてに --permission-mode dontAsk と --allowedTools がある。"""
+    """D0012-AC-05・D0014-AC-30: /pipe-help・docs/guide/develop.md の呼び方の行すべてに --permission-mode dontAsk と --allowedTools がある。"""
     calls = doc_calls()
-    assert {n for n, _ in calls} == {"pipe-help", "README"}, "どちらの文書にも呼び方の行が要る"
+    assert {n for n, _ in calls} == {"pipe-help", "develop"}, "どちらの文書にも呼び方の行が要る"
     for name, line in calls:
         assert "--permission-mode dontAsk" in line, f"{name}: {line}"
         assert allowed_tools(line), f"{name}: --allowedTools が無い: {line}"
@@ -232,14 +241,14 @@ def test_呼び方は確認なしで断るモードと許す道具の一覧を�
 
 @pytest.mark.parametrize("word", WRITE_WORDS)
 def test_呼び方に書き込みやコマンド実行を許す語が無い(word):
-    """D0012-AC-05: /pipe-help・README の呼び方の行に、書き込み・Bash・PowerShell を許す語が無い。"""
+    """D0012-AC-05・D0014-AC-30: /pipe-help・docs/guide/develop.md の呼び方の行に、書き込み・Bash・PowerShell を許す語が無い。"""
     calls = doc_calls()
     assert calls, "呼び方の行が1つも無い（検査が空振りしないように）"
     assert not [(n, line) for n, line in calls if has_word(line, word)]
 
 
 def test_許す道具は読む道具と公式の文書の取得だけ():
-    """D0012-AC-05: --allowedTools に書いた道具が Agent(…)・Read・Grep・Glob・WebSearch・WebFetch(domain:…) だけ。"""
+    """D0012-AC-05・D0014-AC-30: --allowedTools に書いた道具が Agent(…)・Read・Grep・Glob・WebSearch・WebFetch(domain:…) だけ。"""
     calls = doc_calls()
     assert calls, "呼び方の行が1つも無い（検査が空振りしないように）"
     for name, line in calls:
@@ -250,37 +259,37 @@ def test_許す道具は読む道具と公式の文書の取得だけ():
 
 @pytest.mark.parametrize("skill,start", [("pipe-audit", AUDIT_START), ("pipe-advise", ADVISE_START)])
 def test_呼び方で許すサブエージェントがスキルのallowed_toolsと一致する(skill, start):
-    """D0012-AC-05: 呼び方の Agent(…) が、SKILL.md の allowed-tools の Agent(…) と一致する。"""
+    """D0012-AC-05・D0014-AC-30: 呼び方の Agent(…) が、SKILL.md の allowed-tools の Agent(…) と一致する。"""
     declared = [
         line.split(":", 1)[1].strip()
         for line in frontmatter(read(SKILLS / skill / "SKILL.md"))
         if line.startswith("allowed-tools:")
     ]
     assert len(declared) == 1
-    for text in (read(HELP), read(README)):
+    for text in (read(HELP), read(DEVELOP)):
         agents = [t for t in allowed_tools(call_for(text, start)) if t.startswith("Agent(")]
         assert agents == [declared[0]]
 
 
 def test_呼び方の行は承認された2行と同じ():
-    """D0012-AC-05: pipe-help・README の呼び方の行が、承認された監査・助言の2行（空白をそろえて）と一致する。"""
-    for text in (read(HELP), read(README)):
+    """D0012-AC-05・D0014-AC-30: pipe-help・docs/guide/develop.md の呼び方の行が、承認された監査・助言の2行（空白をそろえて）と一致する。"""
+    for text in (read(HELP), read(DEVELOP)):
         assert call_for(text, AUDIT_START) == EXPECTED_AUDIT
         assert call_for(text, ADVISE_START) == EXPECTED_ADVISE
 
 
 @pytest.mark.parametrize("start", [AUDIT_START, ADVISE_START])
 def test_呼び方にtoolsで組み込みの道具を絞る指定がある(start):
-    """D0012-AC-05: 呼び方の行に --tools があり、値（カンマ区切り）が Agent・Read・Grep・Glob・WebFetch・WebSearch の中だけ（Bash・Write・Edit などが入れば落ちる）。"""
-    for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
+    """D0012-AC-05・D0014-AC-30: 呼び方の行に --tools があり、値（カンマ区切り）が Agent・Read・Grep・Glob・WebFetch・WebSearch の中だけ（Bash・Write・Edit などが入れば落ちる）。"""
+    for name, text in (("pipe-help", read(HELP)), ("develop", read(DEVELOP))):
         tools = tools_option(call_for(text, start))
         assert tools, f"{name}: --tools が無い"
         assert set(tools) <= TOOLS_OK, f"{name}: {tools}"
 
 
 def test_監査の呼び方にはWebの道具を付けない():
-    """D0012-AC-05: 監査の行の --tools にも --allowedTools にも WebFetch・WebSearch が無い。"""
-    for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
+    """D0012-AC-05・D0014-AC-30: 監査の行の --tools にも --allowedTools にも WebFetch・WebSearch が無い。"""
+    for name, text in (("pipe-help", read(HELP)), ("develop", read(DEVELOP))):
         line = call_for(text, AUDIT_START)
         tools = tools_option(line)
         assert tools, f"{name}: --tools が無い"
@@ -289,9 +298,9 @@ def test_監査の呼び方にはWebの道具を付けない():
 
 
 def test_助言の呼び方のWebFetchの行き先がガードの公式の場所と同じ():
-    """D0012-AC-05: 助言の行の WebFetch(domain:…) の集合が、pipe_in_guard.py の DOC_HOSTS と GITHUB_HOSTS を合わせた集合とちょうど同じ。"""
+    """D0012-AC-05・D0014-AC-30: 助言の行の WebFetch(domain:…) の集合が、pipe_in_guard.py の DOC_HOSTS と GITHUB_HOSTS を合わせた集合とちょうど同じ。"""
     expected = guard_hosts(read(GUARD))
-    for name, text in (("pipe-help", read(HELP)), ("README", read(README))):
+    for name, text in (("pipe-help", read(HELP)), ("develop", read(DEVELOP))):
         got = webfetch_domains(call_for(text, ADVISE_START))
         assert got == expected, f"{name}: 足りない={sorted(expected - got)} 余分={sorted(got - expected)}"
 
@@ -299,27 +308,27 @@ def test_助言の呼び方のWebFetchの行き先がガードの公式の場所
 # ---- D0012-AC-06・07：書いておくべき説明（それぞれの節の中だけを見る） -------------------------
 
 
-@pytest.mark.parametrize("doc", ["pipe-help", "README"])
+@pytest.mark.parametrize("doc", ["pipe-help", "develop"])
 @pytest.mark.parametrize("word", ["報告", "止まり", "承認", "会話"], ids=["report", "stop", "approve", "chat"])
 def test_非対話では報告で止まり直すのは承認のあと会話でと書いてある(doc, word):
-    """D0012-AC-06: /pipe-help の「会話を開かずに流す」の節と README の「Claude Code で開発するとき」の節の中に、報告を出して止まること、直すのは承認のあと会話でと書いてある。"""
+    """D0012-AC-06・D0014-AC-30: /pipe-help の「会話を開かずに流す」の節と docs/guide/develop.md の「Claude Code で開発するとき」の節の中に、報告を出して止まること、直すのは承認のあと会話でと書いてある。"""
     text = doc_section(doc)
     assert call_lines(text), "その節に呼び方の例が無い"
     assert word in text
 
 
-@pytest.mark.parametrize("doc", ["pipe-help", "README"])
+@pytest.mark.parametrize("doc", ["pipe-help", "develop"])
 @pytest.mark.parametrize("word", ["slash_commands", "system/init", "--output-format stream-json --verbose"])
 def test_開かれなかったときの見分け方が書いてある(doc, word):
-    """D0012-AC-07: 上と同じ節の中に、system/init の slash_commands で開かれたかを見分ける方法が書いてある。"""
+    """D0012-AC-07・D0014-AC-30: 上と同じ節の中に、system/init の slash_commands で開かれたかを見分ける方法が書いてある。"""
     text = doc_section(doc)
     assert call_lines(text), "その節に呼び方の例が無い"
     assert word in text
 
 
-@pytest.mark.parametrize("doc", ["pipe-help", "README"])
+@pytest.mark.parametrize("doc", ["pipe-help", "develop"])
 def test_見分け方は助言のpipe_adviseも確かめると書いてある(doc):
-    """D0012-AC-07: 同じ節に、slash_commands で `pipe-audit`（/pipe-advise のときは `pipe-advise`）も確かめると書いてある。"""
+    """D0012-AC-07・D0014-AC-30: 同じ節に、slash_commands で `pipe-audit`（/pipe-advise のときは `pipe-advise`）も確かめると書いてある。"""
     text = doc_section(doc)
     assert "slash_commands" in text
     assert "`pipe-audit`" in text and "`pipe-advise`" in text

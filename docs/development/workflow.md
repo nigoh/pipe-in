@@ -90,7 +90,7 @@ git rebase --autostash main           # まだコミットしていない自分�
 
 | 変えたもの | 直す文書 |
 | --- | --- |
-| 使い方（コマンド・オプション・設定） | `README.md`、拡張なら `vscode/README.md`、`/pipe-help`（`.claude/skills/pipe-help/SKILL.md`） |
+| 使い方（コマンド・オプション・設定） | `README.md`・`docs/guide/`、拡張なら `vscode/README.md`、`/pipe-help`（`.claude/skills/pipe-help/SKILL.md`） |
 | 置き場所（ファイルを足した・動かした） | [design.md](design.md) の「置き場所」の表、必要なら `CLAUDE.md` |
 | 層・依存の向き | [design.md](design.md) と、それを検査するテスト |
 | 開発の決まり | `docs/development/` と、それを検査するテスト、`CLAUDE.md` の要約、`/pipe-in` |

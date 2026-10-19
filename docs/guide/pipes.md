@@ -1,0 +1,207 @@
+# パイプ（目的に合わせた段の並び）
+
+[ガイドの目次](README.md) · [README](../../README.md) — 段の並びを自分で決めた「パイプ」の作り方・書き方・流し方の説明です。
+
+開発の5段のほかに、段の並びを自分で決めた **パイプ** を作って流せます（ソースから図を作る、仕様とソースを突き合わせて QA の観点を出す、など）。
+パイプは1つのフォルダ（対象プロジェクトの `.pipe-in/pipes/pipe-in-<名前>/`）で、**ジェネレーター**（`pipe-in-gen`）がひな形から作ります。
+
+```
+~/src/myapp/                対象プロジェクト
+└─ .pipe-in/pipes/         作ったパイプ（1パイプ＝1フォルダ）
+   └─ pipe-in-diagrams/
+      ├─ pipe.toml         段の並び・書き込める範囲・確認の有無
+      ├─ prompts/          段ごとの指示文
+      └─ README.md         何をするパイプか・流し方
+
+pipe-in のリポジトリ
+├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）
+│  └─ templates/           ひな形（dev / diagrams / spec-qa）
+└─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）
+```
+
+```bash
+pipe-in-gen list --project ~/src/myapp                          # ひな形と、作ったパイプの一覧
+pipe-in-gen new diagrams --from diagrams --project ~/src/myapp  # ひな形から .pipe-in/pipes/pipe-in-diagrams/ を作る
+pipe-in-gen design apidoc --purpose "ソースから API の文書を作り、突き合わせたい" --project ~/src/myapp
+                                                                # 目的から段を組んで作る（Claude が設計する）
+pipe-in-gen check diagrams --project ~/src/myapp                # 定義の誤りを調べる
+pipe-in --pipe diagrams --project ~/src/myapp --text "注文の流れを中心に"   # 作ったパイプを流す
+```
+
+対象のフォルダで、ひな形 diagrams からパイプを作り、定義を調べたときの出力（Python のプロジェクト：pytest・`src/`・`docs/`）：
+
+```text
+$ pipe-in-gen new diagrams --from diagrams
+✓ <対象>/.pipe-in/pipes/pipe-in-diagrams を作りました（ひな形: diagrams）
+  見つけた環境: 言語 python・テスト pytest -q・ソース src・文書 docs
+✓ パイプ「diagrams」: 問題ありません
+
+中身は自由に直せます（段の並び・権限・確認は pipe.toml、指示は prompts/）。直したら pipe-in-gen check で確かめてください。
+流す: pipe-in --pipe diagrams --project <対象のフォルダ> [--text "依頼メモ"]
+```
+
+```text
+$ pipe-in-gen check diagrams
+✓ パイプ「diagrams」: 問題ありません
+```
+
+Claude Code では、プラグインのスキル `/pipe-in:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（「[Claude Code のプラグイン](plugin.md)」）。
+
+- `pipe-in-gen new` は対象のファイルを見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
+- `pipe-in-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。利用料がかかります。
+- 同じ名前のパイプがあれば作りません（`--force` で作り直し）。ほかの置き場所（前の版の置き場所を含む）に同じ名前があるときは、`--force` を付けても作りません。
+- パイプは対象プロジェクトの `.pipe-in/pipes/` に作ります。`--pipes-dir`（そこだけを使う）か `PIPE_IN_PIPES_DIR` で変えられます。
+- 探すときは、対象の `.pipe-in/pipes/` → 前の版の置き場所（[前の名前から移る](migrate.md)）→ 今までの場所（`PIPE_IN_PIPES_DIR`、なければ pipe-in のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
+
+<details>
+<summary><code>pipe-in-gen new</code> が見るもの</summary>
+
+Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・Rust・Java（Maven・Gradle）・Ruby（RSpec・Rake）・PHP（composer・PHPUnit）・.NET・Deno・Makefile の test、`src/`・`docs/` など。
+
+</details>
+
+> [!WARNING]
+> 指示文には対象プロジェクトの事情が入りやすいので、対象が公開リポジトリなら、`.pipe-in/` などの生成物はコミットする前に中身を確かめてください（入れたくなければ `.gitignore` に足します）。
+
+共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
+
+## ひな形
+
+| 名前 | 段 | 作るもの |
+|---|---|---|
+| `dev` | 要件定義 → 設計 → テスト先行 → 実装 → 検証 | [開発フロー](usage.md#開発フローの流れ)そのもの。テストのコマンドを環境から埋める |
+| `diagrams` | ソースの調査 → 図を描く → 図とソースの突き合わせ | フロー図・シーケンス図・状態遷移図・クラス図（Mermaid）|
+| `spec-qa` | 仕様とソースの対応 → 食い違いと検討事項 → QA の観点とテストケース | 対応表・食い違いの一覧・テストケース案。どの段もコードは書かない |
+
+## 見本のパイプ
+
+`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
+`ffmpeg` と Playwright が要ります。流し方・案のデータの形・ブラウザから答える受付（`examples/video/review_server.py`）は `examples/video/pipes/pipe-in-video/README.md`、台本の見本は `examples/video/pipe-in-intro-script.md` にあります。
+
+## 定義の書き方（`pipe.toml`）
+
+```toml
+[pipe]
+kind = "linear"            # "linear"（下の段を順に流す）か "dev"（組み込みの開発フロー）
+label = "ソースから図を作る"
+input = "optional"         # 依頼メモが required / optional / none
+
+[[stages]]
+name = "survey"            # 英小文字・数字・-
+label = "ソースの調査"
+output = "01_survey.md"    # 成果物（記録の置き場所の中のファイル名）
+access = "read"            # 書き込める範囲の型（下の表）
+review = true              # この段のあとで人の確認を取る
+prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短ければ prompt = "..." で直接書いてもよい
+# bash = true              # Bash を使わせる（危ない操作はいつも止める）
+# writes = ["src/api/**"]  # docs / tests / code の範囲を、さらに場所で絞る（* は / もまたぐ）
+# web = true               # WebFetch と WebSearch を使わせる。web = ["docs.python.org"] ならそのドメインへの WebFetch だけ
+# mcp = ["mcp__jira__get_issue", "mcp__figma__*"]   # 使わせる MCP の道具（サーバーの名前は必ず書く）
+# model = "sonnet" / max_turns = 100 / max_budget_usd = 1.0
+```
+
+| access | 書き込める範囲 |
+|---|---|
+| `read` | 自分の成果物だけ |
+| `docs` | 自分の成果物と `docs_dir` の下（`docs_dir` はプロジェクトの中） |
+| `tests` | 自分の成果物とテストファイル |
+| `code` | 自分の成果物と製品コード（テストファイルは除く） |
+
+- 段は定義の順に流れ、各段には依頼メモと、前の段のうち成果物があるものの場所が渡されます。
+- 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
+- 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
+- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。
+- MCP のサーバーは、Claude Code の設定から読みます。対象の `pipeline.toml` の `setting_sources` に `"project"`（`.mcp.json`）か `"user"` を入れてください。
+- `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。
+
+## 検証と差し戻し
+
+段の成果物を確かめ、不合格なら直す点を添えて前の段へ戻せます。
+
+```toml
+[[stages]]
+name = "verify"
+# ...
+[stages.check]
+verdict = true                 # 段に pass / fail と直す点（problems）を返させる
+command = "python -m pytest -q tests/test_docs.py"   # pipe-in が流す確認用のコマンド（終了コード 0 で合格）
+on_fail = "draw"               # 不合格のときに戻す段（自分か前の段。省くと自分）
+max_retries = 2                # 戻す回数の上限。超えたら終了コード 1
+```
+
+- `verdict` と `command` は、どちらか一方でも両方でもかまいません。両方なら、どちらも合格で合格です。
+- 検証は、人の確認より先に行います（不合格のものは人に見せない）。
+- 戻した段には「前回の検証で見つかった問題」が渡され、新しい会話でやり直します。
+- `command` は利用者が書くコマンドで、pipe-in が対象のフォルダで実行します。`curl` や `git push` などの危ない操作は、`pipe-in-gen check` で拒みます。
+
+## 分岐・飛び先・並列
+
+- `[stages.routes]`：段に choice を返させ、行き先を選びます（`"end"` で終わり）。
+- `next`：次の段を決めます（`"end"` で終わり）。省くと定義の次の段です。
+- `group`：同じ group の続いた段は同時に流します。
+- 分岐先の段が、ほかの分岐先に流れ込まないように、最後に `next` を書いてください。
+- `group` の段には `review`・`routes`・`next` を書けません。`check` の `on_fail` は自分だけを指せます（自分だけをやり直す）。
+- 段を流す回数は `[pipe]` の `max_steps`（既定 50）までです。超えたら終了コード 3 で止めます（飛び先や差し戻しの無限ループを防ぐ）。
+
+<details>
+<summary>書き方の例</summary>
+
+```toml
+[[stages]]
+name = "classify"
+# ...
+[stages.routes]                # 段に choice を返させ、行き先を選ぶ（"end" で終わり）
+api = "api-doc"
+ui = "ui-doc"
+none = "end"
+
+[[stages]]
+name = "api-doc"
+next = "report"                # 次の段を決める（"end" で終わり）。省くと定義の次の段
+# ...
+
+[[stages]]
+name = "flow"
+group = "draw"                 # 同じ group の続いた段は同時に流す
+# ...
+[[stages]]
+name = "sequence"
+group = "draw"
+```
+
+</details>
+
+## Agent SDK の設定
+
+段ごとに、Claude Agent SDK の設定を書けます。書いたものだけを SDK に渡します。
+
+- 許可のモード（`permission_mode`）・考える量（`max_thinking_tokens`）・予備のモデル（`fallback_model`）・この段の決まり（`system_append`）・追加で読めるフォルダ（`add_dirs`）・使う MCP の道具（`mcp`）・サブエージェント（`agents`）・この段だけの MCP サーバー（`mcp_servers`）。
+- `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
+- `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
+
+<details>
+<summary>書き方の例</summary>
+
+```toml
+[[stages]]
+name = "survey"
+# ...
+permission_mode = "plan"          # default / acceptEdits / plan（確認を省くモードは安全のため使えません）
+max_thinking_tokens = 16000       # 考える量
+fallback_model = "sonnet"         # 予備のモデル
+system_append = "表を使って書く"   # この段の決まり（system prompt に足す）
+add_dirs = ["../shared-docs"]     # 追加で読めるフォルダ（プロジェクトからの相対パス。書き込みはできない）
+mcp = ["mcp__jira__get_issue"]    # 使う MCP の道具
+
+[stages.agents.module-reader]     # サブエージェント
+description = "1つのモジュールを読んで要点を返す"
+prompt = "渡されたモジュールだけを読む"
+tools = ["Read", "Grep"]          # 段で使える道具の範囲だけ（Task・Agent・PowerShell は不可）
+model = "haiku"
+
+[stages.mcp_servers.jira]         # この段だけで使う MCP サーバー
+type = "http"                     # stdio（command・args）/ http・sse（url）
+url = "https://mcp.example.com/jira"
+```
+
+</details>
