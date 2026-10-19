@@ -18,6 +18,7 @@
 | [D0012](D0012-headless-audit.md) | 会話を開かずに /pipe-audit・/pipe-advise を流す呼び方（claude -p）を決め、文書とテストで守る |
 | [D0013](D0013-plug-logo-motion.md) | プラグのロゴの動きを、一拍おいて全体から寄るカメラと、上から差す立体のプラグにする |
 | [D0014](D0014-readme-guide.md) | README を入口にし、くわしい説明を docs/guide/ に移す |
+| [D0015](D0015-rubric-judge.md) | 調べもの型の報告を、1つの審査役がルーブリックで採点する（pipe-in-judge・/pipe-judge と /pipe-in の助言のあと） |
 
 ## ひな形
 

@@ -14,7 +14,7 @@ allowed-tools: Agent(pipe-in-advisor)
 
 CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を守る。
 
-- Web を許すのは `pipe-in-advisor` だけで、行き先はフック（`.claude/hooks/pipe_in_guard.py` の `DOC_HOSTS`・`GITHUB_HOSTS`）が公式の文書の場所に絞る。
+- Web を許すのは `pipe-in-advisor`（と、助言の報告を採点する審査の `pipe-in-judge` の WebFetch）だけで、行き先はフック（`.claude/hooks/pipe_in_guard.py` の `DOC_HOSTS`・`GITHUB_HOSTS`）が公式の文書の場所に絞る。
 - 動くフックは、会話を始めた場所の写し。この絞りを持つフックが main に入る前は、新しいフックが動く会話（そのフックがある worktree で開いた会話）でだけ流す。
 
 1. `pipe-in-advisor` に Agent ツールで任せる。指示には、テーマ（空なら「全部」）と、作業フォルダ（今の worktree）を書く。サブエージェントはこの会話を見ていない。

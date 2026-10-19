@@ -642,3 +642,154 @@ def test_d0008_ac25_unknown_pipe_in_agents_are_read_only(guard, tool, tool_input
 def test_d0008_ac25_other_agents_are_still_not_checked(guard, agent, tool, tool_input):
     """D0008-AC-25: プラグインの pipe-in:pipe-builder・Explore・メイン（agent_type なし）には今までどおり何もしない。"""
     assert call(guard, agent, tool, **tool_input) is None
+
+
+# ---- D0015：審査役（pipe-in-judge）。読むだけ。Web は公式の文書への WebFetch だけ（WebSearch は止める） ----
+
+JUDGE = "pipe-in-judge"
+
+# D0008-AC-07 と同じ公式の文書の URL（審査役でも通ること）
+OFFICIAL_URLS = [
+    "https://code.claude.com/docs/ja/sub-agents",
+    "https://docs.claude.com/en/docs/agent-sdk/overview",
+    "https://docs.anthropic.com/en/docs/claude-code/hooks",
+    "https://platform.claude.com/docs/en/agent-sdk/python",
+    "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md",
+    "https://raw.githubusercontent.com/anthropics/claude-agent-sdk-python/main/README.md",
+    "https://docs.claude.com/en/docs/claude-code/settings?x=1#hooks",
+]
+
+# D0008-AC-08 と同じ並び（審査役でも止まること）
+BAD_URLS = [
+    "https://example.com/",
+    "http://docs.claude.com/en/docs",
+    "https://docs.claude.com.example.com/",
+    "https://example.com/docs.claude.com",
+    "https://docs.claude.com@example.com/",
+    "https://user:pw" + "@docs.claude.com/",  # 分けて書く：つなげるとメールアドレスに見え、tests/test_rules.py の検査に掛かる
+    "https://docs.claude.com:443/",
+    "https://docs.claude.com:8080/",
+    "https://claude.com/",
+    "https://evil.code.claude.com/",
+    "https://docs.claude.com./",
+    "https://docs.claude.com\\@example.com/",
+    " https://docs.claude.com/",
+    "https://github.com/evil/repo",
+    "https://github.com/anthropics-evil/x",
+    "https://github.com/anthropics/../evil/x",
+    "https://github.com/anthropics/%2e%2e/evil",
+    "https://raw.githubusercontent.com/evil/x",
+    "https://gist.github.com/anthropics/x",
+    "file:///etc/passwd",
+    "ftp://docs.claude.com/",
+    "//docs.claude.com/x",
+    "docs.claude.com/x",
+    "",
+    None,
+    123,
+    ["https://docs.claude.com/"],
+    MISSING,
+]
+
+
+@pytest.mark.parametrize("tool", ["Read", "Glob", "Grep", "SubagentHandback"])
+def test_d0015_ac08_judge_can_read_and_hand_back(guard, tool):
+    """D0015-AC-08: pipe-in-judge の Read・Glob・Grep・SubagentHandback は止められない。"""
+    assert call(guard, JUDGE, tool, file_path="pipe_in/cli.py", pattern="x", message="報告") is None
+
+
+@pytest.mark.parametrize("url", OFFICIAL_URLS)
+def test_d0015_ac09_judge_can_fetch_official_docs(guard, url):
+    """D0015-AC-09: pipe-in-judge の WebFetch は、公式の文書の場所の https:// の URL なら止められない。"""
+    reason = call(guard, JUDGE, "WebFetch", url=url, prompt="要点")
+    assert reason is None, f"{url}: {reason}"
+
+
+@pytest.mark.parametrize("tool", ["Write", "Edit", "MultiEdit"])
+@pytest.mark.parametrize("path", READONLY_PATHS)
+def test_d0015_ac10_judge_cannot_write_anywhere(guard, tool, path):
+    """D0015-AC-10: pipe-in-judge の Write・Edit・MultiEdit は、どのパス（記録・README・settings.json・中と外の絶対パス・..・パスなし）でも止められる。"""
+    reason = tool_call(guard, JUDGE, tool, file_path=path, content="x", old_string="a", new_string="b")
+    assert reason is not None, f"{tool} {path}"
+
+
+@pytest.mark.parametrize("command", ["git status", "python -m pytest -q", "", "  "])
+def test_d0015_ac11_judge_cannot_use_bash(guard, command):
+    """D0015-AC-11: pipe-in-judge の Bash は、どのコマンド（空も）でも止められる。"""
+    assert bash(guard, JUDGE, command) is not None, f"`{command}`"
+
+
+@pytest.mark.parametrize("tool,tool_input", BYPASS)
+def test_d0015_ac11_judge_bypass_routes_are_denied(guard, tool, tool_input):
+    """D0015-AC-11: pipe-in-judge の PowerShell・MCP の道具・Agent・NotebookEdit・表に無い道具は止められる。"""
+    assert call(guard, JUDGE, tool, **tool_input) is not None
+
+
+@pytest.mark.parametrize(
+    "domains",
+    ["DOC_HOSTS", ["docs.claude.com"], MISSING, [], ["github.com"]],
+)
+def test_d0015_ac12_judge_web_search_is_denied(guard, domains):
+    """D0015-AC-12: pipe-in-judge の WebSearch は、allowed_domains に公式の文書の場所だけを付けても止められる。"""
+    if domains == "DOC_HOSTS":
+        domains = list(guard.DOC_HOSTS)
+    reason = tool_call(guard, JUDGE, "WebSearch", query="claude code hooks", allowed_domains=domains)
+    assert reason is not None, repr(domains)
+
+
+@pytest.mark.parametrize("url", BAD_URLS)
+def test_d0015_ac13_judge_cannot_fetch_other_urls(guard, url):
+    """D0015-AC-13: pipe-in-judge の WebFetch は、一覧に無いホスト・http://・似せたホスト・ユーザー情報・ポート・
+    道の .. ・anthropics/ の外の github・URL なし・空・文字でない値なら止められる。"""
+    assert tool_call(guard, JUDGE, "WebFetch", url=url, prompt="要点") is not None, repr(url)
+
+
+@pytest.mark.parametrize("agent", AGENTS + ("pipe-in-auditor", "pipe-in-unknown"))
+@pytest.mark.parametrize(
+    "tool,tool_input",
+    [
+        ("WebFetch", {"url": OFFICIAL_URL}),
+        ("WebSearch", {"query": "claude code hooks", "allowed_domains": OFFICIAL_DOMAINS}),
+    ],
+)
+def test_d0015_ac14_web_is_still_closed_for_others(guard, agent, tool, tool_input):
+    """D0015-AC-14: Web を足したのは審査役だけ。analyst・tester・coder・verifier・auditor・表に無い pipe-in-* は、
+    公式の文書への WebFetch も allowed_domains 付きの WebSearch も止められたまま（advisor は D0008-AC-07〜10 で見る）。"""
+    assert call(guard, agent, tool, **tool_input) is not None
+
+
+def test_d0015_ac15_main_entry_handles_judge_fetch(guard, monkeypatch):
+    """D0015-AC-15: フックの入口を通しても、審査役の WebFetch は一覧に無い URL なら deny の JSON、公式の文書なら何も出ない。
+    WebSearch は公式の allowed_domains を付けても deny の JSON。"""
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", ROOT)
+
+    def run(tool: str, tool_input: dict) -> str:
+        payload = {"agent_type": JUDGE, "tool_name": tool, "tool_input": tool_input, "cwd": ROOT}
+        return run_main(guard, monkeypatch, json.dumps(payload))
+
+    deny = run("WebFetch", {"url": "https://example.com/", "prompt": "要点"})
+    assert deny != "", "一覧に無い URL なのに deny の JSON が出ていない"
+    assert json.loads(deny)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert run("WebFetch", {"url": OFFICIAL_URL, "prompt": "要点"}) == ""
+    search = run("WebSearch", {"query": "claude code hooks", "allowed_domains": OFFICIAL_DOMAINS})
+    assert search != "", "審査役の WebSearch なのに deny の JSON が出ていない"
+    assert json.loads(search)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize(
+    "tool,tool_input,ok",
+    [
+        ("Read", {"file_path": "pipe_in/cli.py"}, True),
+        ("SubagentHandback", {"message": "報告"}, True),
+        ("WebFetch", {"url": OFFICIAL_URL, "prompt": "要点"}, False),
+        ("Write", {"file_path": "README.md", "content": "x"}, False),
+        ("Bash", {"command": "git status"}, False),
+    ],
+)
+def test_d0015_ac25_judge_is_read_only_under_the_old_hook(guard, monkeypatch, tool, tool_input, ok):
+    """D0015-AC-25: 前の版のフック（pipe-in-judge を表にも Web の表にも持たない）の下では、審査役は表に無い pipe-in-* として
+    読むだけになり、公式の文書への WebFetch も止められる。"""
+    monkeypatch.delitem(guard.AGENTS, JUDGE)
+    monkeypatch.delitem(guard.WEB_AGENTS, JUDGE)
+    reason = call(guard, JUDGE, tool, **tool_input)
+    assert (reason is None) == ok, f"{tool}: {reason}"

@@ -16,7 +16,8 @@
       "Agent(pipe-in-coder)",
       "Agent(pipe-in-verifier)",
       "Agent(pipe-in-auditor)",
-      "Agent(pipe-in-advisor)"
+      "Agent(pipe-in-advisor)",
+      "Agent(pipe-in-judge)"
     ],
     "ask": [
       "Bash(git push:*)",

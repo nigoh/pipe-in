@@ -6,10 +6,10 @@
 - pipe-in-tester（テスト先行）：tests/・vscode/src の *.test.ts と vscode/src/test/・docs/pipeline/03_red_tests.md。Bash はテストを流すだけ
 - pipe-in-coder（実装）：テスト・.claude/・.git/・.env・ほかの段の記録を除いた所と docs/pipeline/04_implementation.md。Bash はテスト・型検査・ビルド
 - pipe-in-verifier（検証）：docs/pipeline/05_test_report.md だけ。Bash はテスト・型検査・ビルド・git の読むだけのコマンド
-- pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）：どこにも書けない・Bash なし。報告は SubagentHandback で返すだけ
-- Web（WebFetch・WebSearch）は pipe-in-advisor だけ、公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ
+- pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）・pipe-in-judge（審査）：どこにも書けない・Bash なし。報告は SubagentHandback で返すだけ
+- Web は pipe-in-advisor（WebFetch・WebSearch）と pipe-in-judge（WebFetch だけ）だけ、公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ
 - 表に無い pipe-in-* は、Read・Glob・Grep・SubagentHandback だけ（表に足し忘れても絞られるように）
-PowerShell・MCP・Agent・Web（アドバイザーの公式の文書のほか）・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
+PowerShell・MCP・Agent・Web（アドバイザーと審査役の公式の文書のほか）・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
 報告を親に渡す SubagentHandback は止めない。書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ
 （worktree ならその worktree。見つからなければ CLAUDE_PROJECT_DIR）。
 
@@ -38,13 +38,16 @@ TESTS = [r"python -m pytest(\s.*)?", r"pytest(\s.*)?", r"npm --prefix vscode tes
 BUILD = [r"npm --prefix vscode run (typecheck|build)"]
 GIT_READ = [r"git (diff|status|log|show)(\s.*)?"]
 
-# アドバイザーが読んでよい公式の文書の場所。定義（.claude/agents/pipe-in-advisor.md）はここを写す（D0008-AC-16 で検査）
+# アドバイザーと審査役が読んでよい公式の文書の場所。定義（.claude/agents/pipe-in-advisor.md・pipe-in-judge.md）はここを写す（D0008-AC-16・D0015-AC-06 で検査）
 DOC_HOSTS = ("code.claude.com", "docs.claude.com", "docs.anthropic.com", "platform.claude.com")
 # github は道の1つ目が anthropics のときだけ（WebFetch だけ。WebSearch の allowed_domains は道まで絞れないので入れない）
 GITHUB_HOSTS = ("github.com", "raw.githubusercontent.com")
 GITHUB_OWNER = "anthropics"
-WEB_TOOLS = {"WebFetch", "WebSearch"}
-WEB_AGENTS = {"pipe-in-advisor"}
+# Web を使える役と、使える道具。審査役は出典を確かめるだけなので WebFetch だけ（D0015）
+WEB_AGENTS: dict[str, frozenset[str]] = {
+    "pipe-in-advisor": frozenset({"WebFetch", "WebSearch"}),
+    "pipe-in-judge": frozenset({"WebFetch"}),
+}
 # この名前で始まり、表に無いエージェントは読むだけにする
 UNKNOWN_PREFIX = "pipe-in-"
 
@@ -84,6 +87,7 @@ AGENTS: dict[str, tuple[Any, list[str], str]] = {
     "pipe-in-verifier": (_verifier, TESTS + BUILD + GIT_READ, "docs/pipeline/05_test_report.md"),
     "pipe-in-auditor": (_nowhere, [], ""),
     "pipe-in-advisor": (_nowhere, [], ""),
+    "pipe-in-judge": (_nowhere, [], ""),
 }
 
 
@@ -207,7 +211,7 @@ def decide(payload: dict[str, Any], *, root: str) -> str | None:
         return None
     if tool == "Bash":
         return check_bash(tool_input.get("command"), bash, agent)
-    if tool in WEB_TOOLS and agent in WEB_AGENTS:
+    if tool in WEB_AGENTS.get(agent, frozenset()):
         return check_web(tool, tool_input, agent)
     return f"{agent} は {tool} を使えません（使えるのは Read・Glob・Grep と、段ごとに決めた書き込みと Bash だけ）"
 
