@@ -71,8 +71,8 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 | いつ | コマンド |
 | --- | --- |
-| 始めるとき（要件メモを渡す） | `python -m pipe_in record start --text "<要件メモ>"`（長いときは `--input <ファイル>`） |
-| 段を任せる直前 | `python -m pipe_in record begin <段>`（実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
+| 始めるとき（要件メモを渡す） | `python -m pipe_in record start --text "<要件メモ>" --name "<セッション名>"`（長いときは `--input <ファイル>`。`--name` を省くと要件メモの最初の行から作る。今の会話の ID を `--session-id "${CLAUDE_SESSION_ID}"` で付ける（スキルが呼ばれたときに今の会話の ID に置き換わる）。空白や改行を含む値と 100 文字を超える値は断られる） |
+| 段を任せる直前 | `python -m pipe_in record begin <段> --agent <サブエージェント>`（要件定義と設計は `pipe-in-analyst`、テスト先行は `pipe-in-tester`、実装は `pipe-in-coder`、検証は `pipe-in-verifier`。VSCode の時系列の行に出る。実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
 | サブエージェントが返ったあと | `python -m pipe_in record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
 | 人の確認を待つとき | `python -m pipe_in record wait <段>` |
 | 人が答えたとき | `python -m pipe_in record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
@@ -138,9 +138,9 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
 - 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）ができる）
+  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）と、実行の一覧のパネルのページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`・`run-panel-runs-omitted-dark.html`。見本から一時フォルダに主の checkout・別の worktree・`archive/` の木を組み立てて作る）ができる）
   2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
-  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`）も同じように開いて撮る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
+  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`、動いている・確認待ち・実行の一覧の `run-panel-*.html`）も同じように開いて撮る。実行の一覧のページは幅 1280×800・1000×700・800×600 で並び（3 領域・2 列・1 列）を見る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
   4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る
   5. 見る：撮った画面を読み、重なり・はみ出し・読めない色・崩れがないか、手順の「合格の見え方」になっているかを確かめる。`browser_console_messages` でエラーが0件かも見る
   6. 片付ける：配るのを止め（TaskStop）、`.playwright-mcp/` を消す（`.gitignore` 済みだが残さない）

@@ -80,7 +80,10 @@ def test_ac01_running_matches_fixture(tmp_path):
     r = recorder(tmp_path)
     r.start("足したい機能のメモ")
     r.begin("requirements")
-    assert state(tmp_path) == fixture_state("running")
+    # D0019: state.json に name（要件メモの最初の行から作る）が足された（見本は古い形のまま残す）。name は D0019-AC-44 が確かめる
+    got_state = state(tmp_path)
+    got_state.pop("name", None)
+    assert got_state == fixture_state("running")
     log = tmp_path / "docs" / "pipeline" / "logs" / "01_requirements.jsonl"
     want = (FIXTURES / "running" / "logs" / "01_requirements.jsonl").read_text(encoding="utf-8")
     # D0017: Prompt 行の at は、UTC からのずれつきの書き方に替わった（見本は古い書き方のまま残す）。at の書き方は D0017-AC-02 が確かめる
@@ -98,6 +101,7 @@ def test_ac01_waiting_matches_fixture(tmp_path):
     # D0017: pending_review に since（待ち始めの時刻）が足された（見本は古い形のまま残す）。since は D0017-AC-01 が確かめる
     got = state(tmp_path)
     got["pending_review"].pop("since", None)
+    got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
     assert got == fixture_state("waiting")
 
 
@@ -106,7 +110,9 @@ def test_ac01_finished_matches_fixture(tmp_path):
     r = recorder(tmp_path)
     up_to_waiting(r)
     to_finish(r)
-    assert state(tmp_path) == fixture_state("finished")
+    got = state(tmp_path)
+    got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
+    assert got == fixture_state("finished")
     summary = (tmp_path / "docs" / "pipeline" / "99_summary.md").read_text(encoding="utf-8")
     assert "PASSED" in summary or "終わりました" in summary
 
@@ -367,6 +373,197 @@ def test_d0017_ac05_record_commands_work_without_since(tmp_path):
     r.done("design")
     r.finish("PASSED")
     assert state(tmp_path)["final"] == "PASSED" and state(tmp_path)["pending_review"] is None
+
+
+# ---- D0019：名前・セッション ID・受け持ち（足すだけ） ------------------------------------------------
+
+
+def pipeline_dir(project: Path) -> Path:
+    return project / "docs" / "pipeline"
+
+
+def test_d0019_ac44_start_name_from_flag(tmp_path):
+    """D0019-AC-44: start に名前を渡すと、state.json の name がその名前になる（要件メモの最初の行より優先）。"""
+    recorder(tmp_path).start("# 別の題\n本文", name="X")
+    assert state(tmp_path)["name"] == "X"
+
+
+def test_d0019_ac44_start_name_from_memo(tmp_path):
+    """D0019-AC-44: 名前を渡さないと、00_input.md の最初の行（見出しの印を取る）から作った名前になる。"""
+    recorder(tmp_path).start("\n## 仕様の QA を回す\n2行目は使わない")
+    assert state(tmp_path)["name"] == "仕様の QA を回す"
+
+
+def test_d0019_ac44_start_no_name_when_memo_has_none(tmp_path):
+    """D0019-AC-44: 名前を渡さず、メモが空・見出しの印だけなら、name を書かない。"""
+    recorder(tmp_path).start("")
+    assert "name" not in state(tmp_path)
+    recorder(tmp_path).start("###")
+    assert "name" not in state(tmp_path)
+
+
+def test_d0019_ac44_start_name_is_normalized(tmp_path):
+    """D0019-AC-44: 付けた名前も同じ整え（前後の空白・連続空白・60 文字）をし、空の名前は「付けなかった」と同じ。"""
+    recorder(tmp_path).start("メモ", name="  A   B  ")
+    assert state(tmp_path)["name"] == "A B"
+    recorder(tmp_path).start("メモ", name="あ" * 61)
+    assert state(tmp_path)["name"] == "あ" * 59 + "…"
+    recorder(tmp_path).start("題のメモ", name="   ")
+    assert state(tmp_path)["name"] == "題のメモ"
+
+
+def test_d0019_ac44_cli_start_name(tmp_path):
+    """D0019-AC-44: pipe-in record start --name "X" で state.json の name が X になり、--name なしでは最初の行から作る。"""
+    p = str(tmp_path)
+    assert cli.main(["record", "start", "--project", p, "--text", "# 見出しの題\n本文", "--name", "X"]) == 0
+    assert state(tmp_path)["name"] == "X"
+    assert cli.main(["record", "start", "--project", p, "--text", "# 見出しの題\n本文"]) == 0
+    assert state(tmp_path)["name"] == "見出しの題"
+
+
+def test_d0019_ac47_session_id_is_written(tmp_path):
+    """D0019-AC-47: start に session_id を渡すと state.json の session_id になる。"""
+    recorder(tmp_path).start("メモ", session_id="7f3a9c01-2b4d-4e5f-8a6b-0c1d2e3f4a5b")
+    assert state(tmp_path)["session_id"] == "7f3a9c01-2b4d-4e5f-8a6b-0c1d2e3f4a5b"
+
+
+def test_d0019_ac47_no_session_id_key_without_it(tmp_path):
+    """D0019-AC-47: session_id を付けなければ項目を書かない。"""
+    recorder(tmp_path).start("メモ")
+    assert "session_id" not in state(tmp_path)
+
+
+def test_d0019_ac47_cli_start_session_id(tmp_path):
+    """D0019-AC-47: pipe-in record start --session-id ID で session_id が残る。"""
+    p = str(tmp_path)
+    assert cli.main(["record", "start", "--project", p, "--text", "メモ", "--session-id", "abc-123"]) == 0
+    assert state(tmp_path)["session_id"] == "abc-123"
+
+
+BAD_IDS = [" ", "   ", "a b", "a\nb", "a\tb", "a" * 101, " abc", "abc "]
+
+
+@pytest.mark.parametrize("bad", BAD_IDS, ids=["space", "spaces", "inner-space", "newline", "tab", "101", "lead-space", "trail-space"])
+def test_d0019_ac47_bad_session_id_is_refused_and_nothing_is_made(tmp_path, bad):
+    """D0019-AC-47: 空白だけ・空白や改行を含む・100 文字超の session_id は RecordError で断り、記録（state.json・archive/）を作らない。"""
+    with pytest.raises(RecordError):
+        recorder(tmp_path).start("メモ", session_id=bad)
+    assert not (pipeline_dir(tmp_path) / "state.json").exists()
+    assert not (pipeline_dir(tmp_path) / "archive").exists()
+    assert not (pipeline_dir(tmp_path) / "00_input.md").exists()
+
+
+@pytest.mark.parametrize("bad", [" ", "a b", "a\nb", "x" * 101])
+def test_d0019_ac47_bad_session_id_leaves_a_finished_record_where_it_is(tmp_path, bad):
+    """D0019-AC-47: 終わった記録があるとき、誤った session_id で start しても、記録を archive/ へ移さず、今の記録もそのまま。"""
+    r = recorder(tmp_path)
+    up_to_waiting(r)
+    to_finish(r)
+    before = (pipeline_dir(tmp_path) / "state.json").read_text(encoding="utf-8")
+    with pytest.raises(RecordError):
+        recorder(tmp_path).start("次のメモ", session_id=bad)
+    assert (pipeline_dir(tmp_path) / "state.json").read_text(encoding="utf-8") == before
+    assert not (pipeline_dir(tmp_path) / "archive").exists()
+    assert (pipeline_dir(tmp_path) / "00_input.md").read_text(encoding="utf-8").strip() == "足したい機能のメモ"
+
+
+def test_d0019_ac47_cli_refuses_a_bad_session_id(tmp_path):
+    """D0019-AC-47: コマンドでも、誤った --session-id はエラー終了で、記録を作らない。"""
+    with pytest.raises(SystemExit) as e:
+        cli.main(["record", "start", "--project", str(tmp_path), "--text", "メモ", "--session-id", "a b"])
+    assert e.value.code not in (0, None)
+    assert isinstance(e.value.code, str) and "pipe-in record" in e.value.code  # argparse の未知の引数（終了コード 2）ではなく、記録のエラー
+    assert not (pipeline_dir(tmp_path) / "state.json").exists()
+
+
+def test_d0019_ac48_agent_in_prompt_and_run(tmp_path):
+    """D0019-AC-48: begin に agent を渡すと、Prompt 行と open と、続く done の runs[] の要素に agent が入る。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.begin("requirements", agent="pipe-in-analyst")
+    log = pipeline_dir(tmp_path) / "logs" / "01_requirements.jsonl"
+    first = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    assert first["_type"] == "Prompt" and first["agent"] == "pipe-in-analyst"
+    assert state(tmp_path)["open"]["agent"] == "pipe-in-analyst"
+    r.done("requirements", summary="書いた")
+    run = state(tmp_path)["runs"][-1]
+    assert run["agent"] == "pipe-in-analyst" and run["stage"] == "requirements"
+
+
+def test_d0019_ac48_no_agent_key_without_it(tmp_path):
+    """D0019-AC-48: agent を付けなければ、Prompt 行にも open にも runs[] にも書かない。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.begin("requirements")
+    log = pipeline_dir(tmp_path) / "logs" / "01_requirements.jsonl"
+    assert "agent" not in json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    assert "agent" not in state(tmp_path)["open"]
+    r.done("requirements")
+    assert "agent" not in state(tmp_path)["runs"][-1]
+
+
+@pytest.mark.parametrize("bad", [" ", "a b", "a\nb", "x" * 101])
+def test_d0019_ac48_bad_agent_is_refused_and_nothing_is_started(tmp_path, bad):
+    """D0019-AC-48: 誤った agent（空白だけ・空白や改行を含む・100 文字超）は RecordError で断り、段を始めない（ログも open も作らない）。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    with pytest.raises(RecordError):
+        r.begin("requirements", agent=bad)
+    assert state(tmp_path)["open"] is None
+    assert not (pipeline_dir(tmp_path) / "logs").exists()
+
+
+def test_d0019_ac48_cli_begin_agent(tmp_path):
+    """D0019-AC-48: pipe-in record begin <段> --agent A で、Prompt 行と runs[] に agent が残る。"""
+    p = str(tmp_path)
+    assert cli.main(["record", "start", "--project", p, "--text", "メモ"]) == 0
+    assert cli.main(["record", "begin", "design", "--project", p, "--agent", "pipe-in-analyst"]) == 0
+    assert cli.main(["record", "done", "design", "--project", p, "--summary", "書いた"]) == 0
+    assert state(tmp_path)["runs"][-1]["agent"] == "pipe-in-analyst"
+
+
+def test_d0019_ac48_agent_is_only_text_never_a_path(tmp_path):
+    """D0019-AC-48・AC-50: agent に ../ や / を含む文字を入れても、ログのファイル名には使われず、文字として書かれるだけ（logs/ の外にファイルを作らない）。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.begin("requirements", agent="../../evil")
+    assert sorted(p.name for p in (pipeline_dir(tmp_path) / "logs").iterdir()) == ["01_requirements.jsonl"]
+    assert not (tmp_path / "evil").exists() and not (tmp_path / "docs" / "evil").exists()
+    assert state(tmp_path)["open"]["agent"] == "../../evil"
+
+
+def test_d0019_ac49_old_state_without_new_keys(tmp_path):
+    """D0019-AC-49: name・session_id・agent の無い古い state.json で、record の各コマンドが今までどおり動く。今の作りで通る（守り続ける検査）。"""
+    r = recorder(tmp_path)
+    up_to_waiting(r)
+    path = pipeline_dir(tmp_path) / "state.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("name", "session_id"):
+        data.pop(key, None)
+    for run in data["runs"]:
+        run.pop("agent", None)
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    to_finish(recorder(tmp_path))
+    s = state(tmp_path)
+    assert s["final"] == "PASSED" and "name" not in s and "session_id" not in s
+    assert all("agent" not in run for run in s["runs"])
+
+
+def test_d0019_ac49_archive_carries_name_and_session_id(tmp_path):
+    """D0019-AC-49: start が終わった記録を archive/ へ移すと、name と session_id も state.json ごと一緒に移る。"""
+    r = recorder(tmp_path)
+    r.start("最初のメモ", name="最初の実行", session_id="sess-1")
+    r.begin("requirements", agent="pipe-in-analyst")
+    r.done("requirements")
+    r.finish("STOPPED_BY_HUMAN")
+    recorder(tmp_path).start("次のメモ", name="次の実行")
+    archived = [p for p in (pipeline_dir(tmp_path) / "archive").iterdir() if p.is_dir()]
+    assert len(archived) == 1
+    old = json.loads((archived[0] / "state.json").read_text(encoding="utf-8"))
+    assert old["name"] == "最初の実行" and old["session_id"] == "sess-1"
+    assert old["runs"][0]["agent"] == "pipe-in-analyst"
+    now = state(tmp_path)
+    assert now["name"] == "次の実行" and "session_id" not in now
 
 
 def test_ac02_record_module_does_not_import_the_sdk():

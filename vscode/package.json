@@ -44,6 +44,11 @@
           "type": "string",
           "default": "",
           "description": "作業台で読み書きするパイプの置き場所。ワークスペースの最初のフォルダからの相対パスか、絶対パス。空なら .pipe-in/pipes と前の版の置き場所（どちらも無くて pipes があれば pipes）"
+        },
+        "pipe-in.showOtherWorktrees": {
+          "type": "boolean",
+          "default": true,
+          "description": "同じ git リポジトリの別の worktree の実行も一覧に出す。切ると、いまの work_dir の実行だけ"
         }
       }
     }

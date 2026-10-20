@@ -2,6 +2,7 @@
   "started_at": "2026-10-17T10:00:00",
   "updated_at": "2026-10-17T10:12:45",
   "pipe": "dev",
+  "name": "ユーザー一覧に CSV 出力ボタンを追加したい",
   "stages": [
     {
       "name": "requirements",

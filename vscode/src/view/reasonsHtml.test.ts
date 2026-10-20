@@ -102,7 +102,8 @@ test('D0016-AC-10: 選ぶ前は全部の欄が hidden で、警告の下・出�
   for (const tag of tags) assert.match(tag, /\shidden(\s|>|=)/, tag);
   const warn = html.indexOf('注意書き');
   const reasons = html.indexOf('data-reasons-for=');
-  const output = html.indexOf('出力');
+  // 詳細のタブ「図と出力」が先頭にあるので、出力の欄の位置は出力の枠（pane-output）で見る
+  const output = html.indexOf('class="pane-output"');
   assert.ok(warn >= 0 && warn < reasons, '警告の下');
   assert.ok(reasons >= 0 && reasons < output, '出力の上');
 });

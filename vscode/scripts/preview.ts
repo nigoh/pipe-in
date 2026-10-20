@@ -5,7 +5,8 @@
 // 「実行を見る」パネルの明るい・暗いのページ（run-panel-*.html）も、画面用の見本の記録から作る（中身は previewPages.ts）。
 // CSP は本物と同じに残す（style="…" 属性が捨てられるなど、パネルの中だけで起きる崩れをここでも見つけるため）。
 // 置き換えのスクリプトとテーマの色には nonce を付けて入れる。out/ は .gitignore 済み。
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { folderFor } from '../src/app/pipeEditor.ts';
@@ -19,10 +20,16 @@ import {
   SHOWCASE_DIR,
   WAITING_DIR,
   WAITING_SEC,
+  buildOmittedTree,
+  buildRunsTree,
   panelKind,
   panelPreviewHtml,
+  panelRunsPreviewHtml,
+  previewClock,
   readLiveView,
+  readRunsView,
   readShowcaseView,
+  startOfLiveness,
   withTheme,
 } from './previewPages.ts';
 import type { Theme } from './previewPages.ts';
@@ -138,8 +145,28 @@ const views = {
   waiting: await readLiveView(WAITING_DIR, WAITING_SEC),
 };
 const runningNext = await readLiveView(RUNNING_NEXT_DIR, 5);
+
+// 実行の一覧のページ（D0019）：4つの見本の記録から、一時フォルダの中に置き場所の木（主の checkout＋2つの worktree＋archive）を組み立て、
+// 拡張の本物の読み取りと組み立てで読む。「今」は確認待ちの見本の待ち始めから WAITING_SEC 秒後。一時フォルダは読み終えたら消す。
+async function runsPageHtml(kind: 'runs' | 'runs-omitted', theme: Theme): Promise<string> {
+  const dest = mkdtempSync(path.join(os.tmpdir(), 'pipe-in-preview-runs-'));
+  try {
+    const { workspace } = await (kind === 'runs' ? buildRunsTree(dest) : buildOmittedTree(dest));
+    const since = await startOfLiveness(WAITING_DIR);
+    if (since === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
+    const entries = await readRunsView(workspace, previewClock(since, WAITING_SEC));
+    return panelRunsPreviewHtml(entries, theme);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+}
+
 for (const [page, theme] of PANEL_PAGES) {
   const kind = panelKind(page);
+  if (kind === 'runs' || kind === 'runs-omitted') {
+    writeFileSync(path.join(OUT, `${page}.html`), await runsPageHtml(kind, theme), 'utf8');
+    continue;
+  }
   writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined), 'utf8');
 }
 const written = [...PAGES.map(([p]) => p), ...PANEL_PAGES.map(([p]) => p)];

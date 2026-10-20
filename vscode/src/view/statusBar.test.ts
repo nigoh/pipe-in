@@ -55,3 +55,12 @@ test('D0006-AC-21: ステータスバー：知らない最終の結果はその�
   const label = statusBarLabel(buildPipelineView(snapshot({ stateJson: stateJson({ final: 'SOMETHING' }) })));
   assert.equal(label.text, '$(info) pipe-in: SOMETHING');
 });
+
+test('D0019-AC-07: ステータスバーの結果の言葉は、一覧の行の結果の言葉（finalWord）と同じ表から読む（食い違わない）', async () => {
+  const { finalWord } = await import('../domain/runList.ts');
+  for (const final of ['PASSED', 'TEST_FAILED', 'STOPPED_BY_HUMAN', 'STAGE_ERROR', 'BLOCKED', 'SOMETHING']) {
+    const label = statusBarLabel(buildPipelineView(snapshot({ stateJson: stateJson({ final }) })));
+    assert.ok(label.text.endsWith(`: ${finalWord(final)}`), `${final}: ${label.text}`);
+    assert.ok(label.tooltip.includes(`pipe-in：${finalWord(final)}・`), `${final}: ${label.tooltip}`);
+  }
+});

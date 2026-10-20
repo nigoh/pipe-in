@@ -18,6 +18,7 @@ from typing import Any
 from ..engine import clock
 from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
+from ..engine.session import check_token, name_from_memo, normalize_name
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
 
 DRIVER = "pipe-dev"
@@ -79,8 +80,21 @@ class Recorder:
 
     # ---- 始める --------------------------------------------------------
 
-    def start(self, memo: str) -> None:
-        """依頼メモと空の記録を作る。途中の記録があれば断り、終わった記録は archive/<日時>/ に移す。"""
+    @staticmethod
+    def _token(value: str, what: str) -> str:
+        try:
+            return check_token(value, what)
+        except ValueError as e:
+            raise RecordError(str(e)) from e
+
+    def start(self, memo: str, name: str | None = None, session_id: str | None = None) -> None:
+        """依頼メモと空の記録を作る。途中の記録があれば断り、終わった記録は archive/<日時>/ に移す。
+
+        name はセッション名（付けなければ依頼メモの最初の行から作る。取れなければ書かない）、
+        session_id は Claude Code の会話の ID（付けたときだけ書く）。
+        """
+        if session_id is not None:
+            self._token(session_id, "セッション ID")  # ファイルに触れる前に確かめる
         w = self.work_dir
         old_path = w / STATE
         if old_path.is_file():
@@ -94,10 +108,17 @@ class Recorder:
         w.mkdir(parents=True, exist_ok=True)
         (w / INPUT).write_text(memo.strip() + "\n", encoding="utf-8")
         now = self._stamp()
-        state = {
+        state: dict[str, Any] = {
             "started_at": now,
             "updated_at": now,
             "pipe": "dev",
+        }
+        session_name = (normalize_name(name) if name is not None else None) or name_from_memo(memo)
+        if session_name is not None:
+            state["name"] = session_name
+        if session_id is not None:
+            state["session_id"] = session_id
+        state |= {
             "driver": DRIVER,
             "stages": [
                 {"name": n, "label": STAGE_LABELS[n], "output": OUTPUTS[n], "review": n in REVIEWED} for n in STAGES
@@ -128,8 +149,10 @@ class Recorder:
 
     # ---- 段 -------------------------------------------------------------
 
-    def begin(self, stage: str, attempt: int | None = None, note: str = "") -> None:
-        """段を始める。段のログに始まりの行を書き、拡張に「動いている」と出す。"""
+    def begin(self, stage: str, attempt: int | None = None, note: str = "", agent: str | None = None) -> None:
+        """段を始める。段のログに始まりの行を書き、拡張に「動いている」と出す。agent は受け持ちの名前（付けたときだけ書く）。"""
+        if agent is not None:
+            self._token(agent, "受け持ち")
         state = self._load()
         self._open_run(state)
         label = STAGE_LABELS[self._stage(stage)]
@@ -144,9 +167,14 @@ class Recorder:
         logs = self.work_dir / LOGS
         logs.mkdir(parents=True, exist_ok=True)
         prompt = f"/pipe-dev の{label}" + (f"（{attempt} 回目）" if attempt else "")
-        line = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER, "at": clock.with_offset(t)}
+        line: dict[str, Any] = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER}
+        if agent is not None:
+            line["agent"] = agent
+        line["at"] = clock.with_offset(t)
         (logs / log).write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
         state["open"] = {"stage": stage, "seq": seq, "attempt": attempt, "note": note, "log": log, "began_at": now}
+        if agent is not None:
+            state["open"]["agent"] = agent
         state["pending_review"] = None
         self._save(state)
 
@@ -190,6 +218,8 @@ class Recorder:
             "attempt": o["attempt"],
             "note": o["note"],
         })
+        if o.get("agent") is not None:
+            state["runs"][-1]["agent"] = o["agent"]
         state["open"] = None
         self._save(state)
 
@@ -332,11 +362,14 @@ def _parse(argv: list[str]) -> argparse.Namespace:
     src = s.add_mutually_exclusive_group(required=True)
     src.add_argument("--input", type=Path, help="依頼メモのファイル")
     src.add_argument("--text", help="依頼メモを直接渡す")
+    s.add_argument("--name", help="セッション名（省くと依頼メモの最初の行から作る）")
+    s.add_argument("--session-id", dest="session_id", help="Claude Code の会話の ID（拡張の実行の一覧に出る）")
 
     s = sub.add_parser("begin", parents=[common], help="段を始める（拡張に「動いている」と出る）")
     s.add_argument("stage", help=" / ".join(STAGES))
     s.add_argument("--attempt", type=int, help="実装・検証の何回目か")
     s.add_argument("--note", default="", help="添え書き（例: 指摘を反映）")
+    s.add_argument("--agent", help="この段を受け持つエージェントの名前（拡張の時系列に出る）")
 
     s = sub.add_parser("done", parents=[common], help="始めた段を閉じる")
     s.add_argument("stage")
@@ -375,9 +408,9 @@ def main(argv: list[str]) -> int:
     try:
         if args.action == "start":
             memo = args.text if args.text is not None else args.input.expanduser().read_text(encoding="utf-8")
-            r.start(memo)
+            r.start(memo, name=args.name, session_id=args.session_id)
         elif args.action == "begin":
-            r.begin(args.stage, attempt=args.attempt, note=args.note)
+            r.begin(args.stage, attempt=args.attempt, note=args.note, agent=args.agent)
         elif args.action == "done":
             r.done(args.stage, summary=args.summary, error=args.error)
         elif args.action == "wait":

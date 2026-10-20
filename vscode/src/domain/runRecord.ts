@@ -3,6 +3,7 @@ import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import { STAGES, isStage, isStageName } from './stage.ts';
 import type { Stage } from './stage.ts';
+import { isSafeToken } from './sessionName.ts';
 import { isTimestampText } from './timestamp.ts';
 
 export type ReviewAction = 'approved' | 'revise' | 'quit';
@@ -17,6 +18,12 @@ export interface StageRun {
   costUsd: number;
   durationSec: number;
   isError: boolean;
+  /** 受け持ちの名前（record begin --agent）。無い・読めない記録では null */
+  agent: string | null;
+  /** SDK の会話の ID（runs[].session_id）。無い・読めない記録では null */
+  sessionId: string | null;
+  /** この実行の直後に並ぶ確認の結果。無ければ null */
+  review: ReviewAction | null;
   /** 本体 0.2 の metrics から。古い記録では null */
   tokens: TokenCounts | null;
   cacheReuseRate: number | null;
@@ -105,6 +112,10 @@ export interface PendingReview {
 }
 
 export interface RunRecord {
+  /** セッション名（本体が書く name）。無い・読めない記録では null */
+  name: string | null;
+  /** セッション ID（record start --session-id）。無い・読めない記録では null */
+  sessionId: string | null;
   /** パイプの名前（開発フローは 'dev'）。パイプを持つ前の記録では null */
   pipe: string | null;
   /** 段の並び。パイプを持つ前の記録では null */
@@ -125,6 +136,8 @@ export interface RunRecord {
 }
 
 export const EMPTY_RUN_RECORD: RunRecord = {
+  name: null,
+  sessionId: null,
   pipe: null,
   stages: null,
   pendingReview: null,
@@ -161,6 +174,15 @@ function str(value: unknown): string {
 function strOrNull(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
+const NAME_MAX = 200;
+/** セッション名：1〜200 文字の文字。合わなければ null。 */
+function nameOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' && Array.from(value).length <= NAME_MAX ? value : null;
+}
+/** セッション ID・受け持ち：空白や制御文字を含まない 100 文字までの文字。合わなければ null。 */
+function tokenOrNull(value: unknown): string | null {
+  return isSafeToken(value) ? value : null;
+}
 
 /** state.json の中身を読む。null（ファイルなし）・壊れた JSON・形の違う JSON でも例外を投げず EMPTY_RUN_RECORD 相当を返す。 */
 export function parseRunRecord(text: string | null): RunRecord {
@@ -178,6 +200,8 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.totalCostUsd = num(data.total_cost_usd);
   record.startedAt = strOrNull(data.started_at);
   record.usage = parseUsageSummary(data.usage_summary);
+  record.name = nameOrNull(data.name);
+  record.sessionId = tokenOrNull(data.session_id);
   record.pipe = strOrNull(data.pipe);
   record.updatedAt = strOrNull(data.updated_at);
   record.stages = parseStages(data.stages);
@@ -208,12 +232,19 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (val
       costUsd: num(entry.cost_usd),
       durationSec: num(entry.duration_sec),
       isError: entry.is_error === true,
+      agent: tokenOrNull(entry.agent),
+      sessionId: tokenOrNull(entry.session_id),
+      review: null,
       ...stageRunUsage(entry.metrics),
     });
     return;
   }
   if (typeof entry.review === 'string' && REVIEW_ACTIONS.includes(entry.review) && knownStage(stage)) {
-    record.reviews.push({ stage, action: entry.review as ReviewAction, feedback: strOrNull(entry.feedback) });
+    const action = entry.review as ReviewAction;
+    record.reviews.push({ stage, action, feedback: strOrNull(entry.feedback) });
+    // この確認は、同じ段の最後の実行の直後のもの。その実行にまだ確認の結果が無いときだけ付ける
+    const last = record.stageRuns.findLast((r) => r.stage === stage);
+    if (last !== undefined && last.review === null) last.review = action;
     return;
   }
   const verdict = entry.verdict;

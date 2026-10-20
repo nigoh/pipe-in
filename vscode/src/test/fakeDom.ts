@@ -1,6 +1,8 @@
 // パネルのスクリプトを動かすための、手で書いた小さな偽物の DOM。外のライブラリは使わない。
 // HTML を読んで木にし、スクリプトが使うもの（querySelector(All)・closest・getAttribute・setAttribute・classList・hidden・
 // focus・addEventListener・innerHTML・postMessage）だけを持つ。スクリプトが使う操作を足したら、ここも足す。
+// D0019 で足したもの：入力欄の value・選択範囲（selectionStart/End・setSelectionRange）、scrollTop/scrollLeft（枠の高さが分かるときは範囲に収める）、
+// 変換中の入力の知らせ（compositionstart/end・input）、枠の高さを決める layout（BootOptions）、closest('[hidden]') で隠れているかを見る道。
 import vm from 'node:vm';
 
 const VOID_TAGS = new Set(['meta', 'br', 'hr', 'img', 'input', 'link']);
@@ -19,6 +21,15 @@ export interface FakeEvent {
   type: string;
   target: FakeNode;
   key?: string;
+  /** 変換中（IME）の入力か（input・compositionupdate などに付く） */
+  isComposing?: boolean;
+  /** 入力された文字（input・compositionend に付く） */
+  data?: string;
+  /** wheel・click・keydown に付く修飾キー（D0019-AC-79：Ctrl＋ホイールで図を拡大縮小する） */
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  /** wheel の縦の量（上へ回すと負） */
+  deltaY?: number;
   defaultPrevented: boolean;
   preventDefault(): void;
 }
@@ -64,10 +75,36 @@ export class FakeNode {
   parent: FakeNode | null = null;
   children: (FakeNode | FakeText)[] = [];
   private readonly listeners = new Map<string, Listener[]>();
-  scrollTop = 0;
   scrollHeight = 0;
   clientHeight = 0;
+  scrollLeft = 0;
   disabledFlag = false;
+  /** 入力欄の中身（本物と同じく、代入すると選択範囲は末尾に移る） */
+  private text = '';
+  selectionStart = 0;
+  selectionEnd = 0;
+  private top = 0;
+
+  /** 縦のスクロール位置。枠の高さ（scrollHeight・clientHeight）が分かるときは 0〜最大に収める（本物の枠と同じ） */
+  get scrollTop(): number {
+    return this.top;
+  }
+  set scrollTop(value: number) {
+    const wanted = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+    this.top = this.scrollHeight > 0 ? Math.min(wanted, Math.max(0, this.scrollHeight - this.clientHeight)) : wanted;
+  }
+
+  get value(): string {
+    return this.text;
+  }
+  set value(value: string) {
+    this.text = String(value);
+    this.selectionStart = this.selectionEnd = this.text.length;
+  }
+  setSelectionRange(start: number, end: number): void {
+    this.selectionStart = Math.min(Math.max(0, start), this.text.length);
+    this.selectionEnd = Math.min(Math.max(start, end), this.text.length);
+  }
 
   readonly tagName: string;
   readonly attrs: Map<string, string>;
@@ -206,11 +243,19 @@ export class FakeNode {
   }
 
   /** この節から文書の根へ、泡のように上がりながらリスナーを呼ぶ。preventDefault が呼ばれたかを返す。 */
-  dispatch(type: string, extra: { key?: string } = {}): FakeEvent {
+  dispatch(
+    type: string,
+    extra: { key?: string; isComposing?: boolean; data?: string; ctrlKey?: boolean; metaKey?: boolean; deltaY?: number } = {},
+  ): FakeEvent {
     const event: FakeEvent = {
       type,
       target: this,
       key: extra.key,
+      isComposing: extra.isComposing,
+      data: extra.data,
+      ctrlKey: extra.ctrlKey ?? false,
+      metaKey: extra.metaKey ?? false,
+      deltaY: extra.deltaY ?? 0,
       defaultPrevented: false,
       preventDefault() {
         event.defaultPrevented = true;
@@ -235,6 +280,8 @@ export class FakeDocument extends FakeNode {
   visibilityState: 'visible' | 'hidden' = 'visible';
   /** true なら、どの節も getAnimations を持たない */
   noAnimations = false;
+  /** 作られた節の枠の高さを決める（無ければ 0 のまま）。スクロールの位置や末尾追従を試すときに使う */
+  layout: ((node: FakeNode) => { scrollHeight?: number; clientHeight?: number } | null | undefined) | null = null;
   constructor() {
     super('#document', new Map(), null);
   }
@@ -271,6 +318,11 @@ function parseInto(parent: FakeNode, html: string, doc: FakeDocument): void {
       attrs.set(a[1], unescapeAttr(a[2] ?? a[3] ?? ''));
     }
     const node = new FakeNode(name, attrs, doc);
+    const size = doc.layout?.(node);
+    if (size) {
+      node.scrollHeight = size.scrollHeight ?? 0;
+      node.clientHeight = size.clientHeight ?? 0;
+    }
     const top = stack[stack.length - 1];
     node.parent = top;
     top.children.push(node);
@@ -297,6 +349,8 @@ export interface BootOptions {
   visibility?: 'visible' | 'hidden';
   /** 偽の時計の始まり（ミリ秒。既定 1.7e12） */
   startMs?: number;
+  /** 作られた節の枠の高さ（scrollHeight・clientHeight）を決める。起動時と render のあとに作られる節のすべてに当てる */
+  layout?: FakeDocument['layout'];
 }
 
 export interface PanelHarness {
@@ -327,6 +381,8 @@ export interface PanelHarness {
   section(id: string): FakeNode;
   /** data-loop が id の矢印 */
   loop(id: string): FakeNode;
+  /** 入力欄に文字を打ったことにする：value を替え（選択範囲は末尾）、input を届ける。変換中なら composing を真に */
+  typeText(el: FakeNode, text: string, composing?: boolean): void;
 }
 
 /** renderPanelHtml の出力を偽物の DOM に読み込み、本物の SCRIPT を node:vm で動かす。 */
@@ -334,6 +390,7 @@ export function bootPanel(html: string, opts: BootOptions = {}): PanelHarness {
   const script = extractScript(html);
   const body = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
   const doc = new FakeDocument();
+  doc.layout = opts.layout ?? null;
   parseInto(doc, body, doc);
   doc.visibilityState = opts.visibility ?? 'visible';
   doc.noAnimations = opts.noAnimations === true;
@@ -432,5 +489,9 @@ export function bootPanel(html: string, opts: BootOptions = {}): PanelHarness {
     node: (id) => byAttr('data-reasons', id),
     section: (id) => byAttr('data-reasons-for', id),
     loop: (id) => byAttr('data-loop', id),
+    typeText(el, text, composing = false) {
+      el.value = text;
+      el.dispatch('input', { isComposing: composing, data: text });
+    },
   };
 }

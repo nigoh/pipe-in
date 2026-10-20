@@ -9,7 +9,7 @@ pipe-in は、要件メモから **要件定義 → 設計 → テスト先行 �
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/run-panel-dark.png">
-  <img src="docs/assets/run-panel-light.png" alt="VSCode のパネル。左に開発フローの段の図（要件定義 → 設計 → テスト先行 → 実装 → 検証。修正の依頼1回・差し戻し1回）、右に検証の出力・成果物・使用量" width="900">
+  <img src="docs/assets/run-panel-light.png" alt="VSCode の実行パネル。左に実行の一覧（確認待ち・動いている・終わった）、右に選んだ実行の詳細：開発フローの段の図（修正の依頼1回・差し戻し1回）、出力、段の実行ごとの時系列" width="900">
 </picture>
 
 <sub>VSCode の拡張のパネル。見本の記録（数字は見本）を拡張の本物の画面で写したもの。</sub>

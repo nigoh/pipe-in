@@ -105,6 +105,7 @@ class LinearPipeline(BasePipeline):
         self.cfg.work_dir.mkdir(parents=True, exist_ok=True)
         if input_text is not None:
             self.doc(INPUT).write_text(input_text.strip() + "\n", encoding="utf-8")
+        self._settle_name(input_text)
         return self._finish(await self._flow(start))
 
     async def review(self, decision: Decision) -> Exit:

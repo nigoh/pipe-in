@@ -48,6 +48,33 @@ test('D0017-AC-06: Prompt 行が無いログの startedAt は null', () => {
   assert.equal(parseStageLog('').startedAt, null);
 });
 
+test('D0019-AC-51: Prompt 行の agent（受け持ち）が StageLog.agent になる。最後の Prompt 行のものを使う', () => {
+  const log = parseStageLog(logText([promptLine('design', '2026-10-17T10:00:00+00:00', 'pipe-in-analyst'), resultLine(), promptLine('design', '2026-10-17T10:05:00+00:00', 'pipe-in-coder')]));
+  assert.equal(log.agent, 'pipe-in-coder');
+});
+
+for (const [label, agent] of [
+  ['無い', undefined],
+  ['数', 5],
+  ['null', null],
+  ['空の文字', ''],
+  ['空白を含む', 'a b'],
+  ['改行を含む', 'a\nb'],
+  ['101 文字', 'a'.repeat(101)],
+] as const) {
+  test(`D0019-AC-51: Prompt 行の agent が${label}なら StageLog.agent は null（例外を投げない。Prompt は読める）`, () => {
+    const log = parseStageLog(logText([promptLine('design', '2026-10-17T10:00:00+00:00', agent), assistantText('x')]));
+    assert.equal(log.agent, null);
+    assert.equal(log.hasPrompt, true);
+    assert.equal(log.startedAt, '2026-10-17T10:00:00+00:00');
+  });
+}
+
+test('D0019-AC-51: Prompt 行が無いログの agent は null', () => {
+  assert.equal(parseStageLog(logText([assistantText('A')])).agent, null);
+  assert.equal(parseStageLog('').agent, null);
+});
+
 test('AC-08: ツールの呼び出しの部品 → 種類はツールの呼び出し、ツール名 Read、対象 a.md', () => {
   const log = parseStageLog(logText([promptLine('requirements'), assistantTool('Read', { file_path: 'a.md' })]));
   assert.deepEqual(log.items, [{ kind: 'tool', tool: 'Read', target: 'a.md' }]);

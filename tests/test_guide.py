@@ -756,6 +756,35 @@ def test_D0014_AC_25_監査の対象にガイドがある():
     assert has_guide, "pipe-in-auditor.md の「対象」の節に docs/guide/ が無い"
 
 
+# ---- D0019-AC-76: VSCode のガイドに、新しい並び（一覧・タブ・時系列）を書く ------------------------------------
+
+
+def test_D0019_AC_76_ガイドに新しい並びの説明がある():
+    """D0019-AC-76: docs/guide/vscode.md に、実行の一覧が常に出ること・状態のタブと絞り込み・詳細のタブ・時系列・
+    狭い幅の並び・セッション名（--name）の説明があり、「1 つだけのときは出ません」という前の版の文が残っていない。"""
+    md = read_doc(GUIDE / "vscode.md")
+    assert "1 つだけのときは出ません" not in md
+    for word in ("時系列", "絞り込み", "セッション名", "セッション ID", "--name", "図と出力", "タブ", "狭い"):
+        assert word in md, f"docs/guide/vscode.md に「{word}」の説明が無い"
+    assert "実行がありません" in md or "0 件" in md, "run が 0 のときの一覧の説明が無い"
+
+
+def test_D0019_AC_76_ガイドに全体の経過が詳細にあると書く():
+    """D0019-AC-76: D0017-AC-18「バナーに全体の経過」は「詳細のメタに全体の経過」として満たす。ガイドの「時間と動き」が、
+    全体の経過の場所を「パネルの上」でなく詳細の欄として書く。"""
+    md = read_doc(GUIDE / "vscode.md")
+    assert "パネルの上には全体の経過が出ます" not in md
+    part = md.split("### 時間と動き", 1)[1].split("\n## ", 1)[0]
+    assert "全体の経過" in part and "詳細" in part
+
+
+def test_D0019_AC_50_記録のガイドにname_session_id_agentがある():
+    """D0019-AC-50: docs/guide/records.md に、記録の新しい項目 name・session_id・agent（足すだけで、無い古い記録も読める）が書いてある。"""
+    md = read_doc(GUIDE / "records.md")
+    for word in ("name", "session_id", "agent"):
+        assert f"`{word}`" in md, f"docs/guide/records.md に `{word}` が無い"
+
+
 # ---- D0014-AC-27: 古いリンク --------------------------------------------------------------------
 
 

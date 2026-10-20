@@ -14,6 +14,9 @@ export const LEGACY_COMMANDS: Readonly<Record<string, string>> = {
   [`${LEGACY_SECTION}.editPipe`]: COMMANDS.editPipe,
 };
 
+/** 別の worktree の実行も一覧に出すかの設定の名前（pipe-in.showOtherWorktrees）。この設定には前の版（devpipe）の名前が無い */
+export const SETTING_SHOW_OTHER = 'showOtherWorktrees';
+
 export const VIEW_IDS = { status: 'pipe-in.status', run: 'pipe-in.run', pipeEditor: 'pipe-in.pipeEditor' } as const;
 
 /** 設定の各側の値（VSCode の inspect の結果のうち、使う所だけ） */

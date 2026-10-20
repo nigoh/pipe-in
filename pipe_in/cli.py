@@ -17,6 +17,7 @@ from .dev.specs import STAGES
 from .engine.checkpoint import Decision
 from .engine.config import Config, load_config
 from .engine.pipeline import BasePipeline
+from .engine.session import normalize_name
 from .pipe import definition as pd
 from .pipe.pipeline import LinearPipeline
 
@@ -53,6 +54,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="--pause で止まった確認に答えて続きを流す（approve=承認・revise=修正を依頼・quit=中止）",
     )
     p.add_argument("--feedback", help="--review revise のときの、直してほしい点")
+    p.add_argument(
+        "--name",
+        help="この実行のセッション名（state.json の name。VSCode の実行の一覧に出る）。省くと要件メモの最初の行から作る。始めるときだけ付けられる",
+    )
     p.add_argument("--max-retries", type=int, help="テスト失敗時に実装へ差し戻す最大回数（既定: 3）")
     p.add_argument("--test-cmd", help="テストの段のあとに、判定の裏付けとして実行するコマンド（例: 'pytest -q'）")
     return p.parse_args(argv)
@@ -122,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.review:
         if args.input is not None or args.text is not None or args.from_stage is not None or args.yes:
             raise SystemExit("--review は --input・--text・--from・--yes と一緒には使えません")
+        if args.name is not None:
+            raise SystemExit("--name は始めるときだけ付けられます（--review では付け替えられません）")
         if args.review == "revise" and not (args.feedback or "").strip():
             raise SystemExit("--review revise には --feedback で直してほしい点を渡してください")
     elif args.feedback is not None:
@@ -141,6 +148,8 @@ def main(argv: list[str] | None = None) -> int:
     pipeline = pipeline_for(cfg, pipe, test_cmd_given=args.test_cmd is not None)
     linear = isinstance(pipeline, LinearPipeline)
     cfg = pipeline.cfg
+    if args.name is not None:
+        pipeline.name = normalize_name(args.name)  # 空・空白だけは「付けなかった」と同じ
     if args.review:
         _warn_if_dirty(cfg.project_dir)
         decision = Decision(args.review, (args.feedback or "").strip())

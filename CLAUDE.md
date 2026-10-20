@@ -19,7 +19,7 @@ npm ci                        # 型検査・ビルドに使う。テストだけ
 npm test                      # node:test（Node 22 以上）
 npm run typecheck
 npm run build
-npm run preview               # 画面の確認用のページ（out/preview/ の作業台 pipe-editor-*.html とパネル run-panel-light.html・run-panel-dark.html、動いている・確認待ちのパネル run-panel-running-*.html・run-panel-waiting-*.html）。Playwright（MCP）で開いて確かめる。手順は /pipe-in の「5. 検証」。README とガイドの画像の撮り直しは docs/assets/README.md
+npm run preview               # 画面の確認用のページ（out/preview/ の作業台 pipe-editor-*.html とパネル run-panel-light.html・run-panel-dark.html、動いている・確認待ちのパネル run-panel-running-*.html・run-panel-waiting-*.html、実行の一覧のパネル run-panel-runs-light.html・run-panel-runs-dark.html・run-panel-runs-omitted-dark.html）。Playwright（MCP）で開いて確かめる。手順は /pipe-in の「5. 検証」。README とガイドの画像の撮り直しは docs/assets/README.md
 ```
 
 変更したら、触った側のテストを流してから終える。Python と拡張の両方に触れたら両方流す。
@@ -45,7 +45,7 @@ pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせ
 - テストは SDK を呼ばず（`runner` を差し替える）、リポジトリの実物（`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/`）に書かない（`tests/conftest.py` が見張る）。
 - `pipe_in/engine/guard.py` と `generator/guard_hook.py` は利用者のプロジェクトを守る仕組み。許すものの一覧で書く。止める範囲を狭める変更は、理由をコミットと決定の記録に書き、すり抜けの道（PowerShell・MCP・サブエージェントなど）が開かないことをテストで示す。
 - 依存の向き（`pipe_in_generator` → `pipe_in.pipe` / `pipe_in.dev` → `pipe_in.engine` → `pipe_in.usage`）と拡張の層を守る（`tests/test_architecture.py`・`vscode/src/architecture.test.ts` が検査する）。`vscode` を import してよいのは `vscode/src/extension.ts` だけ。
-- 拡張は work_dir を読むだけで書かない。書いてよいのは作業台の「保存」での、パイプの置き場所の中の決まったファイルだけ（`vscode/src/infra/fsPipes.ts` が絞る）と、拡張の保存場所（storageUri）の保存した版だけ（`fsVersions.ts` が絞る）。外から来た文字は必ず `escapeHtml` を通し、外部から何も読み込まない。
+- 拡張は work_dir を読むだけで書かない。書いてよいのは作業台の「保存」での、パイプの置き場所の中の決まったファイルだけ（`vscode/src/infra/fsPipes.ts` が絞る）と、拡張の保存場所（storageUri）の保存した版だけ（`fsVersions.ts` が絞る）と、VSCode が拡張に用意する `workspaceState` の選んだ実行の目印だけ（`app/selection.ts`）。同じ git リポジトリの別の worktree の記録と `.git` の中の登録も読むだけで書かず、子プロセスは起こさない（`fsWorktrees.ts`）。外から来た文字は必ず `escapeHtml` を通し、外部から何も読み込まない。
 - 依存を足すときは、必要な理由を決定の記録に書く。`package-lock.json` も一緒にコミットする。
 - 機能ごとに決定の記録（`docs/decisions/`）を書く。置き場所が変わったら `docs/development/design.md` の表を直す。
 - 1つの機能を1つのコミットにする。コミット・push は人に言われるまでしない。
