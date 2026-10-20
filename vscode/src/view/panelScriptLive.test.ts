@@ -4,17 +4,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderPanelHtml, renderViewBody } from './panelHtml.ts';
-import type { RunPicker } from './panelHtml.ts';
+import type { RunListView } from '../domain/runList.ts';
+import { listView, row } from '../test/runListFixtures.ts';
 import { bootPanel } from '../test/fakeDom.ts';
 import type { BootOptions, FakeNode, PanelHarness } from '../test/fakeDom.ts';
 import type { PipelineView } from '../domain/pipelineView.ts';
 import { DURATION_TABLE, finishedView, loopSnapshot, reviseView, runningView, sendBackView, viewAt, waitingView } from '../test/liveFixtures.ts';
 
 const NONCE = 'TESTNONCE';
-const boot = (view: PipelineView, opts?: BootOptions, picker?: RunPicker): PanelHarness =>
+// D0019: 実行を選ぶボタン（RunPicker）は実行の一覧（RunListView）に置き換わった。期待する動きは変えない
+const boot = (view: PipelineView, opts?: BootOptions, picker?: RunListView): PanelHarness =>
   bootPanel(renderPanelHtml(view, NONCE, picker), opts);
-const body = (view: PipelineView, picker?: RunPicker): string => renderViewBody(view, picker);
-const render = (h: PanelHarness, view: PipelineView, picker?: RunPicker): void => h.send({ type: 'render', html: body(view, picker) });
+const body = (view: PipelineView, picker?: RunListView): string => renderViewBody(view, picker);
+const render = (h: PanelHarness, view: PipelineView, picker?: RunListView): void => h.send({ type: 'render', html: body(view, picker) });
+/** 実行 a・b の 2 行の一覧（selected は 'a' か 'b'） */
+const pickerOf = (selected: string): RunListView =>
+  listView([row({ key: 'here|a', session: 'A' }), row({ key: 'here|b', session: 'B' })], { selected: `here|${selected}` });
 
 /** 数え上げる要素の今の文字（文書の順。runningView なら [バナー, 動いている段の節]）。 */
 const shown = (h: PanelHarness): string[] => h.doc.querySelectorAll('[data-elapsed]').map((n) => h.text(n));
@@ -233,7 +238,7 @@ test('D0017-AC-27: 数え上げ・render・visibilitychange・戻る矢印の光
 });
 
 test('D0017-AC-27: 送る type は ready・openArtifact・selectRun だけ（成果物・実行のボタンも、数え上げのあと今までどおり）', () => {
-  const picker: RunPicker = { choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], selected: 'a' };
+  const picker = pickerOf('a');
   const h = boot(runningView(83), {}, picker);
   h.advance(5000);
   h.doc.querySelectorAll('button[data-run]')[1]!.dispatch('click');
@@ -400,7 +405,7 @@ test('D0017-AC-29: 1.4 秒を過ぎたあとに回数がまた増えたら、新
 });
 
 test('D0017-AC-29: 実行を選び替えた直後の render（回数が違っても別の実行）では付かない', () => {
-  const picker = (selected: string): RunPicker => ({ choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], selected });
+  const picker = pickerOf;
   const h = boot(sendBackView(1), {}, picker('a'));
   render(h, sendBackView(3), picker('b'));
   assert.deepEqual(newLoops(h), []);
@@ -409,7 +414,7 @@ test('D0017-AC-29: 実行を選び替えた直後の render（回数が違って
 });
 
 test('D0017-AC-29: 実行を選び替えたら、前の実行の光りは 1.4 秒以内でも付け直さない', () => {
-  const picker = (selected: string): RunPicker => ({ choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], selected });
+  const picker = pickerOf;
   const h = boot(sendBackView(1), {}, picker('a'));
   render(h, sendBackView(2), picker('a'));
   assert.deepEqual(newLoops(h), ['send-back']);

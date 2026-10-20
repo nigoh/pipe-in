@@ -1,35 +1,27 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
-import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
-import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
-import type { ArtifactEntry } from '../domain/artifacts.ts';
-import type { OutputItem } from '../domain/stageLog.ts';
-import { formatDuration } from './duration.ts';
+// このファイルは CSP・style・script の束ねと、図（.flow）・動きの基本の CSS を持つ。パネルの本体（上のバー・左の一覧・右の詳細）は shellHtml.ts、
+// 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、パネルの中のスクリプトは panelScript.ts。
+import type { PipelineView } from '../domain/pipelineView.ts';
+import type { RunListView } from '../domain/runList.ts';
 import { escapeHtml } from './escape.ts';
-import { renderFlowSvg } from './flowSvg.ts';
-import { REASONS_STYLE, renderReasons } from './reasonsHtml.ts';
-import { TIMES_STYLE, renderTimes } from './timesHtml.ts';
-import { USAGE_STYLE, renderUsage } from './usageHtml.ts';
+import { GANTT_STYLE } from './ganttHtml.ts';
+import { PANEL_SCRIPT } from './panelScript.ts';
+import { REASONS_STYLE } from './reasonsHtml.ts';
+import { RUN_LIST_STYLE } from './runListHtml.ts';
+import { SHELL_STYLE, emptyListFor, renderShell } from './shellHtml.ts';
+import { TIMES_STYLE } from './timesHtml.ts';
+import { USAGE_STYLE } from './usageHtml.ts';
 
 export { escapeHtml };
 
-/** 実行を選ぶボタン。choices は見つかった候補（2つ以上のときだけ出す）、selected は今見ている候補の id。 */
-export interface RunPicker {
-  choices: { id: string; label: string }[];
-  selected: string;
-}
-
 const STYLE = `
-body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
-.banner { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; padding: 6px 8px; margin-bottom: 12px; border: 1px solid var(--vscode-panel-border); }
+body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
 .banner-msg { margin: 0; }
 .banner-msg.is-failed { color: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .banner-msg.is-done { color: var(--vscode-charts-green); }
 .banner-msg.is-running { color: var(--vscode-charts-blue); }
-.cost { color: var(--vscode-descriptionForeground); white-space: nowrap; }
-.layout { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 16px; align-items: start; }
-@media (max-width: 640px) { .layout { grid-template-columns: 1fr; } }
-.flow { display: block; width: 100%; height: auto; }
+.flow { display: block; flex: none; height: auto; }
 .flow text { fill: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: 12px; }
 .flow .is-strong { font-weight: 600; }
 .flow .node-detail, .flow .edge-label { fill: var(--vscode-descriptionForeground); font-size: 10.5px; }
@@ -67,17 +59,13 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
   .flow .loop.is-new .loop-path { animation: flash 1.4s ease-out 1; }
   @keyframes flash { from { stroke-width: 6; } }
 }
-.right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .terminal-title { margin: 0 0 4px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
-.terminal { margin: 0; padding: 8px; height: 50vh; overflow: auto; background: var(--vscode-terminal-background, var(--vscode-editor-background)); color: var(--vscode-terminal-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-panel-border); font-family: var(--vscode-editor-font-family); }
+.terminal { margin: 0; padding: 8px; flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--vscode-terminal-background, var(--vscode-editor-background)); color: var(--vscode-terminal-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-panel-border); font-family: var(--vscode-editor-font-family); }
 .line { white-space: pre-wrap; word-break: break-word; }
 .line-tool { color: var(--vscode-descriptionForeground); }
 .artifacts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .artifact { font: inherit; padding: 2px 6px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-textLink-foreground); cursor: pointer; }
 .artifact:disabled { color: var(--vscode-descriptionForeground); cursor: default; }
-.runs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
-.run { font: inherit; padding: 2px 8px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); cursor: pointer; }
-.run[aria-pressed="true"] { border-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground, transparent); color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)); }
 .banner-msg.is-waiting { color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .warnings { margin: 0; padding-left: 1.2em; color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .flow .node[data-reasons] { cursor: pointer; }
@@ -88,157 +76,8 @@ body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: va
 .flow .head.is-pick { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); }
 `;
 
-// render を受けたら本体を差し替え、ターミナルが末尾近くなら末尾まで送る。ボタンで openArtifact・selectRun、読み込み後に ready を送る。
-// 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
-// 時間の数え上げ（D0017）：[data-elapsed] は「基準の秒」。基準を受けた時刻（このパネルの時計）からの差だけを足し、記録の時刻は読まない。
-// タイマーは1つだけ。見えていない間と、数える要素が無いときは回さない。拡張へ送るメッセージは増やさない。
-// 戻る矢印の光り：data-count が前の描き直しより増えたときだけ is-new を付け（動きを減らす設定では付けない）、
-// 光り始めから FLASH_MS のあいだは描き直しをまたいで付け直す。
-const SCRIPT = `
-(function () {
-  const vscode = acquireVsCodeApi();
-  const root = document.querySelector('.root');
-  const FLASH_MS = 1400;
-  let picked = null;
-  let baseMs = Date.now();
-  let timerId = null;
-  let loopMemo = null;
-  let flashMemo = {};
-  function fmt(sec) {
-    const t = isFinite(sec) && sec > 0 ? Math.floor(sec) : 0;
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = String(t % 60).padStart(2, '0');
-    return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + s : m + ':' + s;
-  }
-  function paint() {
-    const dt = Math.max(0, Math.floor((Date.now() - baseMs) / 1000));
-    root.querySelectorAll('[data-elapsed]').forEach(function (el) {
-      const raw = el.getAttribute('data-elapsed');
-      if (raw === null || !/^-?\\d+(\\.\\d+)?$/.test(raw)) return;
-      el.textContent = fmt(Number(raw) + dt);
-    });
-  }
-  function stopTimer() {
-    if (timerId !== null) { clearInterval(timerId); timerId = null; }
-  }
-  function startTimer() {
-    stopTimer();
-    if (document.visibilityState === 'hidden') return;
-    if (root.querySelectorAll('[data-elapsed]').length === 0) return;
-    paint();
-    timerId = setInterval(paint, 1000);
-  }
-  function reducedMotion() {
-    return typeof window.matchMedia !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
-  function flashOn(l, elapsed) {
-    l.classList.add('is-new');
-    if (typeof l.getAnimations !== 'function') return;
-    l.getAnimations({ subtree: true }).forEach(function (a) { a.currentTime = elapsed; });
-  }
-  function markNewLoops() {
-    const counts = {};
-    root.querySelectorAll('[data-loop]').forEach(function (l) {
-      counts[l.getAttribute('data-loop')] = Number(l.getAttribute('data-count')) || 0;
-    });
-    const pressed = root.querySelector('button[data-run][aria-pressed="true"]');
-    const run = pressed ? pressed.getAttribute('data-run') : '';
-    const sameRun = loopMemo !== null && loopMemo.run === run;
-    if (!sameRun) flashMemo = {};
-    const now = Date.now();
-    if (!reducedMotion()) {
-      root.querySelectorAll('[data-loop]').forEach(function (l) {
-        const id = l.getAttribute('data-loop');
-        if (sameRun && id in loopMemo.counts && counts[id] > loopMemo.counts[id]) {
-          flashMemo[id] = now;
-          flashOn(l, 0);
-        } else if (id in flashMemo) {
-          const age = now - flashMemo[id];
-          if (age < FLASH_MS) flashOn(l, age);
-          else delete flashMemo[id];
-        }
-      });
-    }
-    loopMemo = { run: run, counts: counts };
-  }
-  function nearBottom(el) { return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 40; }
-  function follow(wasNear) { const t = root.querySelector('.terminal'); if (t && wasNear) t.scrollTop = t.scrollHeight; }
-  function applyPick() {
-    const nodes = Array.from(root.querySelectorAll('[data-reasons]'));
-    if (picked !== null && !nodes.some(function (g) { return g.getAttribute('data-reasons') === picked; })) picked = null;
-    const pickedNode = nodes.find(function (g) { return g.getAttribute('data-reasons') === picked; });
-    const loopId = pickedNode ? pickedNode.getAttribute('data-reasons-loop') : null;
-    nodes.forEach(function (g) {
-      const on = g === pickedNode;
-      g.setAttribute('aria-pressed', on ? 'true' : 'false');
-      g.classList.toggle('is-picked', on);
-    });
-    root.querySelectorAll('[data-loop]').forEach(function (l) {
-      l.classList.toggle('is-picked', loopId !== null && l.getAttribute('data-loop') === loopId);
-    });
-    root.querySelectorAll('[data-reasons-for]').forEach(function (s) {
-      s.hidden = s.getAttribute('data-reasons-for') !== picked;
-    });
-  }
-  function togglePick(g) {
-    const id = g.getAttribute('data-reasons');
-    picked = picked === id ? null : id;
-    applyPick();
-  }
-  window.addEventListener('message', function (event) {
-    const msg = event.data;
-    if (!msg || msg.type !== 'render' || typeof msg.html !== 'string') return;
-    const wasNear = nearBottom(root.querySelector('.terminal'));
-    const active = document.activeElement;
-    const focusNode = active && active.closest ? active.closest('[data-reasons]') : null;
-    const focusId = focusNode ? focusNode.getAttribute('data-reasons') : null;
-    root.innerHTML = msg.html;
-    baseMs = Date.now();
-    applyPick();
-    markNewLoops();
-    startTimer();
-    if (focusId !== null) {
-      const again = Array.from(root.querySelectorAll('[data-reasons]')).find(function (g) { return g.getAttribute('data-reasons') === focusId; });
-      if (again) again.focus();
-    }
-    follow(wasNear);
-  });
-  root.addEventListener('click', function (event) {
-    const button = event.target.closest('button[data-artifact]');
-    if (button && !button.disabled) vscode.postMessage({ type: 'openArtifact', name: button.getAttribute('data-artifact') });
-    const run = event.target.closest('button[data-run]');
-    if (run) vscode.postMessage({ type: 'selectRun', id: run.getAttribute('data-run') });
-    const node = event.target.closest('[data-reasons]');
-    if (node) togglePick(node);
-  });
-  root.addEventListener('keydown', function (event) {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const node = event.target.closest('[data-reasons]');
-    if (!node) return;
-    event.preventDefault();
-    togglePick(node);
-  });
-  root.addEventListener('animationend', function (event) {
-    const flashing = event.target && event.target.closest ? event.target.closest('.is-new') : null;
-    if (!flashing) return;
-    flashing.classList.remove('is-new');
-    delete flashMemo[flashing.getAttribute('data-loop')];
-  });
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') stopTimer();
-    else startTimer();
-  });
-  applyPick();
-  markNewLoops();
-  startTimer();
-  follow(true);
-  vscode.postMessage({ type: 'ready' });
-})();
-`;
-
-/** パネルの HTML 全体。CSP・スタイル・小さなスクリプトと、renderViewBody(view) を本体に入れる。 */
-export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunPicker): string {
+/** パネルの HTML 全体。CSP・スタイル・小さなスクリプトと、renderViewBody(view, list) を本体に入れる。 */
+export function renderPanelHtml(view: PipelineView, nonce: string, list?: RunListView | null): string {
   const n = escapeHtml(nonce);
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -247,106 +86,16 @@ export function renderPanelHtml(view: PipelineView, nonce: string, picker?: RunP
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pipe-in</title>
-<style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}</style>
+<style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}${RUN_LIST_STYLE}${GANTT_STYLE}${SHELL_STYLE}</style>
 </head>
 <body>
-<div class="root">${renderViewBody(view, picker)}</div>
-<script nonce="${n}">${SCRIPT}</script>
+<div class="root">${renderViewBody(view, list)}</div>
+<script nonce="${n}">${PANEL_SCRIPT}</script>
 </body>
 </html>`;
 }
 
-/** 本体だけ（描き直しのとき、これをパネルに送って差し替える）。 */
-export function renderViewBody(view: PipelineView, picker?: RunPicker): string {
-  return `${renderRunPicker(picker)}${renderBanner(view)}
-<div class="layout">
-${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)))}
-<div class="right">
-${renderWarnings(view.warnings)}
-${renderReasons(view)}
-${renderTimes(view)}
-${renderTerminal(view, view.terminal)}
-${renderArtifacts(view.artifacts)}
-${renderUsage(view.usage)}
-</div>
-</div>`;
-}
-
-function formatCost(usd: number): string {
-  return `$${usd.toFixed(3)}`;
-}
-
-function renderBanner(view: PipelineView): string {
-  let msg = '';
-  if (view.noRecords) {
-    msg = `<p class="banner-msg">${escapeHtml(view.noRecords.message)}：${escapeHtml(view.noRecords.workDir)}</p>`;
-  } else if (view.final !== null) {
-    const cls = view.final === 'PASSED' ? 'is-done' : 'is-failed';
-    msg = `<p class="banner-msg ${cls}">最終の結果：${escapeHtml(view.final)}</p>`;
-  } else if (view.runningStage !== null && view.terminal.source !== null) {
-    const src = view.terminal.source;
-    const attempt = src.attempt === null ? '' : `（${src.attempt} 回目）`;
-    msg = `<p class="banner-msg is-running">${escapeHtml(`いま：${stageLabel(view, src.stage)}${attempt}`)}</p>`;
-  } else if (view.pendingReview !== null) {
-    const { label, doc } = view.pendingReview;
-    msg = `<p class="banner-msg is-waiting">${escapeHtml(`${label}の確認を待っている：${doc}`)}</p>`;
-  } else if (view.waiting) {
-    msg = `<p class="banner-msg">${escapeHtml(WAITING_MESSAGE)}</p>`;
-  } else {
-    msg = '<p class="banner-msg"></p>';
-  }
-  return `<div class="banner">${msg}<span class="cost">${renderElapsed(view.elapsed)}合計 ${formatCost(view.totalCostUsd)}</span></div>`;
-}
-
-/** バナーの全体の経過。数え上げる（live）ときだけ基準の秒（data-elapsed）を持たせ、固定の値は文字だけ。無ければ空。 */
-function renderElapsed(elapsed: Elapsed | null): string {
-  if (elapsed === null) return '';
-  const text = formatDuration(elapsed.seconds);
-  const attr = elapsed.live ? ` data-elapsed="${Math.floor(elapsed.seconds)}"` : '';
-  return `経過 <span class="elapsed"${attr}>${text}</span>・`;
-}
-
-function renderItem(item: OutputItem): string {
-  if (item.kind === 'tool') {
-    const target = item.target === null ? '' : ` ${item.target}`;
-    return `<div class="line line-tool">${escapeHtml(`· ${item.tool}${target}`)}</div>`;
-  }
-  return `<div class="line">${escapeHtml(item.text)}</div>`;
-}
-
-function stageLabel(view: PipelineView, stage: string): string {
-  return view.stageLabels[stage] ?? stage;
-}
-
-function renderRunPicker(picker: RunPicker | undefined): string {
-  if (picker === undefined || picker.choices.length < 2) return '';
-  const buttons = picker.choices.map(
-    (c) =>
-      `<button type="button" class="run" data-run="${escapeHtml(c.id)}" aria-pressed="${c.id === picker.selected ? 'true' : 'false'}">${escapeHtml(c.label)}</button>`,
-  );
-  return `<nav class="runs" aria-label="見る実行">${buttons.join('')}</nav>`;
-}
-
-function renderWarnings(warnings: string[]): string {
-  if (warnings.length === 0) return '';
-  const items = warnings.map((w) => `<li>${escapeHtml(w)}</li>`);
-  return `<section><h2 class="terminal-title">注意</h2><ul class="warnings">${items.join('')}</ul></section>`;
-}
-
-function renderTerminal(view: PipelineView, terminal: TerminalView): string {
-  const source = terminal.source;
-  const title =
-    source === null
-      ? '出力（ログなし）'
-      : `出力：${stageLabel(view, source.stage)}${source.attempt === null ? '' : `（${source.attempt} 回目）`}`;
-  return `<section><h2 class="terminal-title">${escapeHtml(title)}</h2><div class="terminal">${terminal.items.map(renderItem).join('')}</div></section>`;
-}
-
-function renderArtifacts(artifacts: ArtifactEntry[]): string {
-  const items = artifacts.map((a) => {
-    const label = escapeHtml(`${a.label}（${a.ready ? 'ある' : 'まだない'}）`);
-    const attrs = a.ready ? `data-artifact="${escapeHtml(a.name)}"` : 'disabled';
-    return `<li><button type="button" class="artifact" ${attrs} title="${escapeHtml(a.name)}">${label}</button></li>`;
-  });
-  return `<section><h2 class="terminal-title">成果物</h2><ul class="artifacts">${items.join('')}</ul></section>`;
+/** 本体だけ（描き直しのとき、これをパネルに送って差し替える）。一覧は無い・null のときも、行が 0 の一覧で出す。 */
+export function renderViewBody(view: PipelineView, list?: RunListView | null): string {
+  return renderShell(view, list ?? emptyListFor(view));
 }

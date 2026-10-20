@@ -236,6 +236,7 @@ class DevPipeline(BasePipeline):
         if input_text is not None:
             self.doc(st.INPUT).write_text(input_text.strip() + "\n", encoding="utf-8")
         self._check_prereq(from_stage)
+        self._settle_name(input_text)
 
         result = await self._stages_from(STAGES.index(from_stage), skip_first_impl=(from_stage == "test"))
         return self._finish(result)

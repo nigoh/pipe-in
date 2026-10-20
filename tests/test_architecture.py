@@ -83,6 +83,61 @@ def test_rule_catches_reverse_import(tmp_path, monkeypatch):
     assert any("pipe_in.dev" in f for f in found) and any("pipe_in.pipe" in f for f in found)
 
 
+def test_d0019_ac50_state_only_adds_keys(tmp_path):
+    """D0019-AC-50: 新しい項目（name・session_id・runs[].agent）を全部付けて書いた state.json は、見本（古い形）の鍵をすべて含み、
+    増えるのは name・session_id・runs[].agent だけ（既存の項目の名前・意味を変えない）。"""
+    import json
+    from datetime import datetime
+
+    from pipe_in.dev.record import Recorder
+    from pipe_in.engine.config import load_config
+
+    fixtures = ROOT / "tests" / "fixtures" / "pipe_dev"
+    old = json.loads((fixtures / "finished" / "state.json").read_text(encoding="utf-8"))
+
+    r = Recorder(load_config(tmp_path), now=lambda: datetime(2026, 10, 17, 10, 0, 0))
+    r.start("足したい機能のメモ", name="N", session_id="S-1")
+    r.begin("requirements", agent="pipe-in-analyst")
+    r.done("requirements", summary="要件定義を書いた")
+    r.wait("requirements")
+    r.review("requirements", "revise", feedback="AC を分けて")
+    r.begin("requirements", note="指摘を反映", agent="pipe-in-analyst")
+    r.done("requirements", summary="直した")
+    r.wait("requirements")
+    r.review("requirements", "approved")
+    r.begin("design", agent="pipe-in-analyst")
+    r.done("design", summary="設計を書いた")
+    r.wait("design")
+    r.review("design", "approved")
+    r.begin("red", agent="pipe-in-tester")
+    r.done("red", summary="テストを書いた")
+    r.red("red", "AC-01 が赤", tests=[("AC-01", "tests/test_a.py::test_a")], commands=["python -m pytest -q"])
+    r.wait("red")
+    r.review("red", "approved")
+    r.begin("implement", attempt=1, agent="pipe-in-coder")
+    r.done("implement", summary="実装した")
+    r.begin("test", attempt=1, agent="pipe-in-verifier")
+    r.done("test", summary="検証した")
+    r.verdict("fail", 1, "AC-01 不合格", failures=[("AC-01", "期待と違う")], commands=["python -m pytest -q"])
+    r.begin("implement", attempt=2, note="差し戻し", agent="pipe-in-coder")
+    r.done("implement", summary="直した")
+    r.begin("test", attempt=2, agent="pipe-in-verifier")
+    r.done("test", summary="検証した")
+    r.verdict("pass", 2, "すべて合格", commands=["python -m pytest -q"])
+    r.finish("PASSED")
+
+    new = json.loads((tmp_path / "docs" / "pipeline" / "state.json").read_text(encoding="utf-8"))
+    assert set(old) <= set(new)
+    assert set(new) - set(old) == {"name", "session_id"}
+    old_run_keys = {k for run in old["runs"] for k in run}
+    new_run_keys = {k for run in new["runs"] for k in run}
+    assert old_run_keys <= new_run_keys
+    assert new_run_keys - old_run_keys == {"agent"}
+    for key in set(old) - {"started_at", "updated_at", "runs", "name"}:
+        assert type(new[key]) is type(old[key]) or old[key] is None or new[key] is None, key  # 既存の項目の型を変えていない
+    assert [s["name"] for s in new["stages"]] == [s["name"] for s in old["stages"]]
+
+
 def test_guard_hook_uses_only_stdlib():
     """D0001-AC-19・D0006-AC-03: フックは道具を呼ぶたびに動くので、pipe_in や SDK を読み込まない（標準ライブラリだけ）。"""
     import sys

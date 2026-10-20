@@ -238,6 +238,41 @@ def test_D0010_AC_06_書き込みの呼び出しの見つけ方():
     assert write_calls("// writeFile( は書かない\n/* mkdir( */\nconst r = await readFile(p); readdir(d)") == []
 
 
+# ---- D0019-AC-32：実行の一覧が work_dir・.git を読む口にも、書き込みの呼び出しが無い --------------
+
+
+READ_ONLY_SOURCES = ["infra/fsWorkDirSource.ts", "infra/fsWorktrees.ts", "infra/readOnlyFs.ts"]
+
+
+@pytest.mark.parametrize("rel", READ_ONLY_SOURCES)
+def test_D0019_AC_32_work_dirとgitの登録を読む口に書き込みの呼び出しが無い(rel):
+    """D0019-AC-32: fsWorkDirSource.ts（archive・別の worktree の run を読む）と fsWorktrees.ts（.git の登録を読む）に、
+    書き込みの呼び出しが無い。fsWorktrees.ts がまだ無いうちは、ファイルが無いことで落ちる（赤）。"""
+    assert write_calls(src_text(rel)) == []
+
+
+def test_D0019_AC_32_読み取りの口はreadHeadを持ち開き方はrだけ():
+    """D0019-AC-32: 読み取りの口（readOnlyFs.ts）に、先頭だけを読む readHead があり、ファイルを開く呼び出しのフラグは 'r' だけ
+    （書き込みのフラグ 'w'・'a'・'r+' などを使わない）。読み取りの口は 6 つになる（design の AC-32）。"""
+    source = strip_ts_comments(src_text("infra/readOnlyFs.ts"))
+    assert re.search(r"\breadHead\b", source), "readOnlyFs.ts に readHead が無い"
+    opens = re.findall(r"\bopen\s*\(([^)]*)\)", source)
+    assert opens, "readHead がファイルを開く open( の呼び出しが見つからない"
+    for args in opens:
+        assert re.search(r",\s*'r'\s*$", args.strip()), f"open の開き方が 'r' だけでない: {args}"
+    interface = re.search(r"interface\s+ReadOnlyFs\s*\{(.*?)\}", source, flags=re.DOTALL)
+    assert interface, "ReadOnlyFs の型が読めなかった"
+    assert len(re.findall(r"^\s*\w+\s*:", interface.group(1), flags=re.MULTILINE)) == 6
+
+
+def test_D0019_AC_32_子プロセスを起こさない():
+    """D0019-AC-32: 読む口が child_process を import していない（別の worktree は .git のファイルを読んで見つける）。
+    fsWorktrees.ts がまだ無いうちは、ファイルが無いことで落ちる（赤）。"""
+    for rel in READ_ONLY_SOURCES:
+        assert "child_process" not in src_text(rel), rel
+
+
+
 # ---- D0010-AC-07 ---------------------------------------------------------------------------
 
 
@@ -251,12 +286,18 @@ def test_D0010_AC_07_節の状態の名前が一致する():
 
 
 def test_D0010_AC_07_監視の対象とまとめる時間が一致する():
-    """D0010-AC-07: 記録の「監視の対象」は extension.ts の RelativePattern にあり（1段下の `*/` つきも）、「まとめる時間」は DEBOUNCE_MS と同じ。"""
+    """D0010-AC-07: 記録の「監視の対象」は監視の対象の文字（WATCH_GLOB）にあり（1段下の `*/` つきも）、「まとめる時間」は DEBOUNCE_MS と同じ。
+
+    D0019 で、この2つは extension.ts から app/refreshPolicy.ts に移った（読む場所だけを直した。期待は変えない）。
+    extension.ts がその監視の対象を RelativePattern に渡していることも確かめる。
+    """
     ext = src_text("extension.ts")
-    pattern = re.search(r"RelativePattern\([^']*'([^']*)'", ext, flags=re.DOTALL)
-    assert pattern, "extension.ts から RelativePattern の文字列を読めなかった"
-    debounce = re.search(r"DEBOUNCE_MS\s*=\s*(\d+)", ext)
-    assert debounce, "extension.ts から DEBOUNCE_MS を読めなかった"
+    policy = src_text("app/refreshPolicy.ts")
+    pattern = re.search(r"WATCH_GLOB\s*=\s*'([^']*)'", policy)
+    assert pattern, "refreshPolicy.ts から WATCH_GLOB の文字列を読めなかった"
+    debounce = re.search(r"DEBOUNCE_MS\s*=\s*(\d+)", policy)
+    assert debounce, "refreshPolicy.ts から DEBOUNCE_MS を読めなかった"
+    assert re.search(r"RelativePattern\([^)]*WATCH_GLOB", ext, flags=re.DOTALL), "extension.ts が WATCH_GLOB を RelativePattern に渡していない"
     text = record_text()
     targets = bullet(text, "監視の対象")
     assert targets == {"state.json", "*.md", "logs/*.jsonl"}

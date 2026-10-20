@@ -52,7 +52,12 @@ test('使用量の節：ログから来たモデルの名前は HTML として�
 });
 
 test('使用量の節：使用量のない記録では節を出さない', () => {
-  assert.doesNotMatch(renderViewBody(buildPipelineView(snapshot())), /使用量/);
+  // 詳細のタブ「使用量」はいつも出るので、見るのは使用量のパネルの中だけ
+  const html = renderViewBody(buildPipelineView(snapshot()));
+  const start = html.indexOf('data-detail-panel="usage"');
+  assert.ok(start >= 0, '使用量のパネルの枠はある');
+  const end = html.indexOf('</main>', start);
+  assert.doesNotMatch(html.slice(start, end < 0 ? undefined : end), /使用量/);
 });
 
 test('使用量の節：HTML に外部の読み込みと色の直書きがない（AC-42・AC-43 と同じ検査）', () => {

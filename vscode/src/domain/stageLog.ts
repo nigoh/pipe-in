@@ -1,6 +1,7 @@
 // 段のログ：logs/NN_<段>[_回].jsonl の名前と中身を読む。記録の形の知識はここに閉じる。
 import { isJsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
+import { isSafeToken } from './sessionName.ts';
 import type { Stage } from './stage.ts';
 import { isTimestampText } from './timestamp.ts';
 
@@ -32,6 +33,8 @@ export interface StageLog {
   finished: boolean;
   /** 段の始まりの時刻（最後の Prompt 行の at の文字）。無い・読めない・Prompt が無いなら null */
   startedAt: string | null;
+  /** 段の受け持ち（最後の Prompt 行の agent）。無い・読めない・Prompt が無いなら null */
+  agent: string | null;
 }
 
 /** 1行ずつ JSON として読む。読めない行・オブジェクトでない行は飛ばす。 */
@@ -69,7 +72,14 @@ export function parseStageLog(text: string): StageLog {
     }
   }
   const at = lastPrompt >= 0 ? lines[lastPrompt].at : null;
-  return { items, hasPrompt: lastPrompt >= 0, finished, startedAt: isTimestampText(at) ? at : null };
+  const agent = lastPrompt >= 0 ? lines[lastPrompt].agent : null;
+  return {
+    items,
+    hasPrompt: lastPrompt >= 0,
+    finished,
+    startedAt: isTimestampText(at) ? at : null,
+    agent: isSafeToken(agent) ? agent : null,
+  };
 }
 
 /** 発言の部品1つを出力の項目にする。ツールの結果・考え中・知らない部品は null。 */

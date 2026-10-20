@@ -1,6 +1,7 @@
 // 図の状態 → ステータスバーのボタンの文字と説明（純粋）。文字の $(…) は VSCode の組み込みアイコン。
 import { NO_RECORDS_MESSAGE, WAITING_MESSAGE } from '../domain/pipelineView.ts';
 import type { PipelineView } from '../domain/pipelineView.ts';
+import { finalWord } from '../domain/runList.ts';
 import { formatPercent } from './usageHtml.ts';
 
 export interface StatusBarLabel {
@@ -11,13 +12,13 @@ export interface StatusBarLabel {
 /** ボタンに出す名前 */
 const NAME = 'pipe-in';
 
-/** 本体の終了の名前（state.json の final）→ アイコンと短い言葉。 */
-const FINALS: Readonly<Record<string, [string, string]>> = {
-  PASSED: ['pass', '合格'],
-  TEST_FAILED: ['error', '不合格'],
-  STOPPED_BY_HUMAN: ['debug-stop', '中止'],
-  STAGE_ERROR: ['error', '段が失敗'],
-  BLOCKED: ['warning', '実行できず'],
+/** 本体の終了の名前（state.json の final）→ アイコン。言葉は一覧の行と同じ表（domain/runList.ts の finalWord）から読む。 */
+const FINAL_ICONS: Readonly<Record<string, string>> = {
+  PASSED: 'pass',
+  TEST_FAILED: 'error',
+  STOPPED_BY_HUMAN: 'debug-stop',
+  STAGE_ERROR: 'error',
+  BLOCKED: 'warning',
 };
 
 const CLICK = 'クリックでパネルを開く';
@@ -34,7 +35,8 @@ export function statusBarLabel(view: PipelineView): StatusBarLabel {
     return { text: `$(circuit-board) ${NAME}`, tooltip: `${NAME}：${NO_RECORDS_MESSAGE}（${view.noRecords.workDir}）\n${CLICK}` };
   }
   if (view.final !== null) {
-    const [icon, word] = FINALS[view.final] ?? ['info', view.final];
+    const icon = Object.hasOwn(FINAL_ICONS, view.final) ? FINAL_ICONS[view.final] : 'info';
+    const word = finalWord(view.final);
     return { text: `$(${icon}) ${NAME}: ${word}`, tooltip: `${NAME}：${word}・${cost}\n${CLICK}` };
   }
   if (view.runningStage !== null && view.terminal.source !== null) {

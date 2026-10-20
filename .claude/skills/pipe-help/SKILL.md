@@ -54,9 +54,10 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | --- | --- |
 | 開発フローを流す（要件定義 → 設計 → テスト先行 → 実装 → 検証） | `pipe-in --project <対象> --input request.md` |
 | 確認なしで最後まで流す | `pipe-in --project <対象> --input request.md --yes` |
+| 実行にセッション名を付ける（VSCode の一覧に出る） | `pipe-in --project <対象> --input request.md --name "…"`（省くと要件メモの最初の行。始めるときだけ付けられる） |
 | チャットから流す（確認で止めて、あとで答える） | `pipe-in ... --pause` → `pipe-in --project <対象> --review approve` ／ `--review revise --feedback "…"` ／ `--review quit` |
 | 途中から再開する | `pipe-in --project <対象> --from design`（パイプでは段の名前） |
-| 記録だけを書く（段は流さない。/pipe-in が使う） | `pipe-in record start --text "…"` → `begin <段>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`pipe-in record --help`） |
+| 記録だけを書く（段は流さない。/pipe-in が使う） | `pipe-in record start --text "…" --name "…"`（`--session-id` も付けられる）→ `begin <段> --agent <受け持ち>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`pipe-in record --help`） |
 | パイプを流す | `pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける） |
 
 ### pipe-in-gen（パイプを作る）

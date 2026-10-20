@@ -1,6 +1,8 @@
 // 入口：vscode に触れる唯一のファイル。コマンド・ステータスバー・パネル・ファイルの監視・エディタで開く、を担い、判定は持たない。
 // 監視は拡張機能で1つ。記録が変わったら図の状態を作り直し、ステータスバーと（開いていれば）パネルの両方に配る。
-// work_dir の中の実行（直下の開発フローと <work_dir>/<パイプ名>/）から1つを選んで見る。既定は最新、パネルで切り替えられる。
+// 実行の一覧（直下の開発フロー・<work_dir>/<パイプ名>/・archive/・同じ git リポジトリの別の worktree）から1つを選んで見る。
+// 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（書くのはそれだけ。work_dir・.git・別の worktree には書かない）。
+// 別の worktree と archive は、パネルが見えている間だけ約5秒ごとに読み直す（app/refreshPolicy.ts）。
 // パイプ作業台（pipe-in.editPipe）は .pipe-in/pipes/ と前の版の置き場所（どちらも無ければ pipes/）のパイプを開き、
 // 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。work_dir には書かない。
 // 保存した版と、閉じたときの下書きは、拡張の保存場所（storageUri の pipe-versions/）にだけ書く。
@@ -9,7 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
+import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_SHOW_OTHER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
 import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
@@ -24,36 +26,66 @@ import { editorTitle, renderPipeEditorHtml } from './view/pipeEditorHtml.ts';
 import { DEFAULT_WORK_DIR, refreshView, resolveWorkDir } from './app/refreshView.ts';
 import type { PipelineView } from './domain/pipelineView.ts';
 import { resolveArtifactPath } from './domain/artifacts.ts';
-import { pickRun, resolveRunDir } from './domain/runs.ts';
-import { createFsWorkDirSource, listRunCandidates } from './infra/fsWorkDirSource.ts';
+import { HERE } from './domain/runs.ts';
+import type { RunKey } from './domain/runs.ts';
+import type { RunListView } from './domain/runList.ts';
+import { DEBOUNCE_MS, POLL_MS, WATCH_GLOB, createPoller, shouldPoll } from './app/refreshPolicy.ts';
+import { chooseEntry, findEntry, loadRunList, toListView } from './app/runList.ts';
+import type { RunList, RunsSource } from './app/runList.ts';
+import { rememberRun, restoreRun } from './app/selection.ts';
+import { createFsRunsSource, createFsWorkDirSource } from './infra/fsWorkDirSource.ts';
 import { parseWebviewMessage } from './view/messages.ts';
 import type { ToPanelMessage } from './view/messages.ts';
 import { renderPanelHtml, renderViewBody } from './view/panelHtml.ts';
-import type { RunPicker } from './view/panelHtml.ts';
 import { statusBarLabel } from './view/statusBar.ts';
 
-const DEBOUNCE_MS = 200;
 /** 知らせの頭とパネルの題に出す名前 */
 const NAME = 'pipe-in';
+/** 選んだ run が別の worktree にあるとき、そのフォルダに足す監視の対象（外の場所は再帰で張れないので 1 段） */
+const REMOTE_WATCH_GLOB = '{state.json,*.md,logs/*.jsonl}';
 
 interface WorkDirTarget {
   abs: string;
   display: string;
+  /** ワークスペースの最初のフォルダ（別の worktree を見つける起点） */
+  root: string;
+  /** work_dir の設定値（別の worktree の根に当てはめる） */
+  setting: string;
 }
 
-let panel: vscode.WebviewPanel | undefined;
-let statusItem: vscode.StatusBarItem | undefined;
+let panel: vscode.WebviewPanel | undefined;let statusItem: vscode.StatusBarItem | undefined;
 let target: WorkDirTarget | null = null;
 let watcher: vscode.FileSystemWatcher | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
-/** パネルで選んだ実行の id。パネルを閉じたら忘れる（既定の最新に戻る）。 */
-let selectedRun: string | null = null;
+/** 別の worktree の run を選んでいるときだけ、そのフォルダを見る 2 つ目の監視 */
+let remoteWatcher: vscode.FileSystemWatcher | undefined;
+let remoteDir: string | null = null;
+/** 選んだ実行の目印。workspaceState に覚え、開き直しても戻す。一覧に無ければ使わない（既定の最新） */
+let selected: RunKey | null = null;
+/** 覚える場所（ワークスペースごとの拡張の保存場所） */
+let memory: vscode.Memento | undefined;
+/** 直前に出した一覧。パネルから来た目印はこの中にあるものだけ受け付ける */
+let lastList: RunList | null = null;
+let runsSource: RunsSource | null = null;
+/** 直前に出した、選んだ run が動いている・確認待ちか（パネルが隠れて見えたとき、読み直しを続けるかの判断に使う） */
+let lastLive = false;
 /** いま見ている実行のフォルダと、開いてよい成果物の名前 */
 let shown: { runAbs: string; artifacts: string[] } | null = null;
+/** パネルが見えている間だけ、別の worktree と archive を読み直す */
+const poller = createPoller({
+  intervalMs: POLL_MS,
+  run: () => render(),
+  setTimer: (fn, ms) => setTimeout(fn, ms),
+  clearTimer: (handle) => clearTimeout(handle),
+});
 
 interface CurrentView {
   view: PipelineView;
-  picker: RunPicker;
+  listView: RunListView;
+  /** 選んだ run が別の worktree にあるとき、そのフォルダ */
+  otherDir: string | null;
+  /** 選んだ run が動いている・確認待ちか（時系列の帯が「今」まで伸びる。読み直しを続ける） */
+  live: boolean;
 }
 
 let extensionUri: vscode.Uri | undefined;
@@ -68,6 +100,8 @@ export function activate(context: vscode.ExtensionContext): void {
   statusItem = vscode.window.createStatusBarItem(VIEW_IDS.status, vscode.StatusBarAlignment.Left, 50);
   statusItem.name = NAME;
   statusItem.command = COMMANDS.showRun;
+  memory = context.workspaceState;
+  selected = restoreRun(memory);
 
   const handlers: Record<string, () => Promise<void>> = {
     [COMMANDS.showRun]: () => showRun(),
@@ -84,6 +118,8 @@ export function activate(context: vscode.ExtensionContext): void {
     statusItem,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (settingKeys('workDir').some((key) => event.affectsConfiguration(key))) retarget();
+      // 別の worktree を出す・出さないは、場所を決め直すだけ（監視は変わらない）。覚えた選びは消さない
+      else if (event.affectsConfiguration(`${SECTION}.${SETTING_SHOW_OTHER}`)) void render();
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => retarget()),
     { dispose: () => stopWatching() },
@@ -99,6 +135,7 @@ function readSetting(key: 'workDir' | 'pipesDir', fallback: string): string {
 }
 
 export function deactivate(): void {
+  poller.stop();
   panel?.dispose();
   panel = undefined;
   for (const p of editors.values()) p.dispose();
@@ -109,8 +146,9 @@ export function deactivate(): void {
 function currentWorkDir(): WorkDirTarget | null {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) return null;
-  const abs = resolveWorkDir(folder.uri.fsPath, readSetting('workDir', DEFAULT_WORK_DIR));
-  return { abs, display: abs };
+  const setting = readSetting('workDir', DEFAULT_WORK_DIR).trim() || DEFAULT_WORK_DIR;
+  const abs = resolveWorkDir(folder.uri.fsPath, setting);
+  return { abs, display: abs, root: folder.uri.fsPath, setting };
 }
 
 function stopWatching(): void {
@@ -118,24 +156,43 @@ function stopWatching(): void {
   timer = undefined;
   watcher?.dispose();
   watcher = undefined;
+  watchRemote(null);
 }
 
-/** 見る work_dir を決め直し、監視を張り直して描き直す。フォルダを開いていなければボタンを隠す。 */
+/** 選んだ run が別の worktree にあるときだけ、そのフォルダにも監視を張る。無ければ（変わったら）捨てる。 */
+function watchRemote(dir: string | null): void {
+  if (dir === remoteDir) return;
+  remoteWatcher?.dispose();
+  remoteWatcher = undefined;
+  remoteDir = dir;
+  if (dir === null) return;
+  const remoteUri = vscode.Uri.file(dir);
+  remoteWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(remoteUri, REMOTE_WATCH_GLOB));
+  remoteWatcher.onDidCreate(schedule);
+  remoteWatcher.onDidChange(schedule);
+  remoteWatcher.onDidDelete(schedule);
+}
+
+/** パネルが見えていて、別の worktree か archive の行があるか、選んだ run が動いている・確認待ちのときだけ、約5秒ごとの読み直しを動かす。 */
+function updatePolling(live: boolean): void {
+  if (shouldPoll({ visible: panel !== undefined && panel.visible, hasRemote: lastList?.hasRemote === true, live })) poller.start();
+  else poller.stop();
+}
+
+/** 見る work_dir を決め直し、監視を張り直して描き直す。フォルダを開いていなければボタンを隠す。覚えた選びは消さない（新しい候補にあれば使う）。 */
 function retarget(): void {
   stopWatching();
-  selectedRun = null;
   shown = null;
+  lastList = null;
   target = currentWorkDir();
   if (!target) {
+    runsSource = null;
     statusItem?.hide();
     return;
   }
-  watcher = vscode.workspace.createFileSystemWatcher(
-    new vscode.RelativePattern(
-      vscode.Uri.file(target.abs),
-      '{state.json,*.md,logs/*.jsonl,*/state.json,*/*.md,*/logs/*.jsonl}',
-    ),
-  );
+  runsSource = createFsRunsSource(target.root, target.abs, target.setting);
+  const workDirUri = vscode.Uri.file(target.abs);
+  watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workDirUri, WATCH_GLOB));
   watcher.onDidCreate(schedule);
   watcher.onDidChange(schedule);
   watcher.onDidDelete(schedule);
@@ -151,32 +208,38 @@ function schedule(): void {
   }, DEBOUNCE_MS);
 }
 
-/** 候補を読み、見る実行を選んで図の状態を作る。 */
+/** 実行の一覧を読み、見る実行を選んで図の状態を作る。 */
 async function currentView(): Promise<CurrentView | null> {
-  if (!target) return null;
-  const candidates = await listRunCandidates(target.abs);
-  const runId = pickRun(candidates, selectedRun);
-  const runAbs = resolveRunDir(target.abs, runId, candidates) ?? target.abs;
+  if (!target || !runsSource) return null;
   // 時計を読むのはここだけ（ドメインは「今」を引数で受ける）
   const clock = { nowMs: Date.now(), localOffsetMin: -new Date().getTimezoneOffset() };
-  const view = await refreshView(createFsWorkDirSource(runAbs, runAbs), runAbs, clock);
-  shown = { runAbs, artifacts: view.artifacts.map((a) => a.name) };
-  return { view, picker: { choices: candidates.map(({ id, label }) => ({ id, label })), selected: runId } };
+  const showOthers = vscode.workspace.getConfiguration(SECTION).get<boolean>(SETTING_SHOW_OTHER, true);
+  const list = await loadRunList(runsSource, { showOthers, clock });
+  const here = { key: HERE, label: null, workDirAbs: target.abs };
+  const choice = chooseEntry(list, selected, here);
+  const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs), choice.dirAbs, clock);
+  shown = { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name) };
+  lastList = list;
+  const other = !choice.key.startsWith(`${HERE}|`);
+  return { view, listView: toListView(list, choice.key, target.setting), otherDir: other ? choice.dirAbs : null, live: view.gantt.live };
 }
 
 async function render(): Promise<void> {
   const current = await currentView();
   if (!current) return;
-  const { view, picker } = current;
+  const { view, listView, otherDir, live } = current;
   if (statusItem) {
     const label = statusBarLabel(view);
     statusItem.text = label.text;
     statusItem.tooltip = label.tooltip;
   }
   if (panel) {
-    const message: ToPanelMessage = { type: 'render', html: renderViewBody(view, picker) };
+    const message: ToPanelMessage = { type: 'render', html: renderViewBody(view, listView) };
     void panel.webview.postMessage(message);
   }
+  watchRemote(panel !== undefined ? otherDir : null);
+  lastLive = live;
+  updatePolling(live);
 }
 
 async function showRun(): Promise<void> {
@@ -204,9 +267,10 @@ async function showRun(): Promise<void> {
     }
     if (!target) return;
     if (msg.type === 'selectRun') {
-      // 候補にある id だけを受け付ける（パネルから来た文字でフォルダを決めない）
-      if (resolveRunDir(target.abs, msg.id, await listRunCandidates(target.abs)) === null) return;
-      selectedRun = msg.id;
+      // 直前に出した一覧にある目印だけを受け付ける（パネルから来た文字でフォルダを決めない）
+      if (lastList === null || findEntry(lastList, msg.id) === null) return;
+      selected = msg.id;
+      if (memory) await rememberRun(memory, msg.id);
       await render();
       return;
     }
@@ -220,17 +284,31 @@ async function showRun(): Promise<void> {
     }
   });
 
+  // 隠れたら読み直しを止め、また見えたら1回すぐ読み直して追いつく
+  const onViewState = created.onDidChangeViewState(() => {
+    updatePolling(lastLive);
+    if (created.visible) void render();
+  });
+
   created.onDidDispose(() => {
     onMessage.dispose();
+    onViewState.dispose();
     if (panel === created) {
       panel = undefined;
-      selectedRun = null;
+      // 選びは忘れない（開き直したときに戻す）。別の worktree の監視と読み直しは止める
+      poller.stop();
+      watchRemote(null);
       void render();
     }
   });
 
   const current = await currentView();
-  if (current) created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.picker);
+  if (current) {
+    created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.listView);
+    watchRemote(current.otherDir);
+    lastLive = current.live;
+    updatePolling(current.live);
+  }
 }
 
 // ---- パイプ作業台 ----------------------------------------------------------------

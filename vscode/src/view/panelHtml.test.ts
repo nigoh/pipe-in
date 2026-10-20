@@ -25,6 +25,7 @@ import {
   stageRunEntry,
   stateJson,
 } from '../test/fixtures.ts';
+import { listView, row } from '../test/runListFixtures.ts';
 
 // 図の状態に入れる文章・ツールの対象には `#` を含めない（設計書「リスクと注意点」：AC-43 のテストの前提）。
 function viewWithRecords() {
@@ -86,29 +87,43 @@ for (const [name, make] of views) {
 
 const NONCE = 'n1';
 const htmlOf = (view: PipelineView): string => renderPanelHtml(view, NONCE);
-const banner = (html: string): string => /<div class="banner">[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
 const count = (text: string, re: RegExp): number => (text.match(re) ?? []).length;
+function between(text: string, from: string, to: string): string {
+  const start = text.indexOf(from);
+  assert.ok(start >= 0, `${from} がある`);
+  const end = text.indexOf(to, start + from.length);
+  return text.slice(start, end < 0 ? undefined : end);
+}
+/** 詳細のメタ（パイプ・セッション ID・今の段・経過・費用・最後に動いた時刻）。1回目のバナーの経過・費用はここに移った（FR-38・AC-76） */
+const meta = (html: string): string => between(html, 'class="detail-meta"', 'data-detail-tab=');
 
-test('D0017-AC-18: 動いている実行のバナーに、全体の経過の要素と、基準の秒（data-elapsed）・初期の文字が入る', () => {
-  const b = banner(htmlOf(runningView(83)));
-  assert.match(b, /<span class="cost">経過 <span class="elapsed" data-elapsed="203">3:23<\/span>/);
-  assert.match(b, /合計 \$0\.000/, '費用は今までどおり');
+test('D0017-AC-18: 動いている実行の詳細のメタに、全体の経過の要素と、基準の秒（data-elapsed）・初期の文字が入る（AC-76：バナーの経過は詳細のメタに移った）', () => {
+  const m = meta(htmlOf(runningView(83)));
+  assert.match(m, /経過[\s\S]*?<span class="elapsed" data-elapsed="203">3:23<\/span>/);
+  assert.match(m, /\$0\.000/, '費用は今までどおり出る');
 });
 
-test('D0017-AC-18: 確認待ちの実行のバナーにも、全体の経過の要素（数え上げる印つき）が入る', () => {
-  assert.match(banner(htmlOf(waitingView(40))), /<span class="elapsed" data-elapsed="160">2:40<\/span>/);
+test('D0017-AC-18: 確認待ちの実行の詳細のメタにも、全体の経過の要素（数え上げる印つき）が入る', () => {
+  assert.match(meta(htmlOf(waitingView(40))), /<span class="elapsed" data-elapsed="160">2:40<\/span>/);
 });
 
-test('D0017-AC-18: 終わった実行のバナーは固定の時間で、数える印（data-elapsed）が付かない', () => {
+test('D0017-AC-18: 終わった実行の詳細のメタは固定の時間で、数える印（data-elapsed）が付かない', () => {
   const html = htmlOf(finishedView());
-  assert.match(banner(html), /<span class="elapsed">7:00<\/span>/);
+  assert.match(meta(html), /<span class="elapsed">7:00<\/span>/);
   // スクリプトは [data-elapsed] を探す文字を持つので、本体（renderViewBody）だけを見る
   assert.doesNotMatch(renderViewBody(finishedView()), /data-elapsed/, '終わった実行には、数え上げる要素がどこにも無い');
 });
 
-test('D0017-AC-18: バナーの経過は、基準の秒だけを HTML に入れる（記録の時刻そのものは入れない）', () => {
+test('D0017-AC-18: 詳細のメタの経過は、基準の秒だけを HTML に入れる（記録の時刻そのものは入れない）', () => {
   const html = htmlOf(runningView(83));
   assert.doesNotMatch(html, /2026-10-17T/, 'パネルは記録の時刻と今の時刻を比べない');
+});
+
+test('D0019-AC-76: 1回目のバナー（class="banner"）の枠は無くなり、最終の結果・いま動いている段・確認待ちの文言は詳細に残る', () => {
+  for (const view of [runningView(83), waitingView(40), finishedView()]) assert.doesNotMatch(renderViewBody(view), /class="banner"/);
+  assert.match(renderViewBody(finishedView()), /最終の結果：PASSED/);
+  assert.match(renderViewBody(runningView(83)), /いま：設計/);
+  assert.match(renderViewBody(waitingView(40)), /要件定義の確認を待っている/);
 });
 
 // at・since が無い記録（古い版）。節の並び・状態は変えず、時間の要素・動きの印は出さない
@@ -121,7 +136,7 @@ const OLD_TIME_VIEWS: [string, () => PipelineView][] = [
 for (const [label, make] of OLD_TIME_VIEWS) {
   test(`D0017-AC-19: ${label}記録では、数え上げの要素も点滅・点の流れの印も出ない（今の作りでも通る守り）`, () => {
     // CSS とスクリプトは data-elapsed・is-flowing などの文字を持つので、本体（renderViewBody）だけを見る。
-    // 本体のバナーは「確認待ち」のとき class="banner-msg is-waiting" を持つので、節の印は <g class="node …"> で見る
+    // 詳細の知らせは「確認待ち」のとき class="banner-msg is-waiting" を持つので、節の印は <g class="node …"> で見る
     const body = renderViewBody(make());
     for (const token of ['data-elapsed', 'is-flowing', 'node-wait', 'class="elapsed"']) {
       assert.ok(!body.includes(token), `${token} が出ていない`);
@@ -143,9 +158,10 @@ test('D0017-AC-20: 動き（animation・@keyframes）はすべて no-preference 
   assert.deepEqual(motionOutsideNoPreference(css), []);
 });
 
-test('D0017-AC-20: no-preference の中に、脈打ち・点の流れ・点滅・光りの4つの @keyframes がある', () => {
+// D0019-AC-13: 実行の一覧の確認待ちの行の点滅（run-attention）が増え、5つになった（attention は SVG の stroke-opacity なので HTML の行には使えない）
+test('D0017-AC-20: no-preference の中に、脈打ち・点の流れ・点滅・光り・一覧の行の点滅の5つの @keyframes がある', () => {
   const css = extractCss(htmlOf(runningView(83)));
-  assert.deepEqual(keyframesInNoPreference(css).sort(), ['attention', 'flash', 'flow', 'pulse']);
+  assert.deepEqual(keyframesInNoPreference(css).sort(), ['attention', 'flash', 'flow', 'pulse', 'run-attention']);
 });
 
 test('D0017-AC-20: reduce の @media に、時間の要素（elapsed・node-wait）を隠す・消す規則が無い', () => {
@@ -231,20 +247,140 @@ for (const kind of ['running', 'waiting'] as const) {
   });
 }
 
-test('D0017-AC-18: 右の欄は 注意 → 理由 → 時間 → 出力 → 成果物 の順で、時間の節は理由の欄のあとにある', () => {
+// ---- D0019：一覧つきのパネル（AC-13・AC-29）----
+
+const LIST_ROWS = [
+  row({ key: 'here|', state: 'waiting', stage: '要件定義', waitingSec: 40 }),
+  row({ key: 'wt.feat-x|diagrams', session: 'diagrams を直す', pipe: 'diagrams', branch: 'feat/x', other: true, state: 'running', elapsed: { seconds: 90, live: true } }),
+  row({ key: 'here|archive/20261016-090000', state: 'done', result: '合格', previous: true }),
+];
+const withList = (view: PipelineView, nonce = NONCE): string => renderPanelHtml(view, nonce, listView(LIST_ROWS) as unknown as undefined);
+
+for (const [label, make] of [
+  ['動いている', () => runningView(83)],
+  ['確認待ち', () => waitingView(40)],
+  ['終わった', () => finishedView()],
+] as const) {
+  test(`D0019-AC-29: 一覧つき（${label}実行）でも、CSP は今のまま・style 属性・on…=・外部の読み込み・色の直書きが無い`, () => {
+    const html = withList(make());
+    assert.match(html, new RegExp(`content="default-src 'none'; style-src 'nonce-${NONCE}'; script-src 'nonce-${NONCE}';"`));
+    const markup = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
+    assert.doesNotMatch(markup, /\sstyle\s*=/i);
+    assert.doesNotMatch(markup, /<[a-z][^>]*\son[a-z]+\s*=/i);
+    assert.doesNotMatch(html, /(src|href)\s*=\s*["']?https?:/i);
+    assert.doesNotMatch(html, /url\(\s*["']?https?:/i);
+    assert.doesNotMatch(html, /@import/i);
+    for (const re of [/#[0-9a-fA-F]{3,8}\b/, /rgba?\(/, /hsla?\(/]) assert.doesNotMatch(html, re);
+    assert.doesNotMatch(html, /<script(?![^>]*nonce=)/);
+    assert.equal(count(html, /<script\b/g), 1, '本物のスクリプトの <script> だけ');
+    assert.equal(count(html, /<style\b/g), 1);
+    assert.ok(html.includes('class="run-list"'), '一覧が入っている');
+  });
+}
+
+test('D0019-AC-13: 一覧つきのパネルの動き（animation・@keyframes）も、すべて no-preference の中にあり、reduce の中に隠す規則が無い', () => {
+  const css = extractCss(withList(waitingView(40)));
+  assert.deepEqual(motionOutsideNoPreference(css), []);
+  assert.deepEqual(hidingInReduce(css), []);
+  assert.ok(keyframesInNoPreference(css).includes('run-attention'));
+});
+
+test('D0019-AC-28: 同じ記録・同じ一覧なら、パネルの HTML は同じ（描き直しで余計に変わらない）', () => {
+  assert.equal(withList(waitingView(40)), withList(waitingView(40)));
+  assert.equal(renderViewBody(waitingView(40), listView(LIST_ROWS) as unknown as undefined), renderViewBody(waitingView(40), listView(LIST_ROWS) as unknown as undefined));
+});
+
+test('D0019-AC-55: パネルの本体は 上のバー → 左の一覧 → 右の詳細 の順で、図は今までどおり詳細に出る（一覧が図より前）', () => {
+  const body = renderViewBody(waitingView(40), listView(LIST_ROWS));
+  const top = body.indexOf('class="topbar"');
+  const list = body.indexOf('class="run-list"');
+  const detail = body.indexOf('class="detail"');
+  assert.ok(top >= 0 && list > top && detail > list, '上のバー → 一覧 → 詳細');
+  assert.ok(detail < body.indexOf('<svg'), '図は詳細の中');
+  assert.match(body, /要件定義の確認を待っている/);
+  assert.match(body, /<g class="node [^"]*\bis-waiting\b/);
+});
+
+test('D0017-AC-18: 詳細の「図と出力」は 注意 → 理由 → 時間（図の枠）、出力、時系列 の順で、時間の節は理由の欄のあとにある。成果物は成果物のタブ', () => {
   const html = htmlOf(finishedView());
   const times = html.indexOf('class="times"');
   assert.ok(times > 0, '時間の節がある');
   assert.ok(html.indexOf('data-reasons-for="') > 0, '理由の欄がある');
   assert.ok(times > html.indexOf('data-reasons-for="'), '理由の欄のあと');
-  assert.ok(times < html.indexOf('>出力'), '出力の前');
-  assert.ok(times < html.indexOf('>成果物<'), '成果物の前');
+  const output = html.indexOf('class="pane-output"');
+  const gantt = html.indexOf('class="pane-gantt"');
+  assert.ok(html.indexOf('class="pane-diagram"') > 0 && times < html.indexOf('class="pane-right"'), '時間は図の枠の中');
+  assert.ok(times < output, '出力の前');
+  assert.ok(output > 0 && gantt > output, '出力 → 時系列');
+  assert.ok(times < html.indexOf('data-artifact='), '成果物の前');
+  assert.ok(html.indexOf('data-artifact=') > gantt, '成果物のボタンは「成果物」のタブ（図と出力のあと）');
 });
 
 test('D0017-AC-18: 時間の節は常に見える：data-reasons-for も hidden も付かず、理由の開け閉めの対象にならない', () => {
   const section = /<section class="times">[\s\S]*?<\/section>/.exec(htmlOf(finishedView()))?.[0] ?? '';
   assert.ok(section.length > 0);
   assert.doesNotMatch(section, /data-reasons-for|hidden/);
+});
+
+// ---- D0019（2版目）：レイアウトの CSS（AC-63・AC-67）----
+
+const layoutCss = (): string => extractCss(renderPanelHtml(runningView(83), 'n'));
+const selectorOf = (token: string): RegExp => new RegExp(`(^|[\\s,>+~])\\.${token}(?![\\w-])`);
+const baseRules = (css: string) => parseCss(css).filter((r) => r.media === null && !r.keyframes);
+
+test('D0019-AC-63: 一覧・図の枠・出力・時系列は、それぞれ別にスクロールする（overflow: auto）。出力の枠の高さは右の欄の約 3 分の 1（flex: 0 0 34%）', () => {
+  const rules = baseRules(layoutCss());
+  for (const token of ['run-scroll', 'pane-diagram', 'terminal', 'pane-gantt']) {
+    assert.ok(rules.some((r) => selectorOf(token).test(r.selector) && /overflow\s*:\s*auto/.test(r.body)), `.${token} は overflow: auto`);
+  }
+  assert.ok(rules.some((r) => selectorOf('pane-output').test(r.selector) && /flex\s*:\s*0\s+0\s+34%/.test(r.body)), '.pane-output は flex: 0 0 34%');
+});
+
+test('D0019-AC-63: 3 列（1101px 以上）：.app は画面の高さいっぱい、.split は 図の枠 ｜ 右の欄 の 2 列で、右の欄は縦に出力と時系列', () => {
+  const rules = baseRules(layoutCss());
+  assert.ok(rules.some((r) => selectorOf('app').test(r.selector) && /height\s*:\s*100vh/.test(r.body)), '.app { height: 100vh }');
+  assert.ok(rules.some((r) => selectorOf('split').test(r.selector) && /display\s*:\s*(grid|flex)/.test(r.body)), '.split は横に並べる');
+  assert.ok(rules.some((r) => selectorOf('pane-right').test(r.selector) && /flex-direction\s*:\s*column|display\s*:\s*(flex|grid)/.test(r.body)), '.pane-right は縦に積む');
+  assert.ok(rules.some((r) => selectorOf('app-body').test(r.selector) && /display\s*:\s*(grid|flex)/.test(r.body)), '.app-body は一覧と詳細を横に並べる');
+});
+
+test('D0019-AC-67: max-width の @media は 800px と 1100px の 2 つだけで、800px は 1 回だけ書く', () => {
+  const css = layoutCss();
+  const widths = [...new Set(parseCss(css).filter((r) => r.media !== null && /max-width/.test(r.media)).map((r) => /max-width\s*:\s*(\d+)px/.exec(r.media!)?.[1]))].sort();
+  assert.deepEqual(widths, ['1100', '800']);
+  assert.equal(count(css, /@media\s*\(\s*max-width\s*:\s*800px\s*\)/g), 1, '800px の @media は 1 つ');
+  assert.equal(count(css, /@media\s*\(\s*max-width\s*:\s*1100px\s*\)/g), 1, '1100px の @media は 1 つ');
+  assert.equal(count(css, /@media[^{]*max-width\s*:\s*640px/g), 0, '1回目の 640px は無い');
+});
+
+test('D0019-AC-67: 800px 以下で 1 列（一覧が上・詳細が下）になり、一覧（.sidebar）の高さは画面の約 35% まで（max-height: 35vh）', () => {
+  const inside = parseCss(layoutCss()).filter((r) => r.media !== null && /max-width\s*:\s*800px/.test(r.media));
+  assert.ok(inside.length > 0, '800px の @media の中に規則がある');
+  assert.ok(
+    inside.some((r) => selectorOf('app-body').test(r.selector) && /grid-template-columns\s*:\s*(1fr|minmax\(0,\s*1fr\))|flex-direction\s*:\s*column/.test(r.body)),
+    '.app-body が 1 列',
+  );
+  assert.ok(inside.some((r) => selectorOf('sidebar').test(r.selector) && /max-height\s*:\s*35vh/.test(r.body)), '.sidebar { max-height: 35vh }');
+});
+
+test('D0019-AC-67: 1100px 以下では、「図と出力」の中（.split）も 1 列に縦に積む（図 → 出力 → 時系列）', () => {
+  const inside = parseCss(layoutCss()).filter((r) => r.media !== null && /max-width\s*:\s*1100px/.test(r.media));
+  assert.ok(
+    inside.some((r) => selectorOf('split').test(r.selector) && /grid-template-columns\s*:\s*(1fr|minmax\(0,\s*1fr\))|flex-direction\s*:\s*column/.test(r.body)),
+    '.split が 1 列',
+  );
+});
+
+test('D0019-AC-67: 狭い幅でもページ全体の横スクロールを出さない：.app と .detail は min-width: 0 で縮む', () => {
+  const rules = baseRules(layoutCss());
+  assert.ok(rules.some((r) => selectorOf('detail').test(r.selector) && /min-width\s*:\s*0/.test(r.body)), '.detail { min-width: 0 }');
+});
+
+test('D0019-AC-29: レイアウトの CSS に色の直書きが無く、色は var(--vscode-…) だけ。使う色は確認用ページの THEMES が決められる（変数名が --vscode- で始まる）', () => {
+  const css = layoutCss();
+  for (const re of [/#[0-9a-fA-F]{3,8}\b/, /rgba?\(/, /hsla?\(/]) assert.doesNotMatch(css, re);
+  assert.match(css, /var\(--vscode-list-activeSelectionBackground/);
+  assert.match(css, /var\(--vscode-inputValidation-warningBackground/, '黄の知らせの背景');
 });
 
 test('D0006-AC-21: パネルの title は pipe-in', () => {

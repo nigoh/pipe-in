@@ -26,6 +26,18 @@ test('AC-02・D0006-AC-15: contributes.configuration に work_dir の設定項�
   assert.equal(prop.default, 'docs/pipeline');
 });
 
+test('D0019-AC-15: 設定 pipe-in.showOtherWorktrees は真偽で、既定は出す（true）。説明がある。コマンドは増えない', () => {
+  const manifest = readManifest();
+  const prop = manifest.contributes?.configuration?.properties?.['pipe-in.showOtherWorktrees'];
+  assert.ok(prop, 'pipe-in.showOtherWorktrees の設定項目があること');
+  assert.equal(prop.type, 'boolean');
+  assert.equal(prop.default, true);
+  assert.equal(typeof prop.description, 'string');
+  assert.ok(prop.description.length > 0);
+  assert.doesNotMatch(JSON.stringify(prop), /devpipe/i);
+  assert.equal((manifest.contributes?.commands ?? []).length, 2, 'コマンド ID は増やさない');
+});
+
 test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設定が pipe-in で、contributes に devpipe で始まる ID・キーが無い', () => {
   const manifest = readManifest();
   assert.equal(manifest.name, 'pipe-in-vscode');
@@ -35,7 +47,8 @@ test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設
   const commands = (manifest.contributes?.commands ?? []).map((c: any) => c?.command).sort();
   assert.deepEqual(commands, ['pipe-in.editPipe', 'pipe-in.showRun']);
   const keys = Object.keys(manifest.contributes?.configuration?.properties ?? {}).sort();
-  assert.deepEqual(keys, ['pipe-in.pipesDir', 'pipe-in.workDir']);
+  // D0019: 別の worktree を出す設定（pipe-in.showOtherWorktrees）が増えた。期待の一覧に足しただけで、ほかは変えない
+  assert.deepEqual(keys, ['pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.workDir']);
   assert.equal(manifest.contributes.configuration.properties['pipe-in.pipesDir'].default, '');
   assert.doesNotMatch(JSON.stringify(manifest.contributes), /devpipe/i);
   assert.doesNotMatch(JSON.stringify({ name: manifest.name, displayName: manifest.displayName, description: manifest.description }), /devpipe/i);

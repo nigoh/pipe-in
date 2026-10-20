@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderPanelHtml, renderViewBody } from './panelHtml.ts';
-import type { RunPicker } from './panelHtml.ts';
+import type { RunListView } from '../domain/runList.ts';
+import { listView, row } from '../test/runListFixtures.ts';
 import { bootPanel } from '../test/fakeDom.ts';
 import type { FakeNode, PanelHarness } from '../test/fakeDom.ts';
 import { snapshot } from '../test/fixtures.ts';
@@ -13,7 +14,8 @@ import type { PipelineView } from '../domain/pipelineView.ts';
 import { oneSendBackView, showcaseView } from '../test/reasonFixtures.ts';
 
 const NONCE = 'TESTNONCE';
-const boot = (view: PipelineView, picker?: RunPicker): PanelHarness => bootPanel(renderPanelHtml(view, NONCE, picker));
+// D0019: 実行を選ぶボタン（RunPicker）は実行の一覧（RunListView）に置き換わった。期待する動きは変えない
+const boot = (view: PipelineView, list?: RunListView): PanelHarness => bootPanel(renderPanelHtml(view, NONCE, list));
 const body = (view: PipelineView): string => renderViewBody(view);
 
 const SECTION_IDS = ['implement', 'verdict', 'review:requirements'];
@@ -222,7 +224,7 @@ test('D0016-AC-21: フォーカスが選べる節に無いとき、render でフ
 // ---- メッセージ（守り続ける検査を含む）----
 
 const MESSAGE_TYPES = ['ready', 'openArtifact', 'selectRun'];
-const picker: RunPicker = { choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], selected: 'a' };
+const picker: RunListView = listView([row({ key: 'here|a', session: 'A' }), row({ key: 'here|b', session: 'B' })], { selected: 'here|a' });
 
 test('D0016-AC-13: 読み込み時は ready だけを送る（守り続ける検査）', () => {
   const h = boot(showcaseView());
@@ -252,7 +254,7 @@ test('D0016-AC-13: 成果物のボタンは openArtifact、実行のボタンは
   assert.deepEqual(h.posted, [
     { type: 'ready' },
     { type: 'openArtifact', name: '00_input.md' },
-    { type: 'selectRun', id: 'b' },
+    { type: 'selectRun', id: 'here|b' },
   ]);
   for (const m of h.posted) assert.ok(MESSAGE_TYPES.includes((m as { type: string }).type));
 });

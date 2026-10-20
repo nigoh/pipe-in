@@ -86,6 +86,43 @@ test('D0002-AC-07: 層ごとに、使ってよい node: の部品だけを使う
   assert.deepEqual(layerViolations(files), []);
 });
 
+// ---- D0019-AC-21: 子プロセスを起こさない ----
+
+/** child_process を読み込んでいるファイル（node: つきも無しも、import・require・動的 import）。テストと test/ の補助は見ない */
+export function childProcessUsers(files: { rel: string; source: string }[]): string[] {
+  const re = /(?:from|import|require)\s*\(?\s*['"](?:node:)?child_process(?:\/[^'"]*)?['"]/;
+  return files.filter((f) => !f.rel.endsWith('.test.ts') && !f.rel.startsWith('test/') && re.test(f.source)).map((f) => f.rel);
+}
+
+test('D0019-AC-21: 拡張の src/ のどこにも child_process の import が無い（別の worktree は .git のファイルを読んで見つける）', () => {
+  const files = listTsFiles(SRC).map((file) => ({
+    rel: path.relative(SRC, file).split(path.sep).join('/'),
+    source: readFileSync(file, 'utf8'),
+  }));
+  assert.ok(files.some((f) => f.rel === 'extension.ts'), '入口も検査の対象に入っている');
+  assert.deepEqual(childProcessUsers(files), []);
+});
+
+test('D0019-AC-21: 子プロセスの検査そのものが、child_process の読み込みを見つける', () => {
+  const found = childProcessUsers([
+    { rel: 'infra/a.ts', source: "import { spawn } from 'node:child_process';" },
+    { rel: 'infra/b.ts', source: "import cp from 'child_process';" },
+    { rel: 'extension.ts', source: "const cp = require('node:child_process');" },
+    { rel: 'infra/c.ts', source: "const cp = await import('node:child_process');" },
+    { rel: 'infra/d.ts', source: "import { execFile } from 'node:child_process/promises';" },
+    { rel: 'infra/e.ts', source: "import { readFile } from 'node:fs/promises';" },
+    { rel: 'infra/f.test.ts', source: "import { spawn } from 'node:child_process';" },
+  ]);
+  assert.deepEqual(found, ['infra/a.ts', 'infra/b.ts', 'extension.ts', 'infra/c.ts', 'infra/d.ts']);
+});
+
+test('D0019-AC-32: 2版目で足す部品が、決まった層（domain・view）にある。どれも vscode と node: の決まりの検査の対象に入る', () => {
+  const rels = targets().map((f) => path.relative(SRC, f).split(path.sep).join('/'));
+  for (const required of ['domain/sessionName.ts', 'domain/gantt.ts', 'view/shellHtml.ts', 'view/ganttHtml.ts', 'view/panelScript.ts']) {
+    assert.ok(rels.includes(required), `${required} が src/ にある`);
+  }
+});
+
 test('D0002-AC-07: 層の検査そのものが、決まりに合わない import を見つける', () => {
   const found = layerViolations([
     { rel: 'domain/a.ts', source: "import { readFile } from 'node:fs/promises';\nimport path from 'node:path';" },

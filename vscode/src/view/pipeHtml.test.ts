@@ -6,6 +6,8 @@ import { renderFlowSvg } from './flowSvg.ts';
 import { parseWebviewMessage } from './messages.ts';
 import { renderPanelHtml, renderViewBody } from './panelHtml.ts';
 import { statusBarLabel } from './statusBar.ts';
+import type { RunListView } from '../domain/runList.ts';
+import { listView, row } from '../test/runListFixtures.ts';
 import {
   DIAGRAMS_STAGES,
   logText,
@@ -16,9 +18,8 @@ import {
   usageSummaryDict,
 } from '../test/fixtures.ts';
 
-// 拡張して足す引数：実行を選ぶボタン
-type RunPicker = { choices: { id: string; label: string }[]; selected: string };
-const renderBody = renderViewBody as (view: ReturnType<typeof buildPipelineView>, picker?: RunPicker) => string;
+// D0019: 実行を選ぶボタン（RunPicker）は実行の一覧（RunListView）に置き換わった。期待する動き（候補だけ・エスケープ・1 つなら出さない）は変えない
+const renderBody = renderViewBody as (view: ReturnType<typeof buildPipelineView>, list?: RunListView | null) => string;
 
 function diagramsView(p: Parameters<typeof stateJson>[0] = {}, extra: Partial<Parameters<typeof snapshot>[0]> = {}) {
   return buildPipelineView(snapshot({ stateJson: stateJson({ pipe: 'diagrams', stages: DIAGRAMS_STAGES, ...p }), ...extra }));
@@ -78,28 +79,30 @@ test('AC-08: warnings を注意の節にエスケープして出す', () => {
   assert.doesNotMatch(renderBody(diagramsView()), /注意/);
 });
 
-test('AC-11: 実行を選ぶボタンは候補だけで、エスケープする。候補が1つなら出さない', () => {
+test('AC-11: 実行を選ぶ一覧は候補だけで、エスケープする。候補が1つでも（0 でも）一覧は出る（D0019-AC-43：1回目の「1つなら出さない」は廃止）', () => {
   const view = diagramsView();
-  const body = renderBody(view, {
-    choices: [
-      { id: '', label: '開発フロー' },
-      { id: 'diagrams', label: '<i>diagrams</i>' },
-    ],
-    selected: 'diagrams',
-  });
+  const body = renderBody(
+    view,
+    listView([row({ key: 'here|', session: '開発フロー' }), row({ key: 'here|diagrams', session: '<i>diagrams</i>', pipe: '<i>diagrams</i>' })], { selected: 'here|diagrams' }),
+  );
   assert.equal(count(body, /data-run="/g), 2);
-  assert.match(body, /data-run=""/);
-  assert.match(body, /data-run="diagrams"[^>]*aria-pressed="true"/);
+  assert.match(body, /data-run="here\|"/);
+  assert.match(body, /data-run="here\|diagrams"[^>]*aria-pressed="true"/);
   assert.match(body, /&lt;i&gt;diagrams&lt;\/i&gt;/);
   assert.doesNotMatch(body, /<i>diagrams<\/i>/);
 
-  assert.equal(count(renderBody(view, { choices: [{ id: '', label: '開発フロー' }], selected: '' }), /data-run="/g), 0);
-  assert.equal(count(renderBody(view), /data-run="/g), 0);
+  const one = renderBody(view, listView([row({ key: 'here|', session: '開発フロー' })]));
+  assert.equal(count(one, /data-run="/g), 1, '1 行でも一覧に出る');
+  assert.match(one, /class="run-list"/);
+  const none = renderBody(view);
+  assert.equal(count(none, /data-run="/g), 0);
+  assert.match(none, /実行がありません/);
 });
 
 test('AC-11: selectRun の受け渡しを検め、パネルのスクリプトが送る', () => {
-  assert.deepEqual(parseWebviewMessage({ type: 'selectRun', id: 'diagrams' }), { type: 'selectRun', id: 'diagrams' });
-  assert.deepEqual(parseWebviewMessage({ type: 'selectRun', id: '' }), { type: 'selectRun', id: '' });
+  // D0019: selectRun の id は「実行の目印（<場所>|<id>）」の形になった。従来の id だけの形は捨てる
+  assert.deepEqual(parseWebviewMessage({ type: 'selectRun', id: 'here|diagrams' }), { type: 'selectRun', id: 'here|diagrams' });
+  assert.deepEqual(parseWebviewMessage({ type: 'selectRun', id: 'here|' }), { type: 'selectRun', id: 'here|' });
   assert.equal(parseWebviewMessage({ type: 'selectRun', id: 3 }), null);
   assert.equal(parseWebviewMessage({ type: 'selectRun' }), null);
   assert.match(renderPanelHtml(diagramsView(), 'n'), /selectRun/);

@@ -125,3 +125,135 @@ for (const [label, failures, expected] of UNREADABLE_FAILURES) {
     assert.equal(record.verdicts[0].summary, '不合格');
   });
 }
+
+// ---- D0019（2版目）：セッション名・セッション ID・受け持ち ----
+
+test('D0019-AC-51: state.json の name（文字）と session_id（文字）が読まれる。無い記録（古い形）では null', () => {
+  const record = parseRunRecord(stateJson({ name: '仕様の QA を回す', sessionId: '7f3a9c01-2b4d-4e5f-8a6b-0c1d2e3f4a5b' }));
+  assert.equal(record.name, '仕様の QA を回す');
+  assert.equal(record.sessionId, '7f3a9c01-2b4d-4e5f-8a6b-0c1d2e3f4a5b');
+  const old = parseRunRecord(stateJson({}));
+  assert.equal(old.name, null);
+  assert.equal(old.sessionId, null);
+  assert.equal(parseRunRecord(null).name, null);
+  assert.equal(parseRunRecord('{壊れた').sessionId, null);
+});
+
+test('D0019-AC-51: name は 200 文字まで、session_id は 100 文字まで読む（ちょうどは通る）', () => {
+  assert.equal(parseRunRecord(stateJson({ name: 'あ'.repeat(200) })).name, 'あ'.repeat(200));
+  assert.equal(parseRunRecord(stateJson({ sessionId: 'a'.repeat(100) })).sessionId, 'a'.repeat(100));
+});
+
+const BAD_NAMES: [string, unknown][] = [
+  ['数', 5],
+  ['null', null],
+  ['配列', ['a']],
+  ['オブジェクト', { a: 1 }],
+  ['真偽', true],
+  ['空の文字', ''],
+  ['201 文字', 'あ'.repeat(201)],
+];
+for (const [label, value] of BAD_NAMES) {
+  test(`D0019-AC-51: name が読めない形（${label}）なら null。例外を出さず、ほかの項目は読める`, () => {
+    const record = parseRunRecord(stateJson({ name: value, totalCostUsd: 2, runs: [stageRunEntry({ stage: 'requirements', seq: 1 })] }));
+    assert.equal(record.name, null);
+    assert.equal(record.totalCostUsd, 2);
+    assert.equal(record.stageRuns.length, 1);
+  });
+}
+
+const BAD_TOKENS: [string, unknown][] = [
+  ['数', 5],
+  ['null', null],
+  ['配列', ['a']],
+  ['空の文字', ''],
+  ['101 文字', 'a'.repeat(101)],
+  ['空白を含む', 'a b'],
+  ['改行を含む', 'a\nb'],
+  ['タブを含む', 'a\tb'],
+  ['制御文字を含む', 'a\u0000b'],
+  ['全角空白を含む', 'a　b'],
+];
+for (const [label, value] of BAD_TOKENS) {
+  test(`D0019-AC-51: session_id が読めない形（${label}）なら null。例外を出さない`, () => {
+    assert.equal(parseRunRecord(stateJson({ sessionId: value })).sessionId, null);
+  });
+
+  test(`D0019-AC-51: runs[] の agent・session_id が読めない形（${label}）なら、その項目だけ null。段の実行は読める`, () => {
+    const record = parseRunRecord(stateJson({ runs: [stageRunEntry({ stage: 'design', seq: 1, agent: value, sessionId: value, durationSec: 12 })] }));
+    assert.equal(record.stageRuns.length, 1);
+    assert.equal(record.stageRuns[0]!.agent, null);
+    assert.equal(record.stageRuns[0]!.sessionId, null);
+    assert.equal(record.stageRuns[0]!.durationSec, 12);
+  });
+}
+
+test('D0019-AC-51: runs[] の agent（受け持ち）と session_id（SDK の会話の ID）が段の実行ごとに読まれる。無ければ null', () => {
+  const record = parseRunRecord(
+    stateJson({
+      runs: [
+        stageRunEntry({ stage: 'requirements', seq: 1, agent: 'pipe-in-analyst', sessionId: 'sess-1' }),
+        stageRunEntry({ stage: 'design', seq: 2, sessionId: null }),
+        stageRunEntry({ stage: 'red', seq: 3 }),
+      ],
+    }),
+  );
+  assert.deepEqual(record.stageRuns.map((r) => [r.agent, r.sessionId]), [['pipe-in-analyst', 'sess-1'], [null, null], [null, 's']]);
+});
+
+test('D0019-AC-53: 確認の結果（review）が、直前の同じ段の実行に付く（修正の依頼・承認・中止）。reviews はこれまでどおり全部残る', () => {
+  const record = parseRunRecord(
+    stateJson({
+      runs: [
+        stageRunEntry({ stage: 'requirements', seq: 1 }),
+        { stage: 'requirements', review: 'revise', feedback: '直して' },
+        stageRunEntry({ stage: 'requirements', seq: 2 }),
+        { stage: 'requirements', review: 'approved' },
+        stageRunEntry({ stage: 'design', seq: 3 }),
+        { stage: 'design', review: 'quit' },
+        stageRunEntry({ stage: 'red', seq: 4 }),
+      ],
+    }),
+  );
+  assert.deepEqual(record.stageRuns.map((r) => r.review), ['revise', 'approved', 'quit', null]);
+  assert.equal(record.reviews.length, 3);
+  assert.deepEqual(record.reviews.map((r) => r.action), ['revise', 'approved', 'quit']);
+});
+
+test('D0019-AC-53: 確認の結果は、同じ段の最後の実行で、まだ確認の結果が付いていないものに付く。実行が無い段の確認は捨てても例外を出さない', () => {
+  const record = parseRunRecord(
+    stateJson({
+      runs: [
+        { stage: 'design', review: 'approved' },
+        stageRunEntry({ stage: 'requirements', seq: 1 }),
+        stageRunEntry({ stage: 'design', seq: 2 }),
+        { stage: 'requirements', review: 'approved' },
+        { stage: 'requirements', review: 'quit' },
+      ],
+    }),
+  );
+  assert.deepEqual(record.stageRuns.map((r) => [r.stage, r.review]), [['requirements', 'approved'], ['design', null]]);
+});
+
+test('D0019-AC-53: 判定・テスト先行の結果・check の要素は、段の実行の review にならない', () => {
+  const record = parseRunRecord(
+    stateJson({
+      runs: [
+        stageRunEntry({ stage: 'test', seq: 1, attempt: 1 }),
+        { stage: 'test', attempt: 1, verdict: { status: 'fail', summary: 'x', failures: [], commands: [], command_check: null } },
+        { stage: 'test', check: { status: 'fail', problems: ['x'] } },
+      ],
+    }),
+  );
+  assert.equal(record.stageRuns[0]!.review, null);
+});
+
+test('D0019-AC-30: name・session_id・agent の無い古い形の記録は今までどおり読め、足した項目は null になるだけ', () => {
+  const record = parseRunRecord(stateJson({ final: 'PASSED', totalCostUsd: 1.5, runs: [stageRunEntry({ stage: 'requirements', seq: 1, durationSec: 30 })] }));
+  assert.equal(record.final, 'PASSED');
+  assert.equal(record.totalCostUsd, 1.5);
+  assert.equal(record.stageRuns[0]!.durationSec, 30);
+  assert.equal(record.name, null);
+  assert.equal(record.sessionId, null);
+  assert.equal(record.stageRuns[0]!.agent, null);
+});

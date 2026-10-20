@@ -231,6 +231,227 @@ test('D0017-AC-34: 確認用ページの一覧に、動いている・確認待�
   }
 });
 
+// ---- D0019：実行の一覧の見本（画面の確認 AC-34〜AC-39 の素材）----
+// 見本は4つの記録（tests/fixtures/）から、一時フォルダの中に置き場所の木を組み立てる（tests/fixtures/ には足さない）。
+// まだ無い関数は、呼んだところで落ちるように、動的 import から取り出す。
+
+import { withTempDir as withRealTempDir } from './test/tempDir.ts';
+
+type Pages = Record<string, (...args: any[]) => any> & { PANEL_PAGES: readonly [string, string][] };
+const loadPages = async (): Promise<Pages> => (await import('../scripts/previewPages.ts')) as unknown as Pages;
+
+interface RunsEntryLike {
+  key: string;
+  view: Parameters<typeof renderViewBody>[0];
+  listView: Parameters<typeof renderViewBody>[1];
+  selected: boolean;
+}
+
+/**
+ * 一覧の見本のページ（HTML 文字列）。木は一時フォルダの中に作り、終わったら消す。
+ * list は左の欄（nav.sidebar：絞り込み・タブ・見出し・行）、detail は右の詳細。entries は行ごとの図と一覧（時系列の見本を調べるため）。
+ */
+async function runsPage(kind: 'runs' | 'omitted', theme: Theme): Promise<{ html: string; list: string; detail: string; workspace: string; entries: RunsEntryLike[] }> {
+  const pages = await loadPages();
+  return withRealTempDir(async (dest) => {
+    const { workspace } = await (kind === 'runs' ? pages.buildRunsTree(dest) : pages.buildOmittedTree(dest));
+    const since = (await pages.startOfLiveness(pages.WAITING_DIR)) as string;
+    const clock = pages.previewClock(since, pages.WAITING_SEC);
+    const entries = (await pages.readRunsView(workspace, clock)) as RunsEntryLike[];
+    const html = pages.panelRunsPreviewHtml(entries, theme, clock) as string;
+    const list = between(html, 'class="sidebar"', 'class="detail"');
+    const detail = html.slice(html.indexOf('class="detail"'));
+    return { html, list, detail, workspace, entries };
+  });
+}
+
+function between(text: string, from: string, to: string): string {
+  const start = text.indexOf(from);
+  if (start < 0) return '';
+  const end = text.indexOf(to, start + from.length);
+  return text.slice(start, end < 0 ? undefined : end);
+}
+const plainText = (text: string): string => text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+const rowHtmls = (list: string): string[] => [...list.matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/g)].map((m) => m[0]);
+const subOf = (r: string): string => plainText(between(r, 'class="run-sub"', 'class="run-id"'));
+const groupCounts = (list: string): [string, number][] =>
+  [...list.matchAll(/<section class="run-group" data-group="([^"]+)">([\s\S]*?)<\/section>/g)].map((m) => [m[1]!, rowHtmls(m[2]!).length]);
+
+test('D0019-AC-34: 確認用ページの一覧に、一覧の見本の明るい・暗いのページ（run-panel-runs-*）と、省く見本（run-panel-runs-omitted-dark）が増える', async () => {
+  const pages = await loadPages();
+  const names = pages.PANEL_PAGES.map(([name]) => name);
+  for (const name of ['run-panel-runs-light', 'run-panel-runs-dark', 'run-panel-runs-omitted-dark']) assert.ok(names.includes(name), name);
+  assert.deepEqual(pages.PANEL_PAGES.filter(([n]) => n.startsWith('run-panel-runs-')).map(([n, t]) => [n, t]), [
+    ['run-panel-runs-light', 'light'],
+    ['run-panel-runs-dark', 'dark'],
+    ['run-panel-runs-omitted-dark', 'dark'],
+  ]);
+  assert.equal(pages.panelKind('run-panel-runs-dark'), 'runs');
+  assert.equal(pages.panelKind('run-panel-runs-light'), 'runs');
+  assert.equal(pages.panelKind('run-panel-runs-omitted-dark'), 'runs-omitted');
+  // 今までのページの種類は変わらない
+  assert.equal(pages.panelKind('run-panel-light'), 'done');
+  assert.equal(pages.panelKind('run-panel-running-dark'), 'running');
+  assert.equal(pages.panelKind('run-panel-waiting-dark'), 'waiting');
+});
+
+test('D0019-AC-34: 見本のページは 上のバー・左の一覧・右の詳細 の 3 領域で、一覧に絞り込み・状態のタブ・見出し、詳細にパンくず・見出し・メタ・タブがある', async () => {
+  const { html, list, detail } = await runsPage('runs', 'dark');
+  assert.match(html, /<header\b[^>]*class="topbar"/);
+  assert.match(plainText(between(html, 'class="topbar"', 'class="sidebar"')), /pipe-in[\s\S]*docs\/pipeline/);
+  assert.match(list, /<input type="search"[^>]*data-keep="filter"/);
+  assert.equal((list.match(/data-list-tab="/g) ?? []).length, 4, '状態のタブ 4 つ');
+  for (const marker of ['class="crumbs"', 'class="head"', 'class="detail-meta"', 'data-detail-tab="diagram"', 'data-detail-tab="artifacts"', 'data-detail-tab="usage"', 'class="pane-diagram"', 'class="pane-gantt"']) {
+    assert.ok(detail.includes(marker), marker);
+  }
+});
+
+test('D0019-AC-34: 見本の一覧の行は 確認待ち → 動いている → 終わった の見出しで、確認待ち 2・動いている 2・終わった 3（合格・不合格・前の実行）', async () => {
+  const { list } = await runsPage('runs', 'dark');
+  assert.deepEqual(groupCounts(list), [['waiting', 2], ['running', 2], ['done', 3]]);
+  const heads = [...list.matchAll(/<h2 class="run-group-head">([^<]*)<\/h2>/g)].map((m) => m[1]);
+  assert.deepEqual(heads, ['確認待ち', '動いている', '終わった']);
+  const rows = rowHtmls(list);
+  assert.equal(rows.length, 7);
+  const done = rows.filter((r) => /data-group="done"/.test(r));
+  assert.equal(done.length, 3);
+  assert.equal(done.filter((r) => /不合格/.test(subOf(r))).length, 1, '不合格は 1 行');
+  assert.equal(rows.filter((r) => /前の実行/.test(subOf(r))).length, 2, '前の実行は 2 行');
+  assert.equal(rows.filter((r) => /別の worktree/.test(subOf(r))).length, 2, '別の worktree は 2 行');
+});
+
+test('D0019-AC-34: 各行に セッション名・パイプ名 · ブランチ · 状態 · 今の段・ID の先頭 8 文字・日付 が読める（読めない「—」が無い）。別の worktree の行にブランチ名が付く', async () => {
+  const { list } = await runsPage('runs', 'dark');
+  for (const r of rowHtmls(list)) {
+    assert.match(r, /<span class="run-session">[^<]+<\/span>/);
+    assert.match(r, /<span class="run-id">[^<—]{8}<\/span>/, 'ID の先頭 8 文字');
+    assert.match(r, /<span class="run-date">\d{2}\/\d{2}<\/span>/);
+    assert.doesNotMatch(r, />—</, '見本は読めない項目を持たない');
+    assert.ok(subOf(r).length > 6, `2 行目に パイプ名 · ブランチ · 状態 · 今の段: ${subOf(r)}`);
+  }
+  const branches = [...new Set([...list.matchAll(/data-branch="([^"]*)"/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(branches, ['feat/export-csv', 'fix/login', 'main']);
+  const other = rowHtmls(list).filter((r) => /別の worktree/.test(subOf(r)));
+  assert.deepEqual(other.map((r) => /data-branch="([^"]*)"/.exec(r)![1]).sort(), ['feat/export-csv', 'fix/login']);
+  assert.equal((list.match(/aria-pressed="true"/g) ?? []).length, 1, '見ている行は 1 つ');
+});
+
+test('D0019-AC-34: 見本のセッション名は 見本の題（要件メモの題や付けた名前）で、パイプ名だけではない。セッション ID は行ごとに違う', async () => {
+  const { list } = await runsPage('runs', 'dark');
+  const rows = rowHtmls(list);
+  const sessions = rows.map((r) => /<span class="run-session">([^<]+)<\/span>/.exec(r)![1]!);
+  assert.equal(new Set(sessions).size >= 4, true, `題がばらける: ${sessions.join(' / ')}`);
+  const ids = rows.map((r) => /<span class="run-id">([^<]+)<\/span>/.exec(r)![1]!);
+  assert.equal(new Set(ids).size, ids.length, 'ID は行ごとに違う');
+  assert.ok(rows.some((r, i) => !subOf(r).startsWith(sessions[i]!)), '名前とパイプ名は別');
+});
+
+test('D0019-AC-35: 見本の確認待ちの行に、待ち時間（data-elapsed）が小さな秒で付き、動いている行には経過（data-elapsed）がある。終わった行・待ちの行には data-elapsed が無い', async () => {
+  const { list } = await runsPage('runs', 'dark');
+  const rows = rowHtmls(list);
+  const waiting = rows.filter((r) => r.includes('is-waiting'));
+  assert.equal(waiting.length, 2);
+  for (const r of waiting) {
+    const sec = Number(/data-elapsed="(\d+)"/.exec(r)?.[1] ?? Number.NaN);
+    assert.ok(sec >= 0 && sec <= 300, `待ち時間 ${sec} 秒`);
+  }
+  const running = rows.filter((r) => r.includes('is-running'));
+  assert.equal(running.length, 2);
+  for (const r of running) {
+    const sec = Number(/data-elapsed="(\d+)"/.exec(r)?.[1] ?? Number.NaN);
+    assert.ok(sec > 0 && sec <= 3600, `経過 ${sec} 秒（今の少し前に始まった）`);
+  }
+  for (const r of rows.filter((x) => /data-group="done"/.test(x))) assert.doesNotMatch(r, /data-elapsed/);
+});
+
+test('D0019-AC-77: 見本の時系列：終わった見本は確認の待ち（斜線）・差し戻し・不合格（赤）、動いている見本は動いている帯、確認待ちの見本は「いま待っている」帯を持つ', async () => {
+  const { entries, html } = await runsPage('runs', 'dark');
+  const bodies = entries.map((e) => renderViewBody(e.view, e.listView));
+  const some = (re: RegExp): boolean => bodies.some((b) => re.test(b));
+  assert.ok(some(/class="[^"]*\bg-fail\b/), '不合格（赤）の帯');
+  assert.ok(some(/class="[^"]*\bg-wait\b/), '確認を待った帯');
+  assert.ok(some(/● 動いている/), '動いている印');
+  assert.ok(some(/● 待っている/), 'いま待っている印');
+  const GANTT_ROOT = /class="(?:[^"]*\s)?gantt(?:\s[^"]*)?"[^>]*aria-label="時系列"|aria-label="時系列"[^>]*class="(?:[^"]*\s)?gantt(?:\s[^"]*)?"/;
+  assert.ok(some(GANTT_ROOT), '時系列の枠（class gantt）');
+  assert.match(html, GANTT_ROOT, 'ページの初めの本体にも時系列がある');
+  assert.ok(!some(/class="gantt-svg"/), '幅 740 の SVG は使わない');
+  // 受け持ち（agent）が見本の開発フローの記録に入っていて、行の名前に出る
+  assert.ok(some(/要件定義[^<]*pipe-in-analyst/), '受け持ちが行の名前に出る');
+});
+
+test('D0019-AC-34: 押すと図が切り替わる置き換え（acquireVsCodeApi）が、nonce つきで <body> の直後にあり、行の key ごとの本体（BODIES）を持つ', async () => {
+  const { html, list } = await runsPage('runs', 'dark');
+  assert.match(html, /<body>\s*<script nonce="preview">window\.acquireVsCodeApi=/);
+  assert.match(html, /selectRun/);
+  assert.match(html, /BODIES/);
+  const keys = [...list.matchAll(/data-run="([^"]*)"/g)].map((m) => m[1]!);
+  assert.equal(keys.length, 7);
+  for (const key of keys) assert.ok(html.includes(`${JSON.stringify(key)}:`), `BODIES に ${key} がある`);
+  assert.doesNotMatch(html, /<\/script>[^<]*<\/script>/, '本体の文字で script が切れていない');
+});
+
+for (const [kind, theme] of [['runs', 'light'], ['runs', 'dark'], ['omitted', 'dark']] as const) {
+  test(`D0019-AC-38: 一覧の見本のページ（${kind}・${theme}）は、CSP をそのまま持ち、script と style に nonce があり、style 属性が無い。使う --vscode-* の色をすべて決めている`, async () => {
+    const { html } = await runsPage(kind, theme);
+    assert.deepEqual(html.match(CSP_META), renderPanelHtml(await readShowcaseView(SHOWCASE_DIR), 'preview').match(CSP_META));
+    const tags = [...html.matchAll(/<(script|style)\b[^>]*>/g)].map((m) => m[0]);
+    assert.ok(tags.length >= 3);
+    assert.deepEqual(tags.filter((t) => !t.includes('nonce="preview"')), []);
+    assert.doesNotMatch(html, /\sstyle="/);
+    const defined = definedVars(THEMES[theme]);
+    assert.deepEqual(usedVars(html).filter((name) => !defined.has(name)), [], `${theme}: THEMES に無い色`);
+    assert.ok(html.includes(THEMES[theme]), 'テーマの色がページに入っている');
+  });
+}
+
+test('D0019-AC-38: 一覧の見本のページに手元の情報（ユーザー名の入ったパス・メールアドレス）や、一時フォルダの絶対パスが出ていない', async () => {
+  const { html, workspace } = await runsPage('runs', 'dark');
+  assert.deepEqual(LOCAL_INFO.filter((re) => re.test(html)).map(String), []);
+  assert.ok(!html.includes(workspace), '木の置き場所の絶対パスが出ていない');
+  assert.ok(!html.includes(REPO), 'リポジトリの絶対パスが出ていない');
+  assert.match(html, /docs\/pipeline/, '作業フォルダの表示は docs/pipeline');
+});
+
+test('D0019-AC-38: 新しく使う色（黄の知らせの背景・選んだ行の背景・黄・赤・青・緑）を、明るい・暗いの両方の THEMES が決めている', () => {
+  for (const theme of THEME_NAMES) {
+    const defined = definedVars(THEMES[theme]);
+    for (const name of [
+      '--vscode-inputValidation-warningBackground',
+      '--vscode-list-activeSelectionBackground',
+      '--vscode-list-activeSelectionForeground',
+      '--vscode-list-hoverBackground',
+      '--vscode-charts-yellow',
+      '--vscode-charts-red',
+      '--vscode-charts-blue',
+      '--vscode-charts-green',
+      '--vscode-focusBorder',
+    ]) {
+      assert.ok(defined.has(name), `${theme}: ${name}`);
+    }
+  }
+});
+
+test('D0019-AC-39: 省く見本（run-panel-runs-omitted-dark）に「古い実行を 2 件、省いています」が出る。通常の見本には出ない', async () => {
+  const omitted = await runsPage('omitted', 'dark');
+  assert.match(omitted.list, /古い実行を 2 件、省いています/);
+  assert.match(omitted.html, /古い実行を 2 件、省いています/);
+  const normal = await runsPage('runs', 'dark');
+  assert.doesNotMatch(normal.html, /省いています/);
+});
+
+test('D0019-AC-34: 見本の木は一時フォルダの中にだけ作り、tests/fixtures/ の見本の記録は変えない', async () => {
+  const pages = await loadPages();
+  const read = (dir: string) => readFileSync(path.join(dir, 'state.json'), 'utf8');
+  const before = [SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR].map(read);
+  await withRealTempDir(async (dest) => {
+    const { workspace } = await pages.buildRunsTree(dest);
+    assert.ok(workspace === dest || workspace.startsWith(dest + path.sep), '返す作業フォルダは dest の中');
+    assert.ok(existsSync(path.join(workspace, '.git')), '主の checkout の .git がある');
+  });
+  assert.deepEqual([SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR].map(read), before);
+});
+
 test('D0017-AC-37: 確認用ページ（running）に、次の見本を render で送る補助（window.__previewNext）がある。CSP は残り、script には nonce が付く', () => {
   const sources = ['previewPages.ts', 'preview.ts'].map((f) => readFileSync(path.join(REPO, 'vscode', 'scripts', f), 'utf8')).join('\n');
   assert.ok(sources.includes('__previewNext'), '__previewNext がある');

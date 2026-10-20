@@ -43,6 +43,14 @@ test('D0006-AC-16: settingKeys は新旧の両方を返す', () => {
   assert.deepEqual(settingKeys('pipesDir'), ['pipe-in.pipesDir', 'devpipe.pipesDir']);
 });
 
+test('D0019-AC-15: 別の worktree を出す設定の名前は showOtherWorktrees（package.json の pipe-in.showOtherWorktrees と同じ）。前の版の名前は無い', async () => {
+  const names = (await import('./names.ts')) as unknown as { SETTING_SHOW_OTHER?: string };
+  assert.equal(names.SETTING_SHOW_OTHER, 'showOtherWorktrees');
+  assert.equal(`${SECTION}.${names.SETTING_SHOW_OTHER}`, 'pipe-in.showOtherWorktrees');
+  // 前の版（devpipe）にはこの設定が無いので、読み替えの対象にしない（settingKeys はそのまま）
+  assert.deepEqual(settingKeys('workDir'), ['pipe-in.workDir', 'devpipe.workDir']);
+});
+
 test('D0006-AC-17: 古いコマンド ID は新しい ID に対応する', () => {
   assert.deepEqual({ ...LEGACY_COMMANDS }, { 'devpipe.showRun': 'pipe-in.showRun', 'devpipe.editPipe': 'pipe-in.editPipe' });
   for (const id of Object.values(LEGACY_COMMANDS)) assert.ok(Object.values(COMMANDS).includes(id as never), id);

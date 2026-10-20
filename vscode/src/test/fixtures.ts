@@ -2,9 +2,19 @@
 // 本体 が work_dir に書く形（要件定義書「本体 が今書いている記録」）に合わせる。
 import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
 
-/** 段のログの始まりの行（`Prompt`）。at（段の始まりの時刻。D0017）は渡したときだけ入れる（壊れた値もそのまま入れて試せる）。 */
-export function promptLine(stage: string, at?: unknown): string {
-  return JSON.stringify({ _type: 'Prompt', stage, resume: null, prompt: `${stage} の依頼文`, ...(at === undefined ? {} : { at }) });
+/**
+ * 段のログの始まりの行（`Prompt`）。at（段の始まりの時刻。D0017）は渡したときだけ入れる（壊れた値もそのまま入れて試せる）。
+ * agent（受け持ち。D0019）も渡したときだけ入れる（本体の `record begin --agent` が書く項目）。
+ */
+export function promptLine(stage: string, at?: unknown, agent?: unknown): string {
+  return JSON.stringify({
+    _type: 'Prompt',
+    stage,
+    resume: null,
+    prompt: `${stage} の依頼文`,
+    ...(at === undefined ? {} : { at }),
+    ...(agent === undefined ? {} : { agent }),
+  });
 }
 
 /** 文章の部品を1つ持つ発言。 */
@@ -46,6 +56,12 @@ export function stageRunEntry(p: {
   durationSec?: number;
   /** 本体 0.2 の metrics（StageMetrics.to_dict の形）。省くと古い記録と同じく持たない */
   metrics?: object;
+  /** 受け持ち（D0019。record begin --agent が書く）。省くと持たない。壊れた値（数・空白を含む文字など）も入れて試せる */
+  agent?: unknown;
+  /** runs[].session_id（SDK の会話の ID）。省くと 's'。null（開発フローの record done）も渡せる */
+  sessionId?: unknown;
+  /** duration_sec を壊れた値（負・巨大・文字）にして試す。省くと durationSec */
+  rawDurationSec?: unknown;
 }): object {
   return {
     stage: p.stage,
@@ -54,13 +70,14 @@ export function stageRunEntry(p: {
     note: '',
     num_turns: p.numTurns ?? 1,
     cost_usd: p.costUsd ?? 0,
-    duration_sec: p.durationSec ?? 0,
+    duration_sec: p.rawDurationSec === undefined ? (p.durationSec ?? 0) : p.rawDurationSec,
     denials: [],
     is_error: p.isError ?? false,
     subtype: 'success',
     result: '',
-    session_id: 's',
+    session_id: p.sessionId === undefined ? 's' : p.sessionId,
     errors: [],
+    ...(p.agent === undefined ? {} : { agent: p.agent }),
     ...(p.metrics === undefined ? {} : { metrics: p.metrics }),
   };
 }
@@ -140,11 +157,17 @@ export function stateJson(p: {
   /** 時刻は壊れた値（数・オブジェクトなど）も入れて試せる（D0017） */
   updatedAt?: unknown;
   startedAt?: unknown;
+  /** セッション名（D0019。本体が足した name）。省くと持たない。壊れた値も入れて試せる */
+  name?: unknown;
+  /** セッション ID（D0019。record start --session-id が書く session_id）。省くと持たない */
+  sessionId?: unknown;
 }): string {
   return JSON.stringify({
     started_at: p.startedAt === undefined ? '2026-10-16T00:00:00' : p.startedAt,
     updated_at: p.updatedAt === undefined ? '2026-10-16T00:00:00' : p.updatedAt,
     ...(p.pipe === undefined ? {} : { pipe: p.pipe }),
+    ...(p.name === undefined ? {} : { name: p.name }),
+    ...(p.sessionId === undefined ? {} : { session_id: p.sessionId }),
     ...(p.stages === undefined ? {} : { stages: p.stages }),
     final: p.final ?? null,
     total_cost_usd: p.totalCostUsd ?? 0,

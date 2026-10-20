@@ -20,6 +20,7 @@ from . import clock
 from .checkpoint import Decision, ask_human
 from .config import Config
 from .runner import StageRun, StageRunner, run_stage_sdk
+from .session import name_from_memo
 from .spec import StageSpec
 
 # どのパイプでも本体が書くファイル
@@ -92,6 +93,8 @@ class BasePipeline:
         # 確認で止まっているときの {段・文書・会話の ID}。--review で続きから再開する。
         self.pending: dict[str, Any] | None = None
         self.started_at = datetime.now().isoformat(timespec="seconds")
+        # セッション名。--name で付けるか、要件メモの最初の行から作る。取れなければ None（state.json に書かない）
+        self.name: str | None = None
 
     # ---- 子が決めること ---------------------------------------------------
 
@@ -122,11 +125,33 @@ class BasePipeline:
     def total_cost(self) -> float:
         return round(sum(h.get("cost_usd", 0.0) for h in self.history), 4)
 
+    def _settle_name(self, input_text: str | None) -> None:
+        """00_input.md を書いたあとに呼ぶ。すでにある名前（--name）→ 今の state.json の name（--from の再開）→ 要件メモの最初の行。"""
+        if self.name is not None:
+            return
+        if input_text is None:
+            path = self.doc(STATE)
+            try:
+                old = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+            except (OSError, ValueError):
+                old = {}
+            kept = old.get("name") if isinstance(old, dict) else None
+            if isinstance(kept, str) and kept:
+                self.name = kept
+                return
+        memo_path = self.doc(INPUT)
+        memo = input_text if input_text is not None else (memo_path.read_text(encoding="utf-8") if memo_path.is_file() else "")
+        self.name = name_from_memo(memo)
+
     def _save_state(self, final: Exit | None = None) -> None:
-        state = {
+        state: dict[str, Any] = {
             "started_at": self.started_at,
             "updated_at": datetime.now().isoformat(timespec="seconds"),
             "pipe": self.cfg.pipe,
+        }
+        if self.name is not None:
+            state["name"] = self.name
+        state |= {
             "stages": [
                 {"name": n, "label": s.label, "output": s.output, "review": s.review} for n, s in self.specs.items()
             ],
@@ -235,6 +260,9 @@ class BasePipeline:
         self.history = list(data.get("runs", []))
         self.warnings = list(data.get("warnings", []))
         self.started_at = data.get("started_at", self.started_at)
+        kept = data.get("name")
+        if isinstance(kept, str) and kept:
+            self.name = kept
         self.seq = max((h["seq"] for h in self.history if "seq" in h), default=0)
         return pending
 

@@ -58,3 +58,92 @@ test('AC-11: 選んだ候補のフォルダ。候補にない id（../x・logs�
   // 候補に紛れ込んでいても、フォルダ名として正しくなければ通さない
   assert.equal(resolveRunDir(w, '../x', [...candidates, { id: '../x', label: 'x', updatedAt: null }]), null);
 });
+
+// ---- D0019：実行の目印（場所 + id）と archive ----
+
+test('D0019-AC-01: archive はパイプのフォルダ名にならない（logs と同じ予約名）。ほかの名前は今までどおり', async () => {
+  const { isRunFolderName } = await runs();
+  assert.equal(isRunFolderName('archive'), false);
+  assert.equal(isRunFolderName('logs'), false);
+  for (const name of ['diagrams', 'spec-qa', 'archive2', 'my-archive']) assert.equal(isRunFolderName(name), true, name);
+});
+
+test('D0019-AC-01: archive の id は archive/<日時>（-2 のような重なりつき）だけ。日時は archiveStamp で取り出す', async () => {
+  const { isArchiveId, archiveStamp, ARCHIVE_DIR } = await runs();
+  assert.equal(ARCHIVE_DIR, 'archive');
+  for (const [id, stamp] of [
+    ['archive/20261017-100000', '20261017-100000'],
+    ['archive/20261017-100000-2', '20261017-100000-2'],
+    ['archive/20261017-100000-12', '20261017-100000-12'],
+  ] as const) {
+    assert.equal(isArchiveId(id), true, id);
+    assert.equal(archiveStamp(id), stamp, id);
+  }
+  for (const id of ['', 'archive', 'archive/', 'archive/..', 'archive/2026', 'archive/20261017-100000/x', 'archive/../20261017-100000', 'diagrams', 'x/archive/20261017-100000', 'archive/20261017-100000-', 'archive\\20261017-100000']) {
+    assert.equal(isArchiveId(id), false, id);
+    assert.equal(archiveStamp(id), null, id);
+  }
+});
+
+test('D0019-AC-01: 実行の目印は 場所|id。作って、分けると元に戻る', async () => {
+  const { makeRunKey, parseRunKey, isRunKey, HERE } = await runs();
+  assert.equal(HERE, 'here');
+  const cases: [string, string, string][] = [
+    ['here', '', 'here|'],
+    ['here', 'diagrams', 'here|diagrams'],
+    ['main', 'archive/20261017-100000-2', 'main|archive/20261017-100000-2'],
+    ['wt.feat-x', 'spec-qa', 'wt.feat-x|spec-qa'],
+    ['wt.A_b.c-1', '', 'wt.A_b.c-1|'],
+  ];
+  for (const [place, id, key] of cases) {
+    assert.equal(makeRunKey(place, id), key);
+    assert.deepEqual(parseRunKey(key), { place, id }, key);
+    assert.equal(isRunKey(key), true, key);
+  }
+});
+
+// すり抜けの道（パスに化ける文字・形の違い）を並べる。どれも目印として通さない
+const BAD_KEYS: [string, string][] = [
+  ['空文字', ''],
+  ['場所だけ', 'here'],
+  ['区切りが2つ', 'here||x'],
+  ['昔の id だけ（開発フロー）', ''],
+  ['昔の id だけ（パイプ名）', 'diagrams'],
+  ['知らない場所', 'other|diagrams'],
+  ['場所が空', '|diagrams'],
+  ['wt. だけ', 'wt.|diagrams'],
+  ['場所に空白', 'wt.a b|diagrams'],
+  ['場所に /', 'wt.a/b|diagrams'],
+  ['場所が長すぎる（101 字）', `wt.${'a'.repeat(101)}|diagrams`],
+  ['id に ..', 'here|..'],
+  ['id に ../x', 'here|../x'],
+  ['id に /', 'here|a/b'],
+  ['id に \\', 'here|a\\b'],
+  ['id が絶対パス', 'here|/etc/passwd'],
+  ['id が Windows の絶対パス', 'here|C:\\x'],
+  ['id が logs（予約名）', 'here|logs'],
+  ['id が archive だけ（予約名）', 'here|archive'],
+  ['archive の日時が壊れている', 'here|archive/2026'],
+  ['archive/..', 'here|archive/..'],
+  ['archive の外へ', 'here|archive/../x'],
+  ['archive の下がさらに深い', 'here|archive/20261017-100000/x'],
+  ['大文字・下線のフォルダ名', 'here|Bad_Name'],
+  ['長すぎる id', `here|${'a'.repeat(5000)}`],
+  ['改行', 'here|a\nb'],
+];
+
+for (const [label, key] of BAD_KEYS) {
+  test(`D0019-AC-01: 形の違う実行の目印は通さない：${label}`, async () => {
+    const { parseRunKey, isRunKey } = await runs();
+    assert.equal(parseRunKey(key), null);
+    assert.equal(isRunKey(key), false);
+  });
+}
+
+test('D0019-AC-01: 文字でない値は目印でない（例外を出さない）', async () => {
+  const { parseRunKey, isRunKey } = await runs();
+  for (const value of [3, null, undefined, {}, ['here|']] as unknown[]) {
+    assert.equal(isRunKey(value as string), false);
+    assert.equal(parseRunKey(value as string), null);
+  }
+});

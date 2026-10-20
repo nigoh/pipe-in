@@ -31,7 +31,12 @@ pipe-in --project ~/src/myapp --input request.md --yes
 
 # テスト担当の判定に加えて、自分のテストコマンドでも裏付けを取る
 pipe-in --project ~/src/myapp --input request.md --test-cmd "pytest -q"
+
+# この実行にセッション名を付ける（VSCode の実行の一覧に出る）
+pipe-in --project ~/src/myapp --input request.md --name "CSV 出力を足す"
 ```
+
+`--name` は始めるときだけ付けられます（`--review` とは一緒に使えません）。付けなければ、要件メモの最初の行から作ります。名前は `state.json` の `name` に残り、確認待ちからの再開でも変わりません（[記録](records.md)）。
 
 > [!WARNING]
 > `--yes` は確認なしで最後まで流します。人が見ないままコードが書き換わり、費用もかかります。
@@ -81,7 +86,9 @@ pipe-in --project ~/src/myapp --review quit                                     
 
 ```bash
 pipe-in record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
+                                                  #   --name "…"（セッション名）・--session-id <ID> も付けられる
 pipe-in record begin requirements                 # 段を始める（拡張に「動いている」と出る）
+                                                  #   --agent <名前> を付けると、時系列の行に受け持ちが出る
 pipe-in record done requirements --summary "…"    # 段を閉じる
 pipe-in record wait requirements                  # 確認待ち
 pipe-in record review requirements approved       # revise --feedback "…" / quit

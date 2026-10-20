@@ -1,6 +1,8 @@
 // 図の状態：記録の写しだけから組み立てる。ファイル・時計・乱数・vscode に触れない。
 import { artifactDefsFor, buildArtifactList, isArtifactReady } from './artifacts.ts';
 import type { ArtifactEntry, ArtifactName } from './artifacts.ts';
+import { buildGantt } from './gantt.ts';
+import type { GanttModel } from './gantt.ts';
 import { isDevRecord, parseRunRecord } from './runRecord.ts';
 import type { RunRecord, StageDef, StageRun, TokenCounts, UsageSummary, VerdictFailure } from './runRecord.ts';
 import { STAGE_LABELS } from './stage.ts';
@@ -155,6 +157,8 @@ export interface PipelineView {
   elapsed: Elapsed | null;
   /** 実行が2回以上ある段の、回ごとの時間と合計 */
   stageTimes: StageTimes[];
+  /** 時系列（段の実行ごとの行・エージェントの帯・確認を待った帯・横軸） */
+  gantt: GanttModel;
 }
 
 /** 検証の不合格1件。 */
@@ -546,5 +550,21 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
     revisions: buildRevisions(record, stageLabels),
     elapsed: overallElapsed(record, runningLog, nodes, clock),
     stageTimes: buildStageTimes(record, stageLabels),
+    gantt: buildGantt({
+      record,
+      logs: logs.map(({ name, log }) => ({ seq: name.seq, stage: name.stage, attempt: name.attempt, startedAt: log.startedAt, agent: log.agent })),
+      running:
+        runningLog === null
+          ? null
+          : {
+              seq: runningLog.name.seq,
+              stage: runningLog.name.stage,
+              attempt: runningLog.name.attempt,
+              startedAt: runningLog.log.startedAt,
+              agent: runningLog.log.agent,
+            },
+      labels: stageLabels,
+      clock,
+    }),
   };
 }
