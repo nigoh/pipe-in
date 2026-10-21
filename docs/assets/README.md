@@ -14,10 +14,12 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | `run-list.gif` | 実行の一覧の動き（約20秒）：別の worktree の動いている行を選ぶ→Ctrl＋ホイールで図を拡大→100% に戻す→確認待ちの行→「終わった」のタブ→前の実行の行→「使用量」のタブ（全体を幅 640・24色・1秒に1.5コマ） | `out/preview/run-panel-runs-dark.html` |
 | `pipe-editor-light.png` | パイプ作業台（明るい） | `out/preview/pipe-editor-light.html` |
 | `pipe-editor-dark.png` | パイプ作業台（暗い） | `out/preview/pipe-editor-dark.html` |
-| `vscode-run-light.png` | VSCode の中の「実行を見る」パネル（明るい）。[README](../../README.md#vscode-で見る) の VSCode で見る画像。実行の一覧の木を開き、最初に選ばれる確認待ちの開発フローを出したところ。下のステータスバーに今の状態が出る | VSCode（下の「VSCode の中の画面を撮る」） |
+| `vscode-run-light.png` | VSCode の中の「実行を見る」パネル（明るい）。[README](../../README.md#vscode-で見る) の使い方の動画の代わりに、動きを減らす設定のときに出す画像。実行の一覧の木を開き、最初に選ばれる確認待ちの開発フローを出したところ。下のステータスバーに今の状態が出る | VSCode（下の「VSCode の中の画面を撮る」） |
 | `vscode-run-dark.png` | VSCode の中の「実行を見る」パネル（暗い）。同じ | 同じ |
 | `vscode-editor-light.png` | VSCode の中のパイプ作業台（明るい）。ひな形のパイプ diagrams を開いたところ | 同じ |
 | `vscode-editor-dark.png` | VSCode の中のパイプ作業台（暗い）。同じ | 同じ |
+| `vscode-usage-light.gif` | [README](../../README.md#vscode-で見る) の使い方の動画（明るい）。VSCode で「実行を見る」を開いたまま、下のターミナルで開発フローを流し、確認の画面で修正を 1 回依頼してから承認していく。検証で 1 回差し戻され、合格で終わる（幅 960・32 色・1 秒に 4 コマ・約 40 秒）。動きを減らす設定では `vscode-run-light.png` を出す | VSCode（下の「使い方の動画を撮る」） |
+| `vscode-usage-dark.gif` | 使い方の動画（暗い）。同じ（動きを減らす設定では `vscode-run-dark.png`） | 同じ |
 | `pipe-in-plug-logo.html` | ロゴの動き。止まったロゴを一拍見せてから、プラグを運んでコンセントの真上で向きをそろえ、上から差し込む。カチッとはまってオレンジが広がる（ケーブルはひもの物理演算）。カメラは全体から始めてコンセントへ寄り、広がりと一緒に引く（型は5つから選べる）。ブラウザで開くとくり返し動き、「フローまで見せる」で作業台の動きまで続く。外から何も読み込まない。決めたことは [D0013](../decisions/D0013-plug-logo-motion.md) | （撮らない） |
 | `pipe-in-plug-logo.gif` | 上の動きの、はじめの間から差し込んでオレンジが広がりきるまで（幅 800・約6秒・カメラは「全体から寄る」）。README の冒頭のロゴ（明るい表示） | `pipe-in-plug-logo.html` を時刻を進めながら撮った（1秒に15枚・40色） |
 | `pipe-in-plug-logo-dark.gif` | 同じ動きの暗い表示。README の冒頭のロゴ（暗い表示）。決めたことは [D0023](../decisions/D0023-readme-media.md) | 同じページを暗い表示で（下の「動くロゴを撮る」） |
@@ -104,6 +106,18 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
    - 「pipe-in: パイプ作業台を開く」で `diagrams` を選び、見えている範囲を `vscode-editor-<テーマ>.png` に撮る。
 6. 確かめる（上の手順6と同じ）。画面の一時フォルダの名前は、ウィンドウの題（ブラウザ版では出ません）と作業フォルダの表示（`docs/pipeline`）には出ません。
 7. 片付ける。VS Code Server を止め、一時フォルダを消します。
+
+## 使い方の動画を撮る
+
+`vscode-usage-*.gif` は、上の「VSCode の中の画面を撮る」と同じ VS Code Server で、本物の `pipe-in` を流すところを録画して作ります。SDK は呼ばず、利用料はかかりません。
+
+1. 見本用の `HOME` を、ユーザー名の入らない一時の場所に作り、その中の `~/src/myapp` に見本のプロジェクトを作る（確認の画面とパネルには、記録の場所の絶対パスが出るため）。小さなファイルを置いて git の最初のコミットをし、`feat/csv-export` のブランチにする。`.gitignore` に `docs/pipeline/` と `.vscode/` を書く（未コミットの変更の注意が出ないように）。空の `docs/pipeline/` も作っておく（拡張は起動したときに `docs/pipeline/` を見張り始めるので、無いと最初の実行がパネルに出ません）。
+2. ターミナルで `pipe-in` と打つと、本物の CLI（`pipe_in.cli.main`）を、段の runner だけを差し替えて動かす包みが動くようにする（`PATH` の先に置く）。差し替える runner は `tests/showcase.py` の台本（要件定義で修正を 1 回依頼 → 承認・設計・テスト先行を承認・検証で 1 回差し戻し → 合格）の返事を、Prompt の行 → 発言 → 成果物 → 結果の順に、1 段あたり約 2.4 秒かけて少しずつ段のログに書く。かかった時間は本当の値にする（時系列の帯が重ならないように）。費用とターンの数は見本のまま。
+3. `.vscode/settings.json` に、上の手順3の設定のほか、ターミナルの設定を書く：`terminal.integrated.env.linux` で `HOME`（見本の場所）と `LANG`・`LC_ALL`（`C.UTF-8`。無いと日本語が崩れる）、`terminal.integrated.enablePersistentSessions: false`（前のターミナルが戻らないように）、`terminal.integrated.shellIntegration.enabled: false`。見本の `HOME` の `.bashrc` で、プロンプトを `~/src/myapp $` にする。
+4. Playwright で、幅 **1280×960**・言語 `en-US`・`recordVideo` で開き、上の手順5と同じ準備（信頼・欄を閉じる・キーボード配列を隠す）をしてから、「pipe-in: 実行を見る」と「View: Toggle Terminal」を開き、ターミナルを低くして、図を 80% にする。
+5. ターミナルに `pipe-in --text "ユーザー一覧に CSV 出力ボタンを追加したい"` を打つ。日本語はキー入力ではターミナルに入らないので、クリップボードに入れて `Ctrl+Shift+V` で 2 文字ずつ貼る（`clipboard-read`・`clipboard-write` の許可が要る）。段のログに結果が書かれたら確認の画面が出ているので、要件定義では `r` → 直してほしい点 → 空行、そのあとは Enter で承認する。段が進むのに合わせて、図をホイールで下へ送る。`state.json` に `final` が書かれたら、4 秒ほど待って止める。
+6. 録画（webm）は始めの準備も写っているので、打ち始めの少し前から終わりまでを切り出し、ffmpeg で GIF にする（1 秒に 4 コマ・幅 960・32 色・ぼかしなし。続く同じ絵は `mpdecimate` でまとめる）。大きさは確かめるテストの上限（2.5 MiB）に収める。明るい表示と暗い表示の 2 本を撮る。
+7. 確かめる：`python -m pytest -q tests/test_readme_media.py`。GIF を開いて、ターミナルの文字と、パネルの図・時系列・ステータスバーが進むのが読めるか、手元のパスや名前が写っていないかを見る。片付けで、見本の場所も消す。
 
 ## 動くロゴを撮る
 

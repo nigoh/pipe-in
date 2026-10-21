@@ -69,11 +69,13 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 拡張を入れた VSCode で対象のプロジェクトを開き、コマンドパレットの「pipe-in: 実行を見る」を選ぶと、流している実行をパネルで見られます。下のステータスバーにも今の状態が出ます。入れ方は [VSCode の拡張](docs/guide/vscode.md)。
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-run-dark.png">
-  <img src="docs/assets/vscode-run-light.png" alt="VSCode の中で開いた実行パネル。左に実行の一覧（確認待ち・動いている・終わった）、右に選んだ実行の詳細：要件定義の確認待ちの知らせ、開発フローの段の図、出力、時系列。下のステータスバーに「pipe-in: 要件定義の確認待ち」" width="900">
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/vscode-run-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/vscode-run-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-usage-dark.gif">
+  <img src="docs/assets/vscode-usage-light.gif" alt="使い方の動画。VSCode で「実行を見る」パネルを開いたまま、下のターミナルで pipe-in に要件メモを渡して流す。要件定義の確認の画面で修正を依頼してから承認し、設計・テスト先行も承認すると、実装・検証（不合格で 1 回差し戻し）と進んで合格で終わる。そのあいだ、パネルの段の図・時系列・実行の一覧と、下のステータスバーが進み具合に合わせて変わる" width="900">
 </picture>
 
-<sub>VSCode の中の「実行を見る」パネル。見本の記録（数字は見本）を開いたところ。</sub>
+<sub>使い方の動画（約 40 秒）：「実行を見る」を開いておき、ターミナルで開発フローを流して、確認の画面に答えながら進めたところ。SDK の代わりに見本の返事を返す偽物で流しています（数字は見本）。</sub>
 
 「pipe-in: パイプ作業台を開く」では、パイプを組み立てる作業台が開きます。
 
