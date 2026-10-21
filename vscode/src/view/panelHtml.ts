@@ -1,7 +1,8 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
 // このファイルは CSP・style・script の束ねと、図（.flow）・動きの基本の CSS を持つ。パネルの本体（上のバー・左の一覧・右の詳細）は shellHtml.ts、
-// 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、パネルの中のスクリプトは panelScript.ts。
+// 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、パネルの中のスクリプトは panelScript.ts、止まっているかも（D0021）の印の共通部品は staleMark.ts。
+// 図の印（.node-stale・点線の枠・矢印の点を止める）の CSS はここ。動き（animation）は no-preference の中だけで、見える・見えない・点線・色は外（動きを減らす設定でも印は出る）。
 import type { PipelineView } from '../domain/pipelineView.ts';
 import type { RunListView } from '../domain/runList.ts';
 import { escapeHtml } from './escape.ts';
@@ -10,6 +11,7 @@ import { PANEL_SCRIPT } from './panelScript.ts';
 import { REASONS_STYLE } from './reasonsHtml.ts';
 import { RUN_LIST_STYLE } from './runListHtml.ts';
 import { SHELL_STYLE, emptyListFor, renderShell } from './shellHtml.ts';
+import { STALE_COLOR } from './staleMark.ts';
 import { TIMES_STYLE } from './timesHtml.ts';
 import { USAGE_STYLE } from './usageHtml.ts';
 
@@ -49,6 +51,11 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .flow .node-wait { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .flow .elapsed { fill: var(--vscode-charts-blue); font-variant-numeric: tabular-nums; }
 .elapsed { color: var(--vscode-foreground); font-variant-numeric: tabular-nums; }
+.flow .node-stale { display: none; fill: var(--vscode-foreground); font-size: 10.5px; font-weight: 600; }
+.flow .node-stale .elapsed { fill: var(--vscode-foreground); }
+.flow .node.is-stale .node-detail { display: none; }
+.flow .node.is-stale .node-stale { display: inline; }
+.flow .node.is-stale .shape { stroke: ${STALE_COLOR}; stroke-dasharray: 4 3; }
 @media (prefers-reduced-motion: no-preference) {
   .flow .is-running .shape { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { stroke-opacity: 0.35; } }
@@ -58,6 +65,8 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
   @keyframes attention { 50% { stroke-opacity: 0.3; } }
   .flow .loop.is-new .loop-path { animation: flash 1.4s ease-out 1; }
   @keyframes flash { from { stroke-width: 6; } }
+  .flow .node.is-stale .shape { animation: none; }
+  .flow .edge.is-flowing.is-stale { animation: none; stroke-width: 1.2; stroke-dasharray: none; }
 }
 .terminal-title { margin: 0 0 4px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
 .terminal { margin: 0; padding: 8px; flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--vscode-terminal-background, var(--vscode-editor-background)); color: var(--vscode-terminal-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-panel-border); font-family: var(--vscode-editor-font-family); }
@@ -71,13 +80,17 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .flow .node[data-reasons] { cursor: pointer; }
 .flow .node[data-reasons]:focus-visible .shape { outline: 2px solid var(--vscode-focusBorder); }
 .flow .node.is-picked .shape { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-width: 3; }
+.flow .node.is-stale.is-picked .shape { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-dasharray: 4 3; }
 .flow .loop.is-picked .loop-path { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-width: 3.2; stroke-dasharray: none; opacity: 1; marker-end: url(#mk-pick); }
 .flow .loop.is-picked .loop-label { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); font-weight: 700; }
 .flow .head.is-pick { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); }
 `;
 
-/** パネルの HTML 全体。CSP・スタイル・小さなスクリプトと、renderViewBody(view, list) を本体に入れる。 */
-export function renderPanelHtml(view: PipelineView, nonce: string, list?: RunListView | null): string {
+/**
+ * パネルの HTML 全体。CSP・スタイル・小さなスクリプトと、renderViewBody(view, list, staleAfterSec) を本体に入れる。
+ * staleAfterSec は「止まっているかも」の目安の秒（D0021）。null なら更新なしの印は出さない。
+ */
+export function renderPanelHtml(view: PipelineView, nonce: string, list?: RunListView | null, staleAfterSec: number | null = null): string {
   const n = escapeHtml(nonce);
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -89,13 +102,13 @@ export function renderPanelHtml(view: PipelineView, nonce: string, list?: RunLis
 <style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}${RUN_LIST_STYLE}${GANTT_STYLE}${SHELL_STYLE}</style>
 </head>
 <body>
-<div class="root">${renderViewBody(view, list)}</div>
+<div class="root">${renderViewBody(view, list, staleAfterSec)}</div>
 <script nonce="${n}">${PANEL_SCRIPT}</script>
 </body>
 </html>`;
 }
 
 /** 本体だけ（描き直しのとき、これをパネルに送って差し替える）。一覧は無い・null のときも、行が 0 の一覧で出す。 */
-export function renderViewBody(view: PipelineView, list?: RunListView | null): string {
-  return renderShell(view, list ?? emptyListFor(view));
+export function renderViewBody(view: PipelineView, list?: RunListView | null, staleAfterSec: number | null = null): string {
+  return renderShell(view, list ?? emptyListFor(view), staleAfterSec);
 }

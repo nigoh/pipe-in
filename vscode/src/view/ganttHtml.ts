@@ -4,9 +4,12 @@
 // - 文字（目盛り・時間・確認待ち）：HTML の span。位置は 1% 刻みの決まったクラス（.x37 = 左から 37%、.r37 = 右から 37%）で、規則は GANTT_STYLE にある。
 // style 属性も、外から来た文字の入る CSS も使わない（CSP は nonce のスタイルだけを許す）。色と模様はクラスと var(--vscode-*)。
 // 外から来た文字（段の表示名・受け持ち）はすべて escapeHtml を通す。動き（animation）は足さない。
+// 動いている帯で段のログが目安の時間動かないとき（D0021）は、行に印の属性を持たせ、普段の文字（g-calm）と印つきの文字（g-stalled）の両方を出す。
+// パネルのスクリプトが行に is-stale を付けると、CSS が 2 つを入れ替え、輪を点線にする。帯の形と色は替えない。
 import type { GanttModel, GanttRow } from '../domain/gantt.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
+import { STALE_WORD, staleAttrs } from './staleMark.ts';
 
 /** 0〜100% を 1% 刻みで並べた位置のクラス（左から .x、右から .r）。 */
 function positionClasses(): string {
@@ -46,6 +49,10 @@ export const GANTT_STYLE = `
 .key-run { background: var(--vscode-charts-blue); }
 .key-wait { background: repeating-linear-gradient(45deg, transparent 0, transparent 2px, var(--vscode-charts-yellow, var(--vscode-foreground)) 2px, var(--vscode-charts-yellow, var(--vscode-foreground)) 4px); outline: 1px solid var(--vscode-charts-yellow, var(--vscode-foreground)); outline-offset: -1px; }
 .key-fail { background: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.g-stalled { display: none; }
+.g-row.is-stale .g-stalled { display: block; }
+.g-row.is-stale .g-calm { display: none; }
+.g-row.is-stale .g-ring { stroke-dasharray: 4 3; }
 ${positionClasses()}
 `;
 
@@ -56,6 +63,8 @@ const SIDE_LIMIT = 85;
 const INSIDE_MIN = 12;
 /** 「● 動いている」も帯の中に入れるときの最小の割合（%）。 */
 const INSIDE_LIVE_MIN = 28;
+/** 「● 動いている ⚠ 更新なし」は長いので、帯の中に入れるときの最小の割合（%）を上げる。これより短い帯では帯の外に出す。 */
+const INSIDE_STALE_MIN = 55;
 /** 帯の幅の下限（%）。長さ 0 の帯も見えるように。 */
 const MIN_BAR = 0.3;
 
@@ -87,21 +96,28 @@ function barOf(startSec: number, endSec: number, total: number): Bar {
 
 const sideOf = (b: Bar): 'left' | 'right' => (b.end > SIDE_LIMIT ? 'left' : 'right');
 
-/** 帯の外に置く文字（右なら帯の右端から、左なら帯の左端の手前から）。 */
-function sideText(b: Bar, body: string): string {
+/** 帯の外に置く文字（右なら帯の右端から、左なら帯の左端の手前から）。extra は足すクラス（先頭に空白を置く）。 */
+function sideText(b: Bar, body: string, extra = ''): string {
   const side = sideOf(b);
   const pos = side === 'right' ? `x${Math.round(b.end)}` : `r${Math.round(100 - b.left)}`;
-  return `<span class="g-text ${pos}" data-side="${side}">${escapeHtml(body)}</span>`;
+  return `<span class="g-text ${pos}${extra}" data-side="${side}">${escapeHtml(body)}</span>`;
+}
+
+/** 帯の中に置く文字（帯の真ん中）。extra は足すクラス（先頭に空白を置く）。 */
+function insideText(b: Bar, body: string, extra = ''): string {
+  return `<span class="g-text g-in x${Math.round(b.left + b.width / 2)}${extra}">${escapeHtml(body)}</span>`;
 }
 
 function rect(cls: string, b: Bar): string {
   return `<rect class="${cls}" x="${b.left}" y="0" width="${b.width}" height="16"/>`;
 }
 
-function renderRow(row: GanttRow, total: number): string {
+function renderRow(row: GanttRow, total: number, staleAfterSec: number | null): string {
   const full = row.agent === null ? row.label : `${row.label} · ${row.agent}`;
   const label = `<span class="g-label" title="${escapeHtml(full)}">${escapeHtml(clip(full))}</span>`;
-  const open = `<div class="g-row">${label}<div class="g-track">`;
+  // 動いている帯で、最後の更新からの秒と目安がそろうときだけ印の属性を持つ（帯の無い行・終わった帯・目安なしは今までの行のまま）
+  const stale = row.run !== null && row.run.live ? staleAttrs(row.run.quietSec, staleAfterSec) : '';
+  const open = `<div class="g-row"${stale}>${label}<div class="g-track">`;
 
   if (row.run === null) return `${open}<span class="g-note">時刻の記録なし</span></div></div>`;
 
@@ -114,10 +130,17 @@ function renderRow(row: GanttRow, total: number): string {
   if (run.live) shapes.push(rect('g-ring', rb));
   const time = `${run.failed ? '✕ ' : ''}${formatDuration(run.endSec - run.startSec)}`;
   const runText = run.live ? `${time} ● 動いている` : time;
+  // 印があるときは、普段の文字（g-calm）と印つきの文字（g-stalled）の両方を持ち、is-stale で入れ替える。
+  // 普段の文字の置き場所は今までどおり（目安の手前の見え方を変えない）。印つきの文字は長いので、帯の中に入れる幅の下限を上げる
+  const calm = stale === '' ? '' : ' g-calm';
   if (rb.width >= (run.live ? INSIDE_LIVE_MIN : INSIDE_MIN)) {
-    texts.push(`<span class="g-text g-in x${Math.round(rb.left + rb.width / 2)}">${escapeHtml(runText)}</span>`);
+    texts.push(insideText(rb, runText, calm));
   } else {
-    texts.push(sideText(rb, runText));
+    texts.push(sideText(rb, runText, calm));
+  }
+  if (stale !== '') {
+    const stalledText = `${runText} ${STALE_WORD}`;
+    texts.push(rb.width >= INSIDE_STALE_MIN ? insideText(rb, stalledText, ' g-stalled') : sideText(rb, stalledText, ' g-stalled'));
   }
 
   if (wait !== null) {
@@ -142,14 +165,17 @@ const DEFS =
 const KEY =
   '<div class="g-key"><span><i class="key-run"></i>エージェント</span><span><i class="key-wait"></i>確認待ち</span><span><i class="key-fail"></i>不合格</span></div>';
 
-/** 時系列の節（見出し・件数と合計・本体）。時刻が一つも取れないときは、本体を描かず文で知らせる。 */
-export function renderGantt(g: GanttModel): string {
+/**
+ * 時系列の節（見出し・件数と合計・本体）。時刻が一つも取れないときは、本体を描かず文で知らせる。
+ * staleAfterSec は「止まっているかも」の目安の秒（D0021）。null なら更新なしの印は出さない。
+ */
+export function renderGantt(g: GanttModel, staleAfterSec: number | null = null): string {
   const head = '<h2 class="terminal-title">時系列</h2>';
   if (!g.hasTimes) return `${head}<p class="gantt-none">時刻の記録がありません</p>`;
 
   const count = g.rows.length + g.omittedRows;
   const lead = `<p class="gantt-lead">${count} 回の実行・合計 ${formatDuration(g.totalSec)}</p>`;
   const omit = g.omittedRows > 0 ? `<p class="g-omit">前の ${g.omittedRows} 行を省いています</p>` : '';
-  const rows = g.rows.map((row) => renderRow(row, g.totalSec)).join('');
+  const rows = g.rows.map((row) => renderRow(row, g.totalSec, staleAfterSec)).join('');
   return `${head}${lead}<div class="gantt" role="group" aria-label="時系列">${DEFS}${omit}${renderAxis(g)}${rows}${KEY}</div>`;
 }

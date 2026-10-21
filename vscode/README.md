@@ -43,6 +43,7 @@ code --install-extension pipe-in-vscode.vsix --force   # Insiders なら code-in
 | :--- | :--- | :--- |
 | `pipe-in.workDir` | `docs/pipeline` | work_dir。ワークスペースの最初のフォルダからの相対パス |
 | `pipe-in.showOtherWorktrees` | `true` | 同じ git リポジトリの別の worktree の実行も一覧に出す。切ると、いまの work_dir の実行だけ |
+| `pipe-in.staleAfterMinutes` | `10` | 動いている実行の段のログが何分更新されないと「⚠ 更新なし」の印を出すか（整数。0 で印を出さない。上限 10080。小数・負・文字など、0 以上の整数でない値は 10） |
 
 前の版の設定（節の名前が前の名前のもの）は、新しい設定を書いていない間は読む。前の版のコマンド ID も、キー割り当てが効くように登録だけしてある（パレットには出さない）。
 
@@ -86,6 +87,7 @@ code --install-extension pipe-in-vscode.vsix --force   # Insiders なら code-in
 - 選んだ実行は `workspaceState` に覚える（場所と実行の目印だけ）。見つからなければ、いまの work_dir の最新に戻る。
 - 別の worktree と `archive/` は、パネルが見えている間だけ約5秒ごとに読み直す（いまの work_dir は今までの監視）。選んだ実行が動いている・確認待ちのときも、時系列の帯を伸ばすために約5秒ごとに読み直す。パネルが隠れている間と、別の場所の行も動いている実行も無いときは読み直さない。別の worktree の実行を選んでいる間は、そのフォルダの監視も足す。
 - 別の worktree の読み取りは、`state.json`・`logs/`・記録から作った成果物の一覧にあるもの・`00_input.md` の先頭だけ。work_dir・`.git`・別の worktree には何も書かない。
+- 止まっているかもしれない実行の印：動いている実行のログが `pipe-in.staleAfterMinutes`（既定10分）より長く更新されないと、図・一覧・時系列に「⚠ 更新なし」、詳細に「⚠ 止まっているかも」のバッジと知らせを添える。印の対象・見方・出ない場合は [ガイド](../docs/guide/vscode.md#止まっているかもしれない実行)。
 
 ### 使用量
 

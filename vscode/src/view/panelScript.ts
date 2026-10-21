@@ -3,6 +3,9 @@
 // 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
 // 時間の数え上げ（D0017）：[data-elapsed] は「基準の秒」。基準を受けた時刻（このパネルの時計）からの差だけを足し、記録の時刻は読まない。
 // タイマーは1つだけ。見えていない間と、数える要素が無いときは回さない。
+// 止まっているかも（D0021）：[data-quiet] は「最後の更新からの秒（基準）」、data-stale-after は「目安の秒」。同じ数え上げの中で、
+// 基準＋差 が目安に届いた要素に is-stale を付ける。付けるだけで、外すのは描き直し（DOM ごとの入れ替え）だけ。数字だけの整数の文字でない値は読み取らない。
+// 数える要素は [data-elapsed] と [data-quiet] の両方（どちらか 1 つでもあればタイマーを回す）。
 // 戻る矢印の光り：data-count が前の描き直しより増えたときだけ is-new を付け（動きを減らす設定では付けない）、
 // 光り始めから FLASH_MS のあいだは描き直しをまたいで付け直す。
 // D0019 で足したもの（どれもパネルの中だけで決め、拡張へ送らず、保存もしない）：
@@ -39,12 +42,24 @@ export const PANEL_SCRIPT = `
     const s = String(t % 60).padStart(2, '0');
     return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + s : m + ':' + s;
   }
+  const COUNTING = '[data-elapsed],[data-quiet]';
+  function wholeNumber(raw, min) {
+    if (raw === null || !/^\\d+$/.test(raw)) return null;
+    const n = Number(raw);
+    return Number.isSafeInteger(n) && n >= min ? n : null;
+  }
   function paint() {
     const dt = Math.max(0, Math.floor((Date.now() - baseMs) / 1000));
     root.querySelectorAll('[data-elapsed]').forEach(function (el) {
       const raw = el.getAttribute('data-elapsed');
       if (raw === null || !/^-?\\d+(\\.\\d+)?$/.test(raw)) return;
       el.textContent = fmt(Number(raw) + dt);
+    });
+    root.querySelectorAll('[data-quiet]').forEach(function (el) {
+      const quiet = wholeNumber(el.getAttribute('data-quiet'), 0);
+      const after = wholeNumber(el.getAttribute('data-stale-after'), 1);
+      if (quiet === null || after === null) return;
+      if (quiet + dt >= after) el.classList.add('is-stale');
     });
   }
   function stopTimer() {
@@ -53,7 +68,7 @@ export const PANEL_SCRIPT = `
   function startTimer() {
     stopTimer();
     if (document.visibilityState === 'hidden') return;
-    if (root.querySelectorAll('[data-elapsed]').length === 0) return;
+    if (root.querySelectorAll(COUNTING).length === 0) return;
     paint();
     timerId = setInterval(paint, 1000);
   }

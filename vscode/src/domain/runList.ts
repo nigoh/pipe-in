@@ -2,7 +2,7 @@
 // 行の状態と今の段は、同じ記録から作った図の帯・ステータスバーと食い違わないよう、buildPipelineView の結果から決める。
 import { isJsonObject } from './json.ts';
 import { buildPipelineView } from './pipelineView.ts';
-import type { PipelineView, ViewClock } from './pipelineView.ts';
+import type { PipelineView, StageLogFile, ViewClock } from './pipelineView.ts';
 import { parseRunRecord } from './runRecord.ts';
 import type { RunRecord, StageRun } from './runRecord.ts';
 import { ROOT_RUN_ID, isArchiveId, makeRunKey, parseRunKey } from './runs.ts';
@@ -44,6 +44,8 @@ export interface RunRow {
   elapsed: { seconds: number; live: boolean } | null;
   /** 確認待ちだけ（待ち始めからの秒）。since が読めなければ null */
   waitingSec: number | null;
+  /** 動いている行だけ、段のログが最後に更新されてからの秒（view.quietSec と同じ値）。ほかの状態・読めないときは null（省いてもよい） */
+  quietSec?: number | null;
 }
 
 export interface RunListView {
@@ -91,7 +93,7 @@ export interface SummarizeInput {
   memoHead: string | null;
   previous: boolean;
   stateJson: string | null;
-  stageLogs: { fileName: string; text: string }[];
+  stageLogs: StageLogFile[];
 }
 
 /** 生の JSON のオブジェクト。壊れていれば空（parseRunRecord は欠けを 0 にするので、欠けと 0 を分けるために生を読む）。 */
@@ -211,6 +213,8 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
     updatedMs: updated === null ? null : parseInstant(updated, clock.localOffsetMin),
     elapsed: elapsedOf(record, state, clock),
     waitingSec: waitingNode === undefined ? null : (waitingNode.waitingSec ?? null),
+    // 節を探さず view から取る（節が作られない段名でも、時系列の帯と同じ値になる）
+    quietSec: state === 'running' ? (view.quietSec ?? null) : null,
   };
 }
 

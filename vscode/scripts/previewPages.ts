@@ -3,15 +3,18 @@
 // パネルのページは、画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の記録の読み取り（infra）→
 // 図の状態（app・domain）→ renderPanelHtml（view）で HTML にしたもの。CSP の <meta> はそのまま残し、
 // 足す script タグ・style タグにはすべて nonce を付ける。
-import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+// 「止まっているかもしれない実行の印」（D0021）の見本も、ここで作る。tests/fixtures/ の見本は読むだけで書かない。
+// ログの更新時刻（utimes）をそろえるのは、呼ぶ側が作った一時フォルダの中の写しだけ（拡張の src/ は更新時刻を読むだけ）。
+import { cp, mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { refreshView } from '../src/app/refreshView.ts';
-import { chooseEntry, loadRunList, toListView } from '../src/app/runList.ts';
+import { chooseEntry, isPreviousRun, loadRunList, toListView } from '../src/app/runList.ts';
+import { DEFAULT_STALE_AFTER_MINUTES } from '../src/app/staleness.ts';
 import type { PipelineView, ViewClock } from '../src/domain/pipelineView.ts';
 import { parseRunRecord } from '../src/domain/runRecord.ts';
 import type { RunListView } from '../src/domain/runList.ts';
-import { HERE } from '../src/domain/runs.ts';
+import { HERE, makeRunKey } from '../src/domain/runs.ts';
 import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
@@ -39,9 +42,10 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
 
 /**
  * パネルのページの種類：完了した見本・動いている見本（次の render を送る補助つき）・確認待ちの見本、
- * 実行の一覧の見本（runs）・archive を省く一覧の見本（runs-omitted）。
+ * 実行の一覧の見本（runs）・archive を省く一覧の見本（runs-omitted）、
+ * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -54,10 +58,15 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-runs-light', 'light'],
   ['run-panel-runs-dark', 'dark'],
   ['run-panel-runs-omitted-dark', 'dark'],
+  ['run-panel-stale-light', 'light'],
+  ['run-panel-stale-dark', 'dark'],
+  ['run-panel-stale-soon-dark', 'dark'],
 ];
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
+  if (page.includes('-stale-soon-')) return 'stale-soon';
+  if (page.includes('-stale-')) return 'stale';
   if (page.includes('-runs-omitted-')) return 'runs-omitted';
   if (page.includes('-runs-')) return 'runs';
   return page.includes('-running-') ? 'running' : page.includes('-waiting-') ? 'waiting' : 'done';
@@ -90,9 +99,56 @@ export async function readLiveView(workDirAbs: string, sec: number): Promise<Pip
   return readShowcaseView(workDirAbs, base === null ? undefined : previewClock(base, sec));
 }
 
+/**
+ * 動いている・確認待ちの見本を、一時フォルダ（dest）に写して、見本の「今」にそろえて読む。
+ * 見本の記録（tests/fixtures/）のログの更新時刻は、チェックアウトした時刻しだいで、見本の「今」とずれる。
+ * そのまま読むと「止まっているかも」の印の元（最後の更新からの秒）が、見るたびに変わってしまうので、
+ * 写しのログの更新時刻を見本の「今」にそろえる（元の見本は書き換えない）。時刻の読めない見本は、そろえずにそのまま読む。
+ */
+export async function readLiveViewAligned(src: string, sec: number, dest: string): Promise<PipelineView> {
+  const base = await startOfLiveness(src);
+  const clock = base === null ? undefined : previewClock(base, sec);
+  const copied = path.join(dest, path.basename(src));
+  if (clock === undefined) await cp(src, copied, { recursive: true });
+  else await copySample(src, copied, clock.nowMs);
+  return readShowcaseView(copied, clock);
+}
+
 /** 確認用ページの動き（脈打ち・点の流れ・点滅）を見るときの、始まりからの秒（動いている見本・確認待ちの見本）。 */
 export const RUNNING_SEC = 83;
 export const WAITING_SEC = 40;
+
+// ---- 止まっているかもしれない実行の印の見本（D0021）-------------------------------------------
+/** 確認用ページの目安（秒）。拡張の既定（DEFAULT_STALE_AFTER_MINUTES ＝ 10 分）と同じ数から作る。確認用のページは、既存のものも含めてこの目安で組み立てる。 */
+export const STALE_AFTER_SEC = DEFAULT_STALE_AFTER_MINUTES * 60;
+/** 更新なしの見本で、目安を何秒越えているか（diagrams）。 */
+const STALE_OVER_SEC = 12;
+/** 更新なしの見本で、目安を何秒越えているか（別の worktree の fix-login）。 */
+const STALE_OTHER_OVER_SEC = 40;
+/** 目安の数秒手前の見本で、印が付くまでの秒（diagrams）。 */
+const STALE_SOON_SEC = 5;
+
+/** dir/logs の段のログ（*.jsonl）の更新時刻を atMs にそろえる（整数の秒に置く。粗い時刻のファイルシステムでも同じ値になる）。logs/ の外は変えない。 */
+export async function setLogTimes(dir: string, atMs: number): Promise<void> {
+  const logsDir = path.join(dir, 'logs');
+  let names: string[];
+  try {
+    names = (await readdir(logsDir)).filter((n) => n.endsWith('.jsonl'));
+  } catch {
+    return;
+  }
+  const at = new Date(Math.floor(atMs / 1000) * 1000);
+  for (const name of names) await utimes(path.join(logsDir, name), at, at);
+}
+
+/**
+ * 見本 src を dest に写し、ログの更新時刻を「nowMs − quietAgoSec 秒」にする。nowMs は見本の組み立てに使う時計の「今」（本物の今ではない）。
+ * quietAgoSec の既定は 0（最後の更新が「今」）。dest は呼ぶ側が作った一時フォルダの中。src は変えない。
+ */
+export async function copySample(src: string, dest: string, nowMs: number, quietAgoSec = 0): Promise<void> {
+  await cp(src, dest, { recursive: true });
+  await setLogTimes(dest, nowMs - quietAgoSec * 1000);
+}
 
 /** 最初の <style nonce="preview"> の前に、テーマの色を決める <style> を入れる（作業台のページと同じ入れ方）。 */
 export function withTheme(html: string, theme: Theme): string {
@@ -104,13 +160,24 @@ export function withTheme(html: string, theme: Theme): string {
  * パネルの確認用ページ。VSCode の API の代わりに、何もしない acquireVsCodeApi を <body> の直後に入れる。
  * next を渡すと（動いている見本のページ）、その本体を render のメッセージで送る補助 window.__previewNext() も入れる
  * （戻る矢印の光りを画面で確かめるための、確認用ページだけの補助。nonce つき）。
+ * staleAfterSec は「止まっているかも」の目安の秒（初めの本体にも次の本体にも同じ目安を渡す）。渡さなければ印は出ない（今までと同じ）。
  */
-export function panelPreviewHtml(view: PipelineView, theme: Theme, next?: PipelineView): string {
+export function panelPreviewHtml(view: PipelineView, theme: Theme, next?: PipelineView, staleAfterSec: number | null = null): string {
   const stub = `<script nonce="${NONCE}">window.acquireVsCodeApi=()=>({postMessage(){}});</script>`;
-  // 本体の HTML を文字として埋める。< は < にして、</script> などでページが切れないようにする
-  const nextBody = next === undefined ? '' : JSON.stringify(renderViewBody(next)).replace(/</g, '\\u003c');
-  const helper = next === undefined ? '' : `\n<script nonce="${NONCE}">window.__previewNext=()=>window.postMessage({type:'render',html:${nextBody}},'*');</script>`;
-  return withTheme(renderPanelHtml(view, NONCE), theme).replace('<body>', `<body>\n${stub}`).replace('</body>', `${helper}\n</body>`);
+  const helper = next === undefined ? '' : previewNextScript(renderViewBody(next, undefined, staleAfterSec));
+  // 関数で置き換える（埋める文字に本体の HTML が入る。$ を置き換えの特別な書き方と取り違えない）
+  return withTheme(renderPanelHtml(view, NONCE, undefined, staleAfterSec), theme)
+    .replace('<body>', () => `<body>\n${stub}`)
+    .replace('</body>', () => `${helper}\n</body>`);
+}
+
+/**
+ * 次の本体を render のメッセージで送る補助 window.__previewNext() の script（確認用ページだけの補助。nonce つき。先頭に改行を置く）。
+ * 本体の HTML を文字として埋める。< は < にして、</script> などでページが切れないようにする。
+ */
+function previewNextScript(body: string): string {
+  const json = JSON.stringify(body).replace(/</g, '\\u003c');
+  return `\n<script nonce="${NONCE}">window.__previewNext=()=>window.postMessage({type:'render',html:${json}},'*');</script>`;
 }
 
 // ---- 実行の一覧の見本（D0019）----------------------------------------------------------------
@@ -214,12 +281,27 @@ async function writeWorktree(dest: string, name: string, branch: string): Promis
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
+/** buildRunsTree の options：動いている 2 つの run の、最後の更新が「今」の何秒前か（既定は 0 ＝「今」）。 */
+export interface RunsTreeOptions {
+  diagramsQuietSec?: number;
+  fixLoginQuietSec?: number;
+}
+/** 別の worktree の fix-login の段が始まったのが「今」の何秒前か（既定。diagrams は RUNNING_SEC）。 */
+const FIX_LOGIN_START_SEC = 20;
+/** 段の始まりを、最後の更新より何秒前にするか（更新なしの見本で、経過が更新なしの時間以上になる余裕）。 */
+const DIAGRAMS_START_MARGIN_SEC = 60;
+const FIX_LOGIN_START_MARGIN_SEC = 20;
+
 /**
  * 実行の一覧の見本の木。ワークスペースは dest/main（返す workspace）。
  * いまの work_dir：確認待ちの開発フロー（直下）・動いている diagrams・合格の survey・archive/ の前の実行 2 つ（不合格・合格）。
  * 別の worktree：feat-export（確認待ちの spec-qa）・fix-login（動いている開発フロー）。
+ * 動いている 2 つ（diagrams・fix-login）は、ログの更新時刻を「今 − 秒」にそろえる（options。既定は 0 ＝「今」。いつ作っても印は出ない）。
+ * 段の始まりも、経過が更新なしの時間以上になるよう古くする（更新時刻が段の始まりより前の見本にならない。既定では今までと同じ値）。
  */
-export async function buildRunsTree(dest: string): Promise<{ workspace: string }> {
+export async function buildRunsTree(dest: string, options: RunsTreeOptions = {}): Promise<{ workspace: string }> {
+  const diagramsQuietSec = options.diagramsQuietSec ?? 0;
+  const fixLoginQuietSec = options.fixLoginQuietSec ?? 0;
   const workspace = path.join(dest, 'main');
   const here = path.join(workspace, 'docs', 'pipeline');
   await writeMainGit(workspace);
@@ -231,14 +313,17 @@ export async function buildRunsTree(dest: string): Promise<{ workspace: string }
   const now = Date.parse(waitingSince) + WAITING_SEC * 1000;
   const HOUR = 3_600_000;
 
-  // いまの work_dir：確認待ち（そのまま）・動いている diagrams（今の 83 秒前に段が始まった）・合格の survey（3 時間前）・前の実行 2 つ（1 日前・2 日前）
+  // いまの work_dir：確認待ち（そのまま）・動いている diagrams（今の 83 秒前に段が始まった。更新なしの見本では、更新なしの時間より古い）・
+  // 合格の survey（3 時間前）・前の実行 2 つ（1 日前・2 日前）
   await copyRun(WAITING_DIR, here, { name: '仕様の QA を回す', sessionId: '7f3c9a21-4b6e-4d0a-9c1e-2a8b5d0e6f13' });
-  await copyRun(RUNNING_DIR, path.join(here, 'diagrams'), {
-    shiftMs: now - RUNNING_SEC * 1000 - Date.parse(runningAt),
+  const diagrams = path.join(here, 'diagrams');
+  await copyRun(RUNNING_DIR, diagrams, {
+    shiftMs: now - Math.max(RUNNING_SEC, diagramsQuietSec + DIAGRAMS_START_MARGIN_SEC) * 1000 - Date.parse(runningAt),
     name: '設計図をそろえる',
     sessionId: '3a6f8e02-1d5b-4c97-a0e4-8b2c6d1f9a75',
     patch: { pipe: 'diagrams' },
   });
+  await setLogTimes(diagrams, now - diagramsQuietSec * 1000);
   await copyRun(SHOWCASE_DIR, path.join(here, 'survey'), {
     shiftMs: -3 * HOUR,
     name: 'アンケートを集計する',
@@ -257,7 +342,7 @@ export async function buildRunsTree(dest: string): Promise<{ workspace: string }
     sessionId: '9e1f6b4d-3c8a-4f07-b5e2-1a7d9c3e0b28',
   });
 
-  // 別の worktree：確認待ちの spec-qa（待ち始めが 33 秒あと）・動いている開発フロー（今の 20 秒前に段が始まった）
+  // 別の worktree：確認待ちの spec-qa（待ち始めが 33 秒あと）・動いている開発フロー（今の 20 秒前に段が始まった。更新なしの見本では、更新なしの時間より古い）
   const feat = await writeWorktree(dest, 'feat-export', 'feat/export-csv');
   await copyRun(WAITING_DIR, feat, {
     shiftMs: 33_000,
@@ -267,10 +352,11 @@ export async function buildRunsTree(dest: string): Promise<{ workspace: string }
   });
   const fix = await writeWorktree(dest, 'fix-login', 'fix/login');
   await copyRun(RUNNING_NEXT_DIR, fix, {
-    shiftMs: now - 20_000 - Date.parse(runningNextAt),
+    shiftMs: now - Math.max(FIX_LOGIN_START_SEC, fixLoginQuietSec + FIX_LOGIN_START_MARGIN_SEC) * 1000 - Date.parse(runningNextAt),
     name: 'ログインの不具合を直す',
     sessionId: 'e9d4512b-6c7a-4e1f-b3d8-05a2f7c9e118',
   });
+  await setLogTimes(fix, now - fixLoginQuietSec * 1000);
   return { workspace };
 }
 
@@ -306,14 +392,17 @@ export interface RunsPreviewEntry {
 /**
  * 拡張の本物の読み取りと組み立て（createFsRunsSource → loadRunList → chooseEntry → refreshView）をそのまま通して、行ごとの図を作る。
  * 見本のための別の組み立ては作らない。表示の work_dir は 'docs/pipeline'（一時フォルダの絶対パスを出さない）。
+ * options.selected で、初めに選ぶ行（行の目印）を決められる（無ければ、本番の既定の選び方）。
+ * 各行の写しは、本番の入口と同じく、前の実行（archive/）かどうかを伝えて読む（前の実行は印の対象にならない）。
  */
-export async function readRunsView(workspace: string, clock: ViewClock): Promise<RunsPreviewEntry[]> {
+export async function readRunsView(workspace: string, clock: ViewClock, options: { selected?: string | null } = {}): Promise<RunsPreviewEntry[]> {
   const workDirAbs = path.join(workspace, 'docs', 'pipeline');
   const list = await loadRunList(createFsRunsSource(workspace, workDirAbs, 'docs/pipeline'), { showOthers: true, clock });
-  const chosen = chooseEntry(list, null, { key: HERE, label: null, workDirAbs });
+  const chosen = chooseEntry(list, options.selected ?? null, { key: HERE, label: null, workDirAbs });
   const entries: RunsPreviewEntry[] = [];
   for (const entry of list.entries) {
-    const view = await refreshView(createFsWorkDirSource(entry.dirAbs, 'docs/pipeline'), 'docs/pipeline', clock);
+    const source = createFsWorkDirSource(entry.dirAbs, 'docs/pipeline', { previous: isPreviousRun(list, entry.row.key) });
+    const view = await refreshView(source, 'docs/pipeline', clock);
     entries.push({ key: entry.row.key, view, listView: toListView(list, entry.row.key, 'docs/pipeline'), selected: entry.row.key === chosen.key });
   }
   return entries;
@@ -322,16 +411,52 @@ export async function readRunsView(workspace: string, clock: ViewClock): Promise
 /**
  * 一覧の見本のページ。VSCode の API の代わりの acquireVsCodeApi は、selectRun を受けたら、その行の本体（BODIES）を render で返す
  * （押す→図が切り替わる・aria-pressed が移る・タイマーが回る、までをブラウザで確かめられる）。nonce つきで <body> の直後に入れる。
+ * options.staleAfterSec は「止まっているかも」の目安の秒（各行の本体と初めの本体に渡す。渡さなければ印は出ない）。
+ * options.next を渡すと、その行の本体を render で送る補助 window.__previewNext() も入れる（更新後の見本。nonce つき）。
+ * options を渡さない呼び方（今までの 3 つ目の引数）は、どちらの項目も無いので今までと同じ。
  */
-export function panelRunsPreviewHtml(entries: readonly RunsPreviewEntry[], theme: Theme): string {
+export function panelRunsPreviewHtml(
+  entries: readonly RunsPreviewEntry[],
+  theme: Theme,
+  options: { staleAfterSec?: number | null; next?: RunsPreviewEntry } = {},
+): string {
+  const staleAfterSec = options.staleAfterSec ?? null;
   const initial = entries.find((e) => e.selected) ?? entries[0];
   if (initial === undefined) throw new Error('一覧の見本の行がありません');
   const bodies: Record<string, string> = {};
-  for (const e of entries) bodies[e.key] = renderViewBody(e.view, e.listView);
+  for (const e of entries) bodies[e.key] = renderViewBody(e.view, e.listView, staleAfterSec);
   // 本体の HTML を文字として埋める。< は < にして、</script> などでページが切れないようにする
   const json = JSON.stringify(bodies).replace(/</g, '\\u003c');
   const stub =
     `<script nonce="${NONCE}">window.acquireVsCodeApi=(()=>{const BODIES=${json};` +
     `return()=>({postMessage(m){if(m&&m.type==='selectRun'&&typeof BODIES[m.id]==='string')window.postMessage({type:'render',html:BODIES[m.id]},'*')}})})();</script>`;
-  return withTheme(renderPanelHtml(initial.view, NONCE, initial.listView), theme).replace('<body>', `<body>\n${stub}`);
+  // 関数で置き換える（埋める文字に本体の HTML が入る。$ を置き換えの特別な書き方と取り違えない）
+  const page = withTheme(renderPanelHtml(initial.view, NONCE, initial.listView, staleAfterSec), theme).replace('<body>', () => `<body>\n${stub}`);
+  const next = options.next;
+  if (next === undefined) return page;
+  const helper = previewNextScript(renderViewBody(next.view, next.listView, staleAfterSec));
+  return page.replace('</body>', () => `${helper}\n</body>`);
+}
+
+/**
+ * 更新なしの印の見本のページ（D0021）。木を dest の中に組み立て、本番と同じ読み取りで読み、目安 STALE_AFTER_SEC で一覧のページにする。
+ * stale：diagrams は目安を 12 秒、fix-login は 40 秒越えている（6 つの面すべてに印が出る。初めに選ぶのは diagrams）。
+ * stale-soon：diagrams は目安の 5 秒手前（5 秒待つと印が付く）、fix-login は今。window.__previewNext() で、
+ * diagrams の更新時刻を「今」にした本体を送ると、印が全部消える（そのために、dest/next にもう 1 つ木を組み立てる）。
+ */
+export async function staleRunsPageHtml(dest: string, kind: 'stale' | 'stale-soon', theme: Theme): Promise<string> {
+  const since = await startOfLiveness(WAITING_DIR);
+  if (since === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
+  const clock = previewClock(since, WAITING_SEC);
+  const diagrams = makeRunKey(HERE, 'diagrams');
+  const quiet: RunsTreeOptions =
+    kind === 'stale'
+      ? { diagramsQuietSec: STALE_AFTER_SEC + STALE_OVER_SEC, fixLoginQuietSec: STALE_AFTER_SEC + STALE_OTHER_OVER_SEC }
+      : { diagramsQuietSec: STALE_AFTER_SEC - STALE_SOON_SEC, fixLoginQuietSec: 0 };
+  const entries = await readRunsView((await buildRunsTree(dest, quiet)).workspace, clock, { selected: diagrams });
+  if (kind === 'stale') return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC });
+  const updated = await readRunsView((await buildRunsTree(path.join(dest, 'next'), { diagramsQuietSec: 0, fixLoginQuietSec: 0 })).workspace, clock, { selected: diagrams });
+  const next = updated.find((e) => e.key === diagrams);
+  if (next === undefined) throw new Error('更新後の見本に diagrams の行がありません');
+  return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC, next });
 }

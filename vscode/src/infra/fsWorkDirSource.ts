@@ -4,7 +4,8 @@ import path from 'node:path';
 import type { PlaceRuns, RunsSource } from '../app/runList.ts';
 import type { WorkDirSource } from '../app/refreshView.ts';
 import { artifactNamesFor } from '../domain/artifacts.ts';
-import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
+import type { StageLogFile, WorkDirSnapshot } from '../domain/pipelineView.ts';
+import { validMtime } from '../domain/quiet.ts';
 import { parseRunRecord } from '../domain/runRecord.ts';
 import { ARCHIVE_LIMIT, WORKTREE_LIMIT } from '../domain/runList.ts';
 import { ARCHIVE_DIR, HERE, ROOT_RUN_ID, describeRun, isRunFolderName } from '../domain/runs.ts';
@@ -34,17 +35,34 @@ async function readText(file: string, fs: ReadOnlyFs = nodeReadOnlyFs): Promise<
   }
 }
 
-async function readStageLogs(logsDir: string, fs: ReadOnlyFs = nodeReadOnlyFs): Promise<WorkDirSnapshot['stageLogs']> {
+/**
+ * ファイルの更新時刻（UTC のミリ秒）。stat で読むだけ（書き換えない）。
+ * stat が失敗した・値が有限で 0 より大きい数でない（0・負・NaN・文字など）ときは null（止まっているかもの印の元にしない）。
+ */
+async function readMtime(file: string, fs: ReadOnlyFs): Promise<number | null> {
+  try {
+    return validMtime((await fs.stat(file)).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * logs/ の段のログ。中身を読めたものだけ、そのあとで更新時刻を stat する（読んでから stat するので、読んだ中身より古い時刻にならない）。
+ * いまの work_dir・別の worktree・パイプのフォルダ・選んだ実行の写しは、どれもこの 1 つを通る。
+ */
+async function readStageLogs(logsDir: string, fs: ReadOnlyFs = nodeReadOnlyFs): Promise<StageLogFile[]> {
   let names: string[];
   try {
     names = await fs.readdir(logsDir);
   } catch {
     return [];
   }
-  const logs: WorkDirSnapshot['stageLogs'] = [];
+  const logs: StageLogFile[] = [];
   for (const fileName of names.filter((n) => parseStageLogName(n) !== null)) {
-    const text = await readText(path.join(logsDir, fileName), fs);
-    if (text !== null) logs.push({ fileName, text });
+    const file = path.join(logsDir, fileName);
+    const text = await readText(file, fs);
+    if (text !== null) logs.push({ fileName, text, mtimeMs: await readMtime(file, fs) });
   }
   return logs;
 }
@@ -81,7 +99,8 @@ function newerArchiveFirst(a: string, b: string): number {
 /**
  * 場所（work_dir）の中の run の記録の写し。直下の state.json（id ''）、直下のフォルダの中の state.json（パイプ）、
  * archive/<日時>/state.json（id archive/<日時>）。archive は新しい方から archiveLimit 件まで読み、超えた分は読まずに数だけ返す。
- * ログ（logs/*.jsonl）は final が無く archive でない run だけ読む（行の状態に要るため）。symlink のフォルダは辿らない。
+ * ログ（logs/*.jsonl）は final が無く archive でない run だけ読む（行の状態に要るため。中身を読んだあとに更新時刻の stat も 1 回）。
+ * final のある run と archive の run は logs/ を開かない（stat もしない）。symlink のフォルダは辿らない。
  */
 export async function listPlaceRuns(workDirAbs: string, options: { archiveLimit: number; fs?: ReadOnlyFs }): Promise<PlaceRuns> {
   const fs = options.fs ?? nodeReadOnlyFs;
@@ -181,8 +200,12 @@ export async function listRunCandidates(workDirAbs: string): Promise<RunCandidat
   return found.length > 0 ? found : [describeRun(ROOT_RUN_ID, null)];
 }
 
-/** state.json、logs/ の中で parseStageLogName が null でない *.jsonl、記録から作った成果物の一覧のファイルを読む。 */
-export function createFsWorkDirSource(workDirAbs: string, workDirForDisplay: string): WorkDirSource {
+/**
+ * state.json、logs/ の中で parseStageLogName が null でない *.jsonl（中身と更新時刻）、記録から作った成果物の一覧のファイルを読む。
+ * options.previous が true のとき（archive/ の前の実行）だけ、写しに previous: true を入れる。持たせないときは項目ごと無い。
+ * どの実行が前の実行かは、基盤は知らない。呼ぶ側（一覧の行）が渡す。
+ */
+export function createFsWorkDirSource(workDirAbs: string, workDirForDisplay: string, options: { previous?: boolean } = {}): WorkDirSource {
   return {
     async read(): Promise<WorkDirSnapshot> {
       const stateJson = await readText(path.join(workDirAbs, STATE));
@@ -196,6 +219,7 @@ export function createFsWorkDirSource(workDirAbs: string, workDirForDisplay: str
         stateJson,
         stageLogs: await readStageLogs(path.join(workDirAbs, 'logs')),
         artifacts,
+        ...(options.previous === true ? { previous: true } : {}),
       };
     },
   };

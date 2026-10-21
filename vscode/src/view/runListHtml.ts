@@ -3,11 +3,14 @@
 // 色は var(--vscode-*)、CSS はクラスだけ。外から来た文字（セッション名・パイプ名・段の名前・結果・ブランチ名・セッション ID・key）はすべて escapeHtml を通す。
 // 確認待ちの行は、黄の枠と「確認待ち」の文字と待ち時間で目立たせる（色だけに頼らない）。待ち時間・経過は D0017 の数え上げ（data-elapsed）に乗せる。
 // 点滅は prefers-reduced-motion: no-preference の中だけ。動きを減らす設定では、枠・色・文字で分かり、待ち時間は数え続ける。
+// 動いている行で段のログが目安の時間動かないときは、3 行目の右に「⚠ 更新なし」と時間を出し、枠を点線にする（D0021。staleMark.ts）。
+// 印は最初は隠れていて、パネルのスクリプトが行に is-stale を付けると見える。状態の言葉・見出し・タブ・並びは替えない。
 // 絞り込みとタブの出し分けはパネルのスクリプトがする（拡張へは送らない）。ここは全部の行を出し、出し分けの印（data-*）だけ持たせる。
 import { countStates, omittedText, stateWord } from '../domain/runList.ts';
 import type { RunListView, RunRow, RunState } from '../domain/runList.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
+import { STALE_COLOR, STALE_WORD, rowStaleAttrs, staleTime } from './staleMark.ts';
 
 export const RUN_LIST_STYLE = `
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -41,6 +44,11 @@ export const RUN_LIST_STYLE = `
 .run-wait .elapsed, .run-right .elapsed { color: inherit; }
 .run-sub { padding-left: 16px; font-size: 12px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .run-id { padding-left: 16px; font-size: 11px; color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family, monospace); }
+.run-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.run-stale { display: none; margin-left: auto; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--vscode-foreground); }
+.run-row.is-stale { border-style: dashed; border-color: ${STALE_COLOR}; }
+.run-row.is-stale .run-stale { display: inline; }
+.run-row.is-stale[aria-pressed="true"] { outline-style: dashed; }
 .run-empty, .run-none { margin: 0; padding: 0 8px; color: var(--vscode-descriptionForeground); }
 .run-omitted { margin: 0; padding: 0 8px; color: var(--vscode-descriptionForeground); font-size: 12px; }
 @media (prefers-reduced-motion: no-preference) {
@@ -101,22 +109,34 @@ function renderSub(row: RunRow): string {
   return `<span class="run-sub">${parts.map(escapeHtml).join(' · ')}</span>`;
 }
 
-function renderRow(row: RunRow, selected: string): string {
+/**
+ * 3 行目（セッション ID の行）。印が出る行だけ run-foot で包み、ID の右に印を置く（1 行目のセッション名は詰めない）。
+ * 印が出ない行は今までと 1 文字も変えない。
+ */
+function renderFoot(row: RunRow, id: string, stale: string): string {
+  const idEl = `<span class="run-id">${id}</span>`;
+  if (stale === '') return idEl;
+  return `<span class="run-foot">${idEl}<span class="run-stale">${STALE_WORD} ${staleTime(row.quietSec)}</span></span>`;
+}
+
+function renderRow(row: RunRow, selected: string, staleAfterSec: number | null): string {
   const marks =
     `data-group="${groupOf(row.state)}" data-sid="${escapeHtml(row.sessionId ?? '')}" data-branch="${escapeHtml(row.branch ?? '')}" data-name="${escapeHtml(row.session)}"`;
   const id = row.sessionId === null ? '—' : escapeHtml(Array.from(row.sessionId).slice(0, 8).join(''));
+  // 動いている行だけが印の対象（確認待ち・待ち・終わった・前の実行には出さない）
+  const stale = rowStaleAttrs(row, staleAfterSec);
   return (
-    `<li ${marks}><button type="button" class="${rowClass(row)}" data-run="${escapeHtml(row.key)}" aria-pressed="${row.key === selected ? 'true' : 'false'}">` +
+    `<li ${marks}><button type="button" class="${rowClass(row)}" data-run="${escapeHtml(row.key)}" aria-pressed="${row.key === selected ? 'true' : 'false'}"${stale}>` +
     `<span class="run-top"><span class="run-dot" aria-hidden="true"></span><span class="run-session">${escapeHtml(row.session)}</span>${renderRight(row)}</span>` +
-    `${renderSub(row)}<span class="run-id">${id}</span>` +
+    `${renderSub(row)}${renderFoot(row, id, stale)}` +
     '</button></li>'
   );
 }
 
-function renderGroup(key: string, title: string, rows: readonly RunRow[], selected: string): string {
+function renderGroup(key: string, title: string, rows: readonly RunRow[], selected: string, staleAfterSec: number | null): string {
   const mine = rows.filter((r) => groupOf(r.state) === key);
   if (mine.length === 0) return '';
-  const items = mine.map((r) => renderRow(r, selected)).join('');
+  const items = mine.map((r) => renderRow(r, selected, staleAfterSec)).join('');
   return `<section class="run-group" data-group="${key}"><h2 class="run-group-head">${title}</h2><ul class="run-rows">${items}</ul></section>`;
 }
 
@@ -141,12 +161,15 @@ function renderTabs(rows: readonly RunRow[]): string {
   return `<div class="run-tabs" role="tablist" aria-label="状態で絞り込む">${buttons.join('')}</div>`;
 }
 
-/** 実行の一覧。行を並べ替えない（渡された順のまま）。選んでいる行だけ aria-pressed="true"。行が 0 でも出す。 */
-export function renderRunList(list: RunListView): string {
+/**
+ * 実行の一覧。行を並べ替えない（渡された順のまま）。選んでいる行だけ aria-pressed="true"。行が 0 でも出す。
+ * staleAfterSec は「止まっているかも」の目安の秒（D0021）。null なら更新なしの印は出さない。
+ */
+export function renderRunList(list: RunListView, staleAfterSec: number | null = null): string {
   const search =
     '<label class="run-search"><span class="sr-only">実行を絞り込む</span>' +
     '<input type="search" data-keep="filter" placeholder="セッション名・ID・ブランチで絞り込む" autocomplete="off"></label>';
-  const groups = GROUPS.map(([key, title]) => renderGroup(key, title, list.rows, list.selected)).join('');
+  const groups = GROUPS.map(([key, title]) => renderGroup(key, title, list.rows, list.selected, staleAfterSec)).join('');
   const empty = list.rows.length === 0 ? '<p class="run-none">実行がありません</p>' : '<p class="run-empty" hidden>該当する実行がありません</p>';
   return (
     `<div class="run-list">${search}${renderTabs(list.rows)}` +

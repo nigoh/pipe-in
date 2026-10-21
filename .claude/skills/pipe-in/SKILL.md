@@ -14,6 +14,7 @@ disable-model-invocation: true
 devpipe が利用者のプロジェクトでやることを、devpipe 自身に対してこの会話の中でやる。
 開発のルール（`docs/development/`）と CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
 段の成果物（`docs/pipeline/`）は手元の作業の記録で、追跡しない。追跡して残すのは、検証の段で書く決定の記録（`docs/decisions/`）だけ。
+長い会話では、自動の要約のあとにこのスキルの後ろの方（検証の手順など）が抜けやすい。手順があやふやになったら、`.claude/skills/pipe-in/SKILL.md` の該当する節を読み直す。
 
 ## 0. 始める前に
 
@@ -60,6 +61,7 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 | 審査（助言の報告をルーブリックで採点） | `pipe-in-judge` | どこにも書けない（Web は公式の文書の WebFetch だけ） |
 
 - サブエージェントは人に質問できない。決めきれない点は成果物に書いて返してくるので、メインが人に聞く。
+- 会話から任せたサブエージェントは裏で動き、終わると返事（完了の通知）が次の番に届く。段の `record done` は、その返事を受けてから書く。
 - サブエージェントへの指示には、段の名前・要件メモ・決定の記録の番号 `Dnnnn`・前の段の成果物の場所（`docs/pipeline/0N_*.md`）・人からの直してほしい点（あれば）・差し戻しなら不合格の中身を入れる。サブエージェントはこの会話を見ていない。
 - サブエージェントは、段に合わせて `docs/development/` の決まりを読む（要件定義は `specs.md`、設計は `design.md`、テスト先行は `testing.md`、実装は `design.md` と `workflow.md` の「4. そろえる」）。指示にもその文書を書く。
 - フックが止めたら、その理由がサブエージェントに返る。範囲を広げたくなったら、サブエージェントの仕事の分け方を見直す（フックや定義を緩めるのは、人に理由を言って承認されてから）。
@@ -139,10 +141,10 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
-- 画面の AC があれば、メインが Playwright（MCP の `mcp__plugin_playwright_playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）と、実行の一覧のパネルのページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`・`run-panel-runs-omitted-dark.html`。見本から一時フォルダに主の checkout・別の worktree・`archive/` の木を組み立てて作る）ができる）
+- 画面の AC があれば、メインが Playwright（MCP。道具の名前は、プラグイン版なら `mcp__plugin_playwright_playwright__*`、`claude mcp add` で入れた版なら `mcp__playwright__*`）で画面を開いて確かめる：
+  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）と、実行の一覧のパネルのページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`・`run-panel-runs-omitted-dark.html`。見本から一時フォルダに主の checkout・別の worktree・`archive/` の木を組み立てて作る）と、更新なしの印が出るパネルのページ（`run-panel-stale-light.html`・`run-panel-stale-dark.html`（目安を過ぎた見本）・`run-panel-stale-soon-dark.html`（目安の 5 秒手前の見本。`window.__previewNext()` で更新後の本体を送れる）。動いている見本は一時フォルダに写してログの更新時刻を「今」からの相対にそろえる）ができる）
   2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
-  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`、動いている・確認待ち・実行の一覧の `run-panel-*.html`）も同じように開いて撮る。実行の一覧のページは幅 1280×800・1000×700・800×600 で並び（3 領域・2 列・1 列）を見る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
+  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`、動いている・確認待ち・実行の一覧・更新なしの `run-panel-*.html`）も同じように開いて撮る。実行の一覧のページは幅 1280×800・1000×700・800×600 で並び（3 領域・2 列・1 列）を見る。更新なしのページは、印の時間が 1 秒ごとに増えること、`run-panel-stale-soon-dark.html` で 5 秒待つと印が一度に現れ `window.__previewNext()` で消えること、既存のページには 15 秒待っても印が出ないことを見る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
   4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る
   5. 見る：撮った画面を読み、重なり・はみ出し・読めない色・崩れがないか、手順の「合格の見え方」になっているかを確かめる。`browser_console_messages` でエラーが0件かも見る
   6. 片付ける：配るのを止め（TaskStop）、`.playwright-mcp/` を消す（`.gitignore` 済みだが残さない）

@@ -2,7 +2,7 @@
 // 純粋な関数：記録の写しと「今」（引数）だけから決まる。ファイル・時計・vscode に触れない。
 import type { RunRecord, StageRun } from './runRecord.ts';
 import type { Stage } from './stage.ts';
-import { parseInstant } from './timestamp.ts';
+import { MAX_SPAN_SEC, parseInstant } from './timestamp.ts';
 
 /** 実行の始まりからの秒。0 以上 totalSec 以下。 */
 export interface GanttBar {
@@ -16,8 +16,8 @@ export interface GanttRow {
   label: string;
   /** 受け持ち。記録に無ければ null */
   agent: string | null;
-  /** エージェントが動いた帯。null ＝ 時刻の記録なし */
-  run: (GanttBar & { failed: boolean; live: boolean }) | null;
+  /** エージェントが動いた帯。null ＝ 時刻の記録なし。quietSec は動いている帯だけ（段のログが最後に更新されてからの秒。印の対象のときだけ） */
+  run: (GanttBar & { failed: boolean; live: boolean; quietSec?: number }) | null;
   /** 人の確認を待った帯 */
   wait: (GanttBar & { live: boolean }) | null;
 }
@@ -57,13 +57,13 @@ export interface GanttInput {
   running: GanttLog | null;
   labels: Readonly<Record<string, string>>;
   clock: GanttClock | undefined;
+  /** 動いている段の、段のログが最後に更新されてからの秒（PipelineView.quietSec と同じ値）。無い・null なら帯に付けない */
+  quietSec?: number | null;
 }
 
 export const MAX_ROWS = 200;
 /** 今より先の時刻は、この秒数までは時計のずれとして許す。超えると読めない値にする */
 const FUTURE_SLACK_MS = 60_000;
-/** 1 回の実行の長さの上限（7 日） */
-const MAX_DURATION_SEC = 7 * 24 * 3600;
 /** 目盛りの間隔の候補（秒）。これを超えるときは倍にしていく */
 const TICK_STEPS: readonly number[] = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
 /** 0 を除く目盛りの本数の上限（0 と合わせて 6 本以下） */
@@ -88,7 +88,7 @@ function labelOf(stage: Stage, attempt: number | null, labels: Readonly<Record<s
 }
 
 function clampDuration(sec: number): number {
-  return Number.isFinite(sec) ? Math.min(Math.max(sec, 0), MAX_DURATION_SEC) : 0;
+  return Number.isFinite(sec) ? Math.min(Math.max(sec, 0), MAX_SPAN_SEC) : 0;
 }
 
 /** その回の判定が不合格か実行できずか。 */
@@ -112,7 +112,7 @@ export function buildTicks(totalSec: number): number[] {
 }
 
 export function buildGantt(input: GanttInput): GanttModel {
-  const { record, logs, running, labels, clock } = input;
+  const { record, logs, running, labels, clock, quietSec } = input;
   const offset = clock?.localOffsetMin ?? 0;
   const instant = (text: string | null): number | null => (text === null ? null : parseInstant(text, offset));
   const logOf = new Map<number, GanttLog>();
@@ -178,7 +178,8 @@ export function buildGantt(input: GanttInput): GanttModel {
     const startSec = sec(d.startMs);
     const endSec = d.live ? Math.max(sec(nowMs), startSec) : startSec + d.durationSec;
     const failed = d.isError || (d.run !== null && verdictFailed(record, d.run));
-    row.run = { startSec, endSec, failed, live: d.live };
+    // 更新なしの秒は、動いている帯にだけ付ける（持たない帯の形は今までと同じ）
+    row.run = { startSec, endSec, failed, live: d.live, ...(d.live && quietSec != null ? { quietSec } : {}) };
 
     if (waitingNow && i === last && !d.live) {
       // いま確認待ち：待ち始め（since。読めなければ実行の終わり）から「今」まで

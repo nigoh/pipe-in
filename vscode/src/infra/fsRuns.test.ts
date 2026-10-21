@@ -248,7 +248,7 @@ test('D0019-AC-01: ログは「final が無く、archive でない run」だけ�
   });
 });
 
-test('D0019-AC-32: 場所の中を読むときに触れるのは work_dir の下だけで、書き込みの関数は呼ばない（偽の fs には読む 5 つしか無い）', async () => {
+test('D0019-AC-32: 場所の中を読むときに触れるのは work_dir の下だけで、書き込みの関数は呼ばない（偽の fs には読む 6 つしか無い）', async () => {
   await withRealTempDir(async (dir) => {
     const work = path.join(dir, 'work');
     await putRun(work, '', stateJson({ pipe: 'dev', runs: [] }));
@@ -275,6 +275,10 @@ test('D0019-AC-11: archive/<日時> を開くと、図・出力・成果物が�
       await writeFile(path.join(home, '01_requirements.md'), '要件');
       await writeFile(path.join(home, 'other.md'), '一覧の外');
     }
+    // D0021：写しのログに更新時刻（mtimeMs）が付くようになる。別々に書いた 2 つのログの時刻は、書いた順やファイルシステムの粒度で
+    // ずれるので、同じ値にそろえる（準備の直しだけ。下の deepEqual の期待は変えない）
+    const pinned = new Date('2026-10-17T10:00:00Z');
+    for (const home of [dir, archived]) await utimes(path.join(home, 'logs', '01_requirements.jsonl'), pinned, pinned);
     const here = await fsSource.createFsWorkDirSource(dir, 'docs/pipeline').read();
     const old = await fsSource.createFsWorkDirSource(archived, 'docs/pipeline').read();
     assert.deepEqual(old, here, 'archive/<日時> の写しは、直下の写しと同じ形');

@@ -1,9 +1,12 @@
 // 図の節 → 左の列の流れ図（SVG の文字列、純粋）。本線は上から下、戻りの矢印は右（確認 → 同じ段）と左（判定 → 実装）。
 // 色は CSS（panelHtml.ts の STYLE）でクラスに付ける。ここでは形と位置だけを決める。
+// 動いている段で段のログが目安の時間動かないとき（D0021）は、節と、その段へ入る流れる矢印に印の属性（data-quiet・data-stale-after）を持たせ、
+// 節の 2 行目に「⚠ 更新なし」の文字を足す。パネルのスクリプトが is-stale を付けると、CSS が点線の枠にし、脈打ちと点の流れを止める。
 import { NODE_STATUS_LABELS } from '../domain/pipelineView.ts';
 import type { NodeId, PipelineNode } from '../domain/pipelineView.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
+import { STALE_WORD, staleAttrs, staleTime } from './staleMark.ts';
 
 type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final';
 
@@ -89,10 +92,12 @@ function pickAttrs(id: NodeId): string {
   return ` data-reasons="${e}" data-reasons-loop="${escapeHtml(loopIdOf(id))}" tabindex="0" role="button" aria-pressed="false"`;
 }
 
-function renderNode(p: Placed, pickable: ReadonlySet<NodeId>): string {
+function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: number | null): string {
   const { node, shape, y, h } = p;
   const status = NODE_STATUS_LABELS[node.status];
   const parts = [outline(p)];
+  // 動いている段の節で、最後の更新からの秒と目安がそろうときだけ、印の属性と印の文字を足す（目安なしなら今までの図のまま）
+  const stale = shape === 'stage' && node.status === 'running' ? staleAttrs(node.quietSec, staleAfterSec) : '';
   if (shape === 'stage') {
     parts.push(`<text class="node-label is-strong" x="${LEFT + 12}" y="${y + 20}">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${RIGHT - 10}" y="${y + 20}" text-anchor="end">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
@@ -106,6 +111,10 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>): string {
     } else {
       const detail = m ? `${m.numTurns} ターン・$${m.costUsd.toFixed(3)}・${formatDuration(m.durationSec)}` : '';
       if (detail) parts.push(`<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">${escapeHtml(detail)}</text>`);
+    }
+    // 印の文字は 2 行目の同じ位置に置く。is-stale が付くまで CSS で隠し、付くと経過の文字と入れ替わる
+    if (stale !== '') {
+      parts.push(`<text class="node-stale" x="${LEFT + 12}" y="${y + 38}">${STALE_WORD} ${staleTime(node.quietSec, 'tspan')}</text>`);
     }
   } else if (shape === 'verdict') {
     parts.push(`<text class="node-label" x="${CX}" y="${mid(p) + 4}" text-anchor="middle">${escapeHtml(node.label)}</text>`);
@@ -127,17 +136,19 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>): string {
   }
   const pick = pickable.has(node.id) ? pickAttrs(node.id) : '';
   const waitingMark = node.waitingSec != null ? ' is-waiting' : '';
-  return `<g class="node is-${node.status}${waitingMark}" data-node="${escapeHtml(node.id)}"${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
+  return `<g class="node is-${node.status}${waitingMark}" data-node="${escapeHtml(node.id)}"${stale}${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
 }
 
-function renderEdges(placed: Placed[]): string {
+function renderEdges(placed: Placed[], staleAfterSec: number | null): string {
   const edges: string[] = [];
   for (let i = 1; i < placed.length; i++) {
     const from = placed[i - 1];
     const to = placed[i];
     // 動いている段へ入る矢印にだけ、流れる点の印を付ける（始まりの時刻が読めて経過が出ているとき）
-    const flowing = to.node.runningSec != null ? ' is-flowing' : '';
-    edges.push(`<line class="edge${flowing}" x1="${CX}" y1="${from.y + from.h}" x2="${CX}" y2="${to.y - 2}" marker-end="url(#mk-edge)"/>`);
+    const flowing = to.node.runningSec != null;
+    // 矢印は節の外の別の要素なので、節の is-stale は届かない。流れる点を止めるため、節と同じ値の属性を自分で持つ
+    const stale = flowing ? staleAttrs(to.node.quietSec, staleAfterSec) : '';
+    edges.push(`<line class="edge${flowing ? ' is-flowing' : ''}"${stale} x1="${CX}" y1="${from.y + from.h}" x2="${CX}" y2="${to.y - 2}" marker-end="url(#mk-edge)"/>`);
   }
   const verdict = placed.find((p) => p.node.id === 'verdict');
   const label = verdict ? `<text class="edge-label" x="${CX + 8}" y="${verdict.y + verdict.h + GAP / 2 + 4}">合格</text>` : '';
@@ -192,13 +203,14 @@ const DEFS = `<defs>
 /**
  * 節（開発フローは NODE_ORDER の11個、パイプは段の並び）を、縦の流れ図にする。
  * pickable は理由を持つ（押して選べる）節の id。空なら印を付けない。
+ * staleAfterSec は「止まっているかも」の目安の秒（D0021）。null なら更新なしの印は出さない。
  */
-export function renderFlowSvg(nodes: PipelineNode[], pickable: ReadonlySet<NodeId> = new Set()): string {
+export function renderFlowSvg(nodes: PipelineNode[], pickable: ReadonlySet<NodeId> = new Set(), staleAfterSec: number | null = null): string {
   const placed = place(nodes);
   // role="img" の中身は読み上げの対象から外れるので、押せる節があるときは group にする
   const role = placed.some((p) => pickable.has(p.node.id)) ? 'group' : 'img';
   const last = placed.at(-1);
   const height = last ? last.y + last.h + TOP : TOP * 2;
   const summary = nodes.map((n) => `${n.label} ${NODE_STATUS_LABELS[n.status]}`).join('、');
-  return `<svg class="flow" viewBox="0 0 ${WIDTH} ${height}" role="${role}" aria-label="${escapeHtml(`パイプラインの図：${summary}`)}">${DEFS}${renderEdges(placed)}${renderLoops(placed)}${placed.map((p) => renderNode(p, pickable)).join('')}</svg>`;
+  return `<svg class="flow" viewBox="0 0 ${WIDTH} ${height}" role="${role}" aria-label="${escapeHtml(`パイプラインの図：${summary}`)}">${DEFS}${renderEdges(placed, staleAfterSec)}${renderLoops(placed)}${placed.map((p) => renderNode(p, pickable, staleAfterSec)).join('')}</svg>`;
 }

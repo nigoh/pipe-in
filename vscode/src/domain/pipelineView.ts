@@ -3,7 +3,8 @@ import { artifactDefsFor, buildArtifactList, isArtifactReady } from './artifacts
 import type { ArtifactEntry, ArtifactName } from './artifacts.ts';
 import { buildGantt } from './gantt.ts';
 import type { GanttModel } from './gantt.ts';
-import { isDevRecord, parseRunRecord } from './runRecord.ts';
+import { latestMtime, quietSecAt, validMtime } from './quiet.ts';
+import { isDevRecord, isReadableState, parseRunRecord } from './runRecord.ts';
 import type { RunRecord, StageDef, StageRun, TokenCounts, UsageSummary, VerdictFailure } from './runRecord.ts';
 import { STAGE_LABELS } from './stage.ts';
 import type { DevStage, Stage } from './stage.ts';
@@ -11,16 +12,29 @@ import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
 import { elapsedSec, parseInstant } from './timestamp.ts';
 
+/**
+ * 段のログ 1 つの写し：ファイル名と中身と、ファイルの更新時刻。
+ * 以前の `{ fileName; text }` と同じく、型の別名で書く（interface だと Record<string, unknown> との型変換が通らなくなる）。
+ */
+export type StageLogFile = {
+  fileName: string;
+  text: string;
+  /** ファイルの更新時刻（UTC のミリ秒）。読めない・手で作った写しでは null か無し（印は出さない） */
+  mtimeMs?: number | null;
+};
+
 /** 記録の写し。ファイルの中身だけ。基盤の層が作る。 */
 export interface WorkDirSnapshot {
   /** 表示用のパス（記録なしの表示に出す） */
   workDir: string;
   /** state.json の中身。ないなら null */
   stateJson: string | null;
-  /** logs/ の *.jsonl（ファイル名だけ＋中身）。順は問わない */
-  stageLogs: { fileName: string; text: string }[];
+  /** logs/ の *.jsonl（ファイル名＋中身＋更新時刻）。順は問わない */
+  stageLogs: StageLogFile[];
   /** ある成果物の中身。ないものは鍵を持たない */
   artifacts: Partial<Record<ArtifactName, string>>;
+  /** archive/ の前の実行の写し。止まっているかもの印の対象から外す。省けば false */
+  previous?: boolean;
 }
 
 export type NodeStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
@@ -105,6 +119,8 @@ export interface PipelineNode {
   runningSec?: number | null;
   /** 確認待ちの確認の節だけ、待ち始めの時刻からの経過秒。ほかは null（同上） */
   waitingSec?: number | null;
+  /** 動いている段の節だけ、段のログが最後に更新されてからの秒（view.quietSec と同じ値）。ほかは null（同上） */
+  quietSec?: number | null;
   /** 確認の節だけ数値（0 以上）。ほかは null */
   reviseCount: number | null;
   /** 実装の節だけ数値（0 以上）。ほかは null */
@@ -155,6 +171,11 @@ export interface PipelineView {
   revisions: ReviseNote[];
   /** 全体の経過（バナー用）。始まりの時刻が読めない・数え上げる時刻が無い記録では null */
   elapsed: Elapsed | null;
+  /**
+   * 動いている段の、段のログが最後に更新されてからの秒（止まっているかもの印の元は、ここ 1 つ）。
+   * 印の対象でない run・更新時刻が読めない・時計が無いときは null（省いてもよい）
+   */
+  quietSec?: number | null;
   /** 実行が2回以上ある段の、回ごとの時間と合計 */
   stageTimes: StageTimes[];
   /** 時系列（段の実行ごとの行・エージェントの帯・確認を待った帯・横軸） */
@@ -284,14 +305,16 @@ interface ReadLog {
   name: StageLogName;
   log: StageLog;
   fileName: string;
+  /** ファイルの更新時刻（UTC のミリ秒）。読めなければ null */
+  mtimeMs: number | null;
 }
 
 /** 名前の読めるログだけを (seq, fileName) の昇順に並べる。 */
 function readLogs(stageLogs: WorkDirSnapshot['stageLogs']): ReadLog[] {
   const logs: ReadLog[] = [];
-  for (const { fileName, text } of stageLogs) {
-    const name = parseStageLogName(fileName);
-    if (name) logs.push({ name, log: parseStageLog(text), fileName });
+  for (const file of stageLogs) {
+    const name = parseStageLogName(file.fileName);
+    if (name) logs.push({ name, log: parseStageLog(file.text), fileName: file.fileName, mtimeMs: validMtime(file.mtimeMs) });
   }
   return logs.sort((a, b) => a.name.seq - b.name.seq || (a.fileName < b.fileName ? -1 : a.fileName > b.fileName ? 1 : 0));
 }
@@ -322,6 +345,7 @@ function makeNode(id: NodeId, status: NodeStatus, extra: Partial<PipelineNode> =
     status,
     runningSec: null,
     waitingSec: null,
+    quietSec: null,
     reviseCount: null,
     sendBackCount: null,
     metrics: null,
@@ -449,11 +473,26 @@ function secondsSince(text: string | null, clock: ViewClock | undefined): number
   return from === null ? null : elapsedSec(from, clock.nowMs);
 }
 
-/** 動いている段の節に runningSec、確認待ちの確認の節に waitingSec を付ける（付けられるときだけ）。 */
+/** 止まっているかもしれない印の対象か（D0021）：state.json がオブジェクトとして読め、final が無く、前の実行（archive/）でない run。 */
+function staleEligible(snapshot: WorkDirSnapshot, record: RunRecord): boolean {
+  return snapshot.previous !== true && record.final === null && isReadableState(snapshot.stateJson);
+}
+
+/**
+ * 動いている段の、最後の更新からの秒。基準は run の全ログ（名前の読めるもの）のうち更新時刻が読める最新。
+ * 動いているログが無い・そのログ自身の更新時刻が読めない・時計が無い・「今」が壊れているなら null（ほかのログの時刻で代わりにしない）。
+ */
+function quietSecOf(logs: ReadLog[], running: ReadLog | null, clock: ViewClock | undefined): number | null {
+  if (running === null || running.mtimeMs === null || clock === undefined) return null;
+  return quietSecAt(latestMtime(logs.map((l) => l.mtimeMs)), clock.nowMs);
+}
+
+/** 動いている段の節に runningSec と quietSec、確認待ちの確認の節に waitingSec を付ける（付けられるときだけ）。 */
 function withLiveSeconds(
   nodes: PipelineNode[],
   runningLog: ReadLog | null,
   pending: RunRecord['pendingReview'],
+  quietSec: number | null,
   clock: ViewClock | undefined,
 ): PipelineNode[] {
   const runningSec = runningLog === null ? null : secondsSince(runningLog.log.startedAt, clock);
@@ -461,7 +500,10 @@ function withLiveSeconds(
   const waitingStage = runningLog === null && pending !== null ? pending.stage : null;
   const waitingSec = waitingStage === null ? null : secondsSince(pending?.since ?? null, clock);
   return nodes.map((node) => {
-    if (runningSec !== null && node.id === runningLog?.name.stage) return { ...node, runningSec };
+    // Prompt の at が無い古い記録（runningSec が null）でも、更新なしの印は出す
+    if ((runningSec !== null || quietSec !== null) && node.id === runningLog?.name.stage) {
+      return { ...node, ...(runningSec !== null ? { runningSec } : {}), ...(quietSec !== null ? { quietSec } : {}) };
+    }
     if (waitingSec !== null && node.id === `${REVIEW_NODE_PREFIX}${waitingStage}` && node.status === 'pending') {
       return { ...node, waitingSec };
     }
@@ -519,7 +561,9 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
   const baseNodes = dev
     ? buildDevNodes(snapshot, record, runningStage)
     : buildPipeNodes(snapshot, record, record.stages ?? [], runningStage);
-  const nodes = withLiveSeconds(baseNodes, runningLog, record.pendingReview, clock);
+  // 印の元は 1 つ。節・時系列の帯・一覧の行は、どれもこの値から取る（節が作られない段名でも食い違わない）
+  const quietSec = staleEligible(snapshot, record) ? quietSecOf(logs, runningLog, clock) : null;
+  const nodes = withLiveSeconds(baseNodes, runningLog, record.pendingReview, quietSec, clock);
 
   const noRecords =
     snapshot.stateJson === null && logs.length === 0 && !('00_input.md' in snapshot.artifacts)
@@ -549,6 +593,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
     sendBacks: buildSendBacks(record, stageLabels),
     revisions: buildRevisions(record, stageLabels),
     elapsed: overallElapsed(record, runningLog, nodes, clock),
+    quietSec,
     stageTimes: buildStageTimes(record, stageLabels),
     gantt: buildGantt({
       record,
@@ -565,6 +610,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
             },
       labels: stageLabels,
       clock,
+      quietSec,
     }),
   };
 }
