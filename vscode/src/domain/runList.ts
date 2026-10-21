@@ -1,4 +1,5 @@
-// 実行の一覧の行：記録の写しから1行を組み立てる・状態・並び・省く件数・覚えた値の検め。純粋（ファイル・時計・vscode に触れない）。
+// 実行の一覧の行：記録の写しから1行を組み立てる・状態・並び・省く件数・覚えた値の検め、
+// ステータスバーの件数に数える行と、ボタンで先に出す確認待ちの判断（D0024）。純粋（ファイル・時計・vscode に触れない）。
 // 行の状態と今の段は、同じ記録から作った図の帯・ステータスバーと食い違わないよう、buildPipelineView の結果から決める。
 import { isJsonObject } from './json.ts';
 import { buildPipelineView } from './pipelineView.ts';
@@ -231,6 +232,56 @@ export function sortRows(rows: readonly RunRow[]): RunRow[] {
     }
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
+}
+
+/** 数える状態：確認待ち・動いている・待ち（終わった以外）。 */
+type CountedState = Exclude<RunState, 'done'>;
+
+/** 数える行か：確認待ち・動いている・待ち。終わった行（final のある行・archive の行）は数えない。 */
+export function isCounted(row: Pick<RunRow, 'state'>): row is Pick<RunRow, 'state'> & { state: CountedState } {
+  return row.state !== 'done';
+}
+
+/** ステータスバーの件数。数え方は countStates（状態のタブの件数）に任せ、足すのは top だけ。 */
+export interface StatusCounts {
+  /** 確認待ち M */
+  waiting: number;
+  /** 動き N：動いている行と待ちの行（一覧のタブ「動いている」と同じ数え方） */
+  active: number;
+  /** 数える行のうち、いちばん優先の高い状態（確認待ち ＞ 動いている ＞ 待ち）。数える行が無ければ null */
+  top: CountedState | null;
+}
+
+export function statusCounts(rows: readonly Pick<RunRow, 'state'>[]): StatusCounts {
+  const counts = countStates(rows);
+  let top: CountedState | null = null;
+  for (const r of rows) {
+    if (isCounted(r) && (top === null || STATE_ORDER[r.state] < STATE_ORDER[top])) top = r.state;
+  }
+  return { waiting: counts.waiting, active: counts.running, top };
+}
+
+/** 数える行を、一覧と同じ並び（sortRows）で返す。渡した配列は変えない。 */
+export function countedRows(rows: readonly RunRow[]): RunRow[] {
+  return sortRows(rows.filter((r) => isCounted(r)));
+}
+
+/**
+ * 選んでいる実行のほかに、数える行があるか（ステータスバーを件数の形にするか）。
+ * 選んでいる実行は一覧の行（key が同じ行）で決める。図の状態では決めない。一覧に行が無い選び（記録なしの直下）は数える行でない。
+ */
+export function hasOtherCounted(rows: readonly Pick<RunRow, 'key' | 'state'>[], selected: RunKey): boolean {
+  return rows.some((r) => isCounted(r) && r.key !== selected);
+}
+
+/**
+ * ボタンで先に出す確認待ちの行の key。
+ * 選んでいる実行がすでに確認待ちのとき・確認待ちが無いときは null。そうでなければ、一覧の並び（sortRows）で先に出る確認待ちの行の key。
+ * 返すのは渡した行の key で、実行の目印の形に合うものだけ（selected は一覧の行を探すのに使うだけで、返さない）。
+ */
+export function frontWaitingKey(rows: readonly RunRow[], selected: RunKey | null): RunKey | null {
+  if (rows.find((r) => r.key === selected)?.state === 'waiting') return null;
+  return sortRows(rows.filter((r) => r.state === 'waiting' && parseRunKey(r.key) !== null))[0]?.key ?? null;
 }
 
 /** 省いた archive の件数の文字。0 以下は空。 */

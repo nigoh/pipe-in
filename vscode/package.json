@@ -48,7 +48,7 @@
         "pipe-in.showOtherWorktrees": {
           "type": "boolean",
           "default": true,
-          "description": "同じ git リポジトリの別の worktree の実行も一覧に出す。切ると、いまの work_dir の実行だけ"
+          "description": "同じ git リポジトリの別の worktree の実行も一覧に出す。切ると、いまの work_dir の実行だけ。ステータスバーの件数と、パネルを閉じている間の読み直しにも効く"
         },
         "pipe-in.staleAfterMinutes": {
           "type": "integer",

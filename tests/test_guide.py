@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from urllib.parse import unquote
@@ -906,3 +907,408 @@ def test_D0014_AC_31_決定の記録D0014があり索引に行がありD0009を�
     text = records[0].read_text(encoding="utf-8")
     missing = [w for w in ["D0009", "置き換える", "test_readme.py", "test_headless_audit.py", "test_rename.py"] if w not in text]
     assert missing == []
+
+
+# ---- D0024-AC-46〜49: ステータスバーの件数を、ガイド・拡張の README・設計の層の表に書く ------------------------------------
+#
+# 探す言葉の表と古い文の一覧で、文書がそろっているかを見張る（テスト先行のときは、実装の段が文書を直す目標にした。
+# 言葉は設計の「文書の検査」に合わせた。説明の言い方は文書を書く人が決める）。
+# 文書は読むだけで、書かない。検査そのもの（節の取り出し・言葉の探し方・古い文の見つけ方・文の行・設定表と層の表の行の取り出し）は、
+# 偽の文書で確かめる。そちらは今のまま通る（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）。
+# 文書の言い方は「ステータスバー」にそろえる（要件定義の「状態バー」と同じもの。利用者向けの文書と statusBar.test.ts に合わせた）。
+
+STATUSBAR_TITLE = "ステータスバー"
+SHOW_OTHER_KEY = "pipe-in.showOtherWorktrees"
+VSCODE_README = ROOT / "vscode" / "README.md"
+VSCODE_PACKAGE = ROOT / "vscode" / "package.json"
+DESIGN_DOC = ROOT / "docs" / "development" / "design.md"
+
+# （pytest の id, 何の説明か, 節の中を探す正規表現。すべてに合うこと）。言葉は設計の「文書の検査」の表に合わせる
+STATUSBAR_GUIDE_WORDS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("switch", "件数の形に切り替える条件（選んでいる実行のほかに、動いている・確認待ち・待ちの実行があるとき）", (r"選んでいる実行のほか",)),
+    ("range-worktree", "数える範囲：別の worktree は 8 個まで", (r"8 ?個",)),
+    ("range-archive", "数える範囲：archive/ と終わった実行は入らない", (r"archive/",)),
+    ("range-stale", "数える範囲：止まっているかもしれない実行は「動き」に入る（印は出さない）", (r"止まっているかもしれない",)),
+    # 「待ち」と「動き」が同じ文に（確認待ちの「待ち」は数えない）
+    ("range-idle", "数える範囲：待ちは「動き」に入る", (r"(?<!確認)待ち[^。\n]*動き|動き[^。\n]*(?<!確認)待ち",)),
+    ("range-both", "数える範囲：動いている段と確認待ちの印が同時にある実行は「動き」", (r"確認待ちの印",)),
+    # 「優先」と、確認待ち・動いている・待ちがこの順に同じ行に並ぶこと（確認待ちの「待ち」は 3 つ目に数えない）
+    ("icon-order", "アイコンの優先順（確認待ち ＞ 動いている ＞ 待ち の並びが同じ行にあること）", (r"優先", r"確認待ち.{0,30}動いている.{0,30}(?<!確認)待ち")),
+    ("tooltip", "説明に出るもの（実行ごとの名前と状態・10 件まで・選んでいる実行・利用枠・クリックの案内）", (r"10 ?件", r"利用枠")),
+    ("button", "ボタンの動き：確認待ちを先に出す", (r"先に出",)),
+    ("button-hidden", "ボタンの動き：絞り込みやタブで選んだ行が隠れうる", (r"隠れ",)),
+    ("bg-poll", "パネルが閉じていても別の worktree の行があれば約 5 秒ごとに読み直す", (r"閉じて", r"5 ?秒")),
+    ("setting", "切る設定 pipe-in.showOtherWorktrees", (r"pipe-in\.showOtherWorktrees",)),
+    ("limit-none-yet", "限界：別の worktree に行がまだ 1 つも無いあいだは動かない", (r"1 ?つも(?:無い|ない)",)),
+    ("limit-transient", "限界：別の worktree の行を読み損ねたときも止まる", (r"読め|読み損|読み取れ",)),
+    ("not-notify", "通知ではない（音も吹き出しも出さない）", (r"吹き出し",)),
+]
+STATUSBAR_WORD = {sid: (sid, label, patterns) for sid, label, patterns in STATUSBAR_GUIDE_WORDS}
+
+# 古い文の全体（一部の言葉では探さない：新しい文が「見えている間だけ」を正しく残すことがあり、そのときに落ちないため）。
+# 3 つ目は、要件定義 AC-46 と設計の「文書」の節が直す対象に挙げた文（件数の形ではボタンの文字に実行が出ないので、そのままでは食い違う）
+STATUSBAR_OLD_GUIDE = [
+    ("poll-visible-only", "別の worktree と `archive/` の実行は、パネルが見えている間だけ約 5 秒ごとに読み直す"),
+    ("poll-stops", "読み直しが止まるのは、パネルが隠れているとき、または別の worktree・`archive/` の行が無く"),
+    ("selected-shows-run", "別の worktree の実行を選んでいる間は、ステータスバーもその実行を出します"),
+]
+STATUSBAR_OLD_README = [
+    ("poll-visible-only", "別の worktree と `archive/` は、パネルが見えている間だけ約5秒ごとに読み直す"),
+    ("poll-stops", "パネルが隠れている間と、別の場所の行も動いている実行も無いときは読み直さない"),
+]
+
+# ガイドの設定の文（vscode.md）。（id, 文の頭の言葉, その文にある新しい言葉）
+STATUSBAR_GUIDE_SETTING = [
+    ("count", "別の worktree を出したくないときは", "ステータスバーの件数"),
+    ("poll", "別の worktree を出したくないときは", "パネルを閉じている間の読み直し"),
+]
+
+# 拡張の README の 5 つの文。行を文の頭の言葉で見つけ、その行に新しい言葉があること。（id, 文の頭の言葉, 新しい言葉）
+STATUSBAR_README_SENTENCES = [
+    ("button-text", "ボタンの文字は記録に合わせて変わる", "件数"),
+    ("selected-run", "ステータスバーもその実行を出す", "件数"),
+    ("pause", "確認で止まっている（`--pause`）ときは", "件数"),
+    ("usage-tooltip", "ステータスバーの説明にも、利用枠", "件数"),
+    ("poll", "5秒ごと", "別の worktree の行があるあいだ"),
+]
+
+# 設計の拡張の層の表。（層の名前, その行にある言葉）
+STATUSBAR_DESIGN_LAYERS = [
+    ("ドメイン", "ステータスバーの件数"),
+    ("ドメイン", "先に出す確認待ち"),
+    ("アプリケーション", "世代"),
+    ("アプリケーション", "別の worktree の行"),
+    ("画面", "statusBar.ts"),
+    ("画面", "件数の形"),
+]
+
+
+def statusbar_part(md: str) -> str:
+    """「実行を見る」の中の、見出しに「ステータスバー」を含む小見出し（### 以下）の節の本文。無ければ空。"""
+    return heading_part(section(md, "実行を見る"), STATUSBAR_TITLE)
+
+
+def words_missing(part: str, words=STATUSBAR_GUIDE_WORDS) -> list[str]:
+    """節の本文に、探す言葉がそろっていない項目の id（表の順）。節が空なら全部。"""
+    return [sid for sid, _, patterns in words if not all(re.search(p, part) for p in patterns)]
+
+
+def leftover_sentences(md: str, old: list[tuple[str, str]]) -> list[str]:
+    """古い文の全体が残っているものの id。"""
+    return [sid for sid, sentence in old if sentence in md]
+
+
+def lines_with(md: str, lead: str) -> list[str]:
+    """文の頭の言葉を含む行。"""
+    return [line for line in md.splitlines() if lead in line]
+
+
+def sentences_lacking(md: str, rows: list[tuple[str, str, str]]) -> list[str]:
+    """表の行（id, 文の頭の言葉, 新しい言葉）のうち、頭の言葉の行が無いもの・どの行にも新しい言葉が無いものの id。"""
+    return [sid for sid, lead, word in rows if not any(word in line for line in lines_with(md, lead))]
+
+
+def settings_description(md: str, key: str) -> str | None:
+    """設定表の行（| `key` | 既定 | 意味 |）の「意味」の文。行が無ければ None。"""
+    prefix = f"| `{key}` |"
+    for line in md.splitlines():
+        if line.startswith(prefix):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            return cells[2] if len(cells) >= 3 else None
+    return None
+
+
+def table_row(md: str, name: str) -> str | None:
+    """表の行のうち、最初の列がちょうど name の行。見出しの行（| 層 |）や、名前が似ているだけの行は拾わない。無ければ None。"""
+    prefix = f"| {name} |"
+    return next((line for line in md.splitlines() if line.startswith(prefix)), None)
+
+
+# ---- AC-46：ガイド（docs/guide/vscode.md） ----
+
+
+def test_D0024_AC_46_ガイドの実行を見るの中にステータスバーの節がある():
+    """D0024-AC-46: docs/guide/vscode.md の「実行を見る」の中に、「ステータスバー」の見出し（### 以下）の節がある。"""
+    md = read_doc(GUIDE / "vscode.md")
+    titles = [title for depth, title in headings(section(md, "実行を見る")) if depth >= 3]
+    assert statusbar_part(md), f"「実行を見る」の中に「{STATUSBAR_TITLE}」の節が無い（今ある小見出し：{titles}）"
+
+
+@pytest.mark.parametrize("sid", [i for i, _, _ in STATUSBAR_GUIDE_WORDS])
+def test_D0024_AC_46_ガイドのステータスバーの節に説明がある(sid):
+    """D0024-AC-46: 「ステータスバー」の節に、件数の形に切り替える条件・数える範囲（別の worktree は 8 個まで・archive/ と終わった実行は入らない・
+    止まっているかもしれない実行と待ちは「動き」・動いている段と確認待ちの印が同時にある実行は「動き」）・アイコンの優先順（確認待ち ＞ 動いている ＞ 待ち の並び）・説明に出るもの・
+    ボタンの動きと選んだ行が隠れうること・パネルを閉じていても約 5 秒ごとに読み直すこと・切る設定・限界（行がまだ 1 つも無いあいだ・読み損ねたとき）・
+    通知ではないこと、が書いてある（探す言葉の表の 1 項目ずつ）。"""
+    part = statusbar_part(read_doc(GUIDE / "vscode.md"))
+    _, label, patterns = STATUSBAR_WORD[sid]
+    assert part, f"docs/guide/vscode.md に「{STATUSBAR_TITLE}」の節が無い"
+    assert sid not in words_missing(part, [STATUSBAR_WORD[sid]]), f"「{STATUSBAR_TITLE}」の節に、{label} の説明が無い（探した形：{patterns}）"
+
+
+@pytest.mark.parametrize("sid,sentence", STATUSBAR_OLD_GUIDE, ids=[i for i, _ in STATUSBAR_OLD_GUIDE])
+def test_D0024_AC_46_ガイドの古い文が消えている(sid, sentence):
+    """D0024-AC-46: docs/guide/vscode.md に、古い文（「パネルが見えている間だけ」だけで読み直す・読み直しが止まるのはパネルが隠れているとき・
+    別の worktree の実行を選んでいる間はステータスバーもその実行を出します）が残っていない。"""
+    assert leftover_sentences(read_doc(GUIDE / "vscode.md"), [(sid, sentence)]) == [], f"古い文が残っている：{sentence}"
+
+
+@pytest.mark.parametrize("sid,lead,word", STATUSBAR_GUIDE_SETTING, ids=[i for i, _, _ in STATUSBAR_GUIDE_SETTING])
+def test_D0024_AC_46_ガイドの設定の文にステータスバーの件数と読み直しが書いてある(sid, lead, word):
+    """D0024-AC-46: docs/guide/vscode.md の「別の worktree を出したくないときは、設定 `pipe-in.showOtherWorktrees` を切ります」の文に、
+    切るとステータスバーの件数とパネルを閉じている間の読み直しにも効くことが書いてある。"""
+    md = read_doc(GUIDE / "vscode.md")
+    assert lines_with(md, lead), f"docs/guide/vscode.md に「{lead}」で始まる設定の文が無い"
+    assert sentences_lacking(md, [(sid, lead, word)]) == [], f"設定の文に「{word}」が無い"
+
+
+# ---- AC-46 の検査そのものの確かめ（今のまま通る。守る） ----
+
+# 探す言葉を 1 項目ずつ満たす 1 行の見本（1 行が 1 つの項目だけを満たす）
+STATUSBAR_SAMPLE_LINES: dict[str, str] = {
+    "switch": "- 選んでいる実行のほかに、数える実行があるときだけ件数の形になります。",
+    "range-worktree": "- 別の worktree は新しい方から 8 個までです。",
+    "range-archive": "- `archive/` の実行と終わった実行は数えません。",
+    "range-stale": "- 止まっているかもしれない実行も数えます。印は出しません。",
+    "range-idle": "- 待ちの実行は「動き」に数えます。",
+    "range-both": "- 動いている段と確認待ちの印が同時にある実行は「動き」です。",
+    "icon-order": "- アイコンは、確認待ち ＞ 動いている ＞ 待ち の順に優先します。",
+    "tooltip": "- 説明には、実行ごとの名前と状態を 10 件まで並べ、選んでいる実行と利用枠、クリックの案内を出します。",
+    "button": "- ボタンを押すと、確認待ちの実行を先に出します。",
+    "button-hidden": "- 絞り込みやタブで、選んだ行が隠れることがあります。",
+    "bg-poll": "- パネルを閉じていても、別の worktree の行があれば約 5 秒ごとに読み直します。",
+    "setting": "- 切るときは、設定 `pipe-in.showOtherWorktrees` を使います。",
+    "limit-none-yet": "- 別の worktree に行がまだ 1 つも無いあいだは、読み直しが始まりません。",
+    "limit-transient": "- 行を読めなかったときも、読み直しが止まります。",
+    "not-notify": "- 通知ではないので、音も吹き出しも出ません。",
+}
+
+
+def statusbar_guide_sample(skip: str | None = None, heading: str = f"### {STATUSBAR_TITLE}", after: str = "") -> str:
+    """見本のガイド。「実行を見る」の中の heading の節に、skip 以外の見本の行を並べる。after は次の節（### 狭い幅のとき）に足す文。"""
+    body = "\n".join(line for sid, line in STATUSBAR_SAMPLE_LINES.items() if sid != skip)
+    return (
+        "# VSCode の拡張\n\n## 実行を見る\n\n### 止まっているかもしれない実行\n\n本文\n\n"
+        f"{heading}\n\n{body}\n\n### 狭い幅のとき\n\n別の節の本文\n{after}\n## パイプ作業台\n\n本文\n"
+    )
+
+
+def test_D0024_AC_46_検査そのものは見本の行がそろえば欠けなしにする_守る():
+    """D0024-AC-46: 探す側（statusbar_part と words_missing）そのものの確かめ。見本の行が表の全項目にあり、そろった見本には欠けが無い。（今のまま通る。守る）"""
+    assert set(STATUSBAR_SAMPLE_LINES) == {sid for sid, _, _ in STATUSBAR_GUIDE_WORDS}
+    assert words_missing(statusbar_part(statusbar_guide_sample())) == []
+
+
+@pytest.mark.parametrize("sid", [i for i, _, _ in STATUSBAR_GUIDE_WORDS])
+def test_D0024_AC_46_検査そのものは言葉が無い見本の欠けをその項目だけ見つける_守る(sid):
+    """D0024-AC-46: 探す側そのものの確かめ。見本から 1 項目の行だけを抜くと、欠けとして見つかるのはその項目だけ。（今のまま通る。守る）"""
+    assert words_missing(statusbar_part(statusbar_guide_sample(skip=sid))) == [sid]
+
+
+def test_D0024_AC_46_検査そのものは節が無い見本の全項目を欠けとして見つける_守る():
+    """D0024-AC-46: 探す側そのものの確かめ。「ステータスバー」の見出しが無い見本は、言葉が別の節にそろっていても、全項目が欠け（節の外の言葉を拾わない）。（今のまま通る。守る）"""
+    md = statusbar_guide_sample(heading="### 時間と動き")
+    assert statusbar_part(md) == ""
+    assert words_missing(statusbar_part(md)) == [sid for sid, _, _ in STATUSBAR_GUIDE_WORDS]
+
+
+def test_D0024_AC_46_検査そのものは実行を見るの外の節を拾わない_守る():
+    """D0024-AC-46: 探す側そのものの確かめ。「実行を見る」の外（## パイプ作業台の中）にある「ステータスバー」の小見出しは、節として取り出さない。（今のまま通る。守る）"""
+    body = "\n".join(STATUSBAR_SAMPLE_LINES.values())
+    md = f"## 実行を見る\n\n### 時間と動き\n\n本文\n\n## パイプ作業台\n\n### {STATUSBAR_TITLE}\n\n{body}\n"
+    assert statusbar_part(md) == ""
+
+
+def test_D0024_AC_46_検査そのものは次の節に移した言葉を拾わない_守る():
+    """D0024-AC-46: 探す側そのものの確かめ。1 項目の行を次の節（### 狭い幅のとき）へ移すと、その項目は欠け（節は次の同じ深さの見出しの前まで）。（今のまま通る。守る）"""
+    md = statusbar_guide_sample(skip="not-notify", after=STATUSBAR_SAMPLE_LINES["not-notify"] + "\n")
+    assert words_missing(statusbar_part(md)) == ["not-notify"]
+
+
+@pytest.mark.parametrize(
+    "target,part,lacking",
+    [
+        ("range-idle", "- 動き 2・確認待ち 1 の形になります。", True),
+        ("range-idle", "- 待ちの実行があります。動きの数え方は別です。", True),
+        ("range-idle", "- 待ちの実行があります。\n- 動きは別の行です。", True),
+        ("range-idle", "- 動きには、待ちの実行も入ります。", False),
+        ("range-idle", "- 待ちは「動き」に入ります。", False),
+        ("tooltip", "- 実行を 10 件まで並べます。", True),
+        ("tooltip", "- 利用枠も出ます。", True),
+        ("tooltip", "- 実行を 10 件まで並べ、利用枠も出します。", False),
+        ("bg-poll", "- パネルを閉じていても読み直します。", True),
+        ("bg-poll", "- 約 5 秒ごとに読み直します。", True),
+        ("bg-poll", "- パネルを閉じていても約 5 秒ごとに読み直します。", False),
+        ("icon-order", "- 状態の優先順で決まります。", True),
+        ("icon-order", "- 確認待ち ＞ 動いている ＞ 待ち の順です。", True),
+        ("icon-order", "- 動いている ＞ 確認待ち ＞ 待ち の順に優先します。", True),
+        ("icon-order", "- 確認待ちを優先します。\n- 動いている実行は次です。\n- 待ちは最後です。", True),
+        ("icon-order", "- 確認待ち ＞ 動いている ＞ 確認待ち の順に優先します。", True),
+        ("icon-order", "- 確認待ち ＞ 動いている ＞ 待ち の順に優先します。", False),
+        ("icon-order", "- 優先は、確認待ち、動いている、待ちの順です。", False),
+    ],
+    ids=[
+        "idle-confirm-wait-only",
+        "idle-other-sentence",
+        "idle-other-line",
+        "idle-motion-first",
+        "idle-wait-first",
+        "tooltip-count-only",
+        "tooltip-rate-only",
+        "tooltip-both",
+        "poll-closed-only",
+        "poll-seconds-only",
+        "poll-both",
+        "order-priority-only",
+        "order-list-only",
+        "order-wrong",
+        "order-other-lines",
+        "order-third-is-confirm-wait",
+        "order-both",
+        "order-commas",
+    ],
+)
+def test_D0024_AC_46_検査そのものは複数の言葉が要る項目を正しく判断する_守る(target, part, lacking):
+    """D0024-AC-46: 探す側そのものの確かめ。「待ちと動きが同じ文」「10 件と利用枠」「閉じてと 5 秒」「優先と確認待ち ＞ 動いている ＞ 待ちの並び」のように
+    複数の言葉が要る項目は、片方だけ・別の文・別の行・確認待ちの「待ち」・並びの違いでは欠けとして見つけ、そろえば満たす。（今のまま通る。守る）"""
+    assert (target in words_missing(part, [STATUSBAR_WORD[target]])) is lacking
+
+
+def test_D0024_AC_46_検査そのものは古い文が残る見本を見つけ新しい文は見逃す_守る():
+    """D0024-AC-46: 古い文の検査そのものの確かめ（ガイド）。古い 3 つの文の全体が残る見本は 3 つとも見つけ、1 つだけなら 1 つだけを見つける。
+    「見えている間だけ」を正しく残した新しい文と、選んでいる実行が別の worktree にあれば、と書き換えた新しい文は見逃す。（今のまま通る。守る）"""
+    old_all = "\n".join(f"- {sentence}ので、…" for _, sentence in STATUSBAR_OLD_GUIDE)
+    assert leftover_sentences(old_all, STATUSBAR_OLD_GUIDE) == ["poll-visible-only", "poll-stops", "selected-shows-run"]
+    assert leftover_sentences(f"- {STATUSBAR_OLD_GUIDE[1][1]}ので、…", STATUSBAR_OLD_GUIDE) == ["poll-stops"]
+    assert leftover_sentences(f"- {STATUSBAR_OLD_GUIDE[2][1]}。", STATUSBAR_OLD_GUIDE) == ["selected-shows-run"]
+    new = (
+        "- いまの work_dir の実行は、今までどおり記録が変わるとすぐに描き直されます。"
+        "`archive/` の実行は、パネルが見えている間だけ約 5 秒ごとに読み直します。"
+        "別の worktree の行があるあいだは、パネルが閉じていても約 5 秒ごとに読み直します。"
+        "読み直しが止まるのは、別の worktree の行が無く、パネルが隠れているときです。"
+        "選んでいる実行が別の worktree にあれば、ステータスバーもその実行を出します（件数の形では、説明の「選んでいる実行」の行に出ます）。"
+    )
+    assert leftover_sentences(new, STATUSBAR_OLD_GUIDE) == []
+
+
+@pytest.mark.parametrize(
+    "label,md,want",
+    [
+        ("頭の言葉の行が無い", "- 関係のない行\n", ["a"]),
+        ("頭の言葉の行に新しい言葉が無い", "- 頭の言葉です。\n", ["a"]),
+        ("頭の言葉の行に新しい言葉がある", "- 頭の言葉です。新しい言葉もあります。\n", []),
+        ("新しい言葉が別の行にあるだけでは満たさない", "- 頭の言葉です。\n- 新しい言葉だけの行\n", ["a"]),
+        ("頭の言葉を含む行が 2 つあり、片方に新しい言葉がある", "- 頭の言葉の 1 行目\n- 頭の言葉の 2 行目に新しい言葉\n", []),
+    ],
+    ids=["no-lead", "no-word", "has-word", "word-on-other-line", "two-leads"],
+)
+def test_D0024_AC_47_検査そのものは文の行に新しい言葉があるかを判断する_守る(label, md, want):
+    """D0024-AC-47: 文の行の検査そのものの確かめ。頭の言葉の行が無い・その行に新しい言葉が無い（別の行にあっても）は欠けとして見つけ、
+    頭の言葉の行のどれかに新しい言葉があれば満たす。（今のまま通る。守る）"""
+    assert sentences_lacking(md, [("a", "頭の言葉", "新しい言葉")]) == want, label
+
+
+def test_D0024_AC_47_検査そのものはREADMEの5つの文の表を取り違えない_守る():
+    """D0024-AC-47: 5 つの文の表そのものの確かめ。新しい言葉の無い見本は 5 つとも欠け、そろった見本には欠けが無く、1 つの文を消すとその文だけが欠け。（今のまま通る。守る）"""
+    rows = STATUSBAR_README_SENTENCES
+    ids = [sid for sid, _, _ in rows]
+    assert len(rows) == 5
+    bare = "\n".join(f"- {lead}。" for _, lead, _ in rows)
+    full = "\n".join(f"- {lead}。{word}。" for _, lead, word in rows)
+    assert sentences_lacking(bare, rows) == ids
+    assert sentences_lacking(full, rows) == []
+    for index, sid in enumerate(ids):
+        without = "\n".join(f"- {lead}。{word}。" for i, (_, lead, word) in enumerate(rows) if i != index)
+        assert sentences_lacking(without, rows) == [sid]
+
+
+# ---- AC-47：拡張の README（vscode/README.md） ----
+
+
+@pytest.mark.parametrize("sid,lead,word", STATUSBAR_README_SENTENCES, ids=[i for i, _, _ in STATUSBAR_README_SENTENCES])
+def test_D0024_AC_47_拡張のREADMEのステータスバーに触れる文に件数の形と読み直しの条件がある(sid, lead, word):
+    """D0024-AC-47: vscode/README.md の、ステータスバーに触れる 4 つの文（ボタンの文字・選んだ実行・確認で止まっているとき・説明の利用枠）に件数の形が、
+    読み直しの文（5秒ごと）に「別の worktree の行があるあいだ」が書いてある。"""
+    md = read_doc(VSCODE_README)
+    assert lines_with(md, lead), f"vscode/README.md に「{lead}」を含む行が無い"
+    assert sentences_lacking(md, [(sid, lead, word)]) == [], f"「{lead}」の行に「{word}」が無い"
+
+
+@pytest.mark.parametrize("sid,sentence", STATUSBAR_OLD_README, ids=[i for i, _ in STATUSBAR_OLD_README])
+def test_D0024_AC_47_拡張のREADMEに古い読み直しの文が残っていない(sid, sentence):
+    """D0024-AC-47: vscode/README.md に、読み直しの古い文（パネルが見えている間だけ約5秒ごと・パネルが隠れている間は読み直さない）が残っていない。"""
+    assert leftover_sentences(read_doc(VSCODE_README), [(sid, sentence)]) == [], f"古い文が残っている：{sentence}"
+
+
+def test_D0024_AC_47_検査そのものは拡張のREADMEの古い文が残る見本を見つけ新しい文は見逃す_守る():
+    """D0024-AC-47: 古い文の検査そのものの確かめ（拡張の README）。古い 2 つの文の全体が残る見本は見つけ、新しい文は見逃す。（今のまま通る。守る）"""
+    old_both = "\n".join(f"- {sentence}。" for _, sentence in STATUSBAR_OLD_README)
+    assert leftover_sentences(old_both, STATUSBAR_OLD_README) == ["poll-visible-only", "poll-stops"]
+    new = "- `archive/` は、パネルが見えている間だけ約5秒ごとに読み直す。別の worktree の行があるあいだは、パネルが閉じていても読み直す。"
+    assert leftover_sentences(new, STATUSBAR_OLD_README) == []
+
+
+# ---- AC-48：設定 pipe-in.showOtherWorktrees の説明（package.json は manifest.test.ts） ----
+
+
+@pytest.mark.parametrize("phrase", ["ステータスバーの件数", "パネルを閉じている間の読み直し"])
+def test_D0024_AC_48_拡張のREADMEの設定表の説明に新しい文がある(phrase):
+    """D0024-AC-48: vscode/README.md の設定表の pipe-in.showOtherWorktrees の説明に、「ステータスバーの件数」と「パネルを閉じている間の読み直し」がある。"""
+    description = settings_description(read_doc(VSCODE_README), SHOW_OTHER_KEY)
+    assert description is not None, f"vscode/README.md の設定表に `{SHOW_OTHER_KEY}` の行が無い"
+    assert phrase in description, f"設定表の説明に「{phrase}」が無い（今の説明：{description}）"
+
+
+def test_D0024_AC_48_拡張のREADMEの設定表の説明はpackage_jsonのdescriptionと同じ_守る():
+    """D0024-AC-48: vscode/README.md の設定表の pipe-in.showOtherWorktrees の説明が、vscode/package.json の description と同じ文。
+    今も同じ文で、書き換えたあとも同じであることを守る。（今のまま通る。守る）"""
+    description = settings_description(read_doc(VSCODE_README), SHOW_OTHER_KEY)
+    assert description is not None, f"vscode/README.md の設定表に `{SHOW_OTHER_KEY}` の行が無い"
+    manifest = json.loads(read_doc(VSCODE_PACKAGE))
+    assert description == manifest["contributes"]["configuration"]["properties"][SHOW_OTHER_KEY]["description"]
+
+
+def test_D0024_AC_48_検査そのものは設定表の行の説明だけを取り出す_守る():
+    """D0024-AC-48: 設定表の取り出し（settings_description）そのものの確かめ。表の行の 3 つ目の列を返し、鍵が違う行・行が無い・文中の言及・列が足りない行は拾わない。（今のまま通る。守る）"""
+    md = (
+        "| 設定 | 既定 | 意味 |\n| :--- | :--- | :--- |\n"
+        "| `pipe-in.workDir` | `docs/pipeline` | work_dir |\n"
+        f"| `{SHOW_OTHER_KEY}` | `true` | 別の worktree も出す。切ると、いまの work_dir だけ |\n"
+        "| `pipe-in.pipesDir` | `` |\n\n"
+        f"文中の `{SHOW_OTHER_KEY}` の説明。\n"
+    )
+    assert settings_description(md, SHOW_OTHER_KEY) == "別の worktree も出す。切ると、いまの work_dir だけ"
+    assert settings_description(md, "pipe-in.workDir") == "work_dir"
+    assert settings_description(md, "pipe-in.pipesDir") is None
+    assert settings_description(md, "pipe-in.staleAfterMinutes") is None
+    assert settings_description(f"文中の | `{SHOW_OTHER_KEY}` | はここ | です |", SHOW_OTHER_KEY) is None
+
+
+# ---- AC-49：設計の拡張の層の表（docs/development/design.md） ----
+
+
+@pytest.mark.parametrize("layer,word", STATUSBAR_DESIGN_LAYERS, ids=[f"{layer}-{word}" for layer, word in STATUSBAR_DESIGN_LAYERS])
+def test_D0024_AC_49_designの拡張の層の表の行にステータスバーの件数の部品が書いてある(layer, word):
+    """D0024-AC-49: docs/development/design.md の拡張の層の表の、ドメインの行に「ステータスバーの件数」「先に出す確認待ち」、
+    アプリケーションの行に「世代」「別の worktree の行」、画面の行に「statusBar.ts」「件数の形」が書いてある。"""
+    row = table_row(read_doc(DESIGN_DOC), layer)
+    assert row is not None, f"design.md の拡張の層の表に「| {layer} |」で始まる行が無い"
+    assert word in row, f"design.md の「{layer}」の行に「{word}」が無い"
+
+
+def test_D0024_AC_49_検査そのものは層の表の行を取り違えず_行が無ければNoneを返す_守る():
+    """D0024-AC-49: 表の行の取り出し（table_row）そのものの確かめ。見出しの行（| 層 |）や別の層の行を拾わず、名前が似ているだけの行も拾わず、
+    行が無ければ None を返す。（今のまま通る。守る）"""
+    md = (
+        "| 層 | パス | 置くもの |\n| --- | --- | --- |\n"
+        "| ドメイン | `domain/` | 件数 |\n"
+        "| 画面の中 | `x/` | 別の層 |\n"
+        "| 画面 | `view/` | statusBar.ts |\n\n"
+        "文中の | 画面 | はここ\n"
+    )
+    assert table_row(md, "ドメイン") == "| ドメイン | `domain/` | 件数 |"
+    assert table_row(md, "画面") == "| 画面 | `view/` | statusBar.ts |"
+    assert "statusBar.ts" not in (table_row(md, "ドメイン") or "")
+    assert "| 層 |" not in (table_row(md, "ドメイン") or "") and "| 層 |" not in (table_row(md, "画面") or "")
+    assert table_row(md, "基盤") is None
+    assert table_row("", "画面") is None
