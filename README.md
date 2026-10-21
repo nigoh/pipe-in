@@ -1,7 +1,9 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-logo-dark.svg">
-    <img src="docs/assets/pipe-in-logo.svg" alt="pipe-in" width="420">
+    <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-logo-dark.svg">
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/pipe-in-logo.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-plug-logo-dark.gif">
+    <img src="docs/assets/pipe-in-plug-logo.gif" alt="pipe-in" width="560">
   </picture>
 </h1>
 
@@ -61,6 +63,26 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 
 > [!IMPORTANT]
 > 段ごとに Claude Agent SDK を呼ぶので、利用料がかかります。対象は git 管理下にして、作業用のブランチで流してください。
+
+### VSCode で見る
+
+拡張を入れた VSCode で対象のプロジェクトを開き、コマンドパレットの「pipe-in: 実行を見る」を選ぶと、流している実行をパネルで見られます。下のステータスバーにも今の状態が出ます。入れ方は [VSCode の拡張](docs/guide/vscode.md)。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-run-dark.png">
+  <img src="docs/assets/vscode-run-light.png" alt="VSCode の中で開いた実行パネル。左に実行の一覧（確認待ち・動いている・終わった）、右に選んだ実行の詳細：要件定義の確認待ちの知らせ、開発フローの段の図、出力、時系列。下のステータスバーに「pipe-in: 要件定義の確認待ち」" width="900">
+</picture>
+
+<sub>VSCode の中の「実行を見る」パネル。見本の記録（数字は見本）を開いたところ。</sub>
+
+「pipe-in: パイプ作業台を開く」では、パイプを組み立てる作業台が開きます。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-editor-dark.png">
+  <img src="docs/assets/vscode-editor-light.png" alt="VSCode の中で開いたパイプ作業台。左にブロックの棚、中央にソースの調査・図を描く・図とソースの突き合わせの3つのブロックと差し戻しのケーブル、右にパイプの設定" width="900">
+</picture>
+
+<sub>VSCode の中のパイプ作業台。ひな形のパイプ diagrams を開いたところ。</sub>
 
 ## 文書
 
