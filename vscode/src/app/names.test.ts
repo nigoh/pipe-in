@@ -2,6 +2,7 @@
 // 前の版の名前（devpipe.*）は、新しい名前（pipe-in.*）が書かれていないときだけ読む。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, VIEW_IDS, chooseSetting, settingKeys } from './names.ts';
 
 test('D0006-AC-15: 設定の節・コマンド ID・パネルの型は pipe-in', () => {
@@ -50,6 +51,32 @@ test('D0019-AC-15: 別の worktree を出す設定の名前は showOtherWorktree
   // 前の版（devpipe）にはこの設定が無いので、読み替えの対象にしない（settingKeys はそのまま）
   assert.deepEqual(settingKeys('workDir'), ['pipe-in.workDir', 'devpipe.workDir']);
 });
+
+// ---- D0021：止まっているかもしれない印の目安の設定（pipe-in.staleAfterMinutes）----
+
+/** 宣言（package.json）の設定のキー。この名前の定数が、宣言と同じ名前を指すことを見る */
+function declaredSettingKeys(): string[] {
+  const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+    contributes?: { configuration?: { properties?: Record<string, unknown> } };
+  };
+  return Object.keys(manifest.contributes?.configuration?.properties ?? {});
+}
+
+test('D0021-AC-51: 目安の設定の名前の定数 SETTING_STALE_AFTER は staleAfterMinutes（pipe-in.staleAfterMinutes）', async () => {
+  const names = (await import('./names.ts')) as unknown as { SETTING_STALE_AFTER?: string };
+  assert.equal(names.SETTING_STALE_AFTER, 'staleAfterMinutes');
+  assert.equal(`${SECTION}.${names.SETTING_STALE_AFTER}`, 'pipe-in.staleAfterMinutes');
+});
+
+test('D0021-AC-51: 定数の名前は package.json の設定のキー（pipe-in.staleAfterMinutes）と一致する', async () => {
+  const names = (await import('./names.ts')) as unknown as { SETTING_STALE_AFTER?: string };
+  assert.equal(typeof names.SETTING_STALE_AFTER, 'string', '定数 SETTING_STALE_AFTER が app/names.ts にある');
+  assert.ok(declaredSettingKeys().includes(`${SECTION}.${names.SETTING_STALE_AFTER}`), `${SECTION}.${names.SETTING_STALE_AFTER} が package.json の設定のキーにある`);
+});
+
+// この設定には前の版（devpipe）の名前が無いので、読み替えの表には入れない。その確かめは新しく置かない：
+// settingKeys が workDir・pipesDir だけを読み替えるのは上の D0006-AC-16・D0019-AC-15 が、
+// 宣言に devpipe で始まるキーが無いのは manifest.test.ts の D0006-AC-15 が、すでに確かめている。
 
 test('D0006-AC-17: 古いコマンド ID は新しい ID に対応する', () => {
   assert.deepEqual({ ...LEGACY_COMMANDS }, { 'devpipe.showRun': 'pipe-in.showRun', 'devpipe.editPipe': 'pipe-in.editPipe' });

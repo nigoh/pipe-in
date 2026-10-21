@@ -3,7 +3,7 @@
 import path from 'node:path';
 import { summarizeRun, sortRows } from '../domain/runList.ts';
 import type { RunListView, RunRow } from '../domain/runList.ts';
-import type { ViewClock } from '../domain/pipelineView.ts';
+import type { StageLogFile, ViewClock } from '../domain/pipelineView.ts';
 import { ARCHIVE_DIR, HERE, ROOT_RUN_ID, archiveStamp, isArchiveId, isRunKey, makeRunKey } from '../domain/runs.ts';
 import type { PlaceKey, RunKey } from '../domain/runs.ts';
 
@@ -20,7 +20,8 @@ export interface PlaceRun {
   /** 直下は ''、パイプはフォルダ名、archive は archive/<日時> */
   id: string;
   stateJson: string | null;
-  stageLogs: { fileName: string; text: string }[];
+  /** 段のログ（中身と、ファイルの更新時刻。更新時刻が読めないログは null か無し） */
+  stageLogs: StageLogFile[];
   /** 00_input.md の先頭（state.json に name が無い run だけ読む）。読まなかった・読めなかったときは null（口が足さない場合は無し） */
   memoHead?: string | null;
 }
@@ -114,6 +115,14 @@ export async function loadRunList(source: RunsSource, options: { showOthers: boo
 export function findEntry(list: RunList, key: unknown): RunEntry | null {
   if (!isRunKey(key)) return null;
   return list.entries.find((e) => e.row.key === key) ?? null;
+}
+
+/**
+ * key の行が前の実行（archive/）か。一覧にある key だけ真になりうる（形の違う値・一覧に無い値は偽）。
+ * 見る run の写しを読むとき、入口が「前の実行」だと基盤に伝えるために使う（前の実行は止まっているかもの印の対象外）。
+ */
+export function isPreviousRun(list: RunList, key: unknown): boolean {
+  return findEntry(list, key)?.row.previous === true;
 }
 
 /**

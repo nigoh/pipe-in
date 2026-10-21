@@ -49,6 +49,13 @@
           "type": "boolean",
           "default": true,
           "description": "同じ git リポジトリの別の worktree の実行も一覧に出す。切ると、いまの work_dir の実行だけ"
+        },
+        "pipe-in.staleAfterMinutes": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 10080,
+          "description": "動いている段のログがこの分数のあいだ更新されないと、「止まっているかも」の印（⚠ 更新なし）を出す。プロセスは調べず、ログの更新時刻だけを見る。0 で印を出さない。最大は 10080（7 日）"
         }
       }
     }

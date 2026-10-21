@@ -38,6 +38,36 @@ test('D0019-AC-15: 設定 pipe-in.showOtherWorktrees は真偽で、既定は出
   assert.equal((manifest.contributes?.commands ?? []).length, 2, 'コマンド ID は増やさない');
 });
 
+// ---- D0021：止まっているかもしれない印の目安の設定（pipe-in.staleAfterMinutes）----
+
+const staleProp = (): any => readManifest().contributes?.configuration?.properties?.['pipe-in.staleAfterMinutes'];
+
+// コマンドが増えないこと・devpipe の名前が宣言に無いことは、上の D0019-AC-15 と下の D0006-AC-15 が見ている（設定の一覧の期待に足した分も、そこで見る）。ここでは繰り返さない。
+test('D0021-AC-09: 設定 pipe-in.staleAfterMinutes は整数で、既定は 10、最小は 0', () => {
+  const prop = staleProp();
+  assert.ok(prop, 'pipe-in.staleAfterMinutes の設定項目があること');
+  assert.equal(prop.type, 'integer');
+  assert.equal(prop.default, 10);
+  assert.equal(prop.minimum, 0);
+});
+
+test('D0021-AC-09: 設定 pipe-in.staleAfterMinutes の説明に「0 で印を出さない」と書いてある', () => {
+  const prop = staleProp();
+  assert.ok(prop, 'pipe-in.staleAfterMinutes の設定項目があること');
+  assert.equal(typeof prop.description, 'string');
+  assert.match(prop.description, /0 で印を出さない/);
+});
+
+test('D0021-AC-09: 最大は 10080（7 日）で、MAX_STALE_AFTER_MINUTES と同じ。staleAfterSeconds(最大) は MAX_SPAN_SEC と等しい（定数と宣言のずれを止める）', async () => {
+  const prop = staleProp();
+  assert.ok(prop, 'pipe-in.staleAfterMinutes の設定項目があること');
+  assert.equal(prop.maximum, 10080);
+  const { MAX_STALE_AFTER_MINUTES, staleAfterSeconds } = await import('./app/staleness.ts');
+  const { MAX_SPAN_SEC } = (await import('./domain/timestamp.ts')) as unknown as { MAX_SPAN_SEC?: number };
+  assert.equal(prop.maximum, MAX_STALE_AFTER_MINUTES);
+  assert.equal(staleAfterSeconds(prop.maximum), MAX_SPAN_SEC);
+});
+
 test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設定が pipe-in で、contributes に devpipe で始まる ID・キーが無い', () => {
   const manifest = readManifest();
   assert.equal(manifest.name, 'pipe-in-vscode');
@@ -48,7 +78,8 @@ test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設
   assert.deepEqual(commands, ['pipe-in.editPipe', 'pipe-in.showRun']);
   const keys = Object.keys(manifest.contributes?.configuration?.properties ?? {}).sort();
   // D0019: 別の worktree を出す設定（pipe-in.showOtherWorktrees）が増えた。期待の一覧に足しただけで、ほかは変えない
-  assert.deepEqual(keys, ['pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.workDir']);
+  // D0021: 止まっているかもしれない印の目安の設定（pipe-in.staleAfterMinutes）が増えた。同じく期待の一覧に足しただけ
+  assert.deepEqual(keys, ['pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir']);
   assert.equal(manifest.contributes.configuration.properties['pipe-in.pipesDir'].default, '');
   assert.doesNotMatch(JSON.stringify(manifest.contributes), /devpipe/i);
   assert.doesNotMatch(JSON.stringify({ name: manifest.name, displayName: manifest.displayName, description: manifest.description }), /devpipe/i);

@@ -18,6 +18,7 @@ import {
   RUNNING_NEXT_DIR,
   RUNNING_SEC,
   SHOWCASE_DIR,
+  STALE_AFTER_SEC,
   WAITING_DIR,
   WAITING_SEC,
   buildOmittedTree,
@@ -26,9 +27,10 @@ import {
   panelPreviewHtml,
   panelRunsPreviewHtml,
   previewClock,
-  readLiveView,
+  readLiveViewAligned,
   readRunsView,
   readShowcaseView,
+  staleRunsPageHtml,
   startOfLiveness,
   withTheme,
 } from './previewPages.ts';
@@ -133,32 +135,48 @@ for (const [page, model, theme] of PAGES) {
 
 // 「実行を見る」パネルのページ：画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の読み取りと renderPanelHtml で HTML にしたもの。
 // 動いている・確認待ちの見本（D0017）は、始まりの時刻から決まった秒数が経った時点を「今」にして組み立てる。
-// 動いている見本のページには、次の見本（差し戻しの回数が増えたもの）を render で送る補助 window.__previewNext() も入れる
+// 動いている見本のページには、次の見本（差し戻しの回数が増えたもの）を render で送る補助 window.__previewNext() も入れる。
+// どのページも、止まっているかも（D0021）の目安 STALE_AFTER_SEC で組み立てる（動いている・確認待ち・一覧のページは、印が出ないことを見る）。
 for (const dir of [SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR]) {
   if (!existsSync(path.join(dir, 'state.json'))) {
     throw new Error(`見本の記録 ${path.basename(dir)}/ がありません。python tests/showcase.py で作ってください`);
   }
 }
+
+// 見本の木・写しは、一時フォルダの中にだけ作り、読み終えたら消す（tests/fixtures/ には何も書かない）。
+async function inTempDir<T>(name: string, run: (dest: string) => Promise<T>): Promise<T> {
+  const dest = mkdtempSync(path.join(os.tmpdir(), `pipe-in-preview-${name}-`));
+  try {
+    return await run(dest);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+}
+
+// 動いている・確認待ちの見本は、一時フォルダに写して、ログの更新時刻を見本の「今」にそろえて読む。
+// （tests/fixtures/ のログの更新時刻は、チェックアウトした時刻しだい。そのまま読むと、印の元が見るたびに変わる）
+const live = await inTempDir('live', async (dest) => ({
+  running: await readLiveViewAligned(RUNNING_DIR, RUNNING_SEC, dest),
+  waiting: await readLiveViewAligned(WAITING_DIR, WAITING_SEC, dest),
+  runningNext: await readLiveViewAligned(RUNNING_NEXT_DIR, 5, dest),
+}));
 const views = {
   done: await readShowcaseView(SHOWCASE_DIR),
-  running: await readLiveView(RUNNING_DIR, RUNNING_SEC),
-  waiting: await readLiveView(WAITING_DIR, WAITING_SEC),
+  running: live.running,
+  waiting: live.waiting,
 };
-const runningNext = await readLiveView(RUNNING_NEXT_DIR, 5);
+const runningNext = live.runningNext;
 
 // 実行の一覧のページ（D0019）：4つの見本の記録から、一時フォルダの中に置き場所の木（主の checkout＋2つの worktree＋archive）を組み立て、
 // 拡張の本物の読み取りと組み立てで読む。「今」は確認待ちの見本の待ち始めから WAITING_SEC 秒後。一時フォルダは読み終えたら消す。
 async function runsPageHtml(kind: 'runs' | 'runs-omitted', theme: Theme): Promise<string> {
-  const dest = mkdtempSync(path.join(os.tmpdir(), 'pipe-in-preview-runs-'));
-  try {
+  return inTempDir('runs', async (dest) => {
     const { workspace } = await (kind === 'runs' ? buildRunsTree(dest) : buildOmittedTree(dest));
     const since = await startOfLiveness(WAITING_DIR);
     if (since === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
     const entries = await readRunsView(workspace, previewClock(since, WAITING_SEC));
-    return panelRunsPreviewHtml(entries, theme);
-  } finally {
-    rmSync(dest, { recursive: true, force: true });
-  }
+    return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC });
+  });
 }
 
 for (const [page, theme] of PANEL_PAGES) {
@@ -167,7 +185,12 @@ for (const [page, theme] of PANEL_PAGES) {
     writeFileSync(path.join(OUT, `${page}.html`), await runsPageHtml(kind, theme), 'utf8');
     continue;
   }
-  writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined), 'utf8');
+  // 更新なしの印の見本（D0021）：diagrams と fix-login のログの更新時刻を目安の前後にそろえた木を組み立てる。stale-soon は更新後の本体を送る補助つき
+  if (kind === 'stale' || kind === 'stale-soon') {
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('stale', (dest) => staleRunsPageHtml(dest, kind, theme)), 'utf8');
+    continue;
+  }
+  writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined, STALE_AFTER_SEC), 'utf8');
 }
 const written = [...PAGES.map(([p]) => p), ...PANEL_PAGES.map(([p]) => p)];
 console.log(`out/preview/ に ${written.map((p) => `${p}.html`).join('・')} を作りました`);

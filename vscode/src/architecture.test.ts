@@ -1,4 +1,5 @@
 // 構造の検査。AC-44：記録の読み取りと図の状態の組み立て（入口 src/extension.ts 以外のすべて）は vscode を import しない。
+// D0021-AC-03 の 2 件（utimes の検査と、その検査そのものの確かめ）は、今のまま通る（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -114,6 +115,43 @@ test('D0019-AC-21: 子プロセスの検査そのものが、child_process の�
     { rel: 'infra/f.test.ts', source: "import { spawn } from 'node:child_process';" },
   ]);
   assert.deepEqual(found, ['infra/a.ts', 'infra/b.ts', 'extension.ts', 'infra/c.ts', 'infra/d.ts']);
+});
+
+// ---- D0021-AC-03: ファイルの更新時刻を書き換える関数（utimes）を製品のコードに入れない ----
+
+/**
+ * ファイルの更新時刻を書き換える関数（utimes・futimes・lutimes と、その Sync 版）を使っているファイル。
+ * 更新時刻は読むだけ（stat）で、書き換えるのは確認用ページの作り（scripts/）とテストの中だけ。テストと test/ の補助は見ない。
+ */
+export function timeWriterUsers(files: { rel: string; source: string }[]): string[] {
+  const re = /\b[fl]?utimes(?:Sync)?\b/;
+  return files.filter((f) => !f.rel.endsWith('.test.ts') && !f.rel.startsWith('test/') && re.test(f.source)).map((f) => f.rel);
+}
+
+test('D0021-AC-03: 拡張の src/ の製品のコードのどこにも utimes・futimes・lutimes が無い（更新時刻は読むだけ。書き換えるのは scripts/ とテストの中だけ）（今のまま通る。守る）', () => {
+  const files = listTsFiles(SRC).map((file) => ({
+    rel: path.relative(SRC, file).split(path.sep).join('/'),
+    source: readFileSync(file, 'utf8'),
+  }));
+  assert.ok(files.some((f) => f.rel === 'infra/fsWorkDirSource.ts'), '更新時刻を読む基盤のファイルも検査の対象に入っている');
+  assert.ok(files.some((f) => f.rel === 'extension.ts'), '入口も検査の対象に入っている');
+  assert.deepEqual(timeWriterUsers(files), []);
+});
+
+test('D0021-AC-03: 更新時刻の書き換えの検査そのものが、utimes を使うファイルを見つける（stat で読むだけのファイル・テストは見逃す）（今のまま通る。守る）', () => {
+  const found = timeWriterUsers([
+    { rel: 'infra/a.ts', source: "import { utimes } from 'node:fs/promises';" },
+    { rel: 'infra/b.ts', source: 'await handle.futimes(fd, atime, mtime);' },
+    { rel: 'infra/c.ts', source: 'lutimesSync(file, atime, mtime);' },
+    { rel: 'infra/d.ts', source: "const { utimes } = await import('node:fs/promises');" },
+    { rel: 'extension.ts', source: 'await fs.promises.utimes(file, atime, mtime);' },
+    { rel: 'app/e.ts', source: 'fs.utimesSync(file, atime, mtime);' },
+    { rel: 'infra/f.ts', source: "const info = await fs.stat(file);\nconst last = info.mtimeMs;" },
+    { rel: 'infra/g.ts', source: 'const utimesCount = 3; const futimesLike = 4;' },
+    { rel: 'infra/h.test.ts', source: "import { utimes } from 'node:fs/promises';" },
+    { rel: 'test/i.ts', source: "import { utimes } from 'node:fs/promises';" },
+  ]);
+  assert.deepEqual(found, ['infra/a.ts', 'infra/b.ts', 'infra/c.ts', 'infra/d.ts', 'extension.ts', 'app/e.ts']);
 });
 
 test('D0019-AC-32: 2版目で足す部品が、決まった層（domain・view）にある。どれも vscode と node: の決まりの検査の対象に入る', () => {

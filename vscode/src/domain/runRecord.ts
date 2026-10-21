@@ -184,6 +184,16 @@ function tokenOrNull(value: unknown): string | null {
   return isSafeToken(value) ? value : null;
 }
 
+/** state.json の中身が、オブジェクトの JSON として読めるか（{} も true。ない・壊れた JSON・配列・数・文字は false）。 */
+export function isReadableState(text: string | null): boolean {
+  if (text === null) return false;
+  try {
+    return isJsonObject(JSON.parse(text));
+  } catch {
+    return false;
+  }
+}
+
 /** state.json の中身を読む。null（ファイルなし）・壊れた JSON・形の違う JSON でも例外を投げず EMPTY_RUN_RECORD 相当を返す。 */
 export function parseRunRecord(text: string | null): RunRecord {
   if (text === null) return emptyRecord();

@@ -785,6 +785,101 @@ def test_D0019_AC_50_記録のガイドにname_session_id_agentがある():
         assert f"`{word}`" in md, f"docs/guide/records.md に `{word}` が無い"
 
 
+# ---- D0021-AC-38: VSCode のガイドに、止まっているかもしれない実行の印を書く ------------------------------------
+
+STALE_TITLE = "止まっているかもしれない実行"
+
+# （pytest の id, 何の説明か, 節の中を探す正規表現）。言葉は要件定義の AC-38 の列挙に合わせる。説明の言い方は文書を書く人が決める
+STALE_GUIDE_WORDS = [
+    ("setting-name", "設定 pipe-in.staleAfterMinutes", r"pipe-in\.staleAfterMinutes"),
+    ("what-log", "何を見るか：段のログ", r"段のログ"),
+    ("what-mtime", "何を見るか：更新時刻", r"更新時刻"),
+    ("when-10min", "いつ出るか：目安（既定 10 分）", r"10 ?分"),
+    ("not-process", "何を意味しないか：プロセスは調べない", r"プロセス[^。\n]*調べ"),
+    ("not-sdk", "何を意味しないか：SDK の静かな長い段", r"SDK"),
+    ("not-record", "何を意味しないか：record 経由の長い段", r"record"),
+    ("not-clock", "何を意味しないか：書いた機械と見る機械の時計", r"時計"),
+    ("vs-last-moved", "「最後に動いた」（段が終わった時刻）との違い", r"最後に動いた"),
+    ("absent-first-stage", "出ない場合：最初の段のあいだ", r"最初の段"),
+    ("absent-rerun", "出ない場合：再実行で前の記録が残るとき（再実行／流し直し）", r"再実行|流し直し"),
+    ("absent-just-started", "出ない場合：起動直後でログがまだ空のとき", r"起動直後"),
+    ("absent-parallel", "出ない場合：並列で先に終わった段があるあと", r"先に終わった"),
+    ("absent-omitted", "出ない場合：省いた別の worktree", r"省いた"),
+    ("absent-archive", "出ない場合：archive/", r"archive/"),
+    ("disappears", "いつ消えるか", r"消え"),
+    ("range-10080", "設定の範囲（10080 分）", r"10080"),
+]
+
+
+def heading_part(md: str, word: str) -> str:
+    """見出しの文に word を含む節の本文：その見出しの行から、次の同じか浅い見出しの前まで。コードの中の # は見出しにしない。無ければ空。"""
+    out: list[str] = []
+    depth = None
+    in_code = False
+    for line in md.splitlines():
+        if line.lstrip().startswith("```"):
+            in_code = not in_code
+        m = None if in_code else re.match(r"^(#{1,6})\s+(.*?)\s*#*\s*$", line)
+        if depth is None:
+            if m and word in m.group(2):
+                depth = len(m.group(1))
+                out.append(line)
+            continue
+        if m and len(m.group(1)) <= depth:
+            break
+        out.append(line)
+    return "\n".join(out)
+
+
+def test_D0021_AC_38_ガイドの実行を見るの中に止まっているかもしれない実行の節がある():
+    """D0021-AC-38: docs/guide/vscode.md の「実行を見る」の中に、「止まっているかもしれない実行」の見出し（### 以下）がある。"""
+    md = read_doc(GUIDE / "vscode.md")
+    titles = [title for depth, title in headings(section(md, "実行を見る")) if depth >= 3]
+    assert any(STALE_TITLE in title for title in titles), f"「実行を見る」の中に「{STALE_TITLE}」の節が無い（今ある小見出し：{titles}）"
+
+
+@pytest.mark.parametrize("label,pattern", [(label, pattern) for _, label, pattern in STALE_GUIDE_WORDS], ids=[i for i, _, _ in STALE_GUIDE_WORDS])
+def test_D0021_AC_38_ガイドの節に止まっているかもしれない実行の説明がある(label, pattern):
+    """D0021-AC-38: 「止まっているかもしれない実行」の節に、何を見るか（段のログの更新時刻）・いつ出るか（目安の時間）・何を意味しないか
+    （プロセスは調べない。SDK の静かな長い段と record 経由の長い段は動いていても出る。書いた機械と見る機械の時計）・出ない場合・
+    「最後に動いた」との違い・設定 pipe-in.staleAfterMinutes（範囲 10080 分）・いつ消えるか、が書いてある。"""
+    part = heading_part(read_doc(GUIDE / "vscode.md"), STALE_TITLE)
+    assert part, f"docs/guide/vscode.md に「{STALE_TITLE}」の節が無い"
+    assert re.search(pattern, part), f"docs/guide/vscode.md の「{STALE_TITLE}」の節に、{label} の説明が無い（探した形：{pattern}）"
+
+
+def test_D0021_AC_38_節の取り出しは見出しから次の同じか浅い見出しの前まで_コードの中の井桁は見出しにしない():
+    """D0021-AC-38: 節の取り出し（heading_part）そのものの確かめ。節の外の言葉を拾わず、節が無ければ空になる。（今のまま通る。守る）"""
+    md = "\n".join(
+        [
+            "## 実行を見る",
+            "前置き SDK",
+            "### 止まっているかもしれない実行",
+            "本文 段のログ",
+            "#### 小見出し",
+            "小見出しの本文 更新時刻",
+            "```",
+            "# コードの中の井桁",
+            "```",
+            "コードのあとの本文 消える",
+            "### 時間と動き",
+            "別の節の本文 10080",
+        ]
+    )
+    part = heading_part(md, STALE_TITLE)
+    for inside in ("本文 段のログ", "小見出しの本文 更新時刻", "# コードの中の井桁", "コードのあとの本文 消える"):
+        assert inside in part, inside
+    for outside in ("前置き SDK", "別の節の本文 10080", "時間と動き"):
+        assert outside not in part, outside
+    assert heading_part("## 実行を見る\n本文 SDK\n", STALE_TITLE) == "", "節が無ければ空（ほかの場所の言葉を拾わない）"
+
+
+def test_D0021_AC_38_拡張のREADMEに設定名がある():
+    """D0021-AC-38: vscode/README.md にも、設定 pipe-in.staleAfterMinutes の名前がある。"""
+    md = read_doc(ROOT / "vscode" / "README.md")
+    assert "pipe-in.staleAfterMinutes" in md, "vscode/README.md に pipe-in.staleAfterMinutes が無い"
+
+
 # ---- D0014-AC-27: 古いリンク --------------------------------------------------------------------
 
 

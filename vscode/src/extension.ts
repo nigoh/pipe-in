@@ -3,6 +3,7 @@
 // 実行の一覧（直下の開発フロー・<work_dir>/<パイプ名>/・archive/・同じ git リポジトリの別の worktree）から1つを選んで見る。
 // 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（書くのはそれだけ。work_dir・.git・別の worktree には書かない）。
 // 別の worktree と archive は、パネルが見えている間だけ約5秒ごとに読み直す（app/refreshPolicy.ts）。
+// 「止まっているかも」の印の目安（pipe-in.staleAfterMinutes）は、設定を読んで画面の部品に渡すだけ（秒への直しは app/staleness.ts）。変わったら描き直す。
 // パイプ作業台（pipe-in.editPipe）は .pipe-in/pipes/ と前の版の置き場所（どちらも無ければ pipes/）のパイプを開き、
 // 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。work_dir には書かない。
 // 保存した版と、閉じたときの下書きは、拡張の保存場所（storageUri の pipe-versions/）にだけ書く。
@@ -11,7 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_SHOW_OTHER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
+import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_SHOW_OTHER, SETTING_STALE_AFTER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
 import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
@@ -30,9 +31,10 @@ import { HERE } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
 import type { RunListView } from './domain/runList.ts';
 import { DEBOUNCE_MS, POLL_MS, WATCH_GLOB, createPoller, shouldPoll } from './app/refreshPolicy.ts';
-import { chooseEntry, findEntry, loadRunList, toListView } from './app/runList.ts';
+import { chooseEntry, findEntry, isPreviousRun, loadRunList, toListView } from './app/runList.ts';
 import type { RunList, RunsSource } from './app/runList.ts';
 import { rememberRun, restoreRun } from './app/selection.ts';
+import { staleAfterSeconds } from './app/staleness.ts';
 import { createFsRunsSource, createFsWorkDirSource } from './infra/fsWorkDirSource.ts';
 import { parseWebviewMessage } from './view/messages.ts';
 import type { ToPanelMessage } from './view/messages.ts';
@@ -86,6 +88,8 @@ interface CurrentView {
   otherDir: string | null;
   /** 選んだ run が動いている・確認待ちか（時系列の帯が「今」まで伸びる。読み直しを続ける） */
   live: boolean;
+  /** 「止まっているかも」の印を出す目安（秒）。設定 pipe-in.staleAfterMinutes から。null なら印を出さない */
+  staleAfterSec: number | null;
 }
 
 let extensionUri: vscode.Uri | undefined;
@@ -120,6 +124,8 @@ export function activate(context: vscode.ExtensionContext): void {
       if (settingKeys('workDir').some((key) => event.affectsConfiguration(key))) retarget();
       // 別の worktree を出す・出さないは、場所を決め直すだけ（監視は変わらない）。覚えた選びは消さない
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_SHOW_OTHER}`)) void render();
+      // 止まっているかもの目安が変わったら、開いているパネルを描き直す（拡張を開き直さなくてよい）
+      else if (event.affectsConfiguration(`${SECTION}.${SETTING_STALE_AFTER}`)) void render();
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => retarget()),
     { dispose: () => stopWatching() },
@@ -214,27 +220,30 @@ async function currentView(): Promise<CurrentView | null> {
   // 時計を読むのはここだけ（ドメインは「今」を引数で受ける）
   const clock = { nowMs: Date.now(), localOffsetMin: -new Date().getTimezoneOffset() };
   const showOthers = vscode.workspace.getConfiguration(SECTION).get<boolean>(SETTING_SHOW_OTHER, true);
+  // 設定の値（分）を目安の秒にするのは app/staleness.ts。ここは読んで渡すだけ
+  const staleAfterSec = staleAfterSeconds(vscode.workspace.getConfiguration(SECTION).get<unknown>(SETTING_STALE_AFTER));
   const list = await loadRunList(runsSource, { showOthers, clock });
   const here = { key: HERE, label: null, workDirAbs: target.abs };
   const choice = chooseEntry(list, selected, here);
-  const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs), choice.dirAbs, clock);
+  // 前の実行（archive/）の写しだと基盤に伝える（前の実行は印の対象外）
+  const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs, { previous: isPreviousRun(list, choice.key) }), choice.dirAbs, clock);
   shown = { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name) };
   lastList = list;
   const other = !choice.key.startsWith(`${HERE}|`);
-  return { view, listView: toListView(list, choice.key, target.setting), otherDir: other ? choice.dirAbs : null, live: view.gantt.live };
+  return { view, listView: toListView(list, choice.key, target.setting), otherDir: other ? choice.dirAbs : null, live: view.gantt.live, staleAfterSec };
 }
 
 async function render(): Promise<void> {
   const current = await currentView();
   if (!current) return;
-  const { view, listView, otherDir, live } = current;
+  const { view, listView, otherDir, live, staleAfterSec } = current;
   if (statusItem) {
     const label = statusBarLabel(view);
     statusItem.text = label.text;
     statusItem.tooltip = label.tooltip;
   }
   if (panel) {
-    const message: ToPanelMessage = { type: 'render', html: renderViewBody(view, listView) };
+    const message: ToPanelMessage = { type: 'render', html: renderViewBody(view, listView, staleAfterSec) };
     void panel.webview.postMessage(message);
   }
   watchRemote(panel !== undefined ? otherDir : null);
@@ -304,7 +313,7 @@ async function showRun(): Promise<void> {
 
   const current = await currentView();
   if (current) {
-    created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.listView);
+    created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.listView, current.staleAfterSec);
     watchRemote(current.otherDir);
     lastLive = current.live;
     updatePolling(current.live);

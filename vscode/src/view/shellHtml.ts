@@ -2,6 +2,7 @@
 // 上のバー・左の一覧・右の詳細（パンくず・見出し・メタ・知らせ・タブ・「図と出力」の枠）を組み立てる。
 // 色は var(--vscode-*)、CSS はクラスだけ（style= は使わない）。外から来た文字はすべて escapeHtml を通す。
 // 選んでいる run の行（一覧の rows のうち selected）があればそこから、無ければ図の状態（view）から詳細の上の部分を作る。
+// 選んだ行が動いていて段のログが目安の時間動かないとき（D0021）は、見出しに「⚠ 止まっているかも」のバッジ、メタの下に知らせを足す（どちらも行の quietSec から作る）。
 import type { ArtifactEntry } from '../domain/artifacts.ts';
 import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
@@ -14,6 +15,15 @@ import { renderFlowSvg } from './flowSvg.ts';
 import { renderGantt } from './ganttHtml.ts';
 import { renderReasons } from './reasonsHtml.ts';
 import { renderRunList } from './runListHtml.ts';
+import {
+  STALE_BADGE_WORD,
+  STALE_COLOR,
+  STALE_NOTICE_HEAD,
+  STALE_NOTICE_SUB,
+  STALE_NOTICE_TAIL,
+  rowStaleAttrs,
+  staleTime,
+} from './staleMark.ts';
 import { renderTimes } from './timesHtml.ts';
 import { renderUsage } from './usageHtml.ts';
 
@@ -47,6 +57,10 @@ export const SHELL_STYLE = `
 .detail-meta code { padding: 1px 6px; border-radius: 4px; background: var(--vscode-textCodeBlock-background); color: var(--vscode-foreground); overflow-wrap: anywhere; }
 .notice { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border: 1px solid var(--vscode-charts-yellow, var(--vscode-foreground)); border-radius: 6px; background: var(--vscode-inputValidation-warningBackground, transparent); color: var(--vscode-foreground); }
 .notice-sub { font-size: 12px; color: var(--vscode-descriptionForeground); }
+.badge.stale-badge { display: none; color: var(--vscode-foreground); }
+.badge.stale-badge.is-stale { display: inline-flex; border-style: dashed; border-color: ${STALE_COLOR}; }
+.notice.stale-notice { display: none; border-style: dashed; border-color: ${STALE_COLOR}; background: transparent; }
+.notice.stale-notice.is-stale { display: flex; }
 .detail-tabs { flex: none; display: flex; gap: 4px; border-bottom: 1px solid var(--vscode-panel-border); }
 .detail-tabs button { min-height: 28px; padding: 8px 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vscode-descriptionForeground); font: inherit; cursor: pointer; }
 .detail-tabs button[aria-selected="true"] { border-bottom-color: var(--vscode-focusBorder); color: var(--vscode-foreground); font-weight: 600; }
@@ -111,6 +125,11 @@ function renderBadge(row: RunRow): string {
   return `<span class="badge ${cls}"><span class="badge-dot" aria-hidden="true"></span>${escapeHtml(stateWord(row))}${wait}</span>`;
 }
 
+/** 「⚠ 止まっているかも」のバッジ。is-stale が付くまで CSS で隠す。 */
+function renderStaleBadge(stale: string): string {
+  return stale === '' ? '' : `<span class="badge stale-badge"${stale}>${STALE_BADGE_WORD}</span>`;
+}
+
 /** 全体の経過の要素。数え上げる（live）ときだけ基準の秒（data-elapsed）を持たせる。無ければ「—」（要素を出さない）。 */
 function renderElapsed(elapsed: Elapsed | null): string {
   if (elapsed === null) return DASH;
@@ -167,15 +186,29 @@ function renderNotice(view: PipelineView): string {
   );
 }
 
+/**
+ * 「この段のログが（時間）更新されていません。」の知らせ。プロセスは調べていないことと、長い段では動いていても更新されないことを添える。
+ * 確認待ちの黄の知らせ（renderNotice）とは別の要素。is-stale が付くまで CSS で隠す。
+ */
+function renderStaleNotice(row: RunRow | null, stale: string): string {
+  if (row === null || stale === '') return '';
+  return (
+    `<div class="notice stale-notice" role="status"${stale}>` +
+    `<strong>${STALE_NOTICE_HEAD} ${staleTime(row.quietSec)} ${STALE_NOTICE_TAIL}</strong>` +
+    `<span class="notice-sub">${STALE_NOTICE_SUB}</span>` +
+    '</div>'
+  );
+}
+
 function renderCrumbs(row: RunRow | null): string {
   if (row === null) return '<div class="crumbs"></div>';
   const parts = row.branch === null ? [row.pipe] : [row.branch, row.pipe];
   return `<div class="crumbs">${parts.map(escapeHtml).join(' › ')}</div>`;
 }
 
-function renderHead(row: RunRow | null): string {
+function renderHead(row: RunRow | null, stale: string): string {
   const title = row === null ? '実行の記録' : row.session;
-  const badge = row === null ? '' : renderBadge(row);
+  const badge = row === null ? '' : renderBadge(row) + renderStaleBadge(stale);
   return (
     `<div class="head"><h1 class="head-title">${escapeHtml(title)}</h1>${badge}<span class="head-spacer"></span>` +
     '<button type="button" class="secondary" data-open-artifacts>成果物を開く</button></div>'
@@ -247,33 +280,39 @@ const ZOOM_BAR =
   '<button type="button" data-zoom="in" data-keep="zoom:in" aria-label="図を大きく">＋</button>' +
   '</div>';
 
-function renderDiagramPanel(view: PipelineView): string {
+function renderDiagramPanel(view: PipelineView, staleAfterSec: number | null): string {
   return (
     '<div class="split">' +
-    `<div class="pane-diagram" data-scroll="diagram">${ZOOM_BAR}${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)))}` +
+    `<div class="pane-diagram" data-scroll="diagram">${ZOOM_BAR}${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)), staleAfterSec)}` +
     `${renderWarnings(view.warnings)}${renderReasons(view)}${renderTimes(view)}</div>` +
     `<div class="pane-right">${renderTerminal(view, view.terminal)}` +
-    `<section class="pane-gantt" data-scroll="gantt">${renderGantt(view.gantt)}</section></div>` +
+    `<section class="pane-gantt" data-scroll="gantt">${renderGantt(view.gantt, staleAfterSec)}</section></div>` +
     '</div>'
   );
 }
 
-/** パネルの本体：上のバー・左の一覧・右の詳細。一覧は行が 0・1 つでも出す。 */
-export function renderShell(view: PipelineView, list: RunListView): string {
+/**
+ * パネルの本体：上のバー・左の一覧・右の詳細。一覧は行が 0・1 つでも出す。
+ * staleAfterSec は「止まっているかも」の目安の秒（D0021）。null なら更新なしの印は出さない。
+ */
+export function renderShell(view: PipelineView, list: RunListView, staleAfterSec: number | null = null): string {
   const row = list.rows.find((r) => r.key === list.selected) ?? null;
+  // 選んだ行が動いていて、最後の更新からの秒と目安がそろうときの印の属性。バッジと知らせは、この有る無しでどちらも出すか、どちらも出さないかが決まる
+  const stale = rowStaleAttrs(row, staleAfterSec);
   return (
     '<div class="app">' +
     renderTopbar(list, row) +
     '<div class="app-body">' +
-    `<nav class="sidebar" aria-label="実行の一覧">${renderRunList(list)}</nav>` +
+    `<nav class="sidebar" aria-label="実行の一覧">${renderRunList(list, staleAfterSec)}</nav>` +
     '<main class="detail">' +
     renderCrumbs(row) +
-    renderHead(row) +
+    renderHead(row, stale) +
     renderMeta(view, row) +
     renderStatusLine(view) +
     renderNotice(view) +
+    renderStaleNotice(row, stale) +
     renderTabs() +
-    panel('diagram', renderDiagramPanel(view)) +
+    panel('diagram', renderDiagramPanel(view, staleAfterSec)) +
     panel('artifacts', renderArtifacts(view.artifacts)) +
     panel('usage', renderUsage(view.usage)) +
     '</main></div></div>'
