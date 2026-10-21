@@ -31,11 +31,11 @@ Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の�
 | 2. 設計 | `pipe-in-analyst` | 変えるファイル・形が変わるか（互換）・AC とテストの対応表（[design.md](design.md)） | `docs/pipeline/02_design.md` |
 | 3. テスト先行（赤） | `pipe-in-tester` | 対応表どおりにテストを書き、期待した理由で落ちることを確かめる（[testing.md](testing.md)） | テストと `03_red_tests.md` |
 | 4. 実装（緑 → 整理） | `pipe-in-coder` | テストを通す最小の変更をしてから整える。承認されたテストは書き換えない | 製品コードと文書と `04_implementation.md` |
-| 5. 検証 | `pipe-in-verifier` とメイン | 触った側のテストを全部流す。画面・手で・実機の確認。公開してよいかを見る。合格したら、決定の記録の前に監査と助言（助言を流したときは審査も）を流し、承認された項目だけをメインが直す。メインが決定の記録を書く | `05_test_report.md`、決定の記録（メイン） |
+| 5. 検証 | `pipe-in-verifier` とメイン | 触った側のテストを全部流す。画面・手で・実機の確認。公開してよいかを見る。合格したら、決定の記録の前に文書係（もう一度文書をそろえる）、続けて監査と助言（助言を流したときは審査も）を流し、承認された項目だけをメインが直す。メインが決定の記録を書く | `05_test_report.md`、決定の記録（メイン） |
 
 ### 検証のあとの監査と助言
 
-検証で合格したあと（`record verdict pass` のあと）、決定の記録を書く前に、メインが2つのサブエージェントを流します（助言を流したときは、続けて審査も流します）。不合格・blocked のときは流しません。段は5つのままで、記録（`state.json`）に段は足しません。
+検証で合格したあと（`record verdict pass` のあと）、決定の記録を書く前に、メインが、先に文書係 `pipe-in-documenter` で文書をそろえ直してから（下の「4. そろえる」）、2つのサブエージェントを流します（助言を流したときは、続けて審査も流します）。不合格・blocked のときは流しません。段は5つのままで、記録（`state.json`）に段は足しません。
 
 - `pipe-in-auditor`（矛盾監査）：文書・定義・コード・テストのあいだの食い違いを、「ファイル:行」の根拠付きで並べます。範囲は、このブランチで変えたファイル（`git diff --name-only main...HEAD` と `git status --short` を合わせたもの）と、それを指す・それが指すファイルに絞ります。
 - `pipe-in-advisor`（助言）：Claude Code と Agent SDK の公式の文書と照らして、使いかたのずれを、出典の URL 付きで並べます。変えたファイルに `.claude/`・`plugin/`・`.claude-plugin/`・`pipe_in/engine/runner.py`・`pipe_in/engine/guard.py`・`generator/guard_hook.py` があるときだけ流し、無ければ流さなかった理由を書きます。
@@ -95,6 +95,10 @@ git rebase --autostash main           # まだコミットしていない自分�
 | 置き場所（ファイルを足した・動かした） | [design.md](design.md) の「置き場所」の表、必要なら `CLAUDE.md` |
 | 層・依存の向き | [design.md](design.md) と、それを検査するテスト |
 | 開発の決まり | `docs/development/` と、それを検査するテスト、`CLAUDE.md` の要約、`/pipe-in` |
+
+- 文書をそろえるのは、`/pipe-docs [要点か範囲]` に任せられます。変えたファイル（`git diff --name-only main...HEAD` と `git status --short`）を集めて、文書係の `pipe-in-documenter` に上の表どおりに直させます。文書係が書けるのは `README.md`・`vscode/README.md`・`pipes/README.md`・`docs/assets/README.md` と `docs/guide/`・`docs/development/` の `.md` だけで、`CLAUDE.md`・`.claude/`（`/pipe-help` を含む）・決定の記録は、案を返して人の承認を得てからメインが直します。
+- `/pipe-in` では、実装の段でそろえたうえで、検証で合格したあと、監査の前にもう一度 `pipe-in-documenter` に見てもらいます。
+- コード（`pipe_in/`・`generator/`・`vscode/src/`・`vscode/scripts/`・`plugin/`・`.claude-plugin/`・`.claude/` の定義・設定・フック、`pyproject.toml`・`vscode/package.json`）を変えたのに、上の文書が1つも変わっていないまま会話が止まろうとすると、Stop のフック `.claude/hooks/docs_reminder.py` が、同じ変更の組で1回だけ知らせます。直す文書が無いときは、その理由を一言伝えて終えます。
 
 ## 5. 終える：確かめてコミットし、main に入れる
 

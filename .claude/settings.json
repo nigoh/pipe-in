@@ -17,7 +17,8 @@
       "Agent(pipe-in-verifier)",
       "Agent(pipe-in-auditor)",
       "Agent(pipe-in-advisor)",
-      "Agent(pipe-in-judge)"
+      "Agent(pipe-in-judge)",
+      "Agent(pipe-in-documenter)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -48,6 +49,17 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/pipe_in_guard.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/docs_reminder.py\"",
             "timeout": 30
           }
         ]

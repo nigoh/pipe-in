@@ -1,6 +1,6 @@
 ---
 name: pipe-help
-description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-audit・/pipe-advise・/pipe-judge・プラグインの /pipe-in:pipe-build）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
+description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・プラグインの /pipe-in:pipe-build）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
 argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
@@ -24,6 +24,7 @@ disable-model-invocation: true
 | --- | --- |
 | `/pipe-in <要件メモ>` | pipe-in に機能を足す。要件定義 → 設計 → テスト先行 → 実装 → 検証 を段ごとにサブエージェントへ任せて進め、段ごとに止まって確認を取る。進み具合は VSCode の「pipe-in: 実行を見る」で見られる |
 | `/pipe-in --auto <要件メモ>` | 同じことを、段の区切りで止まらずに最後まで進める（決めきれない点や、利用料のかかる実行の前では止まる。コミットはしない） |
+| `/pipe-docs [要点か範囲]` | 変えたファイル（空ならこのブランチの全部）に合わせて、文書（README.md・`docs/guide/`・`docs/development/`・vscode/README.md）を文書係にそろえさせる。CLAUDE.md・/pipe-help・決定の記録は案を見せ、承認したものだけをメインが直す。コードを変えて文書がそのままだと、止まるときに一度だけ知らせが出る |
 | `/pipe-audit [範囲]` | 文書・定義・コードのあいだの食い違い（名前・パス・コマンド・決まり・数）を、根拠（ファイル:行）付きで並べて止まる。承認した項目だけをメインが直す |
 | `/pipe-advise [テーマ]` | Claude Code と Agent SDK の公式の文書と照らして、このリポジトリの使いかたを出典の URL 付きで助言して止まる。承認した項目だけをメインが直す |
 | `/pipe-judge [ファイル]` | 調べもの型の報告（空ならこの会話でいちばん新しい助言の報告）を、事実の正確さ・引用の正確さ・網羅性・情報源の質・ツール効率の5項目で 0.0〜1.0 に採点し、総合と合否を JSON で見せて止まる。直さない |
