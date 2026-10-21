@@ -1,6 +1,6 @@
 ---
 name: pipe-help
-description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・プラグインの /pipe-in:pipe-build）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
+description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・プラグインの /pipe-in:pipe-build・/pipe-in:pipe-eval・/pipe-in:pipe-judge）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
 argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
@@ -29,6 +29,8 @@ disable-model-invocation: true
 | `/pipe-advise [テーマ]` | Claude Code と Agent SDK の公式の文書と照らして、このリポジトリの使いかたを出典の URL 付きで助言して止まる。承認した項目だけをメインが直す |
 | `/pipe-judge [ファイル]` | 調べもの型の報告（空ならこの会話でいちばん新しい助言の報告）を、事実の正確さ・引用の正確さ・網羅性・情報源の質・ツール効率の5項目で 0.0〜1.0 に採点し、総合と合否を JSON で見せて止まる。直さない |
 | `/pipe-in:pipe-build <目的か直したい点>` | パイプ（段の並び）を会話で作る・直す。プラグイン（`/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in`）を入れて使う。どのプロジェクトでも使える |
+| `/pipe-in:pipe-eval <パイプ名>` | パイプの成果物を、検査のコマンド（`pipe.toml` の `[stages.check]` の `command`、または渡したコマンド）で確かめる。流す前に一覧を見せて返事を待つ。成果物は直さない。プラグインを入れて使う |
+| `/pipe-in:pipe-judge <成果物> [--rubric …] [--runs 1〜5]` | 成果物を依頼とルーブリックに照らして 0.0〜1.0 で審査する。must の違反は即不合格。総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算し、JSON で返す。直さない。開発用の `/pipe-judge`（助言の報告の採点）とは別物 |
 | `/pipe-help [知りたいこと]` | この一覧。知りたいことを付けると、そこだけ詳しく |
 
 ### 会話を開かずに流す（`claude -p`）

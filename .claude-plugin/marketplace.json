@@ -8,7 +8,7 @@
     {
       "name": "pipe-in",
       "source": "./plugin",
-      "description": "パイプ（.pipe-in/pipes/pipe-in-<名前>/）を作る・直すスキル /pipe-in:pipe-build と、手を動かすエージェント pipe-builder"
+      "description": "パイプ（.pipe-in/pipes/pipe-in-<名前>/）を作る・直すスキル /pipe-in:pipe-build と、手を動かすエージェント pipe-builder。成果物を検査する /pipe-in:pipe-eval と、審査する /pipe-in:pipe-judge（審査役 pipe-judge）"
     }
   ]
 }

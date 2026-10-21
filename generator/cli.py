@@ -6,6 +6,7 @@
 探すときは、対象の .pipe-in/pipes/ → 前の版の置き場所 → 今までの場所（環境変数か、このリポジトリの pipes/）の順。
 同じ名前のパイプがほかの置き場所や前の版のフォルダ名であれば、作らずに断る（どちらを使うか迷わないように）。
 guard-hook は、Claude Code のプラグイン（plugin/hooks/hooks.json）から呼ぶフック。
+judge-score は、プラグインの pipe-judge が審査役の採点（標準入力の JSON）から総合点・合否を計算させるのに呼ぶ。
 """
 
 from __future__ import annotations
@@ -47,7 +48,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             sp.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
 
     common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=True)
-    sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder の操作を絞る）")
+    sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder と pipe-judge の操作を絞る）")
+    sub.add_parser("judge-score", help="審査役の採点（標準入力の JSON）から総合点・合否・ばらつきを出す（プラグインの pipe-judge が呼ぶ）")
 
     new = sub.add_parser("new", help="ひな形から .pipe-in/pipes/pipe-in-<名前>/ を作る")
     new.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
@@ -197,6 +199,11 @@ def main(argv: list[str] | None = None) -> int:
         from .guard_hook import main as hook_main
 
         return hook_main()
+    if argv[:1] == ["judge-score"]:
+        # 標準入力の JSON だけで動く（--project は持たないので、プロジェクトの検めより前に分ける）
+        from .judge_score import main as judge_main
+
+        return judge_main()
     args = _parse_args(argv)
     given = args.pipes_dir.expanduser() if args.pipes_dir else None
     project = _project(args.project)

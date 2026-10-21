@@ -1,9 +1,11 @@
-"""プラグインの PreToolUse フック（pipe-in-gen guard-hook）：pipe-builder が触れる範囲を絞る。
+"""プラグインの PreToolUse フック（pipe-in-gen guard-hook）：pipe-builder と pipe-judge が触れる範囲を絞る。
 
 Claude Code のプラグインのエージェントには hooks を書けないため、プラグインの hooks/hooks.json から
-どの道具の呼び出しでもここを呼び、入力の agent_type で pipe-builder の呼び出しだけを検査する。
+どの道具の呼び出しでもここを呼び、入力の agent_type で pipe-builder と pipe-judge の呼び出しだけを検査する。
 pipe-builder に許すのは、読む道具と、パイプのフォルダの決まったファイルへの書き込みと、
 pipe-in-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
+pipe-judge（審査役）に許すのは読む道具（Read・Glob・Grep）だけ。ほかはすべて止める。
+想定外の入力で検査が落ちたときも、止めない側に倒れないよう deny を出す。
 
 パイプのフォルダは pipe-in-<名前>/ と、前の版の名前 devpipe-<名前>/ の両方を同じ決まりで守る。
 置き場所の環境変数も、PIPE_IN_PIPES_DIR と前の版の DEVPIPE_PIPES_DIR の両方を同じ決まりで見る。
@@ -23,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 AGENT = "pipe-builder"
+JUDGE = "pipe-judge"
 READ_TOOLS = {"Read", "Glob", "Grep"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 
@@ -43,9 +46,23 @@ def env_pipes_dirs(environ: Mapping[str, str]) -> list[str]:
     return [v for v in (environ.get(k) for k in PIPES_DIR_ENVS) if v]
 
 
+def _is_agent(agent_type: Any, name: str) -> bool:
+    """名前が完全一致か、<プラグイン>:<名前> の形か。前方一致・部分一致は使わない。
+
+    プラグイン名までは見ない（後ろ一致）。--plugin-dir などでプラグインの名前が変わっても絞りが外れないように、
+    別のプラグインの同じ名前のエージェントにも同じ絞りがかかる側（安全側）に倒す。
+    """
+    return isinstance(agent_type, str) and (agent_type == name or agent_type.endswith(":" + name))
+
+
 def is_builder(agent_type: Any) -> bool:
     """pipe-builder の呼び出しか。プラグインのエージェントは <プラグイン>:<名前> になる。"""
-    return isinstance(agent_type, str) and (agent_type == AGENT or agent_type.endswith(":" + AGENT))
+    return _is_agent(agent_type, AGENT)
+
+
+def is_judge(agent_type: Any) -> bool:
+    """pipe-judge（審査役）の呼び出しか。"""
+    return _is_agent(agent_type, JUDGE)
 
 
 def _in_pipe(rest: tuple[str, ...]) -> bool:
@@ -98,10 +115,16 @@ def check_bash(command: Any) -> str | None:
 
 
 def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) -> str | None:
-    """止める理由を返す。止めないときは None。pipe-builder 以外の呼び出しには何もしない。"""
-    if not is_builder(payload.get("agent_type")):
-        return None
+    """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。"""
+    agent_type = payload.get("agent_type")
     tool = payload.get("tool_name")
+    if is_judge(agent_type):
+        # 許すものの一覧：読む道具だけ。型のおかしい tool_name（list など）も止める
+        if isinstance(tool, str) and tool in READ_TOOLS:
+            return None
+        return f"pipe-judge は {tool} を使えません（使えるのは Read・Glob・Grep だけ）"
+    if not is_builder(agent_type):
+        return None
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         tool_input = {}
@@ -142,7 +165,10 @@ def main() -> int:
         # だれの呼び出しか分からないので、安全側に倒して止める
         sys.stdout.write(_deny("フックへの入力が読めないため止めました"))
         return 0
-    reason = decide(payload, pipes_env=env_pipes_dirs(os.environ))
+    try:
+        reason = decide(payload, pipes_env=env_pipes_dirs(os.environ))
+    except Exception:  # noqa: BLE001 - 想定外の入力で落ちると止めない側に倒れるので、止める
+        reason = "フックが入力を判断できなかったため止めました"
     if reason:
         sys.stdout.write(_deny(reason))
     return 0

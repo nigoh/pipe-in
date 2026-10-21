@@ -71,7 +71,7 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 | [使い方](docs/guide/usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・注意 |
 | [VSCode の拡張](docs/guide/vscode.md) | 入れ方・実行を見る・パイプ作業台 |
 | [パイプ](docs/guide/pipes.md) | 作り方・ひな形・見本のパイプ・`pipe.toml`・検証と差し戻し・分岐・Agent SDK の設定 |
-| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・フック） |
+| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査のスキル・フック） |
 | [安全のしくみ](docs/guide/safety.md) | 段ごとの書き込める範囲・どの段でも止める操作 |
 | [記録と使用量](docs/guide/records.md) | 作られるファイル・まとめに出る使用量・終了コード |
 | [設定](docs/guide/config.md) | `pipeline.toml` |

@@ -28,7 +28,7 @@ npm run preview               # 画面の確認用のページ（out/preview/ �
 検証で合格したあと、決定の記録の前に、`pipe-in-auditor`（文書・定義・コードの食い違いを探す矛盾監査）と `pipe-in-advisor`（公式の文書と照らした助言）を流す。助言を流したとき（助言が1件以上のとき）は、続けて `pipe-in-judge`（助言の報告をルーブリックで採点する審査役）も流し、採点を報告と一緒に見せて止まる。審査の合否は人が読む材料で、fail でも自動で直さない。直すのはメインで、人が承認した項目だけ。3つとも読むだけで書けない（Web はアドバイザーと審査役だけ、公式の文書の場所だけ。審査役は WebFetch だけ）。手で呼ぶときは `/pipe-audit`・`/pipe-advise`・`/pipe-judge`（`.claude/skills/`）。
 何かを変えたら、文書もそろえる（`docs/development/workflow.md` の「4. そろえる」）。`/pipe-docs [要点]` が変えたファイルを集めて `pipe-in-documenter`（文書係。文書だけを書け、CLAUDE.md・`.claude/`・決定の記録は案を返す）に任せる。`/pipe-in` では検証で合格したあと、監査の前に流す。コードを変えたのに文書が変わっていないまま止まろうとすると、Stop のフック（`.claude/hooks/docs_reminder.py`）が同じ変更の組で1回だけ知らせる。
 使いかたの一覧は `/pipe-help`（`.claude/skills/pipe-help/`）。
-pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせなど）を作る・直すときは、プラグインのスキル `/pipe-in:pipe-build <目的か直したい点>`（`plugin/`。入れ方は `docs/guide/plugin.md`。このリポジトリでも `/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in` で入れて使う）。パイプは対象の `.pipe-in/pipes/pipe-in-<名前>/` に置く。前の名前のころの置き場所・フォルダ名・設定も読む（`docs/guide/migrate.md`）。
+pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせなど）を作る・直すときは、プラグインのスキル `/pipe-in:pipe-build <目的か直したい点>`（`plugin/`。入れ方は `docs/guide/plugin.md`。このリポジトリでも `/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in` で入れて使う）。パイプは対象の `.pipe-in/pipes/pipe-in-<名前>/` に置く。前の名前のころの置き場所・フォルダ名・設定も読む（`docs/guide/migrate.md`）。成果物の検査は `/pipe-in:pipe-eval <パイプ名>`、審査は `/pipe-in:pipe-judge <成果物> [--rubric …] [--runs N]`（どちらも人が呼んだときだけ。合否を決めるのは検査で、審査は人が読む材料。計算は `pipe-in-gen judge-score`。開発用の `/pipe-judge` とは別物）。
 
 ## 開発のルール（docs/development/）
 
