@@ -48,9 +48,12 @@ def decide(tmp_path: Path, tool: str, tool_input: dict, agent_type: str | None =
 # ---- D0006-AC-12: ほかのエージェントには何もしない -----------------------------------------
 
 
-@pytest.mark.parametrize("agent_type", [None, "Explore", "general-purpose", "pipe-in:other", "devpipe:other", "pipe-builder-x"])
+@pytest.mark.parametrize(
+    "agent_type",
+    [None, "Explore", "general-purpose", "pipe-in:other", "devpipe:other", "pipe-builder-x", "pipe-in-auditor", "pipe-in:pipe-in-auditor"],
+)
 def test_other_agents_pass(tmp_path, agent_type):
-    """D0006-AC-12: pipe-builder でないエージェント（無し・ほかの名前・プラグインのほかのエージェント）には何もしない。"""
+    """D0006-AC-12・D0022-AC-24: pipe-builder でも pipe-judge でもないエージェント（無し・ほかの名前・プラグインのほかのエージェント）には何もしない。"""
     assert decide(tmp_path, "Write", {"file_path": str(tmp_path / "src/app.py"), "content": "x"}, agent_type) is None
     assert decide(tmp_path, "Bash", {"command": "rm -rf build"}, agent_type) is None
     assert decide(tmp_path, "PowerShell", {"command": "Remove-Item x"}, agent_type) is None
@@ -358,3 +361,145 @@ def test_cli_dispatches_guard_hook(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.stdout", out)
     assert cli.main(["guard-hook"]) == 0
     assert json.loads(out.getvalue())["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ---- D0022: pipe-judge は読む道具（Read・Glob・Grep）だけ ----------------------------------------
+
+JUDGES = ["pipe-judge", "pipe-in:pipe-judge", "xyz:pipe-judge"]
+READS = {"Read": {"file_path": "out/report.md"}, "Glob": {"pattern": "**/*.md"}, "Grep": {"pattern": "x", "path": "."}}
+
+
+@pytest.mark.parametrize("agent_type", JUDGES)
+@pytest.mark.parametrize("tool", sorted(READS))
+def test_judge_can_read(tmp_path, agent_type, tool):
+    """D0022-AC-19: pipe-judge（プラグイン付きの名前も）は Read・Glob・Grep を止めない。"""
+    assert decide(tmp_path, tool, READS[tool], agent_type) is None
+
+
+@pytest.mark.parametrize("agent_type", JUDGES)
+@pytest.mark.parametrize(
+    "tool,tool_input",
+    [
+        ("Write", {"file_path": "out/a.md", "content": "x"}),
+        ("Write", {"file_path": ".pipe-in/pipes/pipe-in-x/pipe.toml", "content": "x"}),
+        ("Edit", {"file_path": "out/a.md"}),
+        ("MultiEdit", {"file_path": "out/a.md"}),
+        ("NotebookEdit", {"notebook_path": "a.ipynb"}),
+        ("Bash", {"command": "touch x"}),
+        ("Bash", {"command": "pipe-in-gen list"}),
+        ("Bash", {"command": "pipe-in-gen check x"}),
+        ("PowerShell", {"command": "pipe-in-gen list"}),
+        ("WebFetch", {"url": "https://example.com"}),
+        ("WebSearch", {"query": "x"}),
+        ("Task", {"prompt": "x"}),
+        ("Agent", {"prompt": "x", "subagent_type": "general-purpose"}),
+        ("Skill", {"skill": "x"}),
+        ("mcp__x__y", {}),
+        ("mcp__github__create_issue", {}),
+        ("Foo", {}),
+        ("read", {"file_path": "a.md"}),
+        ("", {}),
+    ],
+)
+def test_judge_other_tools_denied(tmp_path, agent_type, tool, tool_input):
+    """D0022-AC-20: pipe-judge には、読む道具のほかはすべて止める（書く・Bash〔pipe-builder に許す形も〕・PowerShell・Web・Task・Agent・MCP・一覧に無い名前）。"""
+    reason = decide(tmp_path, tool, tool_input, agent_type)
+    assert reason, tool
+    assert "pipe-judge" in reason
+
+
+@pytest.mark.parametrize("agent_type", JUDGES)
+@pytest.mark.parametrize("tool_name", [None, 1, 1.5, True, ["Read"], {"a": "Read"}, ("Read",)])
+def test_judge_odd_tool_name_denied(tmp_path, agent_type, tool_name):
+    """D0022-AC-20: tool_name が無い・文字列でない（list・dict などは集合に入れられず例外になりうる）入力は止める。"""
+    p = payload(tmp_path, "Read", {"file_path": "a.md"}, agent_type)
+    p.pop("tool_name") if tool_name is None else p.update(tool_name=tool_name)
+    assert hook().decide(p, pipes_env=None)
+
+
+@pytest.mark.parametrize("agent_type", JUDGES)
+@pytest.mark.parametrize("tool", ["Write", "Bash", "Edit"])
+@pytest.mark.parametrize("tool_input", ["missing", "text", ["x"], None, 3])
+def test_judge_denied_without_tool_input(tmp_path, agent_type, tool, tool_input):
+    """D0022-AC-21: tool_input が無い・辞書でなくても、pipe-judge の Write・Bash・Edit は止める（例外で落ちない）。"""
+    p = payload(tmp_path, tool, {}, agent_type)
+    if tool_input == "missing":
+        p.pop("tool_input")
+    else:
+        p["tool_input"] = tool_input
+    assert hook().decide(p, pipes_env=None)
+
+
+@pytest.mark.parametrize("agent_type", JUDGES)
+def test_judge_denied_even_with_env_pipes_dir(tmp_path, agent_type):
+    """D0022-AC-20: 置き場所の環境変数があっても、pipe-judge はパイプのフォルダにも書けない。"""
+    shared = tmp_path / "shared"
+    target = str(shared / "pipe-in-x" / "pipe.toml")
+    assert decide(tmp_path, "Write", {"file_path": target}, agent_type, pipes_env=str(shared))
+
+
+@pytest.mark.parametrize(
+    "agent_type", ["pipe-judge2", "my-pipe-judge", "pipe-judge-x:pipe-judge-y", "Pipe-Judge", "pipe-judges", "pipe-judge:x", "pipe-judge "]
+)
+def test_similar_agent_names_are_not_judge(tmp_path, agent_type):
+    """D0022-AC-22: pipe-judge に似た名前は pipe-judge として扱わず、何もしない（前方一致・部分一致で当てない）。"""
+    assert decide(tmp_path, "Write", {"file_path": "src/a.py", "content": "x"}, agent_type) is None
+    assert decide(tmp_path, "Bash", {"command": "rm -rf build"}, agent_type) is None
+
+
+def test_plugin_prefixed_judge_is_judge(tmp_path):
+    """D0022-AC-22: xyz:pipe-judge の形は、プラグイン付きの名前として pipe-judge に当たる。"""
+    assert decide(tmp_path, "Write", {"file_path": "src/a.py", "content": "x"}, "xyz:pipe-judge")
+    assert decide(tmp_path, "Read", {"file_path": "src/a.py"}, "xyz:pipe-judge") is None
+
+
+@pytest.mark.parametrize("agent_type", BUILDERS)
+def test_builder_rules_unchanged_beside_judge(tmp_path, agent_type):
+    """D0022-AC-23: pipe-judge を足しても、pipe-builder に許す形は許し、止める形は止める。"""
+    assert decide(tmp_path, "Write", {"file_path": ".pipe-in/pipes/pipe-in-x/pipe.toml"}, agent_type) is None
+    assert decide(tmp_path, "Bash", {"command": "pipe-in-gen list"}, agent_type) is None
+    assert decide(tmp_path, "Bash", {"command": "pipe-in-gen new x --from diagrams"}, agent_type) is None
+    assert decide(tmp_path, "Read", {"file_path": "src/a.py"}, agent_type) is None
+    assert decide(tmp_path, "Write", {"file_path": "src/a.py"}, agent_type)
+    assert decide(tmp_path, "Write", {"file_path": ".pipe-in/pipes/pipe-in-x/../../src/a.md"}, agent_type)
+    assert decide(tmp_path, "Bash", {"command": "pipe-in-gen new x --force"}, agent_type)
+    assert decide(tmp_path, "PowerShell", {"command": "pipe-in-gen list"}, agent_type)
+    assert decide(tmp_path, "WebFetch", {"url": "https://example.com"}, agent_type)
+    assert decide(tmp_path, "mcp__x__y", {}, agent_type)
+    assert decide(tmp_path, "Agent", {"prompt": "x"}, agent_type)
+
+
+@pytest.mark.parametrize("tool,tool_input", [("Write", {"file_path": "src/a.py"}), ("Bash", {"command": "touch x"}), ("mcp__x__y", {})])
+def test_main_denies_judge_through_stdin(tmp_path, no_env, tool, tool_input):
+    """D0022-AC-20: main を通しても（標準入力 → deny の JSON）、pipe-judge の書く・Bash・MCP は止まる。"""
+    code, out = run_main(no_env, json.dumps(payload(tmp_path, tool, tool_input, "pipe-in:pipe-judge")))
+    assert code == 0
+    spec = json.loads(out)["hookSpecificOutput"]
+    assert spec["permissionDecision"] == "deny" and spec["permissionDecisionReason"]
+
+
+def test_main_allows_judge_reading(tmp_path, no_env):
+    """D0022-AC-19: main を通しても、pipe-judge の Read は何も出さない。"""
+    code, out = run_main(no_env, json.dumps(payload(tmp_path, "Read", {"file_path": "a.md"}, "pipe-judge")))
+    assert (code, out) == (0, "")
+
+
+@pytest.mark.parametrize("agent_type", ["pipe-judge", BUILDER, None])
+def test_main_denies_when_decide_raises(tmp_path, no_env, agent_type):
+    """D0022-AC-21: decide が予想外の例外を出しても、main は止めない側に倒れず deny を出す（フックが落ちない）。"""
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("想定外")
+
+    no_env.setattr(hook(), "decide", boom)
+    code, out = run_main(no_env, json.dumps(payload(tmp_path, "Write", {"file_path": "src/a.py"}, agent_type)))
+    assert code == 0
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize("text", ["[]", '"x"', "1", "null", "true"])
+def test_main_denies_non_dict_json(monkeypatch, text):
+    """D0022-AC-26: 辞書でない JSON は、これまでどおり deny（だれの呼び出しか分からないので安全側）。"""
+    code, out = run_main(monkeypatch, text)
+    assert code == 0
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"

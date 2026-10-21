@@ -1,5 +1,5 @@
 {
-  "description": "pipe-builder が書けるのをパイプのフォルダの決まったファイルだけに、Bash を pipe-in-gen list / new / check だけに絞る（ほかのエージェントには何もしない）",
+  "description": "pipe-builder が書けるのをパイプのフォルダの決まったファイルだけに、Bash を pipe-in-gen list / new / check だけに絞り、pipe-judge は読む道具（Read・Glob・Grep）だけに絞る（ほかのエージェントには何もしない）",
   "hooks": {
     "PreToolUse": [
       {

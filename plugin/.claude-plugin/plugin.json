@@ -1,6 +1,9 @@
 {
   "name": "pipe-in",
-  "version": "0.2.0",
-  "description": "pipe-in のパイプを会話で作る・直す。書き込みはフック（pipe-in-gen guard-hook）でパイプのフォルダだけに絞る",
+  "version": "0.3.0",
+  "description": "pipe-in のパイプを会話で作る・直す。成果物を検査・審査する。書き込みと審査役の道具はフック（pipe-in-gen guard-hook）で絞る",
+  "author": {
+    "name": "pipe-in"
+  },
   "license": "MIT"
 }

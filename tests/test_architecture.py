@@ -149,6 +149,28 @@ def test_guard_hook_uses_only_stdlib():
     assert outside == []
 
 
+def test_judge_score_uses_only_stdlib():
+    """D0022-AC-27: 審査の計算（pipe-in-gen judge-score）も、本体や SDK を読み込まない（標準ライブラリだけ）。"""
+    import sys
+
+    path = ROOT / "generator" / "judge_score.py"
+    assert path.is_file()
+    targets = {t.split(".")[0] for t in _imports(path, "pipe_in_generator.judge_score") if t}
+    outside = sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
+    assert outside == []
+
+
+def test_stdlib_check_finds_outside_import(tmp_path):
+    """D0022-AC-27: 標準ライブラリの検査そのものが、外の import（pipe_in・SDK）を見つけられること。"""
+    import sys
+
+    bad = tmp_path / "oops.py"
+    bad.write_text("import json\nfrom pipe_in.engine import config\nimport claude_agent_sdk\n", encoding="utf-8")
+    targets = {t.split(".")[0] for t in _imports(bad, "pipe_in_generator.oops") if t}
+    outside = sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
+    assert outside == ["claude_agent_sdk", "pipe_in"]
+
+
 # ---- D0006-AC-03: 古い名前を import しない ------------------------------------------------
 
 OLD_MODULES = ("devpipe", "devpipe_generator")
