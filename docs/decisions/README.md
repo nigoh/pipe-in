@@ -23,6 +23,7 @@
 | [D0017](D0017-live-flow.md) | 実行の図で、動いている様子と各段の時間をリアルタイムで見られるようにする（アニメーション・経過時間） |
 | [D0018](D0018-research-docs.md) | 調べた結果を docs/research/ に残す（最初は eval と LLM as judge の比較） |
 | [D0019](D0019-run-list.md) | 実行パネルを Web アプリの形にし、並列・別の worktree・前の実行をセッション名で選べる一覧と、時系列・図の拡大縮小を足す |
+| [D0020](D0020-docs-sync.md) | 何かを変えたら文書もそろえる（文書係 pipe-in-documenter・/pipe-docs・止まるときの知らせ） |
 
 ## ひな形
 

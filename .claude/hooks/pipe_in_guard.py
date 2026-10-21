@@ -6,6 +6,8 @@
 - pipe-in-tester（テスト先行）：tests/・vscode/src の *.test.ts と vscode/src/test/・docs/pipeline/03_red_tests.md。Bash はテストを流すだけ
 - pipe-in-coder（実装）：テスト・.claude/・.git/・.env・ほかの段の記録を除いた所と docs/pipeline/04_implementation.md。Bash はテスト・型検査・ビルド
 - pipe-in-verifier（検証）：docs/pipeline/05_test_report.md だけ。Bash はテスト・型検査・ビルド・git の読むだけのコマンド
+- pipe-in-documenter（文書をそろえる）：README.md・vscode/README.md・pipes/README.md・docs/assets/README.md と docs/guide/・docs/development/ の .md だけ。Bash なし。
+  CLAUDE.md・.claude/・決定の記録（docs/decisions/）は書けず、案を親に返す
 - pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）・pipe-in-judge（審査）：どこにも書けない・Bash なし。報告は SubagentHandback で返すだけ
 - Web は pipe-in-advisor（WebFetch・WebSearch）と pipe-in-judge（WebFetch だけ）だけ、公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ
 - 表に無い pipe-in-* は、Read・Glob・Grep・SubagentHandback だけ（表に足し忘れても絞られるように）
@@ -76,6 +78,15 @@ def _verifier(rel: str) -> bool:
     return rel == WORK + "05_test_report.md"
 
 
+# 文書係が書ける文書。CLAUDE.md・.claude/（/pipe-help を含む）・決定の記録は、メインが人の承認を得てから書く（D0020）
+DOC_FILES = ("README.md", "vscode/README.md", "pipes/README.md", "docs/assets/README.md")
+DOC_DIRS = ("docs/guide/", "docs/development/")
+
+
+def _documenter(rel: str) -> bool:
+    return rel in DOC_FILES or (rel.startswith(DOC_DIRS) and rel.endswith(".md"))
+
+
 def _nowhere(rel: str) -> bool:
     return False
 
@@ -85,6 +96,7 @@ AGENTS: dict[str, tuple[Any, list[str], str]] = {
     "pipe-in-tester": (_tester, TESTS, "テスト（tests/・*.test.ts）と docs/pipeline/03_red_tests.md"),
     "pipe-in-coder": (_coder, TESTS + BUILD, "製品コードと文書（テスト・.claude/・.git/・ほかの段の記録を除く）と docs/pipeline/04_implementation.md"),
     "pipe-in-verifier": (_verifier, TESTS + BUILD + GIT_READ, "docs/pipeline/05_test_report.md"),
+    "pipe-in-documenter": (_documenter, [], "README.md・vscode/README.md・pipes/README.md・docs/assets/README.md と docs/guide/・docs/development/ の .md"),
     "pipe-in-auditor": (_nowhere, [], ""),
     "pipe-in-advisor": (_nowhere, [], ""),
     "pipe-in-judge": (_nowhere, [], ""),
