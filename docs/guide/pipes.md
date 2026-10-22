@@ -178,6 +178,7 @@ group = "draw"
 - 許可のモード（`permission_mode`）・考える量（`max_thinking_tokens`）・予備のモデル（`fallback_model`）・この段の決まり（`system_append`）・追加で読めるフォルダ（`add_dirs`）・使う MCP の道具（`mcp`）・サブエージェント（`agents`）・この段だけの MCP サーバー（`mcp_servers`）。
 - `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
 - `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
+- 受信バッファの上限（`max_buffer_size`）だけは、書かなくてもいつも SDK に渡します。値は段ごとではなく、`pipeline.toml` の `[pipeline]` の `max_buffer_mb`（既定 32MB）で決めます（[設定](config.md)）。
 
 <details>
 <summary>書き方の例</summary>

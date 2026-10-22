@@ -881,6 +881,23 @@ def test_D0021_AC_38_拡張のREADMEに設定名がある():
     assert "pipe-in.staleAfterMinutes" in md, "vscode/README.md に pipe-in.staleAfterMinutes が無い"
 
 
+# ---- D0026-AC-09: 設定のガイドと見本に受信バッファの上限を書く -----------------------------------------
+
+
+def test_D0026_AC_09_設定のガイドと見本にmax_buffer_mbと既定の32がある():
+    """D0026-AC-09: docs/guide/config.md と直下の見本の pipeline.toml に max_buffer_mb と既定の 32 があり、config.md の表に
+    `max_buffer_mb` の行があり、見本の pipeline.toml を読むと [pipeline].max_buffer_mb が 32。（どちらも読むだけで書かない）"""
+    import tomllib
+
+    md = read_doc(GUIDE / "config.md")
+    sample = read_doc(ROOT / "pipeline.toml")
+    for name, text in (("docs/guide/config.md", md), ("pipeline.toml", sample)):
+        assert "max_buffer_mb" in text, f"{name} に max_buffer_mb が無い"
+        assert re.search(r"max_buffer_mb\s*=\s*32\b", text), f"{name} に max_buffer_mb = 32 が無い"
+    assert re.search(r"^\|\s*`max_buffer_mb`\s*\|", md, re.M), "docs/guide/config.md の表に `max_buffer_mb` の行が無い"
+    assert tomllib.loads(sample).get("pipeline", {}).get("max_buffer_mb") == 32
+
+
 # ---- D0014-AC-27: 古いリンク --------------------------------------------------------------------
 
 

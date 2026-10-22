@@ -7,6 +7,10 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+MIB = 1024 * 1024
+# SDK の受信バッファの上限の既定（MB）。1つのメッセージの大きさの上限で、前もって確保する量ではない
+DEFAULT_MAX_BUFFER_MB = 32
+
 
 @dataclass
 class StageConfig:
@@ -37,6 +41,14 @@ class Config:
     protected_paths: list[str] = field(default_factory=list)
     # 流すパイプの名前（既定は組み込みの開発フロー）
     pipe: str = "dev"
+    # SDK が1つのメッセージとして受け取れる大きさの上限（MB）。大きい画像を読むと SDK の既定の 1MB では足りない
+    # （公式の文書では max_buffer_size の既定は None。1MB は SDK のソースの中の定数 _DEFAULT_MAX_BUFFER_SIZE）
+    max_buffer_mb: int = DEFAULT_MAX_BUFFER_MB
+
+    @property
+    def max_buffer_bytes(self) -> int:
+        """受信バッファの上限（バイト）。ClaudeAgentOptions.max_buffer_size に渡す値。"""
+        return self.max_buffer_mb * MIB
 
     def stage(self, name: str) -> StageConfig:
         return self.stages.get(name, StageConfig())
@@ -56,6 +68,19 @@ class Config:
 def _stage_config(raw: Any) -> StageConfig:
     s = raw if isinstance(raw, dict) else {}
     return StageConfig(model=s.get("model"), max_turns=s.get("max_turns"), max_budget_usd=s.get("max_budget_usd"))
+
+
+def _max_buffer_mb(p: dict[str, Any]) -> int:
+    """[pipeline] の max_buffer_mb。無ければ既定。1 以上の整数でなければ止める（true は bool なので type で見る）。"""
+    if "max_buffer_mb" not in p:
+        return DEFAULT_MAX_BUFFER_MB
+    v = p["max_buffer_mb"]
+    if type(v) is int and v >= 1:
+        return v
+    raise SystemExit(
+        "pipeline.toml の [pipeline] max_buffer_mb は 1 以上の整数で書いてください"
+        f"（単位は MB。例: max_buffer_mb = 64）。今の値: {v!r}"
+    )
 
 
 def load_config(
@@ -91,6 +116,8 @@ def load_config(
         if project_dir not in domain_dir.parents:
             raise SystemExit("domain_dir はプロジェクトの中に置いてください")
 
+    max_buffer_mb = _max_buffer_mb(p)
+
     raw_stages = raw.get("stages", {})
     stages = {name: _stage_config(s) for name, s in raw_stages.items()} if isinstance(raw_stages, dict) else {}
 
@@ -107,4 +134,5 @@ def load_config(
         domain_dir=domain_dir,
         setting_sources=list(p["setting_sources"]) if "setting_sources" in p else None,
         protected_paths=list(p.get("protected_paths", [])),
+        max_buffer_mb=max_buffer_mb,
     )

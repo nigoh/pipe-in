@@ -12,7 +12,7 @@ from typing import Any
 from ..engine.checkpoint import Decision
 from ..engine.config import Config
 from ..engine.pipeline import EXIT_MESSAGES, BasePipeline, Exit, ShellResult, one_line, run_shell
-from ..engine.runner import StageRun, StageRunner, run_stage_sdk
+from ..engine.runner import BUFFER_OVERFLOW_SUBTYPE, StageRun, StageRunner, run_stage_sdk
 from . import specs as st
 from .specs import STAGE_LABELS, STAGES
 
@@ -174,8 +174,13 @@ class DevPipeline(BasePipeline):
 
     # ---- 実装とテスト（差し戻しつき） -----------------------------------
 
-    async def _test(self, attempt: int) -> Verdict:
+    async def _test(self, attempt: int) -> Verdict | None:
+        """検証の段を流して判定を返す。SDK の受信バッファの上限を超えて段が止まったときは None（段の失敗）。"""
         run = await self._run("test", st.test_prompt(self.cfg, attempt), attempt=attempt)
+        if run.is_error and run.subtype == BUFFER_OVERFLOW_SUBTYPE:
+            # 「テストを実行できなかった」（blocked）ではなく段の失敗にする。段の実行と案内は _run が state.json に残している
+            print("  ✗ 検証の段が SDK の受信バッファの上限を超えて止まりました", flush=True)
+            return None
         verdict = parse_verdict(run)
         if self.cfg.test_command and verdict.status != "blocked":
             print(f"  確認用コマンドを実行: {self.cfg.test_command}", flush=True)
@@ -205,6 +210,8 @@ class DevPipeline(BasePipeline):
                 if impl.is_error:
                     return Exit.STAGE_ERROR
             verdict = await self._test(attempt)
+            if verdict is None:
+                return Exit.STAGE_ERROR
             if verdict.status == "pass":
                 return Exit.PASSED
             if verdict.status == "blocked":

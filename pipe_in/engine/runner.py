@@ -10,10 +10,18 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from . import clock
-from .config import Config
+from .config import MIB, Config
 from .guard import make_guard_hook
 from ..usage.metrics import StageMetrics
 from .spec import StageSpec
+
+# SDK が受信バッファの上限を超えたときの例外の文の一部。今の SDK では CLIJSONDecodeError のまま届くが、
+# SDK の中の予備の経路で素の Exception に平らになって届くこともあるので、型（その2つだけ）と文の両方で見分ける
+BUFFER_OVERFLOW_MARK = "maximum buffer size"
+# 上限を超えて止めた段の StageRun.subtype。SDK の ResultMessage.subtype の値ではなく、pipe-in が付ける値
+BUFFER_OVERFLOW_SUBTYPE = "error_max_buffer_size"
+# API の1つのリクエストの大きさの上限（MB）。受信バッファをこれより上げても、大きいメッセージは API で通らないおそれがある
+API_REQUEST_LIMIT_MB = 32
 
 
 @dataclass
@@ -64,9 +72,32 @@ def prompt_line(stage: str, resume: str | None, prompt: str, at: str) -> str:
     return json.dumps({"_type": "Prompt", "stage": stage, "resume": resume, "prompt": prompt, "at": at}, ensure_ascii=False)
 
 
+def buffer_overflow_notice(error_text: str, limit_bytes: int) -> str | None:
+    """SDK の例外の文が受信バッファの上限を超えたことを表すなら、直し方の入った日本語の案内を返す。ほかの文には None。"""
+    if BUFFER_OVERFLOW_MARK not in error_text:
+        return None
+    limit_mb = limit_bytes / MIB
+    head = (
+        f"SDK の受信バッファの上限（今は {limit_mb:g}MB）を超えるメッセージが届いたため、この段を止めました。"
+        "大きい画像などを読むと超えます。"
+        "画像を小さくするか、必要な所だけを切り出してから読ませてください。"
+    )
+    if limit_mb < API_REQUEST_LIMIT_MB:
+        raise_hint = f"または、pipeline.toml の [pipeline] に max_buffer_mb = {limit_mb * 2:g} のように、今より大きい値を書いてから流し直してください。"
+    else:
+        # 倍の値は勧めない（API のリクエストの上限を超えるので、上げても通らないおそれがある）
+        raise_hint = (
+            f"pipeline.toml の max_buffer_mb をこれより上げても、API のリクエストの上限も {API_REQUEST_LIMIT_MB}MB なので、"
+            "通らないおそれがあります。"
+        )
+    return f"{head}{raise_hint}（SDK の文: {error_text[:200]}）"
+
+
 def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str, Any]:
     """段の設定から、ClaudeAgentOptions に渡す値を作る（hooks を除く）。SDK を import せずに確かめられるように、
-    サブエージェントはただの dict のまま返す（run_stage_sdk で AgentDefinition にする）。書かれていない設定は入れない。"""
+    サブエージェントはただの dict のまま返す（run_stage_sdk で AgentDefinition にする）。書かれていない設定は入れない。
+    ただし受信バッファの上限（max_buffer_size）だけは、既定（32MB）でも必ず入れる。公式の文書では max_buffer_size の既定は None で、
+    そのとき SDK はソースの中の定数（_DEFAULT_MAX_BUFFER_SIZE、1MB）を使う。1MB では大きい画像で止まる。"""
     sc = cfg.stage(spec.name)
     opts: dict[str, Any] = {
         "system_prompt": {"type": "preset", "preset": "claude_code", "append": spec.system_append},
@@ -80,6 +111,7 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
         "output_format": spec.output_format,
         "resume": resume,
         "setting_sources": cfg.setting_sources,
+        "max_buffer_size": cfg.max_buffer_bytes,
     }
     if spec.max_thinking_tokens:
         opts["max_thinking_tokens"] = spec.max_thinking_tokens
@@ -102,6 +134,7 @@ async def run_stage_sdk(
         AgentDefinition,
         AssistantMessage,
         ClaudeAgentOptions,
+        CLIJSONDecodeError,
         ClaudeSDKClient,
         HookMatcher,
         ResultMessage,
@@ -141,27 +174,40 @@ async def run_stage_sdk(
 
     with log_path.open("a", encoding="utf-8") as log:
         log.write(prompt_line(spec.name, resume, prompt, clock.now_with_offset()) + "\n")
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(prompt)
-            async for msg in client.receive_response():
-                line = json.dumps(_to_jsonable(msg), ensure_ascii=False, default=str)
-                log.write(line + "\n")
-                run.metrics.feed(json.loads(line))  # ログと同じ形から集める
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, ToolUseBlock):
-                            print(f"    · {_tool_summary(block.name, block.input)}", flush=True)
-                        elif isinstance(block, TextBlock) and block.text.strip():
-                            print(f"    {label}: {_short(block.text, 120)}", flush=True)
-                elif isinstance(msg, ResultMessage):
-                    run.session_id = msg.session_id
-                    run.is_error = bool(msg.is_error)
-                    run.subtype = msg.subtype
-                    run.result = msg.result
-                    run.structured = msg.structured_output
-                    run.cost_usd = float(msg.total_cost_usd or 0.0)
-                    run.num_turns = msg.num_turns
-                    run.errors = list(msg.errors or [])
+        # try は async with の外に置く（SDK が子プロセスを閉じてから例外がここに来る）
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(prompt)
+                async for msg in client.receive_response():
+                    line = json.dumps(_to_jsonable(msg), ensure_ascii=False, default=str)
+                    log.write(line + "\n")
+                    run.metrics.feed(json.loads(line))  # ログと同じ形から集める
+                    if isinstance(msg, AssistantMessage):
+                        for block in msg.content:
+                            if isinstance(block, ToolUseBlock):
+                                print(f"    · {_tool_summary(block.name, block.input)}", flush=True)
+                            elif isinstance(block, TextBlock) and block.text.strip():
+                                print(f"    {label}: {_short(block.text, 120)}", flush=True)
+                    elif isinstance(msg, ResultMessage):
+                        run.session_id = msg.session_id
+                        run.is_error = bool(msg.is_error)
+                        run.subtype = msg.subtype
+                        run.result = msg.result
+                        run.structured = msg.structured_output
+                        run.cost_usd = float(msg.total_cost_usd or 0.0)
+                        run.num_turns = msg.num_turns
+                        run.errors = list(msg.errors or [])
+        except Exception as e:  # Ctrl+C・取り消し（BaseException）は受けない
+            # 受け止めるのは、型が CLIJSONDecodeError か、ちょうど素の Exception（予備の経路で平らになったもの）で、
+            # 文に上限超えの印があるときだけ。ほかの型（ProcessError など）は文に印があっても外へ出す
+            caught_type = isinstance(e, CLIJSONDecodeError) or type(e) is Exception
+            notice = buffer_overflow_notice(str(e), cfg.max_buffer_bytes) if caught_type else None
+            if notice is None:
+                raise  # 上限を超えたこと以外は、今までどおり外へ出す
+            run.is_error = True
+            run.subtype = BUFFER_OVERFLOW_SUBTYPE
+            run.errors = [notice]
+            print(f"    ✗ {notice}", flush=True)
 
     run.duration_sec = round(time.monotonic() - started, 1)
     return run
