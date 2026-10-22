@@ -172,3 +172,68 @@ test('D0002-AC-07: 層の検査そのものが、決まりに合わない import
   ]);
   assert.deepEqual(found, ['domain/a.ts → node:fs/promises', 'view/b.ts → node:path', 'webview/c.ts → some-package', 'infra/d.ts → node:child_process']);
 });
+
+// ---- D0024-AC-42: 件数の判断（domain/runList.ts）と文字を作る部品（view/statusBar.ts）は、時計を読まない ----
+// 本物のファイルの検査も、検査そのものの確かめも、今のまま通る（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）。
+
+/** 時計を読まないと決めたファイル（ステータスバーの件数に関わる 2 つ。src/ からの相対パス）。 */
+const CLOCK_FREE = ['view/statusBar.ts', 'domain/runList.ts'];
+
+/**
+ * 時計を読んでいるファイル（Date・setTimeout・setInterval・setImmediate を語境界で探す）。
+ * 行頭のコメント（ブロックと //）は見ない。語境界で探すので、`updatedDate` のような名前の一部は見逃す。
+ */
+export function clockUsers(files: { rel: string; source: string }[]): string[] {
+  const re = /\b(?:Date|setTimeout|setInterval|setImmediate)\b/;
+  return files
+    .filter((f) => re.test(f.source.replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, '').replace(/^[ \t]*\/\/.*$/gm, '')))
+    .map((f) => f.rel);
+}
+
+test('D0024-AC-42: view/statusBar.ts と domain/runList.ts は時計を読まない（Date・setTimeout・setInterval・setImmediate が無い）（今のまま通る。守る）', () => {
+  const files = CLOCK_FREE.map((rel) => ({ rel, source: readFileSync(path.join(SRC, rel), 'utf8') }));
+  assert.equal(files.length, 2);
+  assert.deepEqual(clockUsers(files), []);
+});
+
+// 時計を読む見本（見つける）
+const CLOCK_FOUND: [string, string][] = [
+  ['Date.now()', 'const at = Date.now();'],
+  ['new Date()', 'const d = new Date();'],
+  ['new Date(引数)', 'const d = new Date(text);'],
+  ['setTimeout(', 'setTimeout(() => render(), 200);'],
+  ['setInterval(', 'const t = setInterval(tick, 1000);'],
+  ['setImmediate(', 'setImmediate(run);'],
+  ['コメントの行のあとの行にある Date.now()（コメントと一緒に消さない）', '// 次の行で読む\nconst at = Date.now();'],
+];
+
+for (const [label, source] of CLOCK_FOUND) {
+  test(`D0024-AC-42: 時計の検査そのものが、${label} を使うファイルを見つける（今のまま通る。守る）`, () => {
+    assert.deepEqual(clockUsers([{ rel: 'view/a.ts', source }]), ['view/a.ts']);
+  });
+}
+
+// 時計ではない見本（見逃す）
+const CLOCK_MISSED: [string, string][] = [
+  ['updatedDate: string を含む行（今の domain/runList.ts にある）', '  updatedDate: string;'],
+  ['updatedDate を使う行（今の domain/runList.ts にある）', '    updatedDate: updatedText === DASH ? DASH : updatedText.slice(0, 5),'],
+  ['行頭の // のコメントに書いた Date', '// Date.now() は使わない'],
+  ['行頭の /** */ の 1 行コメントに書いた Date', '/** new Date() は渡された値から作る */'],
+  ['ブロックコメントの途中の行に書いた Date と setTimeout', '/**\n * 「今」は Date を読まずに引数で受ける\n * setTimeout も使わない\n */\nexport const x = 1;'],
+  ['時計と関係のない行', 'const rows = sortRows(list);'],
+];
+
+for (const [label, source] of CLOCK_MISSED) {
+  test(`D0024-AC-42: 時計の検査そのものが、${label} は見逃す（今のまま通る。守る）`, () => {
+    assert.deepEqual(clockUsers([{ rel: 'view/a.ts', source }]), []);
+  });
+}
+
+test('D0024-AC-42: 時計の検査そのものが、使うファイルだけを渡した順に返す（使わないファイルは含めない）（今のまま通る。守る）', () => {
+  const found = clockUsers([
+    { rel: 'domain/a.ts', source: 'const at = Date.now();' },
+    { rel: 'domain/b.ts', source: 'export const x = 1;' },
+    { rel: 'view/c.ts', source: 'setTimeout(f, 1);' },
+  ]);
+  assert.deepEqual(found, ['domain/a.ts', 'view/c.ts']);
+});

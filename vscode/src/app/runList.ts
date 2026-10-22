@@ -50,11 +50,16 @@ export interface RunList {
   /** 場所ごとの archive の省略（省いた場所だけ） */
   omitted: { place: string | null; count: number }[];
   omittedWorktrees: number;
-  /** 別の場所の行か archive の行がある（5 秒ごとの読み直しが要る） */
+  /** 別の場所の行か archive の行がある（パネルが見えている間の 5 秒ごとの読み直しが要る） */
   hasRemote: boolean;
+  /**
+   * 別の worktree の行（いまの work_dir でない場所の行）が 1 つでもある。種類は問わない（動いている・終わった・archive のどれでも）。
+   * 真のあいだは、パネルが見えていなくても約 5 秒ごとに読み直す（ステータスバーの件数を新しく保つため）
+   */
+  hasOtherWorktree: boolean;
 }
 
-const emptyList = (): RunList => ({ entries: [], omitted: [], omittedWorktrees: 0, hasRemote: false });
+const emptyList = (): RunList => ({ entries: [], omitted: [], omittedWorktrees: 0, hasRemote: false, hasOtherWorktree: false });
 
 /** run のフォルダの絶対パス（場所の work_dir の中だけ） */
 function dirOf(place: Place, id: string): string {
@@ -77,6 +82,7 @@ export async function loadRunList(source: RunsSource, options: { showOthers: boo
   const entries: RunEntry[] = [];
   const omitted: RunList['omitted'] = [];
   let hasRemote = false;
+  let hasOtherWorktree = false;
   for (const place of found.places) {
     let read: PlaceRuns;
     try {
@@ -89,13 +95,15 @@ export async function loadRunList(source: RunsSource, options: { showOthers: boo
       const key = makeRunKey(place.key, run.id);
       if (!isRunKey(key)) continue;
       const previous = isArchiveId(run.id);
-      if (previous || place.key !== HERE) hasRemote = true;
+      const other = place.key !== HERE;
+      if (previous || other) hasRemote = true;
+      if (other) hasOtherWorktree = true;
       const row = summarizeRun(
         {
           key,
           id: run.id,
           branch: place.label,
-          other: place.key !== HERE,
+          other,
           memoHead: run.memoHead ?? null,
           previous,
           stateJson: run.stateJson,
@@ -108,7 +116,7 @@ export async function loadRunList(source: RunsSource, options: { showOthers: boo
   }
   const order = new Map(sortRows(entries.map((e) => e.row)).map((row, i) => [row.key, i]));
   entries.sort((a, b) => (order.get(a.row.key) ?? 0) - (order.get(b.row.key) ?? 0));
-  return { entries, omitted, omittedWorktrees: found.omittedWorktrees, hasRemote };
+  return { entries, omitted, omittedWorktrees: found.omittedWorktrees, hasRemote, hasOtherWorktree };
 }
 
 /** 一覧にある key だけ返す。形の違う値・一覧に無い値は null（口は呼ばない）。 */

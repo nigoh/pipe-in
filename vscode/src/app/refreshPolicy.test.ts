@@ -142,7 +142,7 @@ test('D0019-AC-27: stop すると仕掛け済みのタイマーを消し、止�
   t.poller.stop(); // 二重の stop も安全
 });
 
-test('D0019-AC-27: running は start のあと真、stop のあと偽（パネルが見えている間だけ動かす判断に使う）', async () => {
+test('D0019-AC-27: running は start のあと真、stop のあと偽（読み直しが動いているかを表す）', async () => {
   const t = await make();
   assert.equal(t.poller.running, false);
   t.poller.start();
@@ -209,3 +209,108 @@ test('D0019-AC-27: stop したあとの start で、また動き出す（見え�
   await settle();
   assert.equal(t.runs(), 1);
 });
+
+// ---- D0024：別の worktree の行があるあいだは、パネルが見えていなくても読み直す（shouldPoll の新しい入力 hasOtherWorktree）----
+// 真なら、見えているか・別の場所／archive の行（hasRemote）・選んだ run が動いている（live）に関わらず続ける。
+// 偽にした・省いた呼び出しは、上の表（D0019-AC-27）のまま。
+
+for (const [visible, hasRemote, live, today] of POLL_CASES) {
+  // 今の表で既に続く組は、旗を無視する今の作りでも通る
+  const suffix = today ? '（今のまま通る。守る）' : '';
+  test(`D0024-AC-35: shouldPoll：別の worktree の行がある（hasOtherWorktree=true）なら、見えている=${visible}・別の場所か archive の行=${hasRemote}・選んだ run が動いている／確認待ち=${live} でも true${suffix}`, async () => {
+    const { shouldPoll } = await policy();
+    assert.equal(shouldPoll({ visible, hasRemote, live, hasOtherWorktree: true }), true);
+  });
+}
+
+const WITHOUT_FLAG: [string, { hasOtherWorktree?: boolean }][] = [
+  ['省いた', {}],
+  ['偽にした', { hasOtherWorktree: false }],
+  ['undefined を渡した', { hasOtherWorktree: undefined }],
+];
+
+for (const [how, extra] of WITHOUT_FLAG) {
+  for (const [visible, hasRemote, live, expected] of POLL_CASES) {
+    test(`D0024-AC-36: shouldPoll：hasOtherWorktree を${how}呼び出しは、今の表と同じ（見えている=${visible}・別の場所か archive の行=${hasRemote}・選んだ run が動いている／確認待ち=${live}）で ${expected}（今のまま通る。守る）`, async () => {
+      const { shouldPoll } = await policy();
+      assert.equal(shouldPoll({ visible, hasRemote, live, ...extra }), expected);
+    });
+  }
+}
+
+// ---- D0024-AC-40：古い読み込みの結果が、新しい結果を上書きしない（世代の番号。createPoller の generation と同じ考え方）----
+
+test('D0024-AC-40: createGeneration：next() は増え続ける番号を返し、いま最後に進めた番号だけが isCurrent になる', async () => {
+  const { createGeneration } = await policy();
+  const generation = createGeneration();
+  const numbers = Array.from({ length: 5 }, () => generation.next());
+  for (let i = 1; i < numbers.length; i++) assert.ok(numbers[i]! > numbers[i - 1]!, `${numbers.join(',')} は増え続ける`);
+  assert.deepEqual(numbers.map((n) => generation.isCurrent(n)), [false, false, false, false, true]);
+});
+
+test('D0024-AC-40: createGeneration：まだ進めていない先の番号・壊れた値は isCurrent にならない', async () => {
+  const { createGeneration } = await policy();
+  const generation = createGeneration();
+  const mine = generation.next();
+  for (const other of [mine + 1, mine - 1, Number.NaN, -1]) assert.equal(generation.isCurrent(other), false, String(other));
+  assert.equal(generation.isCurrent(mine), true);
+});
+
+test('D0024-AC-40: createGeneration：別々に作った世代は、お互いの番号を捨てない', async () => {
+  const { createGeneration } = await policy();
+  const first = createGeneration();
+  const second = createGeneration();
+  const mine = first.next();
+  second.next();
+  second.next();
+  assert.equal(first.isCurrent(mine), true);
+});
+
+type Step = 'start A' | 'start B' | 'end A' | 'end B' | 'discard';
+
+/**
+ * 読み込み A・B の始まりと終わりを並べた通りに起こして、結果が反映された読み込みの名前を返す。
+ * 読み込みは「始めに next() → 待つ → 終わったとき isCurrent なら反映」（extension.ts の loadLatest と同じ形）。待ちは手で開ける（時間は使わない）。
+ */
+async function simulate(steps: Step[]): Promise<string[]> {
+  const { createGeneration } = await policy();
+  const generation = createGeneration();
+  const applied: string[] = [];
+  const gates = new Map<string, () => void>();
+  const loads = new Map<string, Promise<void>>();
+  for (const step of steps) {
+    if (step === 'discard') {
+      generation.next();
+      continue;
+    }
+    const [verb, name] = step.split(' ') as ['start' | 'end', string];
+    if (verb === 'start') {
+      loads.set(
+        name,
+        (async () => {
+          const mine = generation.next();
+          await new Promise<void>((resolve) => gates.set(name, resolve));
+          if (generation.isCurrent(mine)) applied.push(name);
+        })(),
+      );
+    } else {
+      gates.get(name)!();
+      await loads.get(name);
+    }
+  }
+  return applied;
+}
+
+const TIMELINES: [string, Step[], string[]][] = [
+  ['読み込みが 1 つだけなら、反映される', ['start A', 'end A'], ['A']],
+  ['終わってから次を始める（重ならない）なら、両方反映される', ['start A', 'end A', 'start B', 'end B'], ['A', 'B']],
+  ['先に始めた方があとに終わっても、反映されない（後に始めた方が先に終わって、反映される）', ['start A', 'start B', 'end B', 'end A'], ['B']],
+  ['後が始まっていれば、先に始めた方が先に終わっても反映されない', ['start A', 'start B', 'end A', 'end B'], ['B']],
+  ['next() で捨てると、始めていた読み込みは終わっても反映されない', ['start A', 'discard', 'end A'], []],
+];
+
+for (const [name, steps, expected] of TIMELINES) {
+  test(`D0024-AC-40: 古い結果を世代の番号で捨てる：${name}`, async () => {
+    assert.deepEqual(await simulate(steps), expected);
+  });
+}

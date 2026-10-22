@@ -1,19 +1,43 @@
-// 更新の決まり：監視の対象・まとめる時間・読み直しの間隔と、その間隔で動く小さなタイマー。
+// 更新の決まり：監視の対象・まとめる時間・読み直しの間隔と、その間隔で動く小さなタイマー、古い読み込みの結果を捨てる世代の番号。
 // 時計は引数で受ける（テストは偽のタイマーを渡す）。vscode を import しない。
 
 /** いまの work_dir の下で見るファイル。対象を狭めない（直下とパイプのフォルダの state.json・*.md・logs/*.jsonl） */
 export const WATCH_GLOB = '{state.json,*.md,logs/*.jsonl,*/state.json,*/*.md,*/logs/*.jsonl}';
 /** 監視の知らせをまとめる時間 */
 export const DEBOUNCE_MS = 200;
-/** 別の worktree と archive の読み直しの間隔（パネルが見えている間だけ） */
+/** 別の worktree と archive の読み直しの間隔（別の worktree の行があるあいだと、パネルが見えている間） */
 export const POLL_MS = 5000;
 
 /**
- * 約 5 秒ごとの読み直しを続けるか。パネルが見えていて、別の場所／archive の行があるか、
- * 選んだ run が動いている・確認待ちのとき（時系列の帯を伸ばすため）に続ける。隠れていれば止める。
+ * 約 5 秒ごとの読み直しを続けるか。次のどちらかのとき続ける：
+ * ・別の worktree の行があるとき（hasOtherWorktree。パネルが隠れていても。ステータスバーの件数を新しく保つため）
+ * ・パネルが見えていて、別の場所／archive の行があるか、選んだ run が動いている・確認待ちのとき（時系列の帯を伸ばすため）
+ * 別の worktree の行が無く（hasOtherWorktree を省いたときも同じ）、パネルが隠れていれば止める。
  */
-export function shouldPoll(state: { visible: boolean; hasRemote: boolean; live: boolean }): boolean {
-  return state.visible && (state.hasRemote || state.live);
+export function shouldPoll(state: { visible: boolean; hasRemote: boolean; live: boolean; hasOtherWorktree?: boolean }): boolean {
+  return state.hasOtherWorktree === true || (state.visible && (state.hasRemote || state.live));
+}
+
+/** 世代の番号。読み込みを始めるたびに番号を進め、最後に始めた読み込みの結果だけを使う（古い結果を捨てる）。 */
+export interface Generation {
+  /** 番号を進めて返す（読み込みを始める時と、途中の結果を捨てたい時に呼ぶ） */
+  next(): number;
+  /** 渡した番号が、いま最後に進めた番号か */
+  isCurrent(id: number): boolean;
+}
+
+/** 世代の番号を 1 つ作る。番号は作った部品ごとに持つ（別々に作った世代は、お互いの番号を捨てない）。 */
+export function createGeneration(): Generation {
+  let current = 0;
+  return {
+    next(): number {
+      current++;
+      return current;
+    },
+    isCurrent(id: number): boolean {
+      return id === current;
+    },
+  };
 }
 
 export interface PollerOptions<Handle> {

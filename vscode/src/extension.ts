@@ -1,8 +1,10 @@
 // 入口：vscode に触れる唯一のファイル。コマンド・ステータスバー・パネル・ファイルの監視・エディタで開く、を担い、判定は持たない。
-// 監視は拡張機能で1つ。記録が変わったら図の状態を作り直し、ステータスバーと（開いていれば）パネルの両方に配る。
+// いまの work_dir の監視は1つ（別の worktree の実行を選んでパネルを開いているときだけ、そのフォルダの監視を足す）。記録が変わったら一覧と図の状態を作り直し、ステータスバーには毎回、パネルには見えているときだけ配る。
 // 実行の一覧（直下の開発フロー・<work_dir>/<パイプ名>/・archive/・同じ git リポジトリの別の worktree）から1つを選んで見る。
 // 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（書くのはそれだけ。work_dir・.git・別の worktree には書かない）。
-// 別の worktree と archive は、パネルが見えている間だけ約5秒ごとに読み直す（app/refreshPolicy.ts）。
+// 約5秒ごとの読み直しは、別の worktree の行があるあいだ、パネルが閉じていても隠れていても続ける（ステータスバーの件数を新しく保つため）。
+// archive の行と、選んだ実行が動いている・確認待ちのときは、パネルが見えている間だけ（app/refreshPolicy.ts）。
+// 読み込みが重なったら、最後に始めたものの結果だけを使う（世代の番号。古い結果は捨てる）。
 // 「止まっているかも」の印の目安（pipe-in.staleAfterMinutes）は、設定を読んで画面の部品に渡すだけ（秒への直しは app/staleness.ts）。変わったら描き直す。
 // パイプ作業台（pipe-in.editPipe）は .pipe-in/pipes/ と前の版の置き場所（どちらも無ければ pipes/）のパイプを開き、
 // 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。work_dir には書かない。
@@ -29,8 +31,9 @@ import type { PipelineView } from './domain/pipelineView.ts';
 import { resolveArtifactPath } from './domain/artifacts.ts';
 import { HERE } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
+import { frontWaitingKey } from './domain/runList.ts';
 import type { RunListView } from './domain/runList.ts';
-import { DEBOUNCE_MS, POLL_MS, WATCH_GLOB, createPoller, shouldPoll } from './app/refreshPolicy.ts';
+import { DEBOUNCE_MS, POLL_MS, WATCH_GLOB, createGeneration, createPoller, shouldPoll } from './app/refreshPolicy.ts';
 import { chooseEntry, findEntry, isPreviousRun, loadRunList, toListView } from './app/runList.ts';
 import type { RunList, RunsSource } from './app/runList.ts';
 import { rememberRun, restoreRun } from './app/selection.ts';
@@ -68,12 +71,16 @@ let selected: RunKey | null = null;
 let memory: vscode.Memento | undefined;
 /** 直前に出した一覧。パネルから来た目印はこの中にあるものだけ受け付ける */
 let lastList: RunList | null = null;
+/** 直前に出した一覧の行と選んでいる実行。ボタンが先に出す確認待ちを決めるのに使う */
+let lastListView: RunListView | null = null;
 let runsSource: RunsSource | null = null;
 /** 直前に出した、選んだ run が動いている・確認待ちか（パネルが隠れて見えたとき、読み直しを続けるかの判断に使う） */
 let lastLive = false;
 /** いま見ている実行のフォルダと、開いてよい成果物の名前 */
 let shown: { runAbs: string; artifacts: string[] } | null = null;
-/** パネルが見えている間だけ、別の worktree と archive を読み直す */
+/** 読み込みの世代。最後に始めた読み込みの結果だけを使い、古い結果は捨てる */
+const loads = createGeneration();
+/** 約5秒ごとに一覧を読み直す（動かすかどうかは updatePolling が決める） */
 const poller = createPoller({
   intervalMs: POLL_MS,
   run: () => render(),
@@ -83,7 +90,11 @@ const poller = createPoller({
 
 interface CurrentView {
   view: PipelineView;
+  /** 読んだ一覧（パネルから来た目印を確かめるのに使う） */
+  list: RunList;
   listView: RunListView;
+  /** いま見ている実行のフォルダと、開いてよい成果物の名前 */
+  shownRun: { runAbs: string; artifacts: string[] };
   /** 選んだ run が別の worktree にあるとき、そのフォルダ */
   otherDir: string | null;
   /** 選んだ run が動いている・確認待ちか（時系列の帯が「今」まで伸びる。読み直しを続ける） */
@@ -122,7 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
     statusItem,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (settingKeys('workDir').some((key) => event.affectsConfiguration(key))) retarget();
-      // 別の worktree を出す・出さないは、場所を決め直すだけ（監視は変わらない）。覚えた選びは消さない
+      // 別の worktree を出す・出さないは、場所を決め直し、読み直しの要否も決め直す（監視は変わらない）。覚えた選びは消さない
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_SHOW_OTHER}`)) void render();
       // 止まっているかもの目安が変わったら、開いているパネルを描き直す（拡張を開き直さなくてよい）
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_STALE_AFTER}`)) void render();
@@ -147,6 +158,8 @@ export function deactivate(): void {
   for (const p of editors.values()) p.dispose();
   editors.clear();
   stopWatching();
+  // パネルを閉じて起きた読み直しや、途中の読み込みの結果を捨てる（終えたあとに読み直しを始め直さない）
+  loads.next();
 }
 
 function currentWorkDir(): WorkDirTarget | null {
@@ -179,20 +192,35 @@ function watchRemote(dir: string | null): void {
   remoteWatcher.onDidDelete(schedule);
 }
 
-/** パネルが見えていて、別の worktree か archive の行があるか、選んだ run が動いている・確認待ちのときだけ、約5秒ごとの読み直しを動かす。 */
+/**
+ * 約5秒ごとの読み直しを動かすか決める。フォルダを開いていなければ止める。
+ * 別の worktree の行があるあいだは、パネルが閉じていても隠れていても動かす（ステータスバーの件数を新しく保つため）。
+ * そうでなければ、パネルが見えていて、別の場所か archive の行があるか、選んだ run が動いている・確認待ちのときだけ動かす。
+ */
 function updatePolling(live: boolean): void {
-  if (shouldPoll({ visible: panel !== undefined && panel.visible, hasRemote: lastList?.hasRemote === true, live })) poller.start();
+  if (!target) {
+    poller.stop();
+    return;
+  }
+  if (shouldPoll({ visible: panel !== undefined && panel.visible, hasRemote: lastList?.hasRemote === true, live, hasOtherWorktree: lastList?.hasOtherWorktree === true })) poller.start();
   else poller.stop();
 }
 
-/** 見る work_dir を決め直し、監視を張り直して描き直す。フォルダを開いていなければボタンを隠す。覚えた選びは消さない（新しい候補にあれば使う）。 */
+/**
+ * 見る work_dir を決め直し、監視を張り直して描き直す。覚えた選びは消さない（新しい候補にあれば使う）。
+ * 切り替え前の途中の読み込みの結果は捨てる。フォルダを開いていなければ、読み直す先が無いので読み直しを止めてボタンを隠す。
+ */
 function retarget(): void {
+  loads.next();
   stopWatching();
   shown = null;
   lastList = null;
+  lastListView = null;
+  lastLive = false;
   target = currentWorkDir();
   if (!target) {
     runsSource = null;
+    poller.stop();
     statusItem?.hide();
     return;
   }
@@ -214,44 +242,96 @@ function schedule(): void {
   }, DEBOUNCE_MS);
 }
 
-/** 実行の一覧を読み、見る実行を選んで図の状態を作る。 */
+/**
+ * 実行の一覧を読み、見る実行を選んで図の状態を作る。拡張の状態には書かない（取り込みは adopt が 1 か所でする）。
+ * 読んでいる途中で retarget() が見る先を変えても例外にならないよう、先頭で取った値だけを読む。
+ */
 async function currentView(): Promise<CurrentView | null> {
-  if (!target || !runsSource) return null;
+  const t = target;
+  const src = runsSource;
+  if (!t || !src) return null;
   // 時計を読むのはここだけ（ドメインは「今」を引数で受ける）
   const clock = { nowMs: Date.now(), localOffsetMin: -new Date().getTimezoneOffset() };
   const showOthers = vscode.workspace.getConfiguration(SECTION).get<boolean>(SETTING_SHOW_OTHER, true);
   // 設定の値（分）を目安の秒にするのは app/staleness.ts。ここは読んで渡すだけ
   const staleAfterSec = staleAfterSeconds(vscode.workspace.getConfiguration(SECTION).get<unknown>(SETTING_STALE_AFTER));
-  const list = await loadRunList(runsSource, { showOthers, clock });
-  const here = { key: HERE, label: null, workDirAbs: target.abs };
+  const list = await loadRunList(src, { showOthers, clock });
+  const here = { key: HERE, label: null, workDirAbs: t.abs };
   const choice = chooseEntry(list, selected, here);
   // 前の実行（archive/）の写しだと基盤に伝える（前の実行は印の対象外）
   const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs, { previous: isPreviousRun(list, choice.key) }), choice.dirAbs, clock);
-  shown = { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name) };
-  lastList = list;
   const other = !choice.key.startsWith(`${HERE}|`);
-  return { view, listView: toListView(list, choice.key, target.setting), otherDir: other ? choice.dirAbs : null, live: view.gantt.live, staleAfterSec };
+  return {
+    view,
+    list,
+    listView: toListView(list, choice.key, t.setting),
+    shownRun: { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name) },
+    otherDir: other ? choice.dirAbs : null,
+    live: view.gantt.live,
+    staleAfterSec,
+  };
 }
 
-async function render(): Promise<void> {
+/** 読み込みの結果を、直前の一覧・見ている実行・動いているかとして覚える。最後に始めた読み込みのものだけが呼ぶ。 */
+function adopt(current: CurrentView): void {
+  lastList = current.list;
+  lastListView = current.listView;
+  shown = current.shownRun;
+  lastLive = current.live;
+}
+
+/** 読み込みを始め、最後に始めた読み込みのときだけ結果を取り込んで返す。古い結果は捨てる（null）。 */
+async function loadLatest(): Promise<CurrentView | null> {
+  const mine = loads.next();
   const current = await currentView();
+  if (current === null || !loads.isCurrent(mine)) return null;
+  adopt(current);
+  return current;
+}
+
+/** 一覧を読み直し、ステータスバーを直し、パネルが見えていればそこにも送る。 */
+async function render(): Promise<void> {
+  const current = await loadLatest();
   if (!current) return;
   const { view, listView, otherDir, live, staleAfterSec } = current;
+  // パネルが無くても毎回直す（件数は一覧の行から作る）
   if (statusItem) {
-    const label = statusBarLabel(view);
+    const label = statusBarLabel(view, listView);
     statusItem.text = label.text;
     statusItem.tooltip = label.tooltip;
   }
-  if (panel) {
+  // 見えていないパネルには、本体を作らず送らない（見えたとき onDidChangeViewState が描き直す）
+  if (panel !== undefined && panel.visible) {
     const message: ToPanelMessage = { type: 'render', html: renderViewBody(view, listView, staleAfterSec) };
     void panel.webview.postMessage(message);
   }
   watchRemote(panel !== undefined ? otherDir : null);
-  lastLive = live;
   updatePolling(live);
 }
 
+/** 選びを替えて覚える。行を押したときと、ボタンが確認待ちを先に出すときの、書き込みはここだけ。 */
+async function chooseRun(key: RunKey): Promise<void> {
+  selected = key;
+  if (memory) await rememberRun(memory, key);
+}
+
+/** 確認待ちがあれば、その実行を先に選ぶ。選びを変えたら true。 */
+async function selectWaiting(): Promise<boolean> {
+  if (!target || lastList === null || lastListView === null) return false;
+  const key = frontWaitingKey(lastListView.rows, lastListView.selected);
+  // 拡張が作った一覧にある目印だけ選ぶ（行を押したときと同じ確かめ）
+  if (key === null || findEntry(lastList, key) === null) return false;
+  try {
+    await chooseRun(key);
+  } catch {
+    // 覚える書き込みに失敗しても、選びは（メモリでは）変わっている。パネルは開く
+  }
+  return true;
+}
+
+/** パネルを開く（開いていれば前に出す）。確認待ちがあれば、先にその実行を選んでから開く。 */
 async function showRun(): Promise<void> {
+  if (await selectWaiting()) await render();
   if (panel) {
     panel.reveal();
     return;
@@ -278,8 +358,7 @@ async function showRun(): Promise<void> {
     if (msg.type === 'selectRun') {
       // 直前に出した一覧にある目印だけを受け付ける（パネルから来た文字でフォルダを決めない）
       if (lastList === null || findEntry(lastList, msg.id) === null) return;
-      selected = msg.id;
-      if (memory) await rememberRun(memory, msg.id);
+      await chooseRun(msg.id);
       await render();
       return;
     }
@@ -293,7 +372,7 @@ async function showRun(): Promise<void> {
     }
   });
 
-  // 隠れたら読み直しを止め、また見えたら1回すぐ読み直して追いつく
+  // 隠れても、別の worktree の行があるあいだは読み直しを止めない（そうでなければ止める）。また見えたら1回すぐ読み直して追いつく
   const onViewState = created.onDidChangeViewState(() => {
     updatePolling(lastLive);
     if (created.visible) void render();
@@ -304,19 +383,24 @@ async function showRun(): Promise<void> {
     onViewState.dispose();
     if (panel === created) {
       panel = undefined;
-      // 選びは忘れない（開き直したときに戻す）。別の worktree の監視と読み直しは止める
+      // 選びは忘れない（開き直したときに戻す）。別の worktree の監視は止め、読み直しは render() が要るかを決め直す（別の worktree の行があれば続く）
       poller.stop();
       watchRemote(null);
       void render();
     }
   });
 
+  const mine = loads.next();
   const current = await currentView();
   if (current) {
+    // 最初の HTML は世代に関わらず入れる（捨てると空のパネルが残る）。一覧などの取り込みは、最後に始めた読み込みのときだけ。
+    // ステータスバーはここでは直さない（捨てた読み込みの分も含め、パネルが送る ready で呼ぶ render が直す）
     created.webview.html = renderPanelHtml(current.view, randomBytes(16).toString('base64'), current.listView, current.staleAfterSec);
-    watchRemote(current.otherDir);
-    lastLive = current.live;
-    updatePolling(current.live);
+    if (loads.isCurrent(mine)) {
+      adopt(current);
+      watchRemote(current.otherDir);
+      updatePolling(current.live);
+    }
   }
 }
 

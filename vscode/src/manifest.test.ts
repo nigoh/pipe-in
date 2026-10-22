@@ -173,3 +173,47 @@ function listFiles(dir: string): string[] {
     return e.isDirectory() ? listFiles(full) : e.name.endsWith('.ts') ? [full] : [];
   });
 }
+
+// ---- D0024：ステータスバーの件数 ----
+// 宣言は変えない（ボタンは pipe-in.showRun のまま・コマンドは 2 つ・設定の鍵は 4 つのまま）。
+// 変えるのは設定 pipe-in.showOtherWorktrees の説明の文だけ（「ステータスバーの件数」と「パネルを閉じている間の読み直し」にも効く）。
+// 説明の言い方は「ステータスバー」にそろえた（利用者向けの文書と statusBar.test.ts に合わせる）。
+
+test('D0024-AC-26: ステータスバーのボタンは pipe-in.showRun のまま（extension.ts が statusItem.command に COMMANDS.showRun だけを入れ、それは宣言のコマンドと同じ）（今のまま通る。守る）', async () => {
+  const source = readFileSync(new URL('./extension.ts', import.meta.url), 'utf8');
+  // 行頭のコメントに書いた代入で通さない
+  const code = source
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(?:\/\/|\/\*|\*)/.test(line))
+    .join('\n');
+  const assigned = code.match(/\bstatusItem\.command\s*=(?!=)/g) ?? [];
+  const toShowRun = code.match(/\bstatusItem\.command\s*=\s*COMMANDS\.showRun\s*;/g) ?? [];
+  assert.ok(assigned.length >= 1, 'extension.ts が statusItem.command にコマンドを入れていること');
+  assert.equal(toShowRun.length, assigned.length, 'statusItem.command に入れるのは COMMANDS.showRun だけ');
+  const { COMMANDS } = await import('./app/names.ts');
+  assert.equal(COMMANDS.showRun, 'pipe-in.showRun');
+  const ids = (readManifest().contributes?.commands ?? []).map((c: any) => c?.command);
+  assert.ok(ids.includes('pipe-in.showRun'), 'contributes.commands に pipe-in.showRun があること');
+});
+
+test('D0024-AC-26: コマンドは 2 つ、設定の鍵は 4 つのまま（件数の形を切る設定などを足さない）（今のまま通る。守る）', () => {
+  const manifest = readManifest();
+  assert.equal((manifest.contributes?.commands ?? []).length, 2, 'コマンド ID は増やさない');
+  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 4, '設定の鍵は増やさない');
+});
+
+for (const phrase of ['ステータスバーの件数', 'パネルを閉じている間の読み直し']) {
+  test(`D0024-AC-48: 設定 pipe-in.showOtherWorktrees の説明に「${phrase}」がある`, () => {
+    const prop = readManifest().contributes?.configuration?.properties?.['pipe-in.showOtherWorktrees'];
+    assert.ok(prop, 'pipe-in.showOtherWorktrees の設定項目があること');
+    assert.equal(typeof prop.description, 'string');
+    assert.ok(prop.description.includes(phrase), `説明に「${phrase}」が無い（今の説明：${prop.description}）`);
+  });
+}
+
+test('D0024-AC-48: 設定 pipe-in.showOtherWorktrees の鍵・型・既定は同じ（真偽で、既定は出す true）（今のまま通る。守る）', () => {
+  const prop = readManifest().contributes?.configuration?.properties?.['pipe-in.showOtherWorktrees'];
+  assert.ok(prop, 'pipe-in.showOtherWorktrees の設定項目があること');
+  assert.equal(prop.type, 'boolean');
+  assert.equal(prop.default, true);
+});

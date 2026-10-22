@@ -26,6 +26,7 @@
 | [D0020](D0020-docs-sync.md) | 何かを変えたら文書もそろえる（文書係 pipe-in-documenter・/pipe-docs・止まるときの知らせ） |
 | [D0021](D0021-stale-runs.md) | 段のログが決まった時間更新されない「動いている」実行に、実行パネルの図・一覧・詳細・時系列で「⚠ 更新なし」の印を出す（設定 `pipe-in.staleAfterMinutes`） |
 | [D0022](D0022-plugin-judge.md) | プラグインで成果物を検査・審査する（/pipe-in:pipe-eval・/pipe-in:pipe-judge と審査役 pipe-judge・pipe-in-gen judge-score） |
+| [D0024](D0024-status-counts.md) | ステータスバーに、並列で動いている実行と確認待ちの件数を出す。別の worktree の行があるあいだはパネルを閉じても約5秒ごとに読み直し、ボタンは確認待ちの実行を先に出す |
 
 ## ひな形
 
