@@ -454,7 +454,7 @@ def test_D0014_AC_02_冒頭はロゴ_一文_パネル_要点_目次の順():
     """D0014-AC-02: 最初の ## の前に、ロゴの <picture> → 一文 → パネルの <picture> → ガイドを指す要点の箇条書き → 目次、がこの順にある。"""
     top = top_part(read_doc(README))
     pics = pictures(top)
-    logo = next((p for p in pics if "pipe-in-logo" in p["src"]), None)
+    logo = next((p for p in pics if "logo" in p["src"]), None)   # 止まったロゴでも動くロゴ（D0023）でもよい
     panel = next((p for p in pics if "run-panel-" in p["src"]), None)
     assert logo is not None, "冒頭にロゴの <picture> が無い"
     assert panel is not None, "冒頭にパネルの画像の <picture> が無い"

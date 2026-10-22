@@ -1,7 +1,9 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-logo-dark.svg">
-    <img src="docs/assets/pipe-in-logo.svg" alt="pipe-in" width="420">
+    <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-logo-dark.svg">
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/pipe-in-logo.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipe-in-plug-logo-dark.gif">
+    <img src="docs/assets/pipe-in-plug-logo.gif" alt="pipe-in" width="560">
   </picture>
 </h1>
 
@@ -61,6 +63,28 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 
 > [!IMPORTANT]
 > 段ごとに Claude Agent SDK を呼ぶので、利用料がかかります。対象は git 管理下にして、作業用のブランチで流してください。
+
+### VSCode で見る
+
+拡張を入れた VSCode で対象のプロジェクトを開き、コマンドパレットの「pipe-in: 実行を見る」を選ぶと、流している実行をパネルで見られます。下のステータスバーにも今の状態が出ます。入れ方は [VSCode の拡張](docs/guide/vscode.md)。
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/vscode-run-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/assets/vscode-run-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-usage-dark.gif">
+  <img src="docs/assets/vscode-usage-light.gif" alt="使い方の動画。VSCode で「実行を見る」パネルを開いたまま、下のターミナルで pipe-in に要件メモを渡して流す。要件定義の確認の画面で修正を依頼してから承認し、設計・テスト先行も承認すると、実装・検証（不合格で 1 回差し戻し）と進んで合格で終わる。そのあいだ、パネルの段の図・時系列・実行の一覧と、下のステータスバーが進み具合に合わせて変わる" width="900">
+</picture>
+
+<sub>使い方の動画（約 40 秒）：「実行を見る」を開いておき、ターミナルで開発フローを流して、確認の画面に答えながら進めたところ。SDK の代わりに見本の返事を返す偽物で流しています（数字は見本）。</sub>
+
+「pipe-in: パイプ作業台を開く」では、パイプを組み立てる作業台が開きます。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-editor-dark.png">
+  <img src="docs/assets/vscode-editor-light.png" alt="VSCode の中で開いたパイプ作業台。左にブロックの棚、中央にソースの調査・図を描く・図とソースの突き合わせの3つのブロックと差し戻しのケーブル、右にパイプの設定" width="900">
+</picture>
+
+<sub>VSCode の中のパイプ作業台。ひな形のパイプ diagrams を開いたところ。</sub>
 
 ## 文書
 
