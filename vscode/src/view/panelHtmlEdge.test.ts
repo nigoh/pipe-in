@@ -215,7 +215,7 @@ test('FR-06 追加: 節の状態は文字でも出て、状態ごとにクラス
   assert.equal((body.match(/<g class="node /g) ?? []).length, 11);
 });
 
-test('FR-11 追加: 「ある」成果物だけが押せるボタン（data-artifact）、「まだない」は disabled', () => {
+test('FR-11 追加: 「ある」成果物だけに「エディタで開く」（data-artifact）があり、「まだない」は disabled（D0025 で一覧とプレビューの形になった）', () => {
   const body = renderViewBody(buildPipelineView(snapshot({ artifacts: { '01_requirements.md': 'x', '03_red_tests.md': ' ' } })));
   assert.match(body, /data-artifact="01_requirements\.md"/);
   assert.equal((body.match(/data-artifact=/g) ?? []).length, 1);

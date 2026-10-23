@@ -28,6 +28,7 @@
 | [D0022](D0022-plugin-judge.md) | プラグインで成果物を検査・審査する（/pipe-in:pipe-eval・/pipe-in:pipe-judge と審査役 pipe-judge・pipe-in-gen judge-score） |
 | [D0023](D0023-readme-media.md) | README の冒頭のロゴを動くロゴ（明暗の GIF。動きを減らす設定では止まったロゴ）にし、「すぐ試す」に本物の VSCode の中の画面と使い方の動画（明暗の GIF）を載せる |
 | [D0024](D0024-status-counts.md) | ステータスバーに、並列で動いている実行と確認待ちの件数を出す。別の worktree の行があるあいだはパネルを閉じても約5秒ごとに読み直し、ボタンは確認待ちの実行を先に出す |
+| [D0025](D0025-artifact-preview.md) | 実行パネルの「成果物」タブを、左に成果物の一覧・右に中身のプレビューの形にする（Markdown を許すタグだけの HTML に直す。1 つにつき先頭 256 KiB・合計 4 MiB までの上限つきで読み、symlink は読まない） |
 | [D0026](D0026-sdk-buffer.md) | 段が大きい画像を Read しても落ちないようにする（SDK の受信バッファの上限 `[pipeline] max_buffer_mb`、既定 32MB。超えたら段の失敗にして直し方を出す） |
 
 ## ひな形

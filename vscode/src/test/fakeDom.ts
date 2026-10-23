@@ -3,6 +3,17 @@
 // focus・addEventListener・innerHTML・postMessage）だけを持つ。スクリプトが使う操作を足したら、ここも足す。
 // D0019 で足したもの：入力欄の value・選択範囲（selectionStart/End・setSelectionRange）、scrollTop/scrollLeft（枠の高さが分かるときは範囲に収める）、
 // 変換中の入力の知らせ（compositionstart/end・input）、枠の高さを決める layout（BootOptions）、closest('[hidden]') で隠れているかを見る道。
+// D0025 で足したもの（5 つ）：
+// - セレクタが本物の SyntaxError になる形（閉じていない引用符・引用符のない値に引用符・識別子でない値・あまった文字）で、同じ SyntaxError を投げる。
+//   名前を連ねたセレクタ（'[data-x="' + name + '"]'）が、名前に " が入ると壊れることを、テストで見つけられるようにするため。
+//   引用符の中は \ で逃がせる（[data-x="a\"b"]）。かんたんな書き方だけを持つ（子孫・子の組み合わせ・[a~=b] などは SyntaxError にする。偽物が未対応）。
+// - offsetTop・offsetHeight（既定 0。layout が決める）。選んだ行を枠の中へ寄せる動きを試すため。
+// - hidden にした節の中の枠は、縦横のスクロール位置を 0 に戻す（本物の display: none と同じ。戻しても元には戻らない）。
+// - hidden の中（自分か祖先に hidden がある節）では、offsetTop・offsetHeight・scrollHeight・clientHeight が 0 になり、scrollTop・scrollLeft に書いても残らない
+//   （本物の display: none と同じ。見えていないあいだに寄せても空振りになる。見せると layout の大きさに戻る）。
+//   「見えていないあいだは寄せず、見えたときに寄せる」動き（AC-62）が、起動時（まだ見えていない）に寄せて使い切る実装を見分けるため。
+// - focus() は、hidden の中の節と disabled の要素には効かない（activeElement は替わらない。本物と同じ）。
+//   「焦点が効かずに落ちる先」へ移す動き（AC-61）が、focus() のあとで調べる書き方でも、前もって調べる書き方でも同じに試せるようにするため。
 import vm from 'node:vm';
 
 const VOID_TAGS = new Set(['meta', 'br', 'hr', 'img', 'input', 'link']);
@@ -50,24 +61,89 @@ interface SimpleSelector {
   attrs: { name: string; value: string | null }[];
 }
 
-function parseSelector(selector: string): SimpleSelector[] {
-  // 「,」で並べたもの。子孫・子の組み合わせは使わない（スクリプトが使っていない）
-  return selector.split(',').map((part) => {
-    const text = part.trim();
-    const simple: SimpleSelector = { tag: null, classes: [], attrs: [] };
-    const re = /^[A-Za-z][\w-]*|\.[\w-]+|\[([\w:-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\]]*)))?\]/g;
-    let consumed = 0;
-    for (let m = re.exec(text); m !== null; m = re.exec(text)) {
-      if (m.index !== consumed) throw new Error(`偽物の DOM が扱えないセレクタ: ${selector}`);
-      consumed = re.lastIndex;
-      const token = m[0];
-      if (token.startsWith('.')) simple.classes.push(token.slice(1));
-      else if (token.startsWith('[')) simple.attrs.push({ name: m[1], value: m[2] ?? m[3] ?? m[4] ?? null });
-      else simple.tag = token.toLowerCase();
+// CSS の識別子（引用符のない属性の値）。数字で始まるもの（[a=1]）は本物でも SyntaxError。\ の逃がしは使える。
+const CSS_ESCAPE = String.raw`\\(?:[0-9a-fA-F]{1,6}[ \t\n\r\f]?|[^\n\r\f0-9a-fA-F])`;
+const IDENT_CHAR = String.raw`(?:[\w\u0080-￿-]|${CSS_ESCAPE})`;
+const IDENT_START = String.raw`(?:[A-Za-z_\u0080-￿]|${CSS_ESCAPE})`;
+const IDENT = String.raw`(?:--${IDENT_CHAR}*|-?${IDENT_START}${IDENT_CHAR}*)`;
+// 引用符つきの値。中に改行は置けず、同じ引用符は \ で逃がす
+const DOUBLE_QUOTED = String.raw`"((?:[^"\\\n\r\f]|\\[\s\S])*)"`;
+const SINGLE_QUOTED = String.raw`'((?:[^'\\\n\r\f]|\\[\s\S])*)'`;
+// 1 つの属性 [名前] か [名前=値]。1 番が名前、2・3 番が引用符つきの値、4 番が引用符のない値。後ろに余った文字があれば合わない
+const TAG_RE = /[A-Za-z][\w-]*/y;
+const CLASS_RE = /\.([\w-]+)/y;
+const ATTR_RE = new RegExp(String.raw`\[\s*([\w:-]+)\s*(?:=\s*(?:${DOUBLE_QUOTED}|${SINGLE_QUOTED}|(${IDENT}))\s*)?\]`, 'y');
+
+function selectorError(selector: string): SyntaxError {
+  return new SyntaxError(`偽物の DOM が扱えないセレクタ（本物でも SyntaxError か、偽物が未対応）: ${selector}`);
+}
+
+/** 値の中の \ の逃がしを戻す（\" → "、\\ → \、\26 → &、行の続き \改行 → なし） */
+function cssUnescape(raw: string): string {
+  return raw.replace(
+    /\\(?:([0-9a-fA-F]{1,6})[ \t\n\r\f]?|(\r\n|[\n\r\f])|([\s\S]))/g,
+    (_all: string, hex: string | undefined, newline: string | undefined, char: string | undefined) => {
+      if (hex !== undefined) {
+        const code = parseInt(hex, 16);
+        return code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff) ? '�' : String.fromCodePoint(code);
+      }
+      return newline !== undefined ? '' : (char ?? '');
+    },
+  );
+}
+
+/** 「,」で並べたものを分ける。引用符の中の「,」では分けない（[data-x="a,b"]） */
+function splitSelectorList(selector: string): string[] {
+  const parts: string[] = [];
+  let quote: string | null = null;
+  let start = 0;
+  for (let i = 0; i < selector.length; i++) {
+    const c = selector[i];
+    if (c === '\\') i += 1;
+    else if (quote !== null) {
+      if (c === quote) quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === ',') {
+      parts.push(selector.slice(start, i));
+      start = i + 1;
     }
-    if (consumed !== text.length || text === '') throw new Error(`偽物の DOM が扱えないセレクタ: ${selector}`);
-    return simple;
-  });
+  }
+  parts.push(selector.slice(start));
+  return parts;
+}
+
+/** タグ・.クラス・[属性]・[属性=値] の組み合わせ 1 つ。子孫・子の組み合わせは使わない（スクリプトが使っていない） */
+function parseCompound(text: string, selector: string): SimpleSelector {
+  if (text === '') throw selectorError(selector);
+  const simple: SimpleSelector = { tag: null, classes: [], attrs: [] };
+  let pos = 0;
+  TAG_RE.lastIndex = 0;
+  const tag = TAG_RE.exec(text);
+  if (tag !== null) {
+    simple.tag = tag[0].toLowerCase();
+    pos = TAG_RE.lastIndex;
+  }
+  while (pos < text.length) {
+    CLASS_RE.lastIndex = pos;
+    const cls = CLASS_RE.exec(text);
+    if (cls !== null) {
+      simple.classes.push(cls[1]);
+      pos = CLASS_RE.lastIndex;
+      continue;
+    }
+    ATTR_RE.lastIndex = pos;
+    const attr = ATTR_RE.exec(text);
+    if (attr === null) throw selectorError(selector);
+    const value = attr[2] ?? attr[3] ?? attr[4];
+    simple.attrs.push({ name: attr[1], value: value === undefined ? null : cssUnescape(value) });
+    pos = ATTR_RE.lastIndex;
+  }
+  return simple;
+}
+
+/** 本物の querySelector が SyntaxError にするセレクタは、同じ SyntaxError にする（木に合う節が無くても、呼んだ時点で投げる） */
+function parseSelector(selector: string): SimpleSelector[] {
+  return splitSelectorList(selector).map((part) => parseCompound(part.trim(), selector));
 }
 
 /** 要素（と文書の根）。 */
@@ -75,23 +151,63 @@ export class FakeNode {
   parent: FakeNode | null = null;
   children: (FakeNode | FakeText)[] = [];
   private readonly listeners = new Map<string, Listener[]>();
-  scrollHeight = 0;
-  clientHeight = 0;
-  scrollLeft = 0;
+  /** layout が決めた大きさ・位置（既定 0）。読むときは下の getter を通る：hidden の中では 0 になる（本物の display: none と同じ） */
+  private readonly sizes = { scrollHeight: 0, clientHeight: 0, offsetTop: 0, offsetHeight: 0 };
+  get scrollHeight(): number {
+    return this.isHidden() ? 0 : this.sizes.scrollHeight;
+  }
+  set scrollHeight(value: number) {
+    this.sizes.scrollHeight = value;
+  }
+  get clientHeight(): number {
+    return this.isHidden() ? 0 : this.sizes.clientHeight;
+  }
+  set clientHeight(value: number) {
+    this.sizes.clientHeight = value;
+  }
+  /** 親の枠の中での位置と高さ（既定 0。layout が決める。選んだ行を枠の中へ寄せる動きを試すため） */
+  get offsetTop(): number {
+    return this.isHidden() ? 0 : this.sizes.offsetTop;
+  }
+  set offsetTop(value: number) {
+    this.sizes.offsetTop = value;
+  }
+  get offsetHeight(): number {
+    return this.isHidden() ? 0 : this.sizes.offsetHeight;
+  }
+  set offsetHeight(value: number) {
+    this.sizes.offsetHeight = value;
+  }
   disabledFlag = false;
   /** 入力欄の中身（本物と同じく、代入すると選択範囲は末尾に移る） */
   private text = '';
   selectionStart = 0;
   selectionEnd = 0;
   private top = 0;
+  private left = 0;
 
-  /** 縦のスクロール位置。枠の高さ（scrollHeight・clientHeight）が分かるときは 0〜最大に収める（本物の枠と同じ） */
+  /** 自分か祖先に hidden がある（本物では display: none）。大きさは 0、スクロール位置は持てず、焦点も移らない */
+  private isHidden(): boolean {
+    for (let n: FakeNode | null = this; n !== null; n = n.parent) if (n.attrs.has('hidden')) return true;
+    return false;
+  }
+
+  /** 縦のスクロール位置。枠の高さ（scrollHeight・clientHeight）が分かるときは 0〜最大に収める（本物の枠と同じ）。hidden の中では書いても残らない */
   get scrollTop(): number {
     return this.top;
   }
   set scrollTop(value: number) {
+    if (this.isHidden()) return;
     const wanted = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
     this.top = this.scrollHeight > 0 ? Math.min(wanted, Math.max(0, this.scrollHeight - this.clientHeight)) : wanted;
+  }
+  /** 横のスクロール位置。hidden の中では書いても残らない */
+  get scrollLeft(): number {
+    return this.left;
+  }
+  set scrollLeft(value: number) {
+    if (this.isHidden()) return;
+    this.left = value;
   }
 
   get value(): string {
@@ -126,6 +242,7 @@ export class FakeNode {
   }
   setAttribute(name: string, value: string): void {
     this.attrs.set(name, String(value));
+    if (name === 'hidden') this.loseScroll();
   }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
@@ -138,8 +255,17 @@ export class FakeNode {
     return this.attrs.has('hidden');
   }
   set hidden(value: boolean) {
-    if (value) this.attrs.set('hidden', '');
-    else this.attrs.delete('hidden');
+    if (value) {
+      this.attrs.set('hidden', '');
+      this.loseScroll();
+    } else this.attrs.delete('hidden');
+  }
+
+  /** 隠した（display: none にした）節の中の枠は、縦横のスクロール位置を失う（本物と同じ）。見せ直しても元の位置には戻らない */
+  private loseScroll(): void {
+    this.top = 0;
+    this.left = 0;
+    for (const child of this.children) if (child instanceof FakeNode) child.loseScroll();
   }
   get disabled(): boolean {
     return this.attrs.has('disabled');
@@ -168,8 +294,8 @@ export class FakeNode {
     };
   }
 
-  matches(selector: string): boolean {
-    return parseSelector(selector).some((s) => {
+  private matchesAny(list: SimpleSelector[]): boolean {
+    return list.some((s) => {
       if (s.tag !== null && s.tag !== this.tagName) return false;
       const classes = (this.attrs.get('class') ?? '').split(/\s+/);
       if (!s.classes.every((c) => classes.includes(c))) return false;
@@ -180,19 +306,25 @@ export class FakeNode {
     });
   }
 
+  matches(selector: string): boolean {
+    return this.matchesAny(parseSelector(selector));
+  }
+
   closest(selector: string): FakeNode | null {
+    const list = parseSelector(selector);
     for (let n: FakeNode | null = this; n !== null; n = n.parent) {
-      if (n.tagName !== '#document' && n.matches(selector)) return n;
+      if (n.tagName !== '#document' && n.matchesAny(list)) return n;
     }
     return null;
   }
 
   querySelectorAll(selector: string): FakeNode[] {
+    const list = parseSelector(selector);
     const found: FakeNode[] = [];
     const walk = (n: FakeNode): void => {
       for (const c of n.children) {
         if (c instanceof FakeNode) {
-          if (c.matches(selector)) found.push(c);
+          if (c.matchesAny(list)) found.push(c);
           walk(c);
         }
       }
@@ -232,7 +364,9 @@ export class FakeNode {
     parseInto(this, html, this.document);
   }
 
+  /** 本物と同じく、hidden の中の節と disabled の要素には効かない（activeElement は替わらない） */
   focus(): void {
+    if (this.disabled || this.isHidden()) return;
     this.document.activeElement = this;
   }
 
@@ -268,6 +402,14 @@ export class FakeNode {
   }
 }
 
+/** layout が節ごとに決める大きさ・位置（無いものは 0）。offsetTop・offsetHeight は D0025 で足した */
+export interface LayoutSize {
+  scrollHeight?: number;
+  clientHeight?: number;
+  offsetTop?: number;
+  offsetHeight?: number;
+}
+
 /** Web Animations の Animation の偽物（currentTime だけ）。 */
 export interface FakeAnimation {
   currentTime: number | null;
@@ -280,8 +422,8 @@ export class FakeDocument extends FakeNode {
   visibilityState: 'visible' | 'hidden' = 'visible';
   /** true なら、どの節も getAnimations を持たない */
   noAnimations = false;
-  /** 作られた節の枠の高さを決める（無ければ 0 のまま）。スクロールの位置や末尾追従を試すときに使う */
-  layout: ((node: FakeNode) => { scrollHeight?: number; clientHeight?: number } | null | undefined) | null = null;
+  /** 作られた節の枠の高さ・位置を決める（無ければ 0 のまま）。スクロールの位置や末尾追従、選んだ行を枠の中へ寄せる動きを試すときに使う */
+  layout: ((node: FakeNode) => LayoutSize | null | undefined) | null = null;
   constructor() {
     super('#document', new Map(), null);
   }
@@ -322,6 +464,8 @@ function parseInto(parent: FakeNode, html: string, doc: FakeDocument): void {
     if (size) {
       node.scrollHeight = size.scrollHeight ?? 0;
       node.clientHeight = size.clientHeight ?? 0;
+      node.offsetTop = size.offsetTop ?? 0;
+      node.offsetHeight = size.offsetHeight ?? 0;
     }
     const top = stack[stack.length - 1];
     node.parent = top;
@@ -349,7 +493,7 @@ export interface BootOptions {
   visibility?: 'visible' | 'hidden';
   /** 偽の時計の始まり（ミリ秒。既定 1.7e12） */
   startMs?: number;
-  /** 作られた節の枠の高さ（scrollHeight・clientHeight）を決める。起動時と render のあとに作られる節のすべてに当てる */
+  /** 作られた節の枠の高さ・位置（scrollHeight・clientHeight・offsetTop・offsetHeight）を決める。起動時と render のあとに作られる節のすべてに当てる */
   layout?: FakeDocument['layout'];
 }
 

@@ -1,4 +1,5 @@
-// 時刻の読み方：記録の時刻の文字を、ミリ秒と経過秒にする。純粋（時計に触れない）。
+// 時刻の読み方と書き方：記録の時刻の文字を、ミリ秒と経過秒にする。ミリ秒を、手元の時刻の短い文字（MM/DD HH:mm）にする。
+// 純粋（時計に触れない）。
 // 本体は新しい時刻を UTC からのずれつき（+09:00・Z）で書くが、started_at などの古い書き方はずれがない。
 // ずれのない時刻は、読む側の手元の時刻（localOffsetMin）として読む。
 
@@ -44,6 +45,20 @@ export function parseInstant(text: string, localOffsetMin: number): number | nul
   if (parts === null) return null;
   const offset = parts.offsetMin ?? (Number.isFinite(localOffsetMin) ? localOffsetMin : 0);
   return parts.wallMs - offset * 60_000;
+}
+
+/**
+ * UTC のミリ秒を、UTC から localOffsetMin 分ずれた手元の時刻の 'MM/DD HH:mm' にする。年は出さない。秒以下は切り捨て。
+ * 有限の正の数でない値と、手元の時刻に直すと Date にできなくなる値は null（例外は出さない）。
+ * localOffsetMin が有限の数でなければ 0 として読む（parseInstant と同じ）。
+ */
+export function formatLocalStamp(ms: unknown, localOffsetMin: number): string | null {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
+  const offset = Number.isFinite(localOffsetMin) ? localOffsetMin : 0;
+  const local = new Date(ms + offset * 60_000);
+  if (Number.isNaN(local.getTime())) return null;
+  const two = (n: number): string => String(n).padStart(2, '0');
+  return `${two(local.getUTCMonth() + 1)}/${two(local.getUTCDate())} ${two(local.getUTCHours())}:${two(local.getUTCMinutes())}`;
 }
 
 /** fromMs から toMs までの経過秒。切り捨てで、負（未来の時刻）や読めない値は 0。 */

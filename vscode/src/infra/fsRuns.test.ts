@@ -277,8 +277,13 @@ test('D0019-AC-11: archive/<日時> を開くと、図・出力・成果物が�
     }
     // D0021：写しのログに更新時刻（mtimeMs）が付くようになる。別々に書いた 2 つのログの時刻は、書いた順やファイルシステムの粒度で
     // ずれるので、同じ値にそろえる（準備の直しだけ。下の deepEqual の期待は変えない）
+    // D0025：写しの成果物にも更新時刻（mtimeMs）が付くようになるので、読まれる 2 つ（00_input.md・01_requirements.md）も同じ値にそろえる
+    // （other.md は一覧の外で読まれないので、そろえない）
     const pinned = new Date('2026-10-17T10:00:00Z');
-    for (const home of [dir, archived]) await utimes(path.join(home, 'logs', '01_requirements.jsonl'), pinned, pinned);
+    for (const home of [dir, archived]) {
+      await utimes(path.join(home, 'logs', '01_requirements.jsonl'), pinned, pinned);
+      for (const name of ['00_input.md', '01_requirements.md']) await utimes(path.join(home, name), pinned, pinned);
+    }
     const here = await fsSource.createFsWorkDirSource(dir, 'docs/pipeline').read();
     const old = await fsSource.createFsWorkDirSource(archived, 'docs/pipeline').read();
     assert.deepEqual(old, here, 'archive/<日時> の写しは、直下の写しと同じ形');

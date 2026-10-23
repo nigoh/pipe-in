@@ -1,6 +1,6 @@
 // 図の状態：記録の写しだけから組み立てる。ファイル・時計・乱数・vscode に触れない。
 import { artifactDefsFor, buildArtifactList, isArtifactReady } from './artifacts.ts';
-import type { ArtifactEntry, ArtifactName } from './artifacts.ts';
+import type { ArtifactContent, ArtifactEntry, ArtifactName } from './artifacts.ts';
 import { buildGantt } from './gantt.ts';
 import type { GanttModel } from './gantt.ts';
 import { latestMtime, quietSecAt, validMtime } from './quiet.ts';
@@ -31,8 +31,8 @@ export interface WorkDirSnapshot {
   stateJson: string | null;
   /** logs/ の *.jsonl（ファイル名＋中身＋更新時刻）。順は問わない */
   stageLogs: StageLogFile[];
-  /** ある成果物の中身。ないものは鍵を持たない */
-  artifacts: Partial<Record<ArtifactName, string>>;
+  /** ある成果物の中身（読んだ範囲の文字・更新時刻・切れた印。旧形は文字だけ）。ないものは鍵を持たない */
+  artifacts: Partial<Record<ArtifactName, ArtifactContent>>;
   /** archive/ の前の実行の写し。止まっているかもの印の対象から外す。省けば false */
   previous?: boolean;
 }
@@ -410,6 +410,7 @@ function finalNode(record: RunRecord): PipelineNode {
   return makeNode('final', status);
 }
 
+/** 依頼メモの節の状態。写しの項目が新旧どちらの形でも（項目が無くても）例外なく決まる。 */
 function inputStatus(snapshot: WorkDirSnapshot): NodeStatus {
   return isArtifactReady(snapshot.artifacts['00_input.md']) ? 'done' : 'pending';
 }
@@ -565,6 +566,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
   const quietSec = staleEligible(snapshot, record) ? quietSecOf(logs, runningLog, clock) : null;
   const nodes = withLiveSeconds(baseNodes, runningLog, record.pendingReview, quietSec, clock);
 
+  // 項目の有無だけ見る（値が新旧どちらの形でも同じ。symlink の 00_input.md は写しに項目が無い）
   const noRecords =
     snapshot.stateJson === null && logs.length === 0 && !('00_input.md' in snapshot.artifacts)
       ? { message: NO_RECORDS_MESSAGE, workDir: snapshot.workDir }
@@ -577,7 +579,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
     terminal: shown ? { source: shown.name, items: shown.log.items } : { source: null, items: [] },
     totalCostUsd: record.totalCostUsd,
     final: record.final,
-    artifacts: buildArtifactList(snapshot.artifacts, artifactDefsFor(record)),
+    artifacts: buildArtifactList(snapshot.artifacts, artifactDefsFor(record), clock),
     waiting: record.final === null && runningStage === null && record.stageRuns.length >= 1,
     noRecords,
     usage: buildUsage(record, stageLabels),

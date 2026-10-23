@@ -1329,3 +1329,430 @@ def test_D0024_AC_49_検査そのものは層の表の行を取り違えず_行�
     assert "| 層 |" not in (table_row(md, "ドメイン") or "") and "| 層 |" not in (table_row(md, "画面") or "")
     assert table_row(md, "基盤") is None
     assert table_row("", "画面") is None
+
+
+# ---- D0025-AC-76〜79: 成果物のタブ（一覧とプレビュー）を、ガイド・拡張の README・設計・確認用ページの文書に書く ------------------------------
+#
+# D0024 の AC-46〜49 と同じ形：探す言葉の表と古い文の一覧で、文書がそろっているかを見張る。言葉は AC-76 に合わせた
+# （説明の言い方は文書を書く人が決める）。文書は読むだけで、書かない。D0024 の語（bg-poll ほか）を消さないことは、上の D0024 の検査がそのまま見張る。
+# 検査そのもの（言葉の探し方・文の行・層の表の行・互換の行の順・決定の記録の表の順・ページ名の頭）は、偽の文書で確かめる。
+# そちらは今のまま通る（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）。
+# 次の 3 つは文書係が書けない（CLAUDE.md・.claude/・docs/decisions/）ので、検証のあとにメインが書いた（テスト先行と実装の段では赤だった）：
+# CLAUDE.md の npm run preview の行・.claude/skills/pipe-in/SKILL.md の確認用ページの列挙・docs/decisions/README.md の表の D0025 の行。
+
+ARTIFACT_TITLE = "成果物のタブ"
+CLAUDE_MD = ROOT / "CLAUDE.md"
+PIPE_IN_SKILL = ROOT / ".claude" / "skills" / "pipe-in" / "SKILL.md"
+ASSETS_README = ROOT / "docs" / "assets" / "README.md"
+DECISIONS_README = ROOT / "docs" / "decisions" / "README.md"
+PREVIEW_PAGES_TS = ROOT / "vscode" / "scripts" / "previewPages.ts"
+
+# （pytest の id, 何の説明か, 節の中を探す正規表現。すべてに合うこと）。言葉は AC-76 の列挙に合わせる
+ARTIFACT_GUIDE_WORDS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("columns", "成果物の一覧の欄：名前・ファイル名・作った段・更新時刻", (r"ファイル名", r"作った段", r"時刻")),
+    ("pick", "選び方：行を押して選ぶ", (r"行を押|押して選",)),
+    ("default", "既定の選び：動いている段の成果物（無ければ最後にできた成果物）", (r"既定", r"動いている段", r"最後")),
+    ("open-editor", "プレビューの見出しの「エディタで開く」", (r"エディタで開く",)),
+    ("vs-open-button", "詳細の見出しの「成果物を開く」との違い（タブを切り替えるだけ）", (r"成果物を開く", r"切り替え|違い")),
+    ("visible", "見えるもの：見出し・箇条書き・表・コード・引用", (r"見出し", r"箇条書き", r"表", r"コード", r"引用")),
+    # 見えないものは、否定の言い方まで見る（「リンクは押せます」「画像が表示されます」という反対の説明で通さない）
+    ("invisible-link", "見えないもの：リンクは押せない", (r"リンク[^。\n]*押せ(?:ない|ません|ず)",)),
+    (
+        "invisible-image",
+        "見えないもの：画像は出ない（読み込まない）",
+        (r"画像[^。\n]*(?:読み込(?:まない|まず|みません)|出(?:ない|ません|さない|さず)|表示(?:されない|されません|しない|しません|せず))",),
+    ),
+    ("invisible-html", "見えないもの：Markdown の中の HTML は文字になる", (r"HTML[^。\n]*文字",)),
+    ("table-limit", "表は 100 列・セル 20,000 まで。超えると途中で省き「（表が大きいので…」の一文が出る", (r"100 ?列", r"20,?000", r"表が大きいので")),
+    ("limit-each", "読む上限：1 つにつき先頭 256 KiB まで", (r"256 ?KiB",)),
+    ("limit-continue", "切れたら「続きはエディタで」", (r"続きはエディタで",)),
+    ("limit-total", "読む合計の上限：4 MiB", (r"4 ?MiB",)),
+    ("encoding", "UTF-8 でない文字コードのファイルは文字化けし、小さくても「切れた」印が付くことがある", (r"UTF-8", r"文字化け", r"切れた")),
+    ("symlink", "symlink の成果物は読まない（00_input.md の先頭と state.json は辿る）", (r"symlink", r"00_input\.md", r"state\.json")),
+    ("symlink-input", "00_input.md が symlink だと、図の依頼メモの節は「まだ」になる", (r"依頼メモ[^。\n]*「まだ」",)),
+    ("remain", "描き直しで残るもの：選び・スクロール・焦点", (r"描き直し", r"選び", r"スクロール", r"焦点")),
+    ("not-remain", "描き直しで残らないもの：パネルが作り直されたとき・文字を選んでいる途中の選び", (r"残らない", r"パネルが作り直", r"文字を選んでいる")),
+    ("not-remain-hscroll", "横にスクロールした表・コードの位置は左端に戻る", (r"左端に戻",)),
+    ("dst", "更新時刻は今のずれで直すので、夏時間をまたぐ古い時刻は 1 時間ずれうる", (r"夏時間", r"1 ?時間")),
+    ("non-md", ".md でない成果物は文字のまま出て、更新は次の読み直しで反映される", (r"\.md[^。\n]{0,3}でない", r"次の読み直し")),
+    ("other-worktree", "別の worktree の成果物も同じ読み方", (r"別の worktree",)),
+]
+ARTIFACT_WORD = {sid: (sid, label, patterns) for sid, label, patterns in ARTIFACT_GUIDE_WORDS}
+
+# 古い説明の全体（ガイドの「詳細」の箇条書きにあった、成果物の一覧を押すとエディタで開く、という説明）
+ARTIFACT_OLD_GUIDE = [("old-list", "成果物の一覧（押すとエディタで開く）")]
+# 設計の層の表の、古い説明（時刻の読み方だけ。書き方も足した）
+ARTIFACT_OLD_DESIGN = [("timestamp-old", "記録の時刻の読み方（`timestamp.ts`）")]
+
+# ガイド（vscode.md）の文。（id, 文の頭の言葉, その文にある新しい言葉）
+ARTIFACT_GUIDE_SENTENCES = [
+    ("scroll-list", "それぞれ別にスクロール", "成果物の一覧"),
+    ("scroll-preview", "それぞれ別にスクロール", "プレビュー"),
+    ("keep-artifact", "描き直しがあっても", "成果物"),
+    ("reset-preview", "選んだ実行を替えたときは", "プレビュー"),
+    ("reset-default", "選んだ実行を替えたときは", "既定"),
+    ("worktree-range", "成果物の一覧にあるもの", "256 KiB"),
+    ("limit-each", "パネルを見ているときと同じ重さ", "256 KiB"),
+    ("limit-total", "パネルを見ているときと同じ重さ", "4 MiB"),
+]
+# 拡張の README（vscode/README.md）の文
+ARTIFACT_README_SENTENCES = [
+    ("preview", "各段の成果物・まとめ", "プレビュー"),
+    ("symlink", "symlink", "成果物"),
+    ("worktree-range", "成果物の一覧にあるもの", "256 KiB"),
+    ("scroll-list", "それぞれ別にスクロール", "成果物の一覧"),
+    ("scroll-preview", "それぞれ別にスクロール", "プレビュー"),
+]
+# 設計の拡張の層の表。（層の名前, その行にある言葉）
+ARTIFACT_DESIGN_LAYERS = [
+    ("ドメイン", "既定の選び"),
+    ("ドメイン", "時刻の読み方と書き方"),
+    ("画面", "Markdown"),
+    ("画面", "markdownHtml.ts"),
+    ("画面", "artifactsHtml.ts"),
+    ("基盤", "成果物"),
+    ("基盤", "256 KiB"),
+]
+DESIGN_PAGE_ROW = "| 画面の確認用のページ"
+DESIGN_PAGE_WORDS = ["run-panel-artifacts-light", "run-panel-artifacts-dark", "vscode/scripts/artifactSamples.ts"]
+
+
+def artifact_part(md: str) -> str:
+    """「実行を見る」の中の、見出しに「成果物のタブ」を含む小見出し（### 以下）の節の本文。無ければ空。"""
+    return heading_part(section(md, "実行を見る"), ARTIFACT_TITLE)
+
+
+def row_starting(md: str, lead: str) -> str | None:
+    """lead で始まる最初の行（表の行を、最初の列が長いときも頭の文で見つける）。無ければ None。"""
+    return next((line for line in md.splitlines() if line.startswith(lead)), None)
+
+
+def numbered_bullets(part: str) -> list[str]:
+    """節の中の、「- Dnnnn …」で始まる箇条書きの行の番号（上から）。"""
+    return re.findall(r"^- (D\d{4})(?!\d)", part, re.M)
+
+
+def table_decision_ids(md: str) -> list[str]:
+    """決定の記録の表の行（| [Dnnnn](…) | …）の番号（上から）。"""
+    return re.findall(r"^\| \[(D\d{4})\]", md, re.M)
+
+
+def panel_page_heads(ts: str) -> list[str]:
+    """previewPages.ts の PANEL_PAGES の各ページ名から、末尾の -light・-dark を除いた頭（上から。同じものは1回）。PANEL_PAGES が無ければ空。"""
+    m = re.search(r"export const PANEL_PAGES\b[^=]*=\s*\[(.*?)\n\];", ts, re.S)
+    names = re.findall(r"\[\s*'(run-panel[\w-]*)'\s*,\s*'(?:light|dark)'\s*\]", m.group(1)) if m else []
+    heads: list[str] = []
+    for name in names:
+        head = re.sub(r"-(?:light|dark)$", "", name)
+        if head not in heads:
+            heads.append(head)
+    return heads
+
+
+def heads_missing(readme: str, heads: list[str]) -> list[str]:
+    """README に出てこない頭。出てくるとは、頭のあとに -light・-dark・-*・-<…>・.html が続く形（run-panel-stale が run-panel-stale-soon-dark.html だけで通らないように）。"""
+    return [h for h in heads if not re.search(re.escape(h) + r"(?:-(?:light|dark|\*|<[^>\n]*>)|\.html)", readme)]
+
+
+# ---- AC-76：ガイド（docs/guide/vscode.md） ----
+
+
+def test_D0025_AC_76_ガイドの実行を見るの中に成果物のタブの節がある():
+    """D0025-AC-76: docs/guide/vscode.md の「実行を見る」の中に、「成果物のタブ」の見出し（### 以下）の節がある。"""
+    md = read_doc(GUIDE / "vscode.md")
+    titles = [title for depth, title in headings(section(md, "実行を見る")) if depth >= 3]
+    assert artifact_part(md), f"「実行を見る」の中に「{ARTIFACT_TITLE}」の節が無い（今ある小見出し：{titles}）"
+
+
+@pytest.mark.parametrize("sid", [i for i, _, _ in ARTIFACT_GUIDE_WORDS])
+def test_D0025_AC_76_ガイドの成果物のタブの節に説明がある(sid):
+    """D0025-AC-76: 「成果物のタブ」の節に、成果物の一覧の欄・選び方・既定の選び・「エディタで開く」・「成果物を開く」との違い・見えるものと見えないもの
+    （表は 100 列・セル 20,000 まで）・読む上限（1 つにつき先頭 256 KiB・合計 4 MiB・続きはエディタで）・UTF-8 でない文字コード・symlink（00_input.md が
+    symlink だと図の依頼メモの節は「まだ」）・描き直しで残るものと残らないもの（横にスクロールした表・コードは左端に戻る）・夏時間・.md でない成果物・別の worktree、
+    が書いてある（探す言葉の表の 1 項目ずつ）。"""
+    part = artifact_part(read_doc(GUIDE / "vscode.md"))
+    _, label, patterns = ARTIFACT_WORD[sid]
+    assert part, f"docs/guide/vscode.md に「{ARTIFACT_TITLE}」の節が無い"
+    assert sid not in words_missing(part, [ARTIFACT_WORD[sid]]), f"「{ARTIFACT_TITLE}」の節に、{label} の説明が無い（探した形：{patterns}）"
+
+
+@pytest.mark.parametrize("sid,sentence", ARTIFACT_OLD_GUIDE, ids=[i for i, _ in ARTIFACT_OLD_GUIDE])
+def test_D0025_AC_76_ガイドに成果物の一覧を押すとエディタで開くという古い説明が残っていない(sid, sentence):
+    """D0025-AC-76: docs/guide/vscode.md に、古い説明「成果物の一覧（押すとエディタで開く）」が残っていない（成果物のタブは一覧とプレビューの形になった）。"""
+    assert leftover_sentences(read_doc(GUIDE / "vscode.md"), [(sid, sentence)]) == [], f"古い説明が残っている：{sentence}"
+
+
+@pytest.mark.parametrize("sid,lead,word", ARTIFACT_GUIDE_SENTENCES, ids=[i for i, _, _ in ARTIFACT_GUIDE_SENTENCES])
+def test_D0025_AC_76_ガイドの既存の文に成果物の一覧とプレビューと上限が書いてある(sid, lead, word):
+    """D0025-AC-76: docs/guide/vscode.md の「それぞれ別にスクロールします」の文に成果物の一覧とプレビュー、「描き直しがあっても」の文に成果物の選び、
+    「選んだ実行を替えたときは…先頭に戻します」の文に成果物のプレビューと既定、別の worktree の読み取りの範囲（成果物の一覧にあるもの）と
+    限界の「パネルを見ているときと同じ重さ」の文に先頭 256 KiB（と合計 4 MiB）が書いてある。"""
+    md = read_doc(GUIDE / "vscode.md")
+    assert lines_with(md, lead), f"docs/guide/vscode.md に「{lead}」を含む行が無い"
+    assert sentences_lacking(md, [(sid, lead, word)]) == [], f"「{lead}」の行に「{word}」が無い"
+
+
+def test_D0025_AC_76_ガイドの狭い幅のときに成果物のタブの並びがある():
+    """D0025-AC-76: docs/guide/vscode.md の「狭い幅のとき」の節に、成果物のタブの並び（成果物の一覧とプレビュー）が書いてある。"""
+    part = heading_part(read_doc(GUIDE / "vscode.md"), "狭い幅のとき")
+    assert part, "docs/guide/vscode.md に「狭い幅のとき」の節が無い"
+    assert "成果物" in part, "「狭い幅のとき」の節に成果物のタブの並びが無い"
+
+
+# ---- AC-76 の検査そのものの確かめ（今のまま通る。守る） ----
+
+# 探す言葉を 1 項目ずつ満たす 1 行の見本（ほかの項目の言葉は、その項目を欠いても満たされない範囲でしか混ぜない）
+ARTIFACT_SAMPLE_LINES: dict[str, str] = {
+    "columns": "- 成果物の一覧の各行に、名前・ファイル名・作った段・更新時刻が出ます。",
+    "pick": "- 行を押すと、その成果物が選ばれます。",
+    "default": "- 何も押していないあいだは、既定として、動いている段の成果物（無ければ最後にできた成果物）が選ばれます。",
+    "open-editor": "- プレビューの上の「エディタで開く」で、エディタに開きます。",
+    "vs-open-button": "- 詳細の「成果物を開く」は、このタブに切り替えるだけです。",
+    "visible": "- 見えるのは、見出し・箇条書き・表・コード・引用です。",
+    "invisible-link": "- リンクは押せません。",
+    "invisible-image": "- 画像は読み込まず、文字で出します。",
+    "invisible-html": "- Markdown の中の HTML は、そのまま文字で出ます。",
+    "table-limit": "- 表は 100 列、セル 20,000 までです。超えると途中で省き、「（表が大きいので、ここから先は省略しました。…）」と出ます。",
+    "limit-each": "- 1 つにつき、先頭 256 KiB までを読みます。",
+    "limit-continue": "- 切れたときは、プレビューの下に「続きはエディタで開いてください」と出ます。",
+    "limit-total": "- 1 回の読みの合計は 4 MiB までです。",
+    "encoding": "- UTF-8 でないファイルは文字化けし、小さくても「切れた」印が付くことがあります。",
+    "symlink": "- symlink の成果物は読みません（00_input.md の先頭と state.json は、辿って読みます）。",
+    "symlink-input": "- 00_input.md が symlink だと、図の依頼メモの節は「まだ」になります。",
+    "remain": "- 描き直しがあっても、選び・スクロール・焦点は残ります。",
+    "not-remain": "- 残らないもの：パネルが作り直されたとき、文字を選んでいる途中の選び。",
+    "not-remain-hscroll": "- 横にスクロールした表やコードの位置は、左端に戻ります。",
+    "dst": "- 更新時刻は今のずれで直すので、夏時間をまたぐ古い時刻は 1 時間ずれることがあります。",
+    "non-md": "- `.md` でない成果物は文字のまま出ます。更新は次の読み直しで反映されます。",
+    "other-worktree": "- 別の worktree の成果物も、同じ上限で読みます。",
+}
+
+
+def artifact_guide_sample(
+    skip: str | None = None, heading: str = f"### {ARTIFACT_TITLE}", after: str = "", replace: dict[str, str] | None = None
+) -> str:
+    """見本のガイド。「実行を見る」の中の heading の節に、skip 以外の見本の行を並べる。after は次の節（### 狭い幅のとき）に足す文。
+    replace は、項目の行を別の文に替える（id → 文）。"""
+    body = "\n".join(line for sid, line in {**ARTIFACT_SAMPLE_LINES, **(replace or {})}.items() if sid != skip)
+    return (
+        "# VSCode の拡張\n\n## 実行を見る\n\n### 実行の一覧\n\n本文\n\n"
+        f"{heading}\n\n{body}\n\n### 狭い幅のとき\n\n別の節の本文\n{after}\n## パイプ作業台\n\n本文\n"
+    )
+
+
+def test_D0025_AC_76_検査そのものは見本の行がそろえば欠けなしにする_守る():
+    """D0025-AC-76: 探す側（artifact_part と words_missing）そのものの確かめ。見本の行が表の全項目にあり、そろった見本には欠けが無い。（今のまま通る。守る）"""
+    assert set(ARTIFACT_SAMPLE_LINES) == {sid for sid, _, _ in ARTIFACT_GUIDE_WORDS}
+    assert words_missing(artifact_part(artifact_guide_sample()), ARTIFACT_GUIDE_WORDS) == []
+
+
+@pytest.mark.parametrize("sid", [i for i, _, _ in ARTIFACT_GUIDE_WORDS])
+def test_D0025_AC_76_検査そのものは言葉が無い見本の欠けをその項目だけ見つける_守る(sid):
+    """D0025-AC-76: 探す側そのものの確かめ。見本から 1 項目の行だけを抜くと、欠けとして見つかるのはその項目だけ（表の言葉が、ほかの項目の行では満たされない）。（今のまま通る。守る）"""
+    assert words_missing(artifact_part(artifact_guide_sample(skip=sid)), ARTIFACT_GUIDE_WORDS) == [sid]
+
+
+# 見えないものの説明が、反対の内容（リンクは押せる・画像が出る）のとき、言葉があっても満たしたことにしない
+OPPOSITE_INVISIBLE: list[tuple[str, str]] = [
+    ("invisible-link", "- リンクは押せます。"),
+    ("invisible-link", "- リンクは押して開けます。"),
+    ("invisible-link", "- リンクを押せるようにしました。"),
+    ("invisible-image", "- 画像が表示されます。"),
+    ("invisible-image", "- 画像は読み込んで出します。"),
+    ("invisible-image", "- 画像はそのまま出ます。"),
+]
+
+
+@pytest.mark.parametrize("sid,line", OPPOSITE_INVISIBLE, ids=[f"{sid}-{i}" for i, (sid, _) in enumerate(OPPOSITE_INVISIBLE)])
+def test_D0025_AC_76_検査そのものはリンクと画像の反対の説明を満たしたことにしない_守る(sid, line):
+    """D0025-AC-76: 探す側そのものの確かめ。「リンクは押せない」「画像は出ない」の行を、反対の内容（押せます・表示されます）に替えると、その項目だけが欠けになる
+    （言葉があるだけでは通さない。否定の言い方まで見る）。（今のまま通る。守る）"""
+    assert words_missing(artifact_part(artifact_guide_sample(replace={sid: line})), ARTIFACT_GUIDE_WORDS) == [sid]
+
+
+def test_D0025_AC_76_検査そのものは節が無い見本の全項目を欠けとして見つけ_節の外の言葉を拾わない_守る():
+    """D0025-AC-76: 探す側そのものの確かめ。「成果物のタブ」の見出しが無い見本・「実行を見る」の外にある見本は、言葉がそろっていても全項目が欠け。
+    1 項目の行を次の節（### 狭い幅のとき）へ移すと、その項目は欠け。（今のまま通る。守る）"""
+    all_ids = [sid for sid, _, _ in ARTIFACT_GUIDE_WORDS]
+    other = artifact_guide_sample(heading="### 時間と動き")
+    assert artifact_part(other) == ""
+    assert words_missing(artifact_part(other), ARTIFACT_GUIDE_WORDS) == all_ids
+    body = "\n".join(ARTIFACT_SAMPLE_LINES.values())
+    outside = f"## 実行を見る\n\n### 時間と動き\n\n本文\n\n## パイプ作業台\n\n### {ARTIFACT_TITLE}\n\n{body}\n"
+    assert artifact_part(outside) == ""
+    moved = artifact_guide_sample(skip="dst", after=ARTIFACT_SAMPLE_LINES["dst"] + "\n")
+    assert words_missing(artifact_part(moved), ARTIFACT_GUIDE_WORDS) == ["dst"]
+
+
+@pytest.mark.parametrize("rows_name", ["guide", "readme"])
+def test_D0025_AC_76_検査そのものは文の表を取り違えない_守る(rows_name):
+    """D0025-AC-76: 文の表（ガイドの既存の文・拡張の README の文）そのものの確かめ。新しい言葉の無い見本はどの行も欠け、そろった見本には欠けが無く、
+    1 つの文を消すとその文だけが欠ける（同じ頭の言葉を共有する行も取り違えない）。（今のまま通る。守る）"""
+    rows = ARTIFACT_GUIDE_SENTENCES if rows_name == "guide" else ARTIFACT_README_SENTENCES
+    ids = [sid for sid, _, _ in rows]
+    bare = "\n".join(f"- {lead}。" for _, lead, _ in rows)
+    full = "\n".join(f"- {lead}。{word}。" for _, lead, word in rows)
+    assert sentences_lacking(bare, rows) == ids
+    assert sentences_lacking(full, rows) == []
+    for index, sid in enumerate(ids):
+        without = "\n".join(f"- {lead}。{word}。" for i, (_, lead, word) in enumerate(rows) if i != index)
+        assert sentences_lacking(without, rows) == [sid]
+
+
+# ---- AC-76：拡張の README（vscode/README.md） ----
+
+
+@pytest.mark.parametrize("sid,lead,word", ARTIFACT_README_SENTENCES, ids=[i for i, _, _ in ARTIFACT_README_SENTENCES])
+def test_D0025_AC_76_拡張のREADMEの成果物の説明にプレビューと上限とsymlinkがある(sid, lead, word):
+    """D0025-AC-76: vscode/README.md の成果物の説明（各段の成果物・まとめ）にプレビュー、symlink の一言、別の worktree の読み取りの範囲に先頭 256 KiB、
+    「それぞれ別にスクロールする」の文に成果物の一覧とプレビューが書いてある。"""
+    md = read_doc(VSCODE_README)
+    assert lines_with(md, lead), f"vscode/README.md に「{lead}」を含む行が無い"
+    assert sentences_lacking(md, [(sid, lead, word)]) == [], f"「{lead}」の行に「{word}」が無い"
+
+
+# ---- AC-77：設計の拡張の層の表・確認用ページの行・互換の段落（docs/development/design.md） ----
+
+
+@pytest.mark.parametrize("layer,word", ARTIFACT_DESIGN_LAYERS, ids=[f"{layer}-{word}" for layer, word in ARTIFACT_DESIGN_LAYERS])
+def test_D0025_AC_77_designの拡張の層の表の行に成果物の部品が書いてある(layer, word):
+    """D0025-AC-77: docs/development/design.md の拡張の層の表の、ドメインの行に「既定の選び」と「時刻の読み方と書き方」（timestamp.ts）、
+    画面の行に Markdown を HTML に直す部品（markdownHtml.ts）と成果物のタブ（artifactsHtml.ts）、基盤の行に成果物の先頭 256 KiB を読むこと、が書いてある。"""
+    row = table_row(read_doc(DESIGN_DOC), layer)
+    assert row is not None, f"design.md の拡張の層の表に「| {layer} |」で始まる行が無い"
+    assert word in row, f"design.md の「{layer}」の行に「{word}」が無い"
+
+
+@pytest.mark.parametrize("sid,sentence", ARTIFACT_OLD_DESIGN, ids=[i for i, _ in ARTIFACT_OLD_DESIGN])
+def test_D0025_AC_77_designのドメインの行の古い時刻の説明が直っている(sid, sentence):
+    """D0025-AC-77: docs/development/design.md のドメインの行の timestamp.ts の説明が、「記録の時刻の読み方」から「時刻の読み方と書き方」に直っている。"""
+    assert leftover_sentences(read_doc(DESIGN_DOC), [(sid, sentence)]) == [], f"古い説明が残っている：{sentence}"
+
+
+@pytest.mark.parametrize("word", DESIGN_PAGE_WORDS)
+def test_D0025_AC_77_designの確認用ページの行に成果物のページと見本の文章がある(word):
+    """D0025-AC-77: docs/development/design.md の置き場所の表の「画面の確認用のページ」の行に、新しいページ run-panel-artifacts-light・run-panel-artifacts-dark と、
+    見本の文章 vscode/scripts/artifactSamples.ts がある（パスの実在は tests/test_rules.py が見る）。"""
+    row = row_starting(read_doc(DESIGN_DOC), DESIGN_PAGE_ROW)
+    assert row is not None, f"design.md に「{DESIGN_PAGE_ROW}」で始まる行が無い"
+    assert word in row, f"design.md の確認用ページの行に「{word}」が無い"
+
+
+def test_D0025_AC_77_designの別のworktreeで読むものの文に成果物の範囲がある():
+    """D0025-AC-77: docs/development/design.md の拡張の層の下の「別の worktree で読むのは…」の文に、成果物は先頭 256 KiB（と更新時刻）が書いてある。"""
+    md = read_doc(DESIGN_DOC)
+    assert lines_with(md, "別の worktree で読むのは"), "design.md に「別の worktree で読むのは」の文が無い"
+    assert sentences_lacking(md, [("range", "別の worktree で読むのは", "256 KiB")]) == [], "その文に「256 KiB」が無い"
+
+
+def test_D0025_AC_77_designの互換の段落にD0025の行がD0021の次_D0026の前にある():
+    """D0025-AC-77: docs/development/design.md の「形を変えるとき（互換）」の箇条書きに、D0025 の行が D0021 の行の次・D0026 の行の前にある。"""
+    ids = numbered_bullets(heading_part(read_doc(DESIGN_DOC), "形を変えるとき"))
+    assert "D0025" in ids, f"互換の段落に D0025 の行が無い（今ある行：{ids}）"
+    at = ids.index("D0025")
+    assert at > 0 and ids[at - 1] == "D0021", f"D0025 の行は D0021 の行の次にする（今の並び：{ids}）"
+    assert at + 1 < len(ids) and ids[at + 1] == "D0026", f"D0025 の行は D0026 の行の前にする（今の並び：{ids}）"
+
+
+def test_D0025_AC_77_designの互換のD0025の行は記録の形を変えず写しの成果物の項目を足したと書く():
+    """D0025-AC-77: 互換の D0025 の行に、記録の形を変えないことと、拡張の内側の写しの成果物の項目（と HTML）を足しただけであることが書いてある（D0021 の書き方に合わせる）。"""
+    part = heading_part(read_doc(DESIGN_DOC), "形を変えるとき")
+    line = next((l for l in part.splitlines() if re.match(r"^- D0025(?!\d)", l)), None)
+    assert line is not None, "互換の段落に D0025 の行が無い"
+    missing = [w for w in ("記録の形", "写し", "成果物") if w not in line]
+    assert missing == [], f"D0025 の行に書かれていない言葉：{missing}"
+
+
+# ---- AC-78：確認用ページの名前を、CLAUDE.md・SKILL.md・assets の README・決定の記録の表に書く ----
+
+
+def test_D0025_AC_78_CLAUDEのnpm_run_previewの行に成果物のページがある():
+    """D0025-AC-78: CLAUDE.md の `npm run preview` の説明にあるページの一覧に、成果物のパネル run-panel-artifacts-light.html・run-panel-artifacts-dark.html がある。
+    CLAUDE.md は文書係が書けないので、メインが書く。"""
+    md = read_doc(CLAUDE_MD)
+    assert lines_with(md, "npm run preview"), "CLAUDE.md に「npm run preview」の行が無い"
+    assert sentences_lacking(md, [("preview", "npm run preview", "run-panel-artifacts")]) == [], "CLAUDE.md の npm run preview の行に run-panel-artifacts が無い"
+
+
+def test_D0025_AC_78_SKILLの確認用ページの列挙に成果物のページがある():
+    """D0025-AC-78: .claude/skills/pipe-in/SKILL.md の確認用ページの列挙（実行の一覧のパネル run-panel-runs-*.html などを並べた行）に、
+    run-panel-artifacts-* がある。.claude/ は文書係が書けないので、監査のあとでメインが書く（D0024 の前例）。"""
+    md = read_doc(PIPE_IN_SKILL)
+    assert lines_with(md, "run-panel-runs-light"), "SKILL.md に確認用ページの列挙の行が無い"
+    assert sentences_lacking(md, [("list", "run-panel-runs-light", "run-panel-artifacts")]) == [], "確認用ページの列挙に run-panel-artifacts が無い"
+
+
+def test_D0025_AC_78_assetsのREADMEの確認用ページの段落に成果物のページと画像には撮らない一言がある():
+    """D0025-AC-78: docs/assets/README.md の確認用ページの段落に run-panel-artifacts-*（成果物のタブの見本）があり、同じ段落（行）に、動きと内容を見るためのページで画像には撮らない、
+    という一言がある。"""
+    md = read_doc(ASSETS_README)
+    assert lines_with(md, "run-panel-artifacts"), "docs/assets/README.md に run-panel-artifacts-* の説明が無い"
+    assert sentences_lacking(md, [("not-image", "run-panel-artifacts", "撮ら")]) == [], "run-panel-artifacts の行に「画像には撮らない」という一言が無い"
+
+
+def test_D0025_AC_78_決定の記録の表にD0025の行がD0024とD0026の間にある():
+    """D0025-AC-78: docs/decisions/README.md の表に D0025 の行が、D0024 の行の次・D0026 の行の前にあり、成果物のタブの題が書いてある。
+    docs/decisions/ は文書係が書けないので、メインが決定の記録と一緒に足す。"""
+    md = read_doc(DECISIONS_README)
+    ids = table_decision_ids(md)
+    assert "D0025" in ids, f"決定の記録の表に D0025 の行が無い（今の行：{ids[-6:]}）"
+    at = ids.index("D0025")
+    assert at > 0 and ids[at - 1] == "D0024", f"D0025 の行は D0024 の行の次にする（今の並び：{ids[-6:]}）"
+    assert at + 1 < len(ids) and ids[at + 1] == "D0026", f"D0025 の行は D0026 の行の前にする（今の並び：{ids[-6:]}）"
+    row = next(line for line in md.splitlines() if line.startswith("| [D0025]"))
+    assert "成果物" in row, f"D0025 の行に成果物のタブの題が無い：{row}"
+
+
+# ---- AC-79：確認用ページの名前と assets の README の食い違いを見つける ----
+
+
+def test_D0025_AC_79_確認用ページの名前の頭がassetsのREADMEに出てくる_守る():
+    """D0025-AC-79: vscode/scripts/previewPages.ts の PANEL_PAGES の各ページ名の頭（-light・-dark を除いたもの）が、docs/assets/README.md に出てくる
+    （run-panel-artifacts のように、ページを足して README に書き忘れた食い違いに気づく）。出てくるとは、頭のあとに -light・-dark・-*・-<テーマ>・.html が続く形。
+    今の PANEL_PAGES（14 件。成果物のページ 2 件を含む）は通り、ページを足して README に書き忘れると落ちる。（今のまま通る。守る）"""
+    heads = panel_page_heads(read_doc(PREVIEW_PAGES_TS))
+    assert heads, "previewPages.ts から PANEL_PAGES のページ名が読めない"
+    assert heads_missing(read_doc(ASSETS_README), heads) == []
+
+
+def test_D0025_AC_79_ページ名の頭の取り出しは今のページの種類をそろえて返す_守る():
+    """D0025-AC-79: ページ名の頭の取り出し（panel_page_heads）そのものの確かめ。今の previewPages.ts の PANEL_PAGES から、種類ごとの頭が1回ずつ、上から返る。（今のまま通る。守る）"""
+    heads = panel_page_heads(read_doc(PREVIEW_PAGES_TS))
+    for head in ("run-panel", "run-panel-running", "run-panel-waiting", "run-panel-runs", "run-panel-runs-omitted", "run-panel-stale", "run-panel-stale-soon"):
+        assert head in heads, head
+    assert len(heads) == len(set(heads)), "同じ頭を2回返さない"
+    assert not any(h.endswith(("-light", "-dark")) for h in heads)
+    assert heads[0] == "run-panel"
+
+
+def test_D0025_AC_79_検査そのものはREADMEに無いページ名の頭を見つけ_名前の一部だけの出方は見逃さない_守る():
+    """D0025-AC-79: 食い違いの検査そのものの確かめ。README に無い頭は見つけ、-*・-<テーマ>・.html つきの書き方は満たし、
+    別のページの名前の一部（run-panel-stale が run-panel-stale-soon-dark.html の中に出るだけ）は満たしたことにしない。（今のまま通る。守る）"""
+    ts = (
+        "export const PANEL_PAGES: readonly [string, Theme][] = [\n"
+        "  ['run-panel-light', 'light'],\n  ['run-panel-dark', 'dark'],\n"
+        "  ['run-panel-stale-light', 'light'],\n  ['run-panel-stale-soon-dark', 'dark'],\n"
+        "  ['run-panel-artifacts-light', 'light'],\n  ['run-panel-artifacts-dark', 'dark'],\n"
+        "];\nexport const OTHER = [['run-panel-other-light', 'light']];\n"
+    )
+    heads = panel_page_heads(ts)
+    assert heads == ["run-panel", "run-panel-stale", "run-panel-stale-soon", "run-panel-artifacts"]
+    base = "`run-panel-light.html`・`run-panel-stale-light.html`・`run-panel-stale-soon-dark.html`"
+    assert heads_missing(base, heads) == ["run-panel-artifacts"], "成果物のページを書き忘れた README"
+    assert heads_missing(f"{base}・`run-panel-artifacts-*.html`", heads) == []
+    assert heads_missing(f"{base}・`run-panel-artifacts-<テーマ>.html`", heads) == []
+    assert heads_missing("`run-panel-light.html`・`run-panel-stale-soon-dark.html`・`run-panel-artifacts-dark.html`", heads) == ["run-panel-stale"], "stale の書き忘れは、stale-soon の名前の一部では隠れない"
+    assert heads_missing("", heads) == heads
+    assert panel_page_heads("const X = 1;") == []
+
+
+def test_D0025_AC_77_78_検査そのものは行の番号と表の順を取り違えない_守る():
+    """D0025-AC-77・78: 互換の行の番号の取り出し（numbered_bullets）・決定の記録の表の番号の取り出し（table_decision_ids）・表の頭の文で行を見つける（row_starting）
+    そのものの確かめ。箇条書きの途中の言及・表の見出しの行・別の列の言及は番号に数えず、頭の文が無ければ None を返す。（今のまま通る。守る）"""
+    part = "- D0021 は記録の形を変えません。\n- 実行の記録に D0019 で足した項目。\n- D0025 は写しを足しました。\n  - D0099 の入れ子は数えない\n- D0026 で足しました。\n文中の - D0027 は数えない"
+    assert numbered_bullets(part) == ["D0021", "D0025", "D0026"]
+    table = "| 番号 | 題 |\n| --- | --- |\n| [D0024](D0024-a.md) | a |\n| [D0025](D0025-b.md) | 成果物 |\n本文の | [D0099](x.md) | は数えない\n| [D0026](D0026-c.md) | c |\n"
+    assert table_decision_ids(table) == ["D0024", "D0025", "D0026"]
+    assert row_starting("| 画面の確認用のページ（開発用） | `a` | `b` |\n| 別 | x | y |\n", DESIGN_PAGE_ROW) == "| 画面の確認用のページ（開発用） | `a` | `b` |"
+    assert row_starting("文中の | 画面の確認用のページ", DESIGN_PAGE_ROW) is None
+    assert row_starting("", DESIGN_PAGE_ROW) is None

@@ -3,7 +3,8 @@
 import path from 'node:path';
 import type { PlaceRuns, RunsSource } from '../app/runList.ts';
 import type { WorkDirSource } from '../app/refreshView.ts';
-import { artifactNamesFor } from '../domain/artifacts.ts';
+import { ARTIFACT_MAX_BYTES, ARTIFACT_TOTAL_MAX_BYTES, artifactNamesFor } from '../domain/artifacts.ts';
+import type { ArtifactFile } from '../domain/artifacts.ts';
 import type { StageLogFile, WorkDirSnapshot } from '../domain/pipelineView.ts';
 import { validMtime } from '../domain/quiet.ts';
 import { parseRunRecord } from '../domain/runRecord.ts';
@@ -83,6 +84,38 @@ async function readState(file: string, fs: ReadOnlyFs): Promise<{ text: string |
 async function readMemoHead(file: string, fs: ReadOnlyFs): Promise<string | null> {
   try {
     return await fs.readHead(file, MEMO_HEAD_BYTES);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * text を UTF-8 で maxBytes バイト以下に切る。超えなければそのまま（cut: false）。
+ * 超えるなら、maxBytes のところから、続きのバイト（10xxxxxx）のあいだ切れ目を戻して、文字の境目で切る（cut: true）。
+ * 文字の途中で切れても末尾に U+FFFD が付かず、境目に合うときは 1 文字も落とさない。中ほどの本物の U+FFFD は変えない。
+ */
+export function cutToBytes(text: string, maxBytes: number): { text: string; cut: boolean } {
+  const bytes = Buffer.from(text, 'utf8');
+  const limit = Math.max(0, Math.floor(maxBytes));
+  if (bytes.length <= limit) return { text, cut: false };
+  let end = limit;
+  while (end > 0 && (bytes[end]! & 0xc0) === 0x80) end -= 1;
+  return { text: bytes.subarray(0, end).toString('utf8'), cut: true };
+}
+
+/**
+ * 成果物 1 つの写し。lstat で通常のファイルかを確かめ（symlink・フォルダ・その他は読まない）、先頭を 1 回だけ読んで文字の境目で切る。
+ * 更新時刻は同じ lstat の値。読めない・無い・通常のファイルでない → null（その成果物だけ「まだない」。ほかの読みは巻き込まない）。
+ * readHead は上限より 1 バイト多く頼む。切れたかどうかは、読んだ文字の長さで決まる（ファイルの大きさは当てにしない）。
+ * 限界：lstat で確かめてから readHead が開くまでのあいだに、通常のファイルが symlink に差し替えられると、リンク先を読む。
+ * 差し替えるには作業フォルダに書ける別のプロセスが要り、見えるのは使う人自身の画面だけなので、受け入れる（口は 'r' だけで開く 6 つのまま変えない）。コミットされた symlink は lstat で止まる。
+ */
+async function readArtifact(file: string, fs: ReadOnlyFs): Promise<ArtifactFile | null> {
+  try {
+    const info = await fs.lstat(file);
+    if (!info.isFile()) return null;
+    const { text, cut } = cutToBytes(await fs.readHead(file, ARTIFACT_MAX_BYTES + 1), ARTIFACT_MAX_BYTES);
+    return { text, mtimeMs: validMtime(info.mtimeMs), cut };
   } catch {
     return null;
   }
@@ -202,22 +235,35 @@ export async function listRunCandidates(workDirAbs: string): Promise<RunCandidat
 
 /**
  * state.json、logs/ の中で parseStageLogName が null でない *.jsonl（中身と更新時刻）、記録から作った成果物の一覧のファイルを読む。
+ * 成果物は 1 つにつき lstat 1 回と先頭の読み 1 回で、写しの項目は { text, mtimeMs, cut }（上限・切り方は readArtifact）。
+ * 1 回の読みで写しに入れる文字の合計が上限に届いたら、残りは lstat もせず読まない（一覧の後ろの成果物から「まだない」になる）。
+ * 項目の名前は外から来る（記録の output）ので、Object.defineProperty で自分のキーとして入れる（__proto__ でも原型が替わらない）。
  * options.previous が true のとき（archive/ の前の実行）だけ、写しに previous: true を入れる。持たせないときは項目ごと無い。
  * どの実行が前の実行かは、基盤は知らない。呼ぶ側（一覧の行）が渡す。
+ * options.fs は読み取りの口（既定は本物）。state.json・段のログ・成果物の読みはすべてこの口を通る。
  */
-export function createFsWorkDirSource(workDirAbs: string, workDirForDisplay: string, options: { previous?: boolean } = {}): WorkDirSource {
+export function createFsWorkDirSource(
+  workDirAbs: string,
+  workDirForDisplay: string,
+  options: { previous?: boolean; fs?: ReadOnlyFs } = {},
+): WorkDirSource {
+  const fs = options.fs ?? nodeReadOnlyFs;
   return {
     async read(): Promise<WorkDirSnapshot> {
-      const stateJson = await readText(path.join(workDirAbs, STATE));
+      const stateJson = await readText(path.join(workDirAbs, STATE), fs);
       const artifacts: WorkDirSnapshot['artifacts'] = {};
+      let total = 0;
       for (const name of artifactNamesFor(parseRunRecord(stateJson))) {
-        const text = await readText(path.join(workDirAbs, name));
-        if (text !== null) artifacts[name] = text;
+        if (total >= ARTIFACT_TOTAL_MAX_BYTES) break;
+        const file = await readArtifact(path.join(workDirAbs, name), fs);
+        if (file === null) continue;
+        total += Buffer.byteLength(file.text, 'utf8');
+        Object.defineProperty(artifacts, name, { value: file, enumerable: true, writable: true, configurable: true });
       }
       return {
         workDir: workDirForDisplay,
         stateJson,
-        stageLogs: await readStageLogs(path.join(workDirAbs, 'logs')),
+        stageLogs: await readStageLogs(path.join(workDirAbs, 'logs'), fs),
         artifacts,
         ...(options.previous === true ? { previous: true } : {}),
       };

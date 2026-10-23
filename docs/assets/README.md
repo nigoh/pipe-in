@@ -28,7 +28,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
 ## 撮り直す
 
-1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。見本は4つ（`showcase/`：完了、`showcase_running/`・`showcase_running_next/`：動いている途中、`showcase_waiting/`：確認待ち）で、まとめて作り直されます。画像の `run-panel-*.png` に使うのは完了の見本だけです。残りの3つは、確認用のページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`）と、実行の一覧のページ（`run-panel-runs-*.html`）と、更新なしの印が出るページ（`run-panel-stale-*.html`）の素材です。見本の記録は、セッション名（`name`）を持つ形で作り直されます（`session_id` と、段の受け持ち `agent` は見本の記録には書かず、一覧のページを組み立てるときに足します）。
+1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。見本は4つ（`showcase/`：完了、`showcase_running/`・`showcase_running_next/`：動いている途中、`showcase_waiting/`：確認待ち）で、まとめて作り直されます。画像の `run-panel-*.png` に使うのは完了の見本だけです。残りの3つは、確認用のページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`）と、実行の一覧のページ（`run-panel-runs-*.html`）と、更新なしの印が出るページ（`run-panel-stale-*.html`）と、成果物のタブのページ（`run-panel-artifacts-*.html`）の素材です。見本の記録は、セッション名（`name`）を持つ形で作り直されます（`session_id` と、段の受け持ち `agent` は見本の記録には書かず、一覧のページを組み立てるときに足します）。
 
    ```bash
    python tests/showcase.py
@@ -38,7 +38,9 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
    止まっているかもしれない実行の印（D0021）を見るページ `run-panel-stale-light.html`・`run-panel-stale-dark.html`（動いている実行の最後の更新が、目安の10分を12秒過ぎた見本）と、`run-panel-stale-soon-dark.html`（目安の5秒手前の見本。数秒待つと印が出て、`window.__previewNext()` で更新後の本体を送ると消える）もできます。これらも印を見るためのページで、画像には撮りません。
 
-   動いている・確認待ちのページと、実行の一覧のページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
+   成果物のタブ（D0025）を見るページ `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html` もできます。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持ちます（`window.__previewNext()` で、動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まります）。成果物の一覧・プレビュー・選び・描き直しのあとの動きを見るための、動きと内容を見るためのページで、画像には撮らないページです。見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が作ります。
+
+   動いている・確認待ちのページと、実行の一覧のページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。写した成果物（`*.md` と、成果物の見本の `.txt`）の更新時刻も、見本の「今」から決めた固定の値にそろえます（`setArtifactTimes`。成果物の一覧の時刻の欄が、ビルドのたびに変わらないようにするためです）。成果物の見本の木も一時フォルダに作り、読み終えたら消します。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
 
    実行の一覧のページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`、archive を省く一覧の `run-panel-runs-omitted-dark.html`）は、上の4つの見本の記録から、一時フォルダの中に「主の checkout＋2つの別の worktree＋`archive/`」の木を組み立て、拡張の本物の読み取りで読んで作ります（`vscode/scripts/previewPages.ts`。`tests/fixtures/` には何も足さず、一時フォルダは作ったあとで消します）。木に写すとき、写しごとに セッション名（`name`）・セッション ID・段の受け持ち（`agent`）を足し、時刻（`started_at`・`updated_at`・`since`・段のログの `at`）をまとめて動かして、動いている実行は「今」の少し前に始まり、終わった実行は数時間〜数日前になるようにします（時系列の帯が見えるようにするため）。行を押すと右の詳細（図・出力・時系列）が切り替わるので、ブラウザで選び方・絞り込み・タブ・待ち時間の増え方を確かめられます。ここから `run-list-light.png`・`run-list-dark.png`・`run-list.gif` を撮ります（撮り方は下の手順5）。
 

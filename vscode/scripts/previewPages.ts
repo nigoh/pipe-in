@@ -4,8 +4,9 @@
 // 図の状態（app・domain）→ renderPanelHtml（view）で HTML にしたもの。CSP の <meta> はそのまま残し、
 // 足す script タグ・style タグにはすべて nonce を付ける。
 // 「止まっているかもしれない実行の印」（D0021）の見本も、ここで作る。tests/fixtures/ の見本は読むだけで書かない。
-// ログの更新時刻（utimes）をそろえるのは、呼ぶ側が作った一時フォルダの中の写しだけ（拡張の src/ は更新時刻を読むだけ）。
-import { cp, mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
+// 「成果物」タブの見本（D0025）も、ここで作る。長い Markdown などの見本の文章は artifactSamples.ts にある。
+// ログと成果物の更新時刻（utimes）をそろえるのは、呼ぶ側が作った一時フォルダの中の写しだけ（拡張の src/ は更新時刻を読むだけ）。
+import { cp, mkdir, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { refreshView } from '../src/app/refreshView.ts';
@@ -18,6 +19,7 @@ import { HERE, makeRunKey } from '../src/domain/runs.ts';
 import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
+import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
 
 export type Theme = 'light' | 'dark';
 
@@ -43,9 +45,10 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
 /**
  * パネルのページの種類：完了した見本・動いている見本（次の render を送る補助つき）・確認待ちの見本、
  * 実行の一覧の見本（runs）・archive を省く一覧の見本（runs-omitted）、
- * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）。
+ * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）、
+ * 「成果物」タブの見本（artifacts。実行の一覧つき。更新後の本体を送る補助と、送ったメッセージを貯める window.__posted つき）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -61,10 +64,13 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-stale-light', 'light'],
   ['run-panel-stale-dark', 'dark'],
   ['run-panel-stale-soon-dark', 'dark'],
+  ['run-panel-artifacts-light', 'light'],
+  ['run-panel-artifacts-dark', 'dark'],
 ];
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
+  if (page.includes('-artifacts-')) return 'artifacts';
   if (page.includes('-stale-soon-')) return 'stale-soon';
   if (page.includes('-stale-')) return 'stale';
   if (page.includes('-runs-omitted-')) return 'runs-omitted';
@@ -141,13 +147,41 @@ export async function setLogTimes(dir: string, atMs: number): Promise<void> {
   for (const name of names) await utimes(path.join(logsDir, name), at, at);
 }
 
+/** 成果物の更新時刻の間隔：名前順に 1 つずつ、これだけ古くする。 */
+const ARTIFACT_STEP_MS = 3 * 60_000;
+
 /**
- * 見本 src を dest に写し、ログの更新時刻を「nowMs − quietAgoSec 秒」にする。nowMs は見本の組み立てに使う時計の「今」（本物の今ではない）。
- * quietAgoSec の既定は 0（最後の更新が「今」）。dest は呼ぶ側が作った一時フォルダの中。src は変えない。
+ * dir 直下の成果物（*.md・*.txt）の更新時刻を、名前順に「atMs − 3 分、atMs − 6 分、…」の固定の値にそろえる（整数の秒）。
+ * 0 番目も atMs そのものにはしない（確認待ちの見本の updated_at は見本の「今」より後なので、「今」を超えないようにする）。
+ * 写しのままだと、更新時刻は写した時刻になり、ビルドのたびに変わり、見本の「今」より先の日時も出る。
+ * state.json・logs/・サブフォルダの中は変えない。見本の文章を置いたあとで呼ぶ（書き直すと更新時刻が変わる）。
+ */
+export async function setArtifactTimes(dir: string, atMs: number): Promise<void> {
+  let names: string[];
+  try {
+    names = (await readdir(dir, { withFileTypes: true }))
+      .filter((e) => e.isFile() && /\.(md|txt)$/.test(e.name))
+      .map((e) => e.name)
+      .sort();
+  } catch {
+    return;
+  }
+  const base = Math.floor(atMs / 1000) * 1000;
+  for (const [i, name] of names.entries()) {
+    const at = new Date(base - (i + 1) * ARTIFACT_STEP_MS);
+    await utimes(path.join(dir, name), at, at);
+  }
+}
+
+/**
+ * 見本 src を dest に写し、ログの更新時刻を「nowMs − quietAgoSec 秒」に、成果物の更新時刻を nowMs から決めた固定の値（setArtifactTimes）にする。
+ * nowMs は見本の組み立てに使う時計の「今」（本物の今ではない）。
+ * quietAgoSec の既定は 0（最後の更新が「今」）。成果物の時刻は quietAgoSec と関係しない。dest は呼ぶ側が作った一時フォルダの中。src は変えない。
  */
 export async function copySample(src: string, dest: string, nowMs: number, quietAgoSec = 0): Promise<void> {
   await cp(src, dest, { recursive: true });
   await setLogTimes(dest, nowMs - quietAgoSec * 1000);
+  await setArtifactTimes(dest, nowMs);
 }
 
 /** 最初の <style nonce="preview"> の前に、テーマの色を決める <style> を入れる（作業台のページと同じ入れ方）。 */
@@ -206,6 +240,12 @@ function shiftTime(text: unknown, ms: number): unknown {
   return `${new Date(wall).toISOString().slice(0, 19)}${m[3] ?? ''}${m[4] ?? ''}`;
 }
 
+/** 記録の時刻の文字を、書かれた日時のまま（ずれは見ずに）UTC のミリ秒にする。時刻でない文字は null。 */
+function wallMs(text: unknown): number | null {
+  const m = typeof text === 'string' ? TIME_TEXT.exec(text) : null;
+  return m === null ? null : Date.parse(`${m[1]}T${m[2]}Z`);
+}
+
 interface CopyOptions {
   /** 時刻（started_at・updated_at・pending_review.since・段のログの at）をまとめてずらすミリ秒。並びと「今」からの経過を決める */
   shiftMs?: number;
@@ -213,6 +253,11 @@ interface CopyOptions {
   name: string;
   sessionId: string;
   patch?: Patch;
+  /**
+   * 成果物の更新時刻の基準（UTC のミリ秒。setArtifactTimes に渡す）。動いている run は「今」を渡す。
+   * 省くと、ずらしたあとの updated_at（読めない記録では、成果物の更新時刻は変えない）。
+   */
+  artifactsAtMs?: number;
 }
 
 /** 段のログ（logs/*.jsonl）の at をずらし、開発フローの Prompt 行に受け持ち（agent）を足す。 */
@@ -239,6 +284,7 @@ async function rewriteLogs(logsDir: string, shiftMs: number): Promise<void> {
 /**
  * 見本の記録を dest に写し、時刻をまとめて動かし、名前・ID・受け持ちを足し、決まった項目だけ書き換える。
  * 4つの見本の時刻は同じ日に固まっているので、写しごとに動かして、動いている run は今の少し前に始まり、終わった run は数時間〜数日前になるようにする。
+ * 成果物の更新時刻も、写した時刻のままにせず、基準（options.artifactsAtMs か updated_at）から決めた固定の値にそろえる。
  */
 async function copyRun(src: string, dest: string, options: CopyOptions): Promise<void> {
   const shiftMs = options.shiftMs ?? 0;
@@ -258,6 +304,8 @@ async function copyRun(src: string, dest: string, options: CopyOptions): Promise
   }
   await writeFile(file, `${JSON.stringify({ ...state, name: options.name, session_id: options.sessionId, ...options.patch }, null, 2)}\n`, 'utf8');
   await rewriteLogs(path.join(dest, 'logs'), shiftMs);
+  const artifactsAtMs = options.artifactsAtMs ?? wallMs(state.updated_at);
+  if (artifactsAtMs !== null) await setArtifactTimes(dest, artifactsAtMs);
 }
 
 /** 主の checkout の .git（フォルダ）。HEAD だけ置く。 */
@@ -297,6 +345,7 @@ const FIX_LOGIN_START_MARGIN_SEC = 20;
  * いまの work_dir：確認待ちの開発フロー（直下）・動いている diagrams・合格の survey・archive/ の前の実行 2 つ（不合格・合格）。
  * 別の worktree：feat-export（確認待ちの spec-qa）・fix-login（動いている開発フロー）。
  * 動いている 2 つ（diagrams・fix-login）は、ログの更新時刻を「今 − 秒」にそろえる（options。既定は 0 ＝「今」。いつ作っても印は出ない）。
+ * 成果物の更新時刻は、どの run も固定の値にそろう（動いている 2 つは「今」から、ほかは updated_at から。止まっているかもの印とは関係しない）。
  * 段の始まりも、経過が更新なしの時間以上になるよう古くする（更新時刻が段の始まりより前の見本にならない。既定では今までと同じ値）。
  */
 export async function buildRunsTree(dest: string, options: RunsTreeOptions = {}): Promise<{ workspace: string }> {
@@ -322,6 +371,7 @@ export async function buildRunsTree(dest: string, options: RunsTreeOptions = {})
     name: '設計図をそろえる',
     sessionId: '3a6f8e02-1d5b-4c97-a0e4-8b2c6d1f9a75',
     patch: { pipe: 'diagrams' },
+    artifactsAtMs: now,
   });
   await setLogTimes(diagrams, now - diagramsQuietSec * 1000);
   await copyRun(SHOWCASE_DIR, path.join(here, 'survey'), {
@@ -355,6 +405,7 @@ export async function buildRunsTree(dest: string, options: RunsTreeOptions = {})
     shiftMs: now - Math.max(FIX_LOGIN_START_SEC, fixLoginQuietSec + FIX_LOGIN_START_MARGIN_SEC) * 1000 - Date.parse(runningNextAt),
     name: 'ログインの不具合を直す',
     sessionId: 'e9d4512b-6c7a-4e1f-b3d8-05a2f7c9e118',
+    artifactsAtMs: now,
   });
   await setLogTimes(fix, now - fixLoginQuietSec * 1000);
   return { workspace };
@@ -413,14 +464,17 @@ export async function readRunsView(workspace: string, clock: ViewClock, options:
  * （押す→図が切り替わる・aria-pressed が移る・タイマーが回る、までをブラウザで確かめられる）。nonce つきで <body> の直後に入れる。
  * options.staleAfterSec は「止まっているかも」の目安の秒（各行の本体と初めの本体に渡す。渡さなければ印は出ない）。
  * options.next を渡すと、その行の本体を render で送る補助 window.__previewNext() も入れる（更新後の見本。nonce つき）。
- * options を渡さない呼び方（今までの 3 つ目の引数）は、どちらの項目も無いので今までと同じ。
+ * options.recordPosted が true のときだけ、送られたメッセージの type を window.__posted に貯める（画面の確認で、行を押しても余計な通信が増えないことを見る。
+ * selectRun の返信は今のまま）。渡さない・false のときの置き換えは、今までと同じ文字。
+ * options を渡さない呼び方（今までの 3 つ目の引数）は、どの項目も無いので今までと同じ。
  */
 export function panelRunsPreviewHtml(
   entries: readonly RunsPreviewEntry[],
   theme: Theme,
-  options: { staleAfterSec?: number | null; next?: RunsPreviewEntry } = {},
+  options: { staleAfterSec?: number | null; next?: RunsPreviewEntry; recordPosted?: boolean } = {},
 ): string {
   const staleAfterSec = options.staleAfterSec ?? null;
+  const record = options.recordPosted === true;
   const initial = entries.find((e) => e.selected) ?? entries[0];
   if (initial === undefined) throw new Error('一覧の見本の行がありません');
   const bodies: Record<string, string> = {};
@@ -428,8 +482,9 @@ export function panelRunsPreviewHtml(
   // 本体の HTML を文字として埋める。< は < にして、</script> などでページが切れないようにする
   const json = JSON.stringify(bodies).replace(/</g, '\\u003c');
   const stub =
-    `<script nonce="${NONCE}">window.acquireVsCodeApi=(()=>{const BODIES=${json};` +
-    `return()=>({postMessage(m){if(m&&m.type==='selectRun'&&typeof BODIES[m.id]==='string')window.postMessage({type:'render',html:BODIES[m.id]},'*')}})})();</script>`;
+    `<script nonce="${NONCE}">window.acquireVsCodeApi=(()=>{const BODIES=${json};${record ? 'window.__posted=[];' : ''}` +
+    `return()=>({postMessage(m){${record ? "if(m&&typeof m.type==='string')window.__posted.push(m.type);" : ''}` +
+    `if(m&&m.type==='selectRun'&&typeof BODIES[m.id]==='string')window.postMessage({type:'render',html:BODIES[m.id]},'*')}})})();</script>`;
   // 関数で置き換える（埋める文字に本体の HTML が入る。$ を置き換えの特別な書き方と取り違えない）
   const page = withTheme(renderPanelHtml(initial.view, NONCE, initial.listView, staleAfterSec), theme).replace('<body>', () => `<body>\n${stub}`);
   const next = options.next;
@@ -459,4 +514,95 @@ export async function staleRunsPageHtml(dest: string, kind: 'stale' | 'stale-soo
   const next = updated.find((e) => e.key === diagrams);
   if (next === undefined) throw new Error('更新後の見本に diagrams の行がありません');
   return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC, next });
+}
+
+// ---- 「成果物」タブの見本（D0025）---------------------------------------------------------------
+// 実行は 2 つ。(a) 動いている開発フロー（直下。実装が動いていて、既定の選びは 04_implementation.md）と、
+// (b) 12 個の成果物を持つ終わったパイプ（既定の選びは最後のまとめ）。見本の文章は artifactSamples.ts。
+// 木は呼ぶ側が作った一時フォルダ（dest）の中だけに作る。tests/fixtures/ の見本は写すだけで書かない。
+
+/** 成果物の見本の木の種類：current ＝ 今の見本、next ＝ 更新後の見本（(a) は検証が動き、実装の記録に 1 段落増える）。 */
+export type ArtifactsVariant = 'current' | 'next';
+
+/** (b) のパイプのフォルダ名。 */
+const SURVEY_PIPE = 'survey-report';
+/** 更新後の見本で、(a) の検証の段が始まってから「今」までの秒（動いている見本の次の見本と同じ）。 */
+const ARTIFACTS_NEXT_SEC = 5;
+/** (b) の終わった記録の時刻を、何時間前にするか。 */
+const SURVEY_AGO_HOURS = 3;
+
+/** dir に、名前と中身の組を書く（置き換える）。 */
+async function writeFiles(dir: string, files: Readonly<Record<string, string>>): Promise<void> {
+  for (const [name, text] of Object.entries(files)) await writeFile(path.join(dir, name), text, 'utf8');
+}
+
+/**
+ * 「成果物」タブの見本の木。ワークスペースは dest/main（返す workspace）。
+ * (a) 直下は、動いている開発フロー（showcase_running を写す。variant が next なら showcase_running_next で、検証が動く）。
+ * 02_design.md（上限を超える日本語）・03_red_tests.md（外から来た文字）・04_implementation.md（長い Markdown）は見本の文章に替える。
+ * 99_summary.md は無い（「まだない」）。ログの更新時刻は「今」（止まっているかもの印は出ない）。
+ * (b) パイプ survey-report は、依頼メモ・10 段の成果物・まとめの 12 個（名前の特別な文字・.txt・広い表・空白の無い長い名前・長い段の表示名を含む）。
+ * 成果物の更新時刻は、文章を置いたあとで setArtifactTimes にそろえる。「今」は確認待ちの見本の待ち始めから WAITING_SEC 秒後。
+ */
+export async function buildArtifactsTree(dest: string, variant: ArtifactsVariant): Promise<{ workspace: string }> {
+  const workspace = path.join(dest, 'main');
+  const here = path.join(workspace, 'docs', 'pipeline');
+  await writeMainGit(workspace);
+  const waitingSince = await startOfLiveness(WAITING_DIR);
+  const src = variant === 'next' ? RUNNING_NEXT_DIR : RUNNING_DIR;
+  const startedAt = await startOfLiveness(src);
+  if (waitingSince === null || startedAt === null) throw new Error('見本の記録に、動いている段か待ち始めの時刻がありません');
+  const now = Date.parse(waitingSince) + WAITING_SEC * 1000;
+
+  // (a) 動いている開発フロー：段の始まりが「今」の RUNNING_SEC 秒前（次の見本は ARTIFACTS_NEXT_SEC 秒前）
+  await copyRun(src, here, {
+    shiftMs: now - (variant === 'next' ? ARTIFACTS_NEXT_SEC : RUNNING_SEC) * 1000 - Date.parse(startedAt),
+    name: 'ユーザー一覧に CSV 出力ボタンを足す',
+    sessionId: '5d2b8f10-6a4c-4e39-8c71-0b9e3a7d2f64',
+    artifactsAtMs: now,
+  });
+  await setLogTimes(here, now);
+  await writeFiles(here, {
+    '02_design.md': longDesignSample(),
+    '03_red_tests.md': hostileSample(),
+    '04_implementation.md': implementationSample(variant === 'next'),
+  });
+  await setArtifactTimes(here, now);
+
+  // (b) 12 個の成果物を持つ終わったパイプ：写した見本の成果物（段の名前が違う）は消して、見本の文章に替える
+  const survey = path.join(here, SURVEY_PIPE);
+  const finishedAt = now - SURVEY_AGO_HOURS * 3_600_000;
+  await copyRun(SHOWCASE_DIR, survey, {
+    shiftMs: -SURVEY_AGO_HOURS * 3_600_000,
+    name: '調査レポートをまとめる',
+    sessionId: 'a1c4e7b9-3d28-4f56-9b0a-6e2d8c1f7a35',
+    patch: { pipe: SURVEY_PIPE, stages: PIPE_STAGES.map((s) => ({ name: s.name, label: s.label, output: s.output, review: false })) },
+    artifactsAtMs: finishedAt,
+  });
+  for (const name of await readdir(survey)) if (name.endsWith('.md')) await rm(path.join(survey, name));
+  await writeFiles(survey, {
+    '00_input.md': pipeMemoSample(),
+    ...Object.fromEntries(PIPE_STAGES.map((s) => [s.output, s.text])),
+    '99_summary.md': pipeSummarySample(),
+  });
+  await setArtifactTimes(survey, finishedAt);
+  return { workspace };
+}
+
+/**
+ * 「成果物」タブの確認用ページ。木を dest の中に組み立て、本番と同じ読み取りで読み、目安 STALE_AFTER_SEC で一覧のページにする。
+ * 初めに見るのは (a)。window.__previewNext() は (a) の更新後の本体を送る（既定の行が検証の成果物に移り、実装の記録が 1 段落増える。
+ * そのために dest/next にもう 1 つ木を組み立てる。実行の一覧が変わらないよう、(b) も同じに作る）。
+ * window.__posted に、パネルが送ったメッセージの type が貯まる（行を押しても余計な通信が増えないことを見る）。
+ */
+export async function artifactsPageHtml(dest: string, theme: Theme): Promise<string> {
+  const since = await startOfLiveness(WAITING_DIR);
+  if (since === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
+  const clock = previewClock(since, WAITING_SEC);
+  const here = makeRunKey(HERE, '');
+  const entries = await readRunsView((await buildArtifactsTree(dest, 'current')).workspace, clock, { selected: here });
+  const updated = await readRunsView((await buildArtifactsTree(path.join(dest, 'next'), 'next')).workspace, clock, { selected: here });
+  const next = updated.find((e) => e.key === here);
+  if (next === undefined) throw new Error('更新後の見本に開発フローの行がありません');
+  return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC, recordPosted: true, next });
 }
