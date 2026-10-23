@@ -29,6 +29,7 @@
 | [D0023](D0023-readme-media.md) | README の冒頭のロゴを動くロゴ（明暗の GIF。動きを減らす設定では止まったロゴ）にし、「すぐ試す」に本物の VSCode の中の画面と使い方の動画（明暗の GIF）を載せる |
 | [D0024](D0024-status-counts.md) | ステータスバーに、並列で動いている実行と確認待ちの件数を出す。別の worktree の行があるあいだはパネルを閉じても約5秒ごとに読み直し、ボタンは確認待ちの実行を先に出す |
 | [D0026](D0026-sdk-buffer.md) | 段が大きい画像を Read しても落ちないようにする（SDK の受信バッファの上限 `[pipeline] max_buffer_mb`、既定 32MB。超えたら段の失敗にして直し方を出す） |
+| [D0027](D0027-live-artifact.md) | Claude のアーティファクトで進み具合を見る（`pipe-in live snapshot`・`pipe-in live page` と `/pipe-in --artifact`。写しには要件メモの本文・セッション ID・パス・自由な文を入れない。見るだけ） |
 
 ## ひな形
 

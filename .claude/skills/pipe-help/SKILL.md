@@ -24,6 +24,7 @@ disable-model-invocation: true
 | --- | --- |
 | `/pipe-in <要件メモ>` | pipe-in に機能を足す。要件定義 → 設計 → テスト先行 → 実装 → 検証 を段ごとにサブエージェントへ任せて進め、段ごとに止まって確認を取る。進み具合は VSCode の「pipe-in: 実行を見る」で見られる |
 | `/pipe-in --auto <要件メモ>` | 同じことを、段の区切りで止まらずに最後まで進める（決めきれない点や、利用料のかかる実行の前では止まる。コミットはしない） |
+| `/pipe-in --artifact <要件メモ>` | 同じ流れを、会話の横の Claude のアーティファクトでも見られるようにする（進み具合を見るだけのページ。承認などは会話で答える。Artifact と ArtifactData のツールがある会話でだけ使え、`--auto` と一緒に使える） |
 | `/pipe-docs [要点か範囲]` | 変えたファイル（空ならこのブランチの全部）に合わせて、文書（README.md・`docs/guide/`・`docs/development/`・vscode/README.md）を文書係にそろえさせる。CLAUDE.md・/pipe-help・決定の記録は案を見せ、承認したものだけをメインが直す。コードを変えて文書がそのままだと、止まるときに一度だけ知らせが出る |
 | `/pipe-audit [範囲]` | 文書・定義・コードのあいだの食い違い（名前・パス・コマンド・決まり・数）を、根拠（ファイル:行）付きで並べて止まる。承認した項目だけをメインが直す |
 | `/pipe-advise [テーマ]` | Claude Code と Agent SDK の公式の文書と照らして、このリポジトリの使いかたを出典の URL 付きで助言して止まる。承認した項目だけをメインが直す |
@@ -61,6 +62,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | チャットから流す（確認で止めて、あとで答える） | `pipe-in ... --pause` → `pipe-in --project <対象> --review approve` ／ `--review revise --feedback "…"` ／ `--review quit` |
 | 途中から再開する | `pipe-in --project <対象> --from design`（パイプでは段の名前） |
 | 記録だけを書く（段は流さない。/pipe-in が使う） | `pipe-in record start --text "…" --name "…"`（`--session-id` も付けられる）→ `begin <段> --agent <受け持ち>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`pipe-in record --help`） |
+| 進み具合の写し・ページを出す（Claude のアーティファクト用。記録は読むだけ。/pipe-in --artifact が使う） | `pipe-in live snapshot [--project DIR] [--config FILE] [--work-dir DIR] [--out FILE]` ／ `pipe-in live page [--out FILE]` |
 | パイプを流す | `pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける） |
 
 ### pipe-in-gen（パイプを作る）

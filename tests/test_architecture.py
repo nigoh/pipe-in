@@ -160,6 +160,48 @@ def test_judge_score_uses_only_stdlib():
     assert outside == []
 
 
+def _outside_stdlib(path: Path, module: str) -> list[str]:
+    import sys
+
+    targets = {t.split(".")[0] for t in _imports(path, module) if t}
+    return sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
+
+
+@pytest.mark.parametrize("name", ["live", "live_page"])
+def test_d0027_ac70_live_modules_use_only_stdlib(name):
+    """D0027-AC-70: 進み具合の写し（live.py）とページ（live_page.py）は、標準ライブラリだけ（pipe_in の他の部品も SDK も読まない。互いにも読まない）。"""
+    path = ROOT / "pipe_in" / "engine" / f"{name}.py"
+    assert path.is_file()
+    assert _outside_stdlib(path, f"pipe_in.engine.{name}") == []
+
+
+def test_d0027_ac70_live_cmd_depends_only_on_config_and_the_live_parts():
+    """D0027-AC-70: コマンドの口（live_cmd.py）は、標準ライブラリと config.py と live・live_page だけを読む（SDK・runner・dev・pipe を読まない）。"""
+    path = ROOT / "pipe_in" / "engine" / "live_cmd.py"
+    assert path.is_file()
+    allowed = ("pipe_in.engine.config", "pipe_in.engine.live", "pipe_in.engine.live_page")
+    found = [t for t in _imports(path, "pipe_in.engine.live_cmd") if t.split(".")[0] == "pipe_in" and t != "pipe_in.engine" and t != "pipe_in"]
+    assert [t for t in found if not t.startswith(allowed)] == []
+    outside = [t for t in _outside_stdlib(path, "pipe_in.engine.live_cmd") if t != "pipe_in"]
+    assert outside == []
+
+
+def test_d0027_ac70_cli_imports_live_cmd_inside_the_branch_only():
+    """D0027-AC-70: cli.py は live_cmd を分岐の中で読む（record と同じ。cli を読み込んだだけでは live の部品を読み込まない）。分岐はある。"""
+    source = (ROOT / "pipe_in" / "cli.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    top = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    assert not [n for n in top if "live" in ast.dump(n)]
+    assert "live_cmd" in source and '"live"' in source, "cli.py に live の分岐がまだ無い"
+
+
+def test_d0027_ac70_stdlib_check_finds_live_part_importing_siblings(tmp_path):
+    """D0027-AC-70: 標準ライブラリの検査そのものが、live.py が別の部品（live_page・config・SDK）を読んだ場合を見つけられること。"""
+    bad = tmp_path / "live.py"
+    bad.write_text("import json\nfrom .live_page import build_page\nfrom .config import load_config\nimport claude_agent_sdk\n", encoding="utf-8")
+    assert _outside_stdlib(bad, "pipe_in.engine.live") == ["claude_agent_sdk", "pipe_in"]
+
+
 def test_stdlib_check_finds_outside_import(tmp_path):
     """D0022-AC-27: 標準ライブラリの検査そのものが、外の import（pipe_in・SDK）を見つけられること。"""
     import sys
