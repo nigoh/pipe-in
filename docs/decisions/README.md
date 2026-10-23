@@ -32,6 +32,7 @@
 | [D0026](D0026-sdk-buffer.md) | 段が大きい画像を Read しても落ちないようにする（SDK の受信バッファの上限 `[pipeline] max_buffer_mb`、既定 32MB。超えたら段の失敗にして直し方を出す） |
 | [D0027](D0027-live-artifact.md) | Claude のアーティファクトで進み具合を見る（`pipe-in live snapshot`・`pipe-in live page` と `/pipe-in --artifact`。写しには要件メモの本文・セッション ID・パス・自由な文を入れない。見るだけ） |
 | [D0028](D0028-check-judge.md) | 段の検証で、ルーブリックの審査から合否をエンジンが出す（`[stages.check.judge]`。must の違反は即不合格・作業台は judge を消さない） |
+| [D0029](D0029-pipe-plan.md) | 計画ボード（`/pipe-plan`）：ロードマップの段階ごとに、できたこと・手で確かめること・やる予定・やりたいことを Claude のアーティファクトで並べ、GitHub のイシューと決定の記録に合わせる |
 
 ## ひな形
 

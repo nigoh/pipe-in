@@ -1,0 +1,420 @@
+<title>pipe-in 計画ボード</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 配電盤のような作業面：上に段階ごとの進み具合の帯、下に状態ごとの列。カードは差し込み口の札。 */
+:root {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --panel-2: #e9edf3;
+  --line: #d3dae4;
+  --fg: #18202b;
+  --muted: #5a6677;
+  --accent: #0b6e86;
+  --accent-soft: #d6eef3;
+  --ok: #1d7a46;
+  --warn: #9a6200;
+  --bad: #b3261e;
+  --info: #5b48b5;
+  --s-idea: #7a6a9e;
+  --s-todo: #3f6fb0;
+  --s-doing: #0b6e86;
+  --s-check: #9a6200;
+  --s-done: #1d7a46;
+  --shadow: 0 1px 2px rgba(20, 30, 45, .08);
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
+    --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
+    --ok: #6fd39a; --warn: #f0b75a; --bad: #ff8a80; --info: #b4a6ff;
+    --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
+  --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
+  --ok: #6fd39a; --warn: #f0b75a; --bad: #ff8a80; --info: #b4a6ff;
+  --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .02em; text-wrap: balance; }
+h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--accent); font-weight: 600; margin-right: 8px; }
+.lede { color: var(--muted); margin: 2px 0 0; font-size: 13px; }
+.sync { font-size: 12px; color: var(--muted); font-family: var(--f-mono); }
+.sync.err { color: var(--bad); }
+
+/* 段階の帯 */
+.stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.stage {
+  text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; color: var(--fg); font: inherit; cursor: pointer; display: grid; gap: 6px; min-width: 0;
+}
+.stage:hover { border-color: var(--accent); }
+.stage[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.stage .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.stage .num { font-family: var(--f-mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.stage .name { font-weight: 700; font-size: 14px; }
+.stage .frac { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--panel-2); }
+.bar span { display: block; height: 100%; }
+.stage .sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 道具の列 */
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tools input[type="search"], select, input[type="text"], input[type="number"], textarea {
+  font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-width: 0;
+}
+.tools input[type="search"] { flex: 1 1 220px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn {
+  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--fg); cursor: pointer;
+}
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 列 */
+.board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .board { grid-template-columns: minmax(0, 1fr); } }
+.col { background: var(--panel-2); border-radius: 10px; padding: 10px; display: grid; gap: 8px; min-width: 0; }
+.col h2 { margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: .03em; }
+.col h2 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.col h2 .count { margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
+.col .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
+.col .empty { font-size: 12px; color: var(--muted); padding: 10px; border: 1px dashed var(--line); border-radius: 6px; text-align: center; }
+.more { font: inherit; font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer; padding: 4px; text-align: left; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+  display: grid; gap: 6px; box-shadow: var(--shadow); min-width: 0; cursor: pointer; text-align: left; font: inherit; color: var(--fg); width: 100%;
+  border-left: 3px solid var(--line);
+}
+.card:hover { border-color: var(--accent); }
+.card.p-high { border-left-color: var(--bad); }
+.card.p-mid { border-left-color: var(--warn); }
+.card.p-low { border-left-color: var(--muted); }
+.card .t { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.card .note { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.pill { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+.pill.mono { font-family: var(--f-mono); }
+.pill.k-fix { color: var(--bad); }
+.pill.k-verify { color: var(--warn); }
+.pill.k-idea { color: var(--info); }
+.pill.k-feature { color: var(--accent); }
+
+/* 編集 */
+dialog {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg);
+  width: min(560px, calc(100vw - 32px)); padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,.3);
+}
+dialog::backdrop { background: rgba(10, 14, 20, .55); }
+dialog form { display: grid; gap: 12px; padding: 18px; }
+dialog h3 { margin: 0; font-size: 16px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+textarea { min-height: 90px; resize: vertical; width: 100%; }
+dialog input[type="text"] { width: 100%; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+.actions .right { display: flex; gap: 8px; margin-left: auto; }
+.confirm { font-size: 12px; color: var(--bad); }
+.links { font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+.links a { color: var(--accent); }
+.ro-note { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .card, .stage { transition: border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="tag">pipe-in</span>計画ボード</h1>
+      <p class="lede">できたこと・まだのこと・やりたいことを、段階と状態で並べます。カードを押すと状態やメモを変えられます。</p>
+    </div>
+    <span class="sync" id="sync">読み込み中…</span>
+  </header>
+
+  <section class="stages" id="stages" aria-label="段階ごとの進み具合"></section>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="名前・メモ・#番号・D番号でさがす" aria-label="さがす">
+    <div class="chips" id="kinds" role="group" aria-label="種類でしぼる"></div>
+    <button class="btn primary" id="add" type="button">＋ 足す</button>
+  </div>
+
+  <main class="board" id="board"></main>
+</div>
+
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h3 id="dlg-title">項目</h3>
+    <div class="field"><label for="f-title">名前</label><input type="text" id="f-title" required maxlength="200"></div>
+    <div class="row">
+      <div class="field"><label for="f-status">状態</label><select id="f-status"></select></div>
+      <div class="field"><label for="f-stage">段階</label><select id="f-stage"></select></div>
+      <div class="field"><label for="f-kind">種類</label><select id="f-kind"></select></div>
+      <div class="field"><label for="f-priority">優先</label><select id="f-priority"></select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="f-issue">イシュー番号</label><input type="number" id="f-issue" min="1" step="1" placeholder="例 42"></div>
+      <div class="field"><label for="f-decision">決定の記録</label><input type="text" id="f-decision" maxlength="12" placeholder="例 D0028"></div>
+    </div>
+    <div class="field"><label for="f-note">メモ</label><textarea id="f-note" maxlength="4000"></textarea></div>
+    <div class="links" id="f-links"></div>
+    <p class="ro-note" id="ro-note" hidden>この画面では見るだけです（書き込める人だけが変えられます）。</p>
+    <div class="actions">
+      <button class="btn danger" type="button" id="f-del">消す</button>
+      <span class="confirm" id="f-confirm" hidden>もう一度押すと消えます</span>
+      <div class="right">
+        <button class="btn" type="button" id="f-cancel">閉じる</button>
+        <button class="btn primary" type="submit" id="f-save">保存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const REPO = "https://github.com/nigoh/pipe-in";
+  const STATUSES = [
+    { id: "idea", name: "アイデア", hint: "やりたいこと。まだ段階に入れていない", color: "--s-idea" },
+    { id: "todo", name: "やる予定", hint: "イシューがあり、手を付けていない", color: "--s-todo" },
+    { id: "doing", name: "進行中", hint: "ブランチ・PR で作っている", color: "--s-doing" },
+    { id: "check", name: "手で確かめる", hint: "作ったが、実機・手での確認がまだ", color: "--s-check" },
+    { id: "done", name: "完了", hint: "main に入り、確認も済んだ", color: "--s-done" },
+  ];
+  const STAGES = [
+    { id: "0", name: "足場", sub: "残りを片づける" },
+    { id: "1", name: "見る", sub: "実行のフローチャートを充実させる" },
+    { id: "2", name: "組む", sub: "作業台と Claude Code をつなぐ" },
+    { id: "3", name: "口を出す", sub: "図から操作する" },
+    { id: "4", name: "一般の人へ", sub: "入口を低くする" },
+    { id: "x", name: "段階の外", sub: "ロードマップに入っていないもの" },
+  ];
+  const KINDS = [
+    { id: "feature", name: "機能" }, { id: "fix", name: "直す" }, { id: "verify", name: "確かめる" },
+    { id: "chore", name: "整える" }, { id: "idea", name: "思いつき" },
+  ];
+  const PRIOS = [{ id: "", name: "—" }, { id: "high", name: "高" }, { id: "mid", name: "中" }, { id: "low", name: "低" }];
+  const DONE_LIMIT = 8;
+
+  let items = [];
+  let db = null, col = null, canWrite = true;
+  let filterStage = null, filterKind = null, query = "", showAllDone = false, editing = null;
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const nameOf = (list, id) => (list.find((x) => x.id === id) || {}).name || id || "";
+  const prioRank = { high: 0, mid: 1, low: 2, "": 3 };
+
+  try { const s = JSON.parse(localStorage.getItem("plan-filter") || "{}"); filterStage = s.stage ?? null; filterKind = s.kind ?? null; } catch (e) {}
+  const remember = () => { try { localStorage.setItem("plan-filter", JSON.stringify({ stage: filterStage, kind: filterKind })); } catch (e) {} };
+
+  function fill(sel, list) { sel.replaceChildren(...list.map((o) => { const op = el("option", null, o.name); op.value = o.id; return op; })); }
+  fill($("f-status"), STATUSES);
+  fill($("f-stage"), STAGES.map((s) => ({ id: s.id, name: s.id === "x" ? s.name : `${s.id}. ${s.name}` })));
+  fill($("f-kind"), KINDS);
+  fill($("f-priority"), PRIOS);
+
+  function matches(it) {
+    if (filterKind && it.kind !== filterKind) return false;
+    if (!query) return true;
+    const q = query.toLowerCase();
+    const hay = [it.title, it.note, it.decision, it.issue ? "#" + it.issue : ""].join(" ").toLowerCase();
+    return hay.includes(q);
+  }
+
+  function renderStages() {
+    const box = $("stages");
+    box.replaceChildren(...STAGES.map((s) => {
+      const list = items.filter((it) => (it.stage || "x") === s.id);
+      const done = list.filter((it) => it.status === "done").length;
+      const b = el("button", "stage");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(filterStage === s.id));
+      const top = el("div", "top");
+      const left = el("div");
+      left.append(el("div", "num", s.id === "x" ? "OTHER" : `STAGE ${s.id}`), el("div", "name", s.name));
+      top.append(left, el("span", "frac", `${done}/${list.length}`));
+      const bar = el("div", "bar");
+      bar.setAttribute("aria-hidden", "true");
+      for (const st of STATUSES) {
+        const n = list.filter((it) => it.status === st.id).length;
+        if (!n) continue;
+        const seg = el("span");
+        seg.style.width = (n / list.length * 100) + "%";
+        seg.style.background = `var(${st.color})`;
+        seg.title = `${st.name} ${n}`;
+        bar.append(seg);
+      }
+      b.append(top, bar, el("div", "sub", s.sub));
+      b.title = STATUSES.map((st) => `${st.name} ${list.filter((it) => it.status === st.id).length}`).join(" / ");
+      b.addEventListener("click", () => { filterStage = filterStage === s.id ? null : s.id; remember(); render(); });
+      return b;
+    }));
+  }
+
+  function renderKinds() {
+    const box = $("kinds");
+    const all = [{ id: null, name: "すべて" }, ...KINDS];
+    box.replaceChildren(...all.map((k) => {
+      const c = el("button", "chip", k.name);
+      c.type = "button";
+      c.setAttribute("aria-pressed", String(filterKind === k.id));
+      c.addEventListener("click", () => { filterKind = k.id; remember(); render(); });
+      return c;
+    }));
+  }
+
+  function card(it) {
+    const c = el("button", "card" + (it.priority ? " p-" + it.priority : ""));
+    c.type = "button";
+    c.append(el("div", "t", it.title || "(名前なし)"));
+    const meta = el("div", "meta");
+    const st = it.stage || "x";
+    meta.append(el("span", "pill", st === "x" ? "段階外" : `段階${st}`));
+    meta.append(el("span", "pill k-" + it.kind, nameOf(KINDS, it.kind)));
+    if (it.issue) meta.append(el("span", "pill mono", "#" + it.issue));
+    if (it.decision) meta.append(el("span", "pill mono", it.decision));
+    if (it.priority) meta.append(el("span", "pill", "優先 " + nameOf(PRIOS, it.priority)));
+    c.append(meta);
+    if (it.note) c.append(el("div", "note", it.note));
+    c.addEventListener("click", () => openEdit(it));
+    return c;
+  }
+
+  function renderBoard() {
+    const visible = items.filter((it) => (!filterStage || (it.stage || "x") === filterStage) && matches(it));
+    const board = $("board");
+    board.replaceChildren(...STATUSES.map((s) => {
+      const col = el("section", "col");
+      col.setAttribute("aria-label", s.name);
+      let list = visible.filter((it) => it.status === s.id);
+      list.sort((a, b) => s.id === "done"
+        ? String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
+        : (prioRank[a.priority || ""] - prioRank[b.priority || ""]) || String(a.stage || "x").localeCompare(String(b.stage || "x")) || (a.issue || 9999) - (b.issue || 9999));
+      const h = el("h2");
+      const dot = el("span", "dot"); dot.style.background = `var(${s.color})`;
+      h.append(dot, document.createTextNode(s.name), el("span", "count", String(list.length)));
+      col.append(h, el("p", "hint", s.hint));
+      if (!list.length) col.append(el("div", "empty", "ありません"));
+      const shown = s.id === "done" && !showAllDone ? list.slice(0, DONE_LIMIT) : list;
+      for (const it of shown) col.append(card(it));
+      if (s.id === "done" && list.length > DONE_LIMIT) {
+        const m = el("button", "more", showAllDone ? "新しい順に8件だけ出す" : `残り ${list.length - DONE_LIMIT} 件も出す`);
+        m.type = "button";
+        m.addEventListener("click", () => { showAllDone = !showAllDone; renderBoard(); });
+        col.append(m);
+      }
+      return col;
+    }));
+  }
+
+  function render() { renderStages(); renderKinds(); renderBoard(); }
+
+  function setSync(text, err) { const s = $("sync"); s.textContent = text; s.classList.toggle("err", !!err); }
+
+  // 編集
+  const dlg = $("dlg");
+  let delArmed = false;
+  function openEdit(it) {
+    editing = it || null;
+    const v = it || { title: "", status: "idea", stage: filterStage || "x", kind: "idea", priority: "", issue: null, decision: "", note: "" };
+    $("dlg-title").textContent = it ? "項目を変える" : "項目を足す";
+    $("f-title").value = v.title || "";
+    $("f-status").value = v.status || "idea";
+    $("f-stage").value = v.stage || "x";
+    $("f-kind").value = v.kind || "idea";
+    $("f-priority").value = v.priority || "";
+    $("f-issue").value = v.issue || "";
+    $("f-decision").value = v.decision || "";
+    $("f-note").value = v.note || "";
+    const links = $("f-links"); links.replaceChildren();
+    if (v.issue) { const a = el("a", null, `イシュー #${v.issue} を開く`); a.href = `${REPO}/issues/${v.issue}`; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
+    if (v.decision && /^D\d{4}$/.test(v.decision)) { const a = el("a", null, `${v.decision} を探す`); a.href = `${REPO}/tree/main/docs/decisions`; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
+    $("f-del").hidden = !it || !canWrite;
+    $("f-confirm").hidden = true; delArmed = false;
+    $("f-save").disabled = !canWrite;
+    $("ro-note").hidden = canWrite;
+    dlg.showModal();
+  }
+  $("add").addEventListener("click", () => openEdit(null));
+  $("f-cancel").addEventListener("click", () => dlg.close());
+  $("form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!col || !canWrite) return;
+    const issueNum = parseInt($("f-issue").value, 10);
+    const body = {
+      title: $("f-title").value.trim(),
+      status: $("f-status").value,
+      stage: $("f-stage").value,
+      kind: $("f-kind").value,
+      priority: $("f-priority").value,
+      issue: Number.isFinite(issueNum) && issueNum > 0 ? issueNum : null,
+      decision: $("f-decision").value.trim().toUpperCase() || null,
+      note: $("f-note").value.trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (!body.title) { $("f-title").focus(); return; }
+    $("f-save").disabled = true;
+    try {
+      if (editing) await col.doc(editing.id).set(body);
+      else await col.add(body);
+      dlg.close();
+      setSync("保存しました");
+    } catch (e) {
+      if (e && e.code === "invalid_argument") { canWrite = false; setSync("この画面では保存できません（見るだけ）", true); }
+      else if (e && e.code === "quota_exceeded") setSync("保存できる数の上限です。完了した古い項目を消してください", true);
+      else setSync("保存できませんでした。少し待ってからもう一度押してください", true);
+    } finally { $("f-save").disabled = !canWrite; }
+  });
+  $("f-del").addEventListener("click", async () => {
+    if (!editing || !col) return;
+    if (!delArmed) { delArmed = true; $("f-confirm").hidden = false; return; }
+    try { await col.doc(editing.id).delete(); dlg.close(); setSync("消しました"); }
+    catch (e) { setSync("消せませんでした", true); }
+  });
+
+  render();
+
+  (async () => {
+    db = await window.claude?.use?.("db");
+    if (!db) { setSync("データを読めません（サインインして開いてください）", true); $("add").disabled = true; return; }
+    try {
+      const user = await window.claude.use("user");
+      const w = user ? await user.can("data.write") : null;
+      if (w === false) { canWrite = false; $("add").disabled = true; }
+    } catch (e) {}
+    col = db.collection("items");
+    col.onSnapshot((snap) => {
+      items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSync(items.length ? `${items.length} 件` : "まだ項目がありません。「＋ 足す」から入れます");
+      render();
+    }, () => setSync("読み込みが止まりました。開き直してください", true));
+  })();
+})();
+</script>
