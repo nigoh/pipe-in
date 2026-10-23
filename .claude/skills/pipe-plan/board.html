@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* 配電盤のような作業面：上に段階ごとの進み具合の帯、下に状態ごとの列。カードは差し込み口の札。 */
+/* 配電盤のような作業面：上に「いま動いているセッション」の差し込み口、段階ごとの進み具合の帯、下に状態ごとの列。 */
 :root {
   --bg: #f3f5f8;
   --panel: #ffffff;
@@ -15,6 +15,7 @@
   --accent-soft: #d6eef3;
   --ok: #1d7a46;
   --warn: #9a6200;
+  --warn-soft: #fbefd9;
   --bad: #b3261e;
   --info: #5b48b5;
   --s-idea: #7a6a9e;
@@ -23,6 +24,8 @@
   --s-check: #9a6200;
   --s-done: #1d7a46;
   --shadow: 0 1px 2px rgba(20, 30, 45, .08);
+  --toast-bg: #18202b;
+  --toast-fg: #f3f5f8;
   --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
@@ -30,18 +33,20 @@
   :root:not([data-theme="light"]) {
     --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
     --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
-    --ok: #6fd39a; --warn: #f0b75a; --bad: #ff8a80; --info: #b4a6ff;
+    --ok: #6fd39a; --warn: #f0b75a; --warn-soft: #3a2e17; --bad: #ff8a80; --info: #b4a6ff;
     --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    --toast-bg: #e6ebf2; --toast-fg: #11161d;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
   --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
-  --ok: #6fd39a; --warn: #f0b75a; --bad: #ff8a80; --info: #b4a6ff;
+  --ok: #6fd39a; --warn: #f0b75a; --warn-soft: #3a2e17; --bad: #ff8a80; --info: #b4a6ff;
   --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  --toast-bg: #e6ebf2; --toast-fg: #11161d;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -58,6 +63,46 @@ h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--accent); fon
 .lede { color: var(--muted); margin: 2px 0 0; font-size: 13px; }
 .sync { font-size: 12px; color: var(--muted); font-family: var(--f-mono); }
 .sync.err { color: var(--bad); }
+.keys { font-size: 12px; color: var(--muted); }
+kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel); }
+
+/* いま動いているセッション */
+.live { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.live-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.live-head h2 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.live-head .stamp { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.live-head .spacer { flex: 1; }
+.live-sum { display: flex; flex-wrap: wrap; gap: 6px; }
+.live-msg { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.live-msg.err { color: var(--bad); }
+.sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.sess {
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; display: grid; gap: 5px; min-width: 0;
+  background: var(--panel); border-left: 3px solid var(--line);
+}
+.sess.b-working { border-left-color: var(--accent); }
+.sess.b-blocked { border-left-color: var(--warn); background: var(--warn-soft); }
+.sess.b-review { border-left-color: var(--info); }
+.sess.b-failed { border-left-color: var(--bad); }
+.sess .row1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.sess .title { font-weight: 500; font-size: 13px; overflow-wrap: anywhere; flex: 1; min-width: 0; }
+.sess .detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.sess .detail.need { color: var(--warn); font-weight: 500; }
+.sess .foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.sess .foot a { color: var(--accent); }
+.sess .foot .grow { flex: 1; }
+.state { font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; border: 1px solid currentColor; }
+.state.b-working { color: var(--accent); }
+.state.b-blocked { color: var(--warn); }
+.state.b-review { color: var(--info); }
+.state.b-failed { color: var(--bad); }
+.state.b-done { color: var(--muted); }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+@media (prefers-reduced-motion: no-preference) {
+  .b-working .pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+}
+.linkbtn { font: inherit; font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
 
 /* 段階の帯 */
 .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
@@ -91,16 +136,18 @@ h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--accent); fon
   font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--panel); color: var(--fg); cursor: pointer;
 }
+.btn.small { padding: 3px 10px; font-size: 12px; }
 .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* 列 */
 .board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: start; }
 @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .board { grid-template-columns: minmax(0, 1fr); } }
-.col { background: var(--panel-2); border-radius: 10px; padding: 10px; display: grid; gap: 8px; min-width: 0; }
+.col { background: var(--panel-2); border-radius: 10px; padding: 10px; display: grid; gap: 8px; min-width: 0; border: 2px dashed transparent; }
+.col.drop { border-color: var(--accent); background: var(--accent-soft); }
 .col h2 { margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: .03em; }
 .col h2 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .col h2 .count { margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
@@ -110,16 +157,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .card {
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
-  display: grid; gap: 6px; box-shadow: var(--shadow); min-width: 0; cursor: pointer; text-align: left; font: inherit; color: var(--fg); width: 100%;
+  display: grid; gap: 6px; box-shadow: var(--shadow); min-width: 0; cursor: pointer; color: var(--fg);
   border-left: 3px solid var(--line);
 }
 .card:hover { border-color: var(--accent); }
+.card.dragging { opacity: .4; }
 .card.p-high { border-left-color: var(--bad); }
 .card.p-mid { border-left-color: var(--warn); }
 .card.p-low { border-left-color: var(--muted); }
 .card .t { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
 .card .note { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.card .acts { display: flex; gap: 4px; justify-content: flex-end; }
+.mv {
+  font: inherit; font-size: 11px; padding: 1px 8px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); cursor: pointer;
+}
+.mv:hover { color: var(--accent); border-color: var(--accent); }
+.meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .pill { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
 .pill.mono { font-family: var(--f-mono); }
 .pill.k-fix { color: var(--bad); }
@@ -139,13 +193,22 @@ dialog h3 { margin: 0; font-size: 16px; }
 .field label { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
 .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
 textarea { min-height: 90px; resize: vertical; width: 100%; }
-dialog input[type="text"] { width: 100%; }
+dialog input[type="text"], dialog select { width: 100%; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
 .actions .right { display: flex; gap: 8px; margin-left: auto; }
 .confirm { font-size: 12px; color: var(--bad); }
 .links { font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
 .links a { color: var(--accent); }
 .ro-note { font-size: 12px; color: var(--muted); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--toast-bg); color: var(--toast-fg); border-radius: 8px; padding: 8px 14px;
+  display: flex; gap: 12px; align-items: center; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  max-width: calc(100vw - 32px); z-index: 20;
+}
+.toast button { font: inherit; font-size: 13px; background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
 @media (prefers-reduced-motion: no-preference) { .card, .stage { transition: border-color .15s; } }
 </style>
 
@@ -153,10 +216,29 @@ dialog input[type="text"] { width: 100%; }
   <header>
     <div>
       <h1><span class="tag">pipe-in</span>計画ボード</h1>
-      <p class="lede">できたこと・まだのこと・やりたいことを、段階と状態で並べます。カードを押すと状態やメモを変えられます。</p>
+      <p class="lede">できたこと・まだのこと・やりたいことを、段階と状態で並べます。カードは引いて別の列に移すか、下の矢印で進めます。</p>
     </div>
-    <span class="sync" id="sync">読み込み中…</span>
+    <div>
+      <span class="sync" id="sync">読み込み中…</span>
+      <div class="keys"><kbd>N</kbd> 足す　<kbd>/</kbd> さがす　<kbd>Esc</kbd> 閉じる</div>
+    </div>
   </header>
+
+  <section class="live" aria-labelledby="live-title">
+    <div class="live-head">
+      <h2 id="live-title">いま動いているセッション</h2>
+      <div class="live-sum" id="live-sum"></div>
+      <span class="spacer"></span>
+      <span class="stamp" id="live-stamp"></span>
+      <div class="chips" role="group" aria-label="セッションの範囲">
+        <button class="chip" type="button" id="scope-repo" aria-pressed="true">pipe-in だけ</button>
+        <button class="chip" type="button" id="scope-all" aria-pressed="false">すべて</button>
+      </div>
+      <button class="btn small" type="button" id="live-refresh" hidden>読み直す</button>
+    </div>
+    <div class="live-msg" id="live-msg">セッションを読み込んでいます…</div>
+    <div class="sessions" id="sessions"></div>
+  </section>
 
   <section class="stages" id="stages" aria-label="段階ごとの進み具合"></section>
 
@@ -168,6 +250,8 @@ dialog input[type="text"] { width: 100%; }
 
   <main class="board" id="board"></main>
 </div>
+
+<div class="toast" id="toast" role="status" hidden><span id="toast-text"></span><button type="button" id="toast-undo">戻す</button></div>
 
 <dialog id="dlg">
   <form id="form" method="dialog">
@@ -183,6 +267,7 @@ dialog input[type="text"] { width: 100%; }
       <div class="field"><label for="f-issue">イシュー番号</label><input type="number" id="f-issue" min="1" step="1" placeholder="例 42"></div>
       <div class="field"><label for="f-decision">決定の記録</label><input type="text" id="f-decision" maxlength="12" placeholder="例 D0028"></div>
     </div>
+    <div class="field"><label for="f-session">つないだセッション</label><select id="f-session"></select></div>
     <div class="field"><label for="f-note">メモ</label><textarea id="f-note" maxlength="4000"></textarea></div>
     <div class="links" id="f-links"></div>
     <p class="ro-note" id="ro-note" hidden>この画面では見るだけです（書き込める人だけが変えられます）。</p>
@@ -200,6 +285,9 @@ dialog input[type="text"] { width: 100%; }
 <script>
 (() => {
   const REPO = "https://github.com/nigoh/pipe-in";
+  const REPO_SLUG = "nigoh/pipe-in";
+  const SESSION_SERVER = "Claude Code Remote";
+  const SESSION_URL = "https://claude.ai/code/";
   const STATUSES = [
     { id: "idea", name: "アイデア", hint: "やりたいこと。まだ段階に入れていない", color: "--s-idea" },
     { id: "todo", name: "やる予定", hint: "イシューがあり、手を付けていない", color: "--s-todo" },
@@ -220,19 +308,36 @@ dialog input[type="text"] { width: 100%; }
     { id: "chore", name: "整える" }, { id: "idea", name: "思いつき" },
   ];
   const PRIOS = [{ id: "", name: "—" }, { id: "high", name: "高" }, { id: "mid", name: "中" }, { id: "low", name: "低" }];
+  // セッションの状態（status_bucket）を、見る人の言葉に直す。並びは気にしてほしい順。
+  const BUCKETS = {
+    BLOCKED: { cls: "b-blocked", name: "あなた待ち", rank: 0 },
+    WORKING: { cls: "b-working", name: "作業中", rank: 1 },
+    REVIEW_READY: { cls: "b-review", name: "見てほしい", rank: 2 },
+    FAILED: { cls: "b-failed", name: "失敗", rank: 3 },
+    COMPLETED: { cls: "b-done", name: "一区切り", rank: 4 },
+  };
   const DONE_LIMIT = 8;
+  const QUIET_LIMIT = 4;
+  const STATUS_IDS = STATUSES.map((s) => s.id);
 
   let items = [];
+  let sessions = [];
+  let sessionsById = new Map();
   let db = null, col = null, canWrite = true;
   let filterStage = null, filterKind = null, query = "", showAllDone = false, editing = null;
+  let scopeAll = false, showQuiet = false;
+  let dragId = null;
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const nameOf = (list, id) => (list.find((x) => x.id === id) || {}).name || id || "";
   const prioRank = { high: 0, mid: 1, low: 2, "": 3 };
 
-  try { const s = JSON.parse(localStorage.getItem("plan-filter") || "{}"); filterStage = s.stage ?? null; filterKind = s.kind ?? null; } catch (e) {}
-  const remember = () => { try { localStorage.setItem("plan-filter", JSON.stringify({ stage: filterStage, kind: filterKind })); } catch (e) {} };
+  try {
+    const s = JSON.parse(localStorage.getItem("plan-filter") || "{}");
+    filterStage = s.stage ?? null; filterKind = s.kind ?? null; scopeAll = !!s.scopeAll;
+  } catch (e) {}
+  const remember = () => { try { localStorage.setItem("plan-filter", JSON.stringify({ stage: filterStage, kind: filterKind, scopeAll })); } catch (e) {} };
 
   function fill(sel, list) { sel.replaceChildren(...list.map((o) => { const op = el("option", null, o.name); op.value = o.id; return op; })); }
   fill($("f-status"), STATUSES);
@@ -240,11 +345,235 @@ dialog input[type="text"] { width: 100%; }
   fill($("f-kind"), KINDS);
   fill($("f-priority"), PRIOS);
 
+  function ago(iso) {
+    const t = Date.parse(iso || "");
+    if (!Number.isFinite(t)) return "";
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return "たった今";
+    if (m < 60) return `${m}分前`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `${h}時間前`;
+    return `${Math.round(h / 24)}日前`;
+  }
+
+  // ---- セッション ----
+  function bucketOf(s) {
+    const raw = String(s.status_bucket || "").replace("SESSION_STATUS_BUCKET_", "");
+    return BUCKETS[raw] || BUCKETS.COMPLETED;
+  }
+  function touchesRepo(s) {
+    const ctx = s.session_context || {};
+    const urls = [...(ctx.sources || []), ...(ctx.outcomes || [])].map((x) => {
+      const g = (x && x.git_repository) || {};
+      return String(g.url || (g.git_info && g.git_info.repo) || "");
+    });
+    return urls.some((u) => u === REPO_SLUG || u.endsWith("/" + REPO_SLUG) || u.endsWith("/" + REPO_SLUG + ".git"));
+  }
+  function branchOf(s) {
+    const cur = s.external_metadata && s.external_metadata.current_branches;
+    if (cur) for (const v of Object.values(cur)) if (typeof v === "string" && v) return v;
+    for (const o of ((s.session_context || {}).outcomes || [])) {
+      const g = o && o.git_repository && o.git_repository.git_info;
+      if (g && g.repo === REPO_SLUG && Array.isArray(g.branches) && g.branches[0]) return String(g.branches[0]);
+    }
+    return "";
+  }
+  function summaryOf(s) {
+    const p = s.post_turn_summary || (s.external_metadata && s.external_metadata.post_turn_summary) || {};
+    return { need: String(p.needs_action || ""), detail: String(p.status_detail || p.recent_action || "") };
+  }
+  // 一覧の返事は、ふつうは {ccr: {data: [...]}}。文字で来たときは JSON の部分だけを読む。
+  function extractSessions(payload) {
+    let p = payload;
+    if (typeof p === "string") {
+      const a = p.indexOf("{"), b = p.lastIndexOf("}");
+      try { p = a >= 0 && b > a ? JSON.parse(p.slice(a, b + 1)) : null; } catch (e) { p = null; }
+    }
+    const list = (p && p.ccr && p.ccr.data) || (p && p.data) || (Array.isArray(p) ? p : null);
+    return Array.isArray(list) ? list.filter((s) => s && typeof s.id === "string") : null;
+  }
+
+  function setLiveMsg(text, err, withButton) {
+    const m = $("live-msg");
+    m.replaceChildren();
+    m.hidden = !text;
+    m.classList.toggle("err", !!err);
+    if (text) m.append(el("span", null, text));
+    if (withButton) {
+      const b = el("button", "btn small primary", withButton.label);
+      b.type = "button";
+      b.addEventListener("click", withButton.run);
+      m.append(b);
+    }
+  }
+
+  function renderSessions() {
+    sessionsById = new Map(sessions.map((s) => [s.id, s]));
+    const scoped = sessions.filter((s) => !String(s.session_status || "").includes("ARCHIVED") && (scopeAll || touchesRepo(s)));
+    scoped.sort((a, b) => (bucketOf(a).rank - bucketOf(b).rank) || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+    const active = scoped.filter((s) => bucketOf(s).rank < 4);
+    const quiet = scoped.filter((s) => bucketOf(s).rank === 4);
+
+    const sum = $("live-sum");
+    sum.replaceChildren();
+    for (const [key, b] of Object.entries(BUCKETS)) {
+      const n = scoped.filter((s) => bucketOf(s) === b).length;
+      if (!n) continue;
+      const chip = el("span", "state " + b.cls);
+      if (key === "WORKING") chip.append(el("span", "pulse"));
+      chip.append(document.createTextNode(`${b.name} ${n}`));
+      sum.append(chip);
+    }
+
+    const box = $("sessions");
+    const shown = showQuiet ? [...active, ...quiet] : [...active, ...quiet.slice(0, Math.max(0, QUIET_LIMIT - active.length))];
+    box.replaceChildren(...shown.map(sessionCard));
+    const hiddenCount = scoped.length - shown.length;
+    if (!scoped.length) setLiveMsg(scopeAll ? "セッションがありません。" : "pipe-in のセッションはありません（「すべて」で、ほかのリポジトリも見られます）。");
+    else if (hiddenCount > 0 || showQuiet) {
+      setLiveMsg("", false);
+      const m = $("live-msg"); m.hidden = false;
+      const b = el("button", "linkbtn", showQuiet ? "一区切りのセッションを減らす" : `一区切りのセッションをあと ${hiddenCount} 件出す`);
+      b.type = "button";
+      b.addEventListener("click", () => { showQuiet = !showQuiet; renderSessions(); });
+      m.append(b);
+    } else setLiveMsg("");
+    fillSessionSelect();
+    renderBoard();
+  }
+
+  function sessionCard(s) {
+    const b = bucketOf(s);
+    const card = el("article", "sess " + b.cls);
+    const r1 = el("div", "row1");
+    const st = el("span", "state " + b.cls);
+    st.append(el("span", "pulse"), document.createTextNode(b.name));
+    r1.append(el("span", "title", s.title || "(題なし)"), st);
+    card.append(r1);
+    const sm = summaryOf(s);
+    if (sm.need) card.append(el("div", "detail need", "要ること：" + sm.need));
+    else if (sm.detail) card.append(el("div", "detail", sm.detail));
+    const meta = el("div", "meta");
+    const br = branchOf(s);
+    if (br) meta.append(el("span", "pill mono", br));
+    if (scopeAll) {
+      const repos = ((s.session_context || {}).outcomes || []).map((o) => o && o.git_repository && o.git_repository.git_info && o.git_repository.git_info.repo).filter(Boolean);
+      if (repos.length) meta.append(el("span", "pill mono", repos.join(", ")));
+    }
+    const cost = s.external_metadata && s.external_metadata.usage && s.external_metadata.usage.cost_usd;
+    if (typeof cost === "number") meta.append(el("span", "pill mono", "$" + cost.toFixed(2)));
+    const linked = items.filter((it) => it.session === s.id);
+    if (linked.length) meta.append(el("span", "pill", "ボードの項目 " + linked.length));
+    if (meta.childNodes.length) card.append(meta);
+    const foot = el("div", "foot");
+    foot.append(el("span", "grow", ago(s.updated_at) ? "更新 " + ago(s.updated_at) : ""));
+    if (canWrite && col) {
+      const add = el("button", "linkbtn", "ボードに足す");
+      add.type = "button";
+      add.addEventListener("click", () => openEdit(null, { title: s.title || "", status: "doing", session: s.id }));
+      foot.append(add);
+    }
+    if (/^session_[A-Za-z0-9]+$/.test(s.id)) {
+      const a = el("a", null, "開く");
+      a.href = SESSION_URL + s.id; a.target = "_blank"; a.rel = "noopener";
+      foot.append(a);
+    }
+    card.append(foot);
+    return card;
+  }
+
+  function fillSessionSelect() {
+    const sel = $("f-session");
+    const keep = sel.value;
+    const opts = [{ id: "", name: "つながない" }];
+    for (const s of sessions) {
+      if (String(s.session_status || "").includes("ARCHIVED")) continue;
+      opts.push({ id: s.id, name: `${s.title || s.id}（${bucketOf(s).name}）` });
+    }
+    if (editing && editing.session && !sessionsById.has(editing.session)) opts.push({ id: editing.session, name: "前につないだセッション（一覧に無い）" });
+    fill(sel, opts);
+    sel.value = opts.some((o) => o.id === keep) ? keep : "";
+  }
+
+  for (const [id, all] of [["scope-repo", false], ["scope-all", true]]) {
+    $(id).addEventListener("click", () => {
+      scopeAll = all; remember();
+      $("scope-repo").setAttribute("aria-pressed", String(!scopeAll));
+      $("scope-all").setAttribute("aria-pressed", String(scopeAll));
+      renderSessions();
+    });
+  }
+  $("scope-repo").setAttribute("aria-pressed", String(!scopeAll));
+  $("scope-all").setAttribute("aria-pressed", String(scopeAll));
+
+  let mcp = null, unwatch = null;
+  const LIST_INPUT = { mine: true, limit: 40 };
+
+  function onSessions(result) {
+    const list = extractSessions(result && result.payload);
+    if (!list) { setLiveMsg("セッションの一覧の形が読めませんでした。", true); return; }
+    sessions = list;
+    const at = result.cache && result.cache.storedAt ? new Date(result.cache.storedAt) : new Date();
+    $("live-stamp").textContent = at.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) + " 時点";
+    $("live-refresh").hidden = false;
+    renderSessions();
+  }
+
+  function onSessionError(e) {
+    const code = e && e.code;
+    const retract = () => { sessions = []; $("sessions").replaceChildren(); $("live-sum").replaceChildren(); };
+    if (code === "approval_required" || code === "not_in_manifest" || code === "consent_required") {
+      retract();
+      setLiveMsg("セッションを見るには、このページに Claude Code Remote を使う許しが要ります。", false, { label: "許して表示する", run: askOnce });
+    } else if (code === "needs_reauth") {
+      retract(); setLiveMsg("Claude Code Remote のつながりが切れています。claude.ai の設定 → コネクタでつなぎ直してください。", true);
+    } else if (code === "server_not_connected" || code === "selection_required") {
+      retract(); setLiveMsg("この画面では Claude Code Remote が使えません（claude.ai で開くと見られます）。", true);
+    } else if (code === "blocked_by_policy") {
+      retract(); setLiveMsg("組織の決まりで、セッションの一覧は読めません。", true);
+    } else if (code === "server_unavailable" || code === "rate_limited") {
+      setLiveMsg(sessions.length ? "読み直しに失敗しました。前の一覧のままです。" : "セッションを読めませんでした。少し待ってから「読み直す」を押してください。", true);
+      $("live-refresh").hidden = false;
+    } else if (code === "tool_error") {
+      setLiveMsg("セッションの一覧を読めませんでした（" + String(e.message || "").slice(0, 120) + "）", true);
+    } else {
+      setLiveMsg("セッションを読めませんでした。「読み直す」を押してください。", true);
+      $("live-refresh").hidden = false;
+    }
+  }
+
+  function startWatch() {
+    if (!mcp || unwatch) return;
+    unwatch = mcp.watchTool(SESSION_SERVER, "list_sessions", LIST_INPUT, (ev) => {
+      if (ev.type === "data") onSessions(ev.result);
+      else onSessionError(ev.error);
+    }, { refetchInterval: 30000 });
+  }
+
+  async function askOnce() {
+    if (!mcp) return;
+    setLiveMsg("確認しています…");
+    try {
+      const r = await mcp.callTool(SESSION_SERVER, "list_sessions", LIST_INPUT, { cache: { staleTime: 0, gcTime: 300000 } });
+      onSessions(r);
+      if (unwatch) { unwatch(); unwatch = null; }
+      startWatch();
+    } catch (e) { onSessionError(e); }
+  }
+
+  $("live-refresh").addEventListener("click", async () => {
+    if (!mcp) return;
+    try { await mcp.invalidate(SESSION_SERVER, "list_sessions"); } catch (e) {}
+    askOnce();
+  });
+
+  // ---- ボード ----
   function matches(it) {
     if (filterKind && it.kind !== filterKind) return false;
     if (!query) return true;
     const q = query.toLowerCase();
-    const hay = [it.title, it.note, it.decision, it.issue ? "#" + it.issue : ""].join(" ").toLowerCase();
+    const s = it.session && sessionsById.get(it.session);
+    const hay = [it.title, it.note, it.decision, it.issue ? "#" + it.issue : "", s ? s.title : ""].join(" ").toLowerCase();
     return hay.includes(q);
   }
 
@@ -268,7 +597,6 @@ dialog input[type="text"] { width: 100%; }
         const seg = el("span");
         seg.style.width = (n / list.length * 100) + "%";
         seg.style.background = `var(${st.color})`;
-        seg.title = `${st.name} ${n}`;
         bar.append(seg);
       }
       b.append(top, bar, el("div", "sub", s.sub));
@@ -291,8 +619,10 @@ dialog input[type="text"] { width: 100%; }
   }
 
   function card(it) {
-    const c = el("button", "card" + (it.priority ? " p-" + it.priority : ""));
-    c.type = "button";
+    const c = el("article", "card" + (it.priority ? " p-" + it.priority : ""));
+    c.tabIndex = 0;
+    c.setAttribute("role", "button");
+    c.setAttribute("aria-label", (it.title || "") + "（押すと変えられます）");
     c.append(el("div", "t", it.title || "(名前なし)"));
     const meta = el("div", "meta");
     const st = it.stage || "x";
@@ -301,18 +631,71 @@ dialog input[type="text"] { width: 100%; }
     if (it.issue) meta.append(el("span", "pill mono", "#" + it.issue));
     if (it.decision) meta.append(el("span", "pill mono", it.decision));
     if (it.priority) meta.append(el("span", "pill", "優先 " + nameOf(PRIOS, it.priority)));
+    if (it.session) {
+      const s = sessionsById.get(it.session);
+      if (s) {
+        const b = bucketOf(s);
+        const chip = el("span", "state " + b.cls);
+        chip.append(el("span", "pulse"), document.createTextNode("セッション " + b.name));
+        chip.title = s.title || "";
+        meta.append(chip);
+      } else meta.append(el("span", "pill", "セッションあり"));
+    }
     c.append(meta);
     if (it.note) c.append(el("div", "note", it.note));
+    if (canWrite && col) {
+      const i = STATUS_IDS.indexOf(it.status);
+      const acts = el("div", "acts");
+      if (i > 0) acts.append(moveButton(it, STATUS_IDS[i - 1], "← " + STATUSES[i - 1].name));
+      if (i >= 0 && i < STATUS_IDS.length - 1) acts.append(moveButton(it, STATUS_IDS[i + 1], STATUSES[i + 1].name + " →"));
+      c.append(acts);
+      c.draggable = true;
+      c.addEventListener("dragstart", (ev) => { dragId = it.id; c.classList.add("dragging"); try { ev.dataTransfer.setData("text/plain", it.id); ev.dataTransfer.effectAllowed = "move"; } catch (e) {} });
+      c.addEventListener("dragend", () => { dragId = null; c.classList.remove("dragging"); document.querySelectorAll(".col.drop").forEach((x) => x.classList.remove("drop")); });
+    }
     c.addEventListener("click", () => openEdit(it));
+    c.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openEdit(it); } });
     return c;
   }
+
+  function moveButton(it, to, label) {
+    const b = el("button", "mv", label);
+    b.type = "button";
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); moveItem(it.id, to); });
+    return b;
+  }
+
+  // 状態だけを書き換える。戻せるように前の状態を覚えておく。
+  let toastTimer = null, lastMove = null;
+  async function moveItem(id, to) {
+    const it = items.find((x) => x.id === id);
+    if (!it || !col || it.status === to) return;
+    const from = it.status;
+    try {
+      await col.doc(id).update({ status: to, updatedAt: new Date().toISOString() });
+      lastMove = { id, from };
+      showToast(`「${(it.title || "").slice(0, 30)}」を${nameOf(STATUSES, to)}へ移しました`, true);
+    } catch (e) { writeError(e); }
+  }
+  function showToast(text, undoable) {
+    $("toast-text").textContent = text;
+    $("toast-undo").hidden = !undoable;
+    $("toast").hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $("toast").hidden = true; lastMove = null; }, 6000);
+  }
+  $("toast-undo").addEventListener("click", async () => {
+    const m = lastMove; lastMove = null; $("toast").hidden = true;
+    if (!m || !col) return;
+    try { await col.doc(m.id).update({ status: m.from, updatedAt: new Date().toISOString() }); } catch (e) { writeError(e); }
+  });
 
   function renderBoard() {
     const visible = items.filter((it) => (!filterStage || (it.stage || "x") === filterStage) && matches(it));
     const board = $("board");
     board.replaceChildren(...STATUSES.map((s) => {
-      const col = el("section", "col");
-      col.setAttribute("aria-label", s.name);
+      const column = el("section", "col");
+      column.setAttribute("aria-label", s.name);
       let list = visible.filter((it) => it.status === s.id);
       list.sort((a, b) => s.id === "done"
         ? String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
@@ -320,30 +703,38 @@ dialog input[type="text"] { width: 100%; }
       const h = el("h2");
       const dot = el("span", "dot"); dot.style.background = `var(${s.color})`;
       h.append(dot, document.createTextNode(s.name), el("span", "count", String(list.length)));
-      col.append(h, el("p", "hint", s.hint));
-      if (!list.length) col.append(el("div", "empty", "ありません"));
+      column.append(h, el("p", "hint", s.hint));
+      if (!list.length) column.append(el("div", "empty", canWrite && col ? "ここへ引いて移せます" : "ありません"));
       const shown = s.id === "done" && !showAllDone ? list.slice(0, DONE_LIMIT) : list;
-      for (const it of shown) col.append(card(it));
+      for (const it of shown) column.append(card(it));
       if (s.id === "done" && list.length > DONE_LIMIT) {
         const m = el("button", "more", showAllDone ? "新しい順に8件だけ出す" : `残り ${list.length - DONE_LIMIT} 件も出す`);
         m.type = "button";
         m.addEventListener("click", () => { showAllDone = !showAllDone; renderBoard(); });
-        col.append(m);
+        column.append(m);
       }
-      return col;
+      column.addEventListener("dragover", (ev) => { if (!dragId) return; ev.preventDefault(); column.classList.add("drop"); });
+      column.addEventListener("dragleave", (ev) => { if (!column.contains(ev.relatedTarget)) column.classList.remove("drop"); });
+      column.addEventListener("drop", (ev) => { ev.preventDefault(); column.classList.remove("drop"); const id = dragId; dragId = null; if (id) moveItem(id, s.id); });
+      return column;
     }));
   }
 
   function render() { renderStages(); renderKinds(); renderBoard(); }
 
   function setSync(text, err) { const s = $("sync"); s.textContent = text; s.classList.toggle("err", !!err); }
+  function writeError(e) {
+    if (e && e.code === "invalid_argument") { canWrite = false; setSync("この画面では保存できません（見るだけ）", true); render(); }
+    else if (e && e.code === "quota_exceeded") setSync("保存できる数の上限です。完了した古い項目を消してください", true);
+    else setSync("保存できませんでした。少し待ってからもう一度試してください", true);
+  }
 
-  // 編集
+  // ---- 編集 ----
   const dlg = $("dlg");
   let delArmed = false;
-  function openEdit(it) {
+  function openEdit(it, preset) {
     editing = it || null;
-    const v = it || { title: "", status: "idea", stage: filterStage || "x", kind: "idea", priority: "", issue: null, decision: "", note: "" };
+    const v = it || Object.assign({ title: "", status: "idea", stage: filterStage || "x", kind: "idea", priority: "", issue: null, decision: "", note: "", session: "" }, preset || {});
     $("dlg-title").textContent = it ? "項目を変える" : "項目を足す";
     $("f-title").value = v.title || "";
     $("f-status").value = v.status || "idea";
@@ -353,14 +744,19 @@ dialog input[type="text"] { width: 100%; }
     $("f-issue").value = v.issue || "";
     $("f-decision").value = v.decision || "";
     $("f-note").value = v.note || "";
+    $("f-session").value = "";
+    fillSessionSelect();
+    $("f-session").value = v.session || "";
     const links = $("f-links"); links.replaceChildren();
     if (v.issue) { const a = el("a", null, `イシュー #${v.issue} を開く`); a.href = `${REPO}/issues/${v.issue}`; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
     if (v.decision && /^D\d{4}$/.test(v.decision)) { const a = el("a", null, `${v.decision} を探す`); a.href = `${REPO}/tree/main/docs/decisions`; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
+    if (v.session && /^session_[A-Za-z0-9]+$/.test(v.session)) { const a = el("a", null, "セッションを開く"); a.href = SESSION_URL + v.session; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
     $("f-del").hidden = !it || !canWrite;
     $("f-confirm").hidden = true; delArmed = false;
-    $("f-save").disabled = !canWrite;
+    $("f-save").disabled = !canWrite || !col;
     $("ro-note").hidden = canWrite;
     dlg.showModal();
+    $("f-title").focus();
   }
   $("add").addEventListener("click", () => openEdit(null));
   $("f-cancel").addEventListener("click", () => dlg.close());
@@ -376,6 +772,7 @@ dialog input[type="text"] { width: 100%; }
       priority: $("f-priority").value,
       issue: Number.isFinite(issueNum) && issueNum > 0 ? issueNum : null,
       decision: $("f-decision").value.trim().toUpperCase() || null,
+      session: $("f-session").value || null,
       note: $("f-note").value.trim(),
       updatedAt: new Date().toISOString(),
     };
@@ -385,18 +782,24 @@ dialog input[type="text"] { width: 100%; }
       if (editing) await col.doc(editing.id).set(body);
       else await col.add(body);
       dlg.close();
-      setSync("保存しました");
-    } catch (e) {
-      if (e && e.code === "invalid_argument") { canWrite = false; setSync("この画面では保存できません（見るだけ）", true); }
-      else if (e && e.code === "quota_exceeded") setSync("保存できる数の上限です。完了した古い項目を消してください", true);
-      else setSync("保存できませんでした。少し待ってからもう一度押してください", true);
-    } finally { $("f-save").disabled = !canWrite; }
+      showToast(editing ? "保存しました" : "足しました", false);
+    } catch (e) { writeError(e); }
+    finally { $("f-save").disabled = !canWrite; }
   });
   $("f-del").addEventListener("click", async () => {
     if (!editing || !col) return;
     if (!delArmed) { delArmed = true; $("f-confirm").hidden = false; return; }
-    try { await col.doc(editing.id).delete(); dlg.close(); setSync("消しました"); }
-    catch (e) { setSync("消せませんでした", true); }
+    try { await col.doc(editing.id).delete(); dlg.close(); showToast("消しました", false); }
+    catch (e) { writeError(e); }
+  });
+
+  $("q").addEventListener("input", (ev) => { query = ev.target.value.trim(); renderBoard(); });
+  document.addEventListener("keydown", (ev) => {
+    if (dlg.open || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    const tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") { if (ev.key === "Escape") document.activeElement.blur(); return; }
+    if (ev.key === "/") { ev.preventDefault(); $("q").focus(); }
+    else if ((ev.key === "n" || ev.key === "N") && canWrite && col) { ev.preventDefault(); openEdit(null); }
   });
 
   render();
@@ -414,7 +817,21 @@ dialog input[type="text"] { width: 100%; }
       items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setSync(items.length ? `${items.length} 件` : "まだ項目がありません。「＋ 足す」から入れます");
       render();
+      if (sessions.length) renderSessions();
     }, () => setSync("読み込みが止まりました。開き直してください", true));
+  })();
+
+  (async () => {
+    mcp = await window.claude?.use?.("mcp");
+    if (!mcp) { setLiveMsg("このページではセッションを読めません（claude.ai で開くと見られます）。"); return; }
+    let state = "prompt";
+    try {
+      const perms = await window.claude.use("permissions");
+      if (perms) state = await perms.state("mcp:" + SESSION_SERVER).catch(() => "unavailable");
+    } catch (e) {}
+    if (state === "granted") startWatch();
+    else if (state === "denied") setLiveMsg("Claude Code Remote を使う許しが切られています。アーティファクトの「権限」から入れ直せます。");
+    else setLiveMsg("セッションの様子を、Claude Code Remote から読んで出せます。", false, { label: "セッションを表示する", run: askOnce });
   })();
 })();
 </script>

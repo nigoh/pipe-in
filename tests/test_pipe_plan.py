@@ -87,3 +87,25 @@ def test_d0029_ac08_decision_record_listed():
     """D0029-AC-08: 決定の記録 D0029 があり、決定の記録の表に載っている。"""
     assert list(DECISIONS.glob("D0029-*.md")), "D0029 の記録が無い"
     assert "D0029" in read(DECISIONS / "README.md")
+
+
+def test_d0029_ac11_board_reads_sessions_only():
+    """D0029-AC-11: ボードはセッションの一覧を Claude Code Remote の list_sessions で読むだけで、ほかの道具（作る・送る・止める）を呼ばない。"""
+    html = read(BOARD)
+    tools = set(re.findall(r'(?:callTool|watchTool)\(\s*SESSION_SERVER\s*,\s*"([a-z_]+)"', html))
+    assert tools == {"list_sessions"}, tools
+    assert 'const SESSION_SERVER = "Claude Code Remote";' in html
+    assert re.search(r"\b(?:create_session|send_message|archive_session|interrupt_session)\b", html) is None
+
+
+def test_d0029_ac12_skill_declares_session_capability():
+    """D0029-AC-12: スキルは、ボードを作り直すときに list_sessions だけを許す mcp の宣言を書いている。"""
+    text = read(SKILL)
+    assert '{server: "Claude Code Remote", tools: ["list_sessions"]}' in text
+
+
+def test_d0029_ac13_board_moves_cards_without_dialog():
+    """D0029-AC-13: ボードは、カードを引いて別の列に落とす・次の状態へ進めるボタンで、状態だけを書き換える（update）。"""
+    html = read(BOARD)
+    assert 'draggable = true' in html and '"drop"' in html
+    assert ".update({ status" in html
