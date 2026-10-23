@@ -18,6 +18,8 @@
 | `state.json` | 実行の記録（機械向け）。段の並び（`stages`：名前・表示名・成果物・確認の有無）、段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
+審査（`[stages.check.judge]`、[パイプ](pipes.md#ルーブリックで審査するstagescheckjudge)）を使った検証は、`state.json` の `history` の `check` に `judge`（`status`・`overall`・`threshold`・`scores`・`must`・`valid`。項目の理由は残さず、must の根拠は残す）を足し、`99_summary.md` の検証の行の下に審査の 1 行を出します。審査を使わない検証と古い記録には、どちらも出ません。
+
 `state.json` には、実行を見分けるための項目があります（どれも足しただけで、無い古い記録もそのまま読めます）。
 
 | 項目 | 中身 | 付け方 |

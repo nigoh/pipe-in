@@ -21,6 +21,7 @@ from ..engine.checkpoint import Decision
 from ..engine.config import Config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, BasePipeline, Exit, ShellResult, one_line, run_shell
 from ..engine.runner import StageRun, StageRunner, run_stage_sdk
+from . import judge
 from . import specs as ps
 from .definition import END, PipeDef, PipeStage
 
@@ -46,6 +47,19 @@ def _structured(run: StageRun) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             return None
     return data if isinstance(data, dict) else None
+
+
+def _judge_line(j: dict[str, Any]) -> str:
+    """99_summary.md の審査の1行。"""
+    if not j.get("valid", True):
+        return "  - 審査: 返りが決まりに合いませんでした"
+    overall = j.get("overall")
+    line = f"  - 審査: 平均 {'なし' if overall is None else overall} / しきい値 {j.get('threshold')} → {j.get('status')}"
+    must = j.get("must") or {}
+    violated = [n for n, m in must.items() if m.get("violated") is True]
+    unchecked = [n for n, m in must.items() if m.get("violated") is None]
+    parts = ([f"must の違反: {'、'.join(violated)}"] if violated else []) + ([f"確かめられず: {'、'.join(unchecked)}"] if unchecked else [])
+    return line + (f"（{'、'.join(parts)}）" if parts else "")
 
 
 class LinearPipeline(BasePipeline):
@@ -83,6 +97,8 @@ class LinearPipeline(BasePipeline):
             mark = "✓" if c["status"] == "pass" else "✗"
             detail = c.get("summary") or "; ".join(c.get("problems", [])[:2])
             lines.append(f"- {mark} {self.labels.get(h['stage'], h['stage'])}: {c['status']}{' — ' + one_line(detail) if detail else ''}")
+            if c.get("judge"):
+                lines.append(_judge_line(c["judge"]))
         return lines
 
     # ---- 入口 ---------------------------------------------------------
@@ -263,6 +279,16 @@ class LinearPipeline(BasePipeline):
                 if data["status"] == "fail":
                     found = [str(p) for p in data.get("problems", []) if str(p).strip()]
                     problems += found or [record["summary"] or "判定が fail でした"]
+        if c.judge:
+            data = _structured(run)
+            outcome = judge.evaluate(
+                data.get("judge") if data else None,
+                [i.name for i in c.judge.criteria],
+                [i.name for i in c.judge.must],
+                c.judge.threshold,
+            )
+            problems += outcome.problems
+            record["judge"] = outcome.to_record()
         if c.command:
             print(f"  確認用コマンドを実行: {c.command}", flush=True)
             res = self.shell(c.command, self.cfg.project_dir, c.timeout_sec)

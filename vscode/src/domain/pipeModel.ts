@@ -14,7 +14,8 @@ export type InputMode = 'required' | 'optional' | 'none';
 
 export interface Point { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
-export interface CheckModel { on: boolean; verdict: boolean; command: string; maxRetries: number }
+/** judge は [stages.check.judge] の表をそのまま持つ（表示・編集はしない。知らないキーも残して書き戻す。古い形で無いときは null と同じ） */
+export interface CheckModel { on: boolean; verdict: boolean; command: string; maxRetries: number; judge?: TomlTable | null }
 export interface RouteModel { key: string; to: string }
 export interface AgentModel { name: string; description: string; prompt: string; tools: string[]; model: string }
 export interface McpServerModel { name: string; type: 'stdio' | 'http' | 'sse'; command: string; args: string[]; url: string }
@@ -167,7 +168,7 @@ export function newStage(id: string, kind: BlockKind, name: string): StageModel 
   return {
     id, kind, name, label: name, output: `${name}.md`, access, docsDir: kind === 'docs' ? 'docs' : '', writes: [], bash: false, review: false,
     model: '', maxTurns: 100, maxBudget: null, prompt: '', refs: [], web: kind === 'outside' ? 'domains' : 'off', domains: [], mcp: [],
-    check: { on: kind === 'verify', verdict: true, command: '', maxRetries: 2 }, onFail: null, next: null, routes: [],
+    check: { on: kind === 'verify', verdict: true, command: '', maxRetries: 2, judge: null }, onFail: null, next: null, routes: [],
     permissionMode: '', thinking: null, fallbackModel: '', systemAppend: '', addDirs: [],
     agents: kind === 'agent' ? [{ name: 'helper', description: '', prompt: '', tools: ['Read', 'Grep', 'Glob'], model: '' }] : [],
     mcpServers: [], x: 0, y: 0,
@@ -179,7 +180,8 @@ export function newStage(id: string, kind: BlockKind, name: string): StageModel 
 const str = (v: TomlValue | undefined): string => (typeof v === 'string' ? v : '');
 const strList = (v: TomlValue | undefined): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 const num = (v: TomlValue | undefined): number | null => (typeof v === 'number' ? v : null);
-const table = (v: TomlValue | undefined): TomlTable => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v : {});
+const isTable = (v: TomlValue | undefined): v is TomlTable => typeof v === 'object' && v !== null && !Array.isArray(v);
+const table = (v: TomlValue | undefined): TomlTable => (isTable(v) ? v : {});
 
 function splitRefs(text: string): { prompt: string; refs: string[] } {
   const body = text.replace(/\r\n/g, '\n').replace(/\s+$/, '');
@@ -258,7 +260,8 @@ export function pipeFromFiles(name: string, tomlText: string, files: Record<stri
       return { name: mn, type: type === 'http' || type === 'sse' ? type : 'stdio', command: str(t.command), args: strList(t.args), url: str(t.url) };
     });
     const check = table(raw.check);
-    s.check = { on: raw.check !== undefined, verdict: check.verdict === true, command: str(check.command), maxRetries: num(check.max_retries) ?? 2 };
+    s.check = { on: raw.check !== undefined, verdict: check.verdict === true, command: str(check.command), maxRetries: num(check.max_retries) ?? 2,
+      judge: check.judge !== undefined && isTable(check.judge) ? (JSON.parse(JSON.stringify(check.judge)) as TomlTable) : null };
     const pf = str(raw.prompt_file);
     if (pf) {
       if (!/^prompts\/[^/\\]+\.md$/.test(pf) || pf.includes('..')) throw new PipeLoadError(`段「${sname}」の指示ファイル ${pf} は、prompts/ の下の .md にしてください`);
@@ -400,6 +403,22 @@ export const promptPath = (s: StageModel, i: number): string => `prompts/${Strin
 export const promptFileText = (s: StageModel): string =>
   s.prompt.trim() + (s.refs.length ? `${REFS_HEADING}${s.refs.map((r) => `- \`${r}\``).join('\n')}` : '') + '\n';
 
+const scalarOrList = (v: TomlValue): string => (Array.isArray(v) ? `[${v.map(scalarOrList).join(', ')}]` : typeof v === 'string' ? q(v) : String(v));
+const isTableArray = (v: TomlValue): v is TomlTable[] => Array.isArray(v) && v.length > 0 && v.every(isTable);
+
+/** 読んだ表を、読んだ順のまま書き出す（スカラー・値の配列 → 入れ子の表 → 表の配列）。審査（judge）を知らないまま守るための汎用の書き出し */
+function judgeLines(path: string, t: TomlTable): string[] {
+  const L: string[] = [`[${path}]`];
+  const entries = Object.entries(t);
+  for (const [k, v] of entries) if (!isTable(v) && !isTableArray(v)) L.push(`${key(k)} = ${scalarOrList(v)}`);
+  for (const [k, v] of entries) if (isTable(v)) L.push(...judgeLines(`${path}.${key(k)}`, v));
+  for (const [k, v] of entries) {
+    if (!isTableArray(v)) continue;
+    for (const item of v) L.push(...judgeLines(`${path}.${key(k)}`, item).map((l, i) => (i === 0 ? `[${l}]` : l)));
+  }
+  return L;
+}
+
 export function toToml(m: PipeModel): string {
   const ord = orderStages(m), L: string[] = [];
   L.push('# パイプ作業台で作った定義。各段への指示は prompts/ のファイル、ブロックの位置は layout.json です。', '', '[pipe]', 'kind = "linear"', `label = ${q(m.label)}`);
@@ -436,6 +455,7 @@ export function toToml(m: PipeModel): string {
       if (s.check.command) L.push(`command = ${q(s.check.command)}`);
       if (s.onFail && s.onFail !== s.id) L.push(`on_fail = ${q(targetName(m, s.onFail))}`);
       L.push(`max_retries = ${s.check.maxRetries}`);
+      if (s.check.judge) L.push(...judgeLines('stages.check.judge', s.check.judge));
     }
     if (s.routes.length && !f) {
       L.push('[stages.routes]');
@@ -503,7 +523,7 @@ export function validatePipe(m: PipeModel): { errors: string[] } {
     if (s.access === 'docs' && !s.docsDir) errors.push(at + '文書のフォルダ（docs_dir）が要ります');
     if (s.access === 'docs' && s.docsDir && (s.docsDir.startsWith('/') || s.docsDir.split('/').includes('..'))) errors.push(at + `docs_dir「${s.docsDir}」はプロジェクトの外を指しています`);
     s.writes.forEach((g) => { if (!g || g.startsWith('/') || g.split('/').includes('..')) errors.push(at + `writes の「${g}」は、プロジェクトの中の相対パスで書いてください`); });
-    if (s.check.on && !s.check.verdict && !s.check.command) errors.push(at + '検証には、判定か確認用のコマンドのどちらかが要ります');
+    if (s.check.on && !s.check.verdict && !s.check.command && !s.check.judge) errors.push(at + '検証には、判定・確認用のコマンド・審査のどれかが要ります');
     if (s.check.on && /\b(curl|wget|ssh|scp|rsync|nc)\b|\bgit\s+push\b/.test(s.check.command)) errors.push(at + '確認用のコマンドに、外への通信や git push は使えません');
     if (s.check.on && !(s.check.maxRetries >= 0)) errors.push(at + 'check の max_retries は 0 以上の整数で書いてください');
     if (s.onFail && s.onFail !== s.id) {

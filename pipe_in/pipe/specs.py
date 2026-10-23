@@ -11,7 +11,8 @@ from ..engine.config import Config
 from ..engine.guard import is_test_path
 from ..engine.pipeline import INPUT
 from ..engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec, protect
-from .definition import AgentDef, McpServerDef, PipeDef, PipeStage
+from .definition import AgentDef, McpServerDef, PipeDef, PipeStage, StageJudge
+from .judge import judge_schema
 
 DEFAULT_MAX_TURNS = 100
 
@@ -85,6 +86,10 @@ def output_format(s: PipeStage) -> dict[str, Any] | None:
         props["summary"] = {"type": "string", "description": "判定の要約（日本語・3行以内）"}
         props["problems"] = {"type": "array", "items": {"type": "string"}, "description": "直す点（根拠のファイルも添える）"}
         required += ["status", "summary", "problems"]
+    if s.check and s.check.judge:
+        j = s.check.judge
+        props["judge"] = judge_schema(j.criteria, j.must)
+        required.append("judge")
     if s.routes:
         props["choice"] = {"type": "string", "enum": list(s.routes), "description": "次に進む先"}
         required.append("choice")
@@ -143,6 +148,31 @@ def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
     return protect(specs, cfg)
 
 
+def _judge_prompt(j: StageJudge) -> list[str]:
+    """審査の説明：項目と must の一覧、点の付け方。平均や合否は審査役に計算させない。"""
+    lines = ["", "## 審査", "", "成果物を次の項目で審査し、結果を構造化出力の judge で返してください。", "", "採点の項目：", ""]
+    lines += [f"- {i.name}：{i.description}" for i in j.criteria]
+    if j.must:
+        lines += ["", "must（1つでも違反なら不合格になる決まり）：", ""]
+        lines += [f"- {i.name}：{i.description}" for i in j.must]
+    lines += [
+        "",
+        "点の付け方：理由を先に書いてから、点を付けてください。",
+        "",
+        "- 1.0：十分に満たしている",
+        "- 0.75：ほぼ満たしている",
+        "- 0.5：半分ほど満たしている",
+        "- 0.25：ほとんど満たしていない",
+        "- 0.0：満たしていない",
+        "- null：成果物からは確かめられない",
+        "",
+        "must は違反かどうかだけを violated（true / false。確かめられないときは null）に書きます。"
+        "違反のときは evidence に根拠（どのファイルのどこか）を書いてください。",
+        "平均や合否は計算しないでください（エンジンが計算します）。",
+    ]
+    return lines
+
+
 def stage_prompt(cfg: Config, pipe: PipeDef, index: int, failure_note: str | None = None) -> str:
     """段への依頼文。渡すものは、依頼メモと、前の段のうち成果物がもうあるもの（分岐で通らなかった段は除く）。"""
     w = cfg.rel(cfg.work_dir)
@@ -166,6 +196,8 @@ def stage_prompt(cfg: Config, pipe: PipeDef, index: int, failure_note: str | Non
         lines.append(f"図や文書のファイルは `{docs}/` の下に置き、成果物からリンクしてください。")
     if stage.check and stage.check.verdict:
         lines.append("最後に、判定（status: pass / fail・summary・problems）を構造化出力で返してください。")
+    if stage.check and stage.check.judge:
+        lines += _judge_prompt(stage.check.judge)
     if stage.routes:
         lines.append(f"最後に、次に進む先を choice（{' / '.join(stage.routes)} のどれか）で返してください。")
     return "\n".join(lines)
