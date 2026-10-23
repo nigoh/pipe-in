@@ -55,6 +55,23 @@ class PipeError(Exception):
 
 
 @dataclass
+class JudgeItem:
+    """審査の項目か must の1つ。"""
+
+    name: str
+    description: str = ""
+
+
+@dataclass
+class StageJudge:
+    """段の検証の審査（[stages.check.judge]）。"""
+
+    threshold: float = 0.7
+    criteria: list[JudgeItem] = field(default_factory=list)
+    must: list[JudgeItem] = field(default_factory=list)
+
+
+@dataclass
 class StageCheck:
     """段の検証。どちらかが不合格なら on_fail の段へ戻す。"""
 
@@ -63,6 +80,7 @@ class StageCheck:
     timeout_sec: int = 600
     on_fail: str | None = None  # 不合格のときに戻す段（自分か前の段）。省くと自分
     max_retries: int = 2
+    judge: StageJudge | None = None
 
 
 @dataclass
@@ -263,6 +281,51 @@ def _str_list(value: Any, key: str, problems: list[str]) -> list[str]:
     return []
 
 
+JUDGE_KEYS = ("threshold", "criteria", "must")
+JUDGE_ITEM_KEYS = ("name", "description")
+
+
+def _load_judge_items(raw: Any, key: str, problems: list[str]) -> list[JudgeItem]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or not all(isinstance(x, dict) for x in raw):
+        problems.append(f"check.judge の {key} は [[stages.check.judge.{key}]] の表の並びで書いてください")
+        return []
+    items: list[JudgeItem] = []
+    for n, x in enumerate(raw, start=1):
+        at = f"check.judge の {key} の {n} つ目"
+        for k in x:
+            if k not in JUDGE_ITEM_KEYS:
+                problems.append(f"{at}に知らないキー「{k}」があります（{' / '.join(JUDGE_ITEM_KEYS)} だけ）")
+        name, desc = x.get("name"), x.get("description")
+        if not isinstance(name, str):
+            problems.append(f"{at}には name（文字列）が要ります")
+        if not isinstance(desc, str):
+            problems.append(f"{at}には description（文字列）が要ります")
+        items.append(JudgeItem(name=name if isinstance(name, str) else "", description=desc if isinstance(desc, str) else ""))
+    return items
+
+
+def _load_judge(raw: Any, problems: list[str]) -> StageJudge | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        problems.append("check.judge は表（[stages.check.judge]）で書いてください")
+        return None
+    for k in raw:
+        if k not in JUDGE_KEYS:
+            problems.append(f"check.judge に知らないキー「{k}」があります（{' / '.join(JUDGE_KEYS)} だけ）")
+    threshold = raw.get("threshold", 0.7)
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+        problems.append("check.judge の threshold は数（0 以上 1 以下）で書いてください")
+        threshold = 0.7
+    return StageJudge(
+        threshold=float(threshold),
+        criteria=_load_judge_items(raw.get("criteria"), "criteria", problems),
+        must=_load_judge_items(raw.get("must"), "must", problems),
+    )
+
+
 def _load_check(raw: Any, problems: list[str]) -> StageCheck | None:
     if raw is None:
         return None
@@ -277,6 +340,7 @@ def _load_check(raw: Any, problems: list[str]) -> StageCheck | None:
         timeout_sec=timeout if isinstance(timeout, int) and not isinstance(timeout, bool) else 0,
         on_fail=_opt_str(raw.get("on_fail")),
         max_retries=max_retries if isinstance(max_retries, int) and not isinstance(max_retries, bool) else -1,
+        judge=_load_judge(raw.get("judge"), problems),
     )
 
 
@@ -506,6 +570,24 @@ def _check_sdk(s: PipeStage, at: str) -> list[str]:
     return errors
 
 
+def _check_judge(j: StageJudge) -> list[str]:
+    """審査（check.judge）の検査。criteria 同士・must 同士の同名は誤り（別々の入れ物の間は許す）。"""
+    errors: list[str] = []
+    if not 0 <= j.threshold <= 1:
+        errors.append("check.judge の threshold は 0 以上 1 以下で書いてください")
+    if not j.criteria:
+        errors.append("check.judge の criteria（採点の項目）が1つも書かれていません")
+    for key, items in (("criteria", j.criteria), ("must", j.must)):
+        seen: set[str] = set()
+        for it in items:
+            if not it.name.strip():
+                errors.append(f"check.judge の {key} に、name が空の項目があります")
+            elif it.name in seen:
+                errors.append(f"check.judge の {key} の名前「{it.name}」が重複しています")
+            seen.add(it.name)
+    return errors
+
+
 def _check_flow(s: PipeStage, i: int, pipe: PipeDef, at: str) -> list[str]:
     """検証・分岐・飛び先の検査。"""
     errors: list[str] = []
@@ -524,8 +606,10 @@ def _check_flow(s: PipeStage, i: int, pipe: PipeDef, at: str) -> list[str]:
 
     c = s.check
     if c is not None:
-        if not c.verdict and not c.command:
-            errors.append(at + "check には verdict か command のどちらかを書いてください")
+        if not c.verdict and not c.command and c.judge is None:
+            errors.append(at + "check には verdict か command か judge のどれかを書いてください")
+        if c.judge is not None:
+            errors += [at + e for e in _check_judge(c.judge)]
         if c.command:
             reason = _dangerous(c.command)
             if reason:

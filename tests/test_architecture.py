@@ -167,6 +167,13 @@ def _outside_stdlib(path: Path, module: str) -> list[str]:
     return sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
 
 
+def test_judge_uses_only_stdlib():
+    """D0028-AC-22: 検証の審査の計算（pipe_in/pipe/judge.py）は標準ライブラリだけ（definition.py など本体の他の部品も SDK も読まない）。"""
+    path = ROOT / "pipe_in" / "pipe" / "judge.py"
+    assert path.is_file()
+    assert _outside_stdlib(path, "pipe_in.pipe.judge") == []
+
+
 @pytest.mark.parametrize("name", ["live", "live_page"])
 def test_d0027_ac70_live_modules_use_only_stdlib(name):
     """D0027-AC-70: 進み具合の写し（live.py）とページ（live_page.py）は、標準ライブラリだけ（pipe_in の他の部品も SDK も読まない。互いにも読まない）。"""

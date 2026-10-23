@@ -14,7 +14,8 @@ import {
   pipeFromFiles,
   validatePipe,
 } from './pipeModel.ts';
-import type { PipeModel } from './pipeModel.ts';
+import type { CheckModel, PipeModel } from './pipeModel.ts';
+import { setCheck } from './pipeCheck.ts';
 import { parseToml } from './toml.ts';
 
 const TOML = `[pipe]
@@ -294,4 +295,181 @@ test('D0007-AC-37: 保存の形は変わらない（layout.json はブロック�
   assert.deepEqual(Object.keys(layout).sort(), ['end', 'frames', 'stages', 'start']);
   for (const v of Object.values(layout.stages as Record<string, object>)) assert.deepEqual(Object.keys(v).sort(), ['kind', 'x', 'y']);
   assert.doesNotMatch(files['pipe.toml']!, /cable|rope|wire/i);
+});
+
+// ---- D0028: 検証の審査（[stages.check.judge]）を、知らないまま守る ----
+
+const JUDGE_HEAD = `[pipe]
+kind = "linear"
+label = "審査つき"
+
+[[stages]]
+name = "draw"
+label = "書く"
+output = "01_draw.md"
+access = "read"
+prompt_file = "prompts/01_draw.md"
+
+[[stages]]
+name = "verify"
+label = "確かめ"
+output = "02_verify.md"
+access = "read"
+prompt_file = "prompts/02_verify.md"
+`;
+const JUDGE_PROMPTS: Record<string, string> = { 'prompts/01_draw.md': '書く\n', 'prompts/02_verify.md': '審査する\n' };
+const JUDGE_BODY = `[stages.check.judge]
+threshold = 0.8
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすい"
+[[stages.check.judge.criteria]]
+name = "accuracy"
+description = "事実に合っている"
+[[stages.check.judge.must]]
+name = "safe"
+description = "秘密を書かない"
+`;
+/** verdict・on_fail・max_retries と審査を並べて書いた pipe.toml */
+const JUDGE_TOML = JUDGE_HEAD + `[stages.check]\nverdict = true\non_fail = "draw"\nmax_retries = 2\n` + JUDGE_BODY;
+/** 審査だけ（verdict も command も無い） */
+const JUDGE_ONLY_TOML = JUDGE_HEAD + `[stages.check]\n` + JUDGE_BODY;
+/** 拡張が知らないキー・入れ子の表・配列を、judge の中に持つもの */
+const JUDGE_UNKNOWN_TOML = JUDGE_HEAD + `[stages.check]
+verdict = true
+max_retries = 1
+[stages.check.judge]
+threshold = 0.65
+weight = 2
+note = "メモ"
+tags = ["a", "b"]
+ratio = 0.5
+strict = true
+[stages.check.judge.extra]
+level = 3
+flag = false
+label = "入れ子"
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすい"
+hint = "見出しを見る"
+weights = [1, 2]
+[[stages.check.judge.criteria]]
+name = "accuracy"
+description = "事実に合っている"
+[[stages.check.judge.must]]
+name = "safe"
+description = "秘密を書かない"
+severity = "high"
+`;
+
+const judgeOf = (toml: string): unknown => ((parseToml(toml).stages as Record<string, unknown>[])[1]!.check as Record<string, unknown>).judge;
+const loadJudge = (toml: string): PipeModel => pipeFromFiles('judge', toml, JUDGE_PROMPTS, null);
+
+test('D0028-AC-25: judge を持つ check を読んで書くと judge が残る', () => {
+  const m = loadJudge(JUDGE_TOML);
+  const files = pipeFiles(m);
+  const toml = files['pipe.toml']!;
+  assert.match(toml, /^\[stages\.check\.judge\]$/m);
+  assert.equal((toml.match(/^\[\[stages\.check\.judge\.criteria\]\]$/gm) ?? []).length, 2);
+  assert.equal((toml.match(/^\[\[stages\.check\.judge\.must\]\]$/gm) ?? []).length, 1);
+  assert.deepEqual(judgeOf(toml), judgeOf(JUDGE_TOML));
+  assert.deepEqual(judgeOf(toml), {
+    threshold: 0.8,
+    criteria: [{ name: 'clarity', description: '読みやすい' }, { name: 'accuracy', description: '事実に合っている' }],
+    must: [{ name: 'safe', description: '秘密を書かない' }],
+  });
+  // verdict / on_fail / max_retries の書き出しは今のまま
+  assert.deepEqual(checkTables(toml), ['[stages.check]\nverdict = true\non_fail = "draw"\nmax_retries = 2']);
+  // 往復しても同じ（2回目の書き出しが1回目と変わらない）
+  const again = pipeFromFiles('judge', toml, files, files['layout.json']!);
+  assert.deepEqual(pipeFiles(again), files);
+});
+
+test('D0028-AC-25: judge だけの check（verdict も command も無い）も、読んで書くと judge が残る', () => {
+  const m = loadJudge(JUDGE_ONLY_TOML);
+  const s = byName(m, 'verify');
+  assert.equal(s.check.on, true);
+  assert.equal(s.check.verdict, false);
+  assert.equal(s.check.command, '');
+  const toml = pipeFiles(m)['pipe.toml']!;
+  assert.deepEqual(judgeOf(toml), judgeOf(JUDGE_ONLY_TOML));
+  assert.deepEqual(checkTables(toml), ['[stages.check]\nmax_retries = 2']);
+});
+
+test('D0028-AC-25: 読んだ judge は check.judge に表として持ち、読み直しても同じ書き出しになる', () => {
+  const m = loadJudge(JUDGE_TOML);
+  const judge = byName(m, 'verify').check.judge as unknown as { threshold: number; criteria: { name: string }[] };
+  assert.ok(judge, 'check.judge に表を持つ');
+  assert.equal(judge.threshold, 0.8);
+  assert.equal(judge.criteria.length, 2);
+  const a = pipeFiles(m)['pipe.toml']!;
+  const b = pipeFiles(loadJudge(JUDGE_TOML))['pipe.toml']!;
+  assert.equal(a, b);
+});
+
+test('D0028-AC-25: check を切ると judge は書き出さず、入れ直すと戻る（持ち続ける）', () => {
+  const m = loadJudge(JUDGE_TOML);
+  const s = byName(m, 'verify');
+  setCheck(s, false);
+  assert.ok(s.check.judge, '切っても judge は持ち続ける');
+  assert.doesNotMatch(pipeFiles(m)['pipe.toml']!, /judge/);
+  setCheck(s, true);
+  assert.deepEqual(judgeOf(pipeFiles(m)['pipe.toml']!), judgeOf(JUDGE_TOML));
+});
+
+test('D0028-AC-26: judge の中の知らないキーも往復で変わらない', () => {
+  const m = loadJudge(JUDGE_UNKNOWN_TOML);
+  const files = pipeFiles(m);
+  const toml = files['pipe.toml']!;
+  assert.deepEqual(judgeOf(toml), judgeOf(JUDGE_UNKNOWN_TOML));
+  const j = judgeOf(toml) as Record<string, unknown>;
+  assert.equal(j.weight, 2);
+  assert.equal(j.note, 'メモ');
+  assert.deepEqual(j.tags, ['a', 'b']);
+  assert.equal(j.ratio, 0.5);
+  assert.equal(j.strict, true);
+  assert.deepEqual(j.extra, { level: 3, flag: false, label: '入れ子' });
+  assert.deepEqual((j.criteria as Record<string, unknown>[])[0], { name: 'clarity', description: '読みやすい', hint: '見出しを見る', weights: [1, 2] });
+  assert.deepEqual((j.must as Record<string, unknown>[])[0], { name: 'safe', description: '秘密を書かない', severity: 'high' });
+  assert.deepEqual(checkTables(toml), ['[stages.check]\nverdict = true\nmax_retries = 1']);
+  const again = pipeFromFiles('judge', toml, files, files['layout.json']!);
+  assert.deepEqual(pipeFiles(again), files);
+});
+
+test('D0028-AC-27: judge だけの check は「判定か…」を出さず、何も無い check は出す', () => {
+  const only = loadJudge(JUDGE_ONLY_TOML);
+  assert.deepEqual(validatePipe(only).errors.filter((e) => e.includes('検証には')), []);
+  assert.deepEqual(validatePipe(only).errors, []);
+  // judge・verdict・command のどれも無い check は、今と同じく誤りを出す
+  const none = loadJudge(JUDGE_HEAD + '[stages.check]\nmax_retries = 2\n');
+  assert.ok(validatePipe(none).errors.some((e) => e.includes('検証には')), '何も無い check は誤り');
+  const stripped = loadJudge(JUDGE_ONLY_TOML);
+  byName(stripped, 'verify').check.judge = null;
+  assert.ok(validatePipe(stripped).errors.some((e) => e.includes('検証には')), 'judge を外すと誤り');
+});
+
+test('D0028-AC-27: 何も無い check の誤りの文は、審査も書けることを含む', () => {
+  const none = loadJudge(JUDGE_HEAD + '[stages.check]\nmax_retries = 2\n');
+  assert.ok(validatePipe(none).errors.some((e) => e.includes('検証には') && e.includes('審査')), validatePipe(none).errors.join('\n'));
+});
+
+test('D0028-AC-28: judge の無い pipe.toml の読み書き・検査は変わらない（check.judge は null）', () => {
+  const m = load();
+  for (const s of m.stages) assert.equal(s.check.judge, null, `${s.name} の check.judge は null`);
+  const toml = pipeFiles(m)['pipe.toml']!;
+  assert.doesNotMatch(toml, /judge/);
+  assert.deepEqual(validatePipe(m).errors, []);
+  assert.deepEqual(parseToml(toml).stages && (parseToml(toml).stages as Record<string, unknown>[])[4]!.check, { verdict: true, on_fail: 'flow', max_retries: 2 });
+});
+
+test('D0028-AC-28: judge の項目が無い（古い形の）check の書き出しも変わらない（守り続けるための検査。今も通る）', () => {
+  const m = newPipe('keep');
+  // judge を持たない古い形のオブジェクト（as で judge を省く）でも書き出せる
+  const oldCheck = { on: true, verdict: true, command: '', maxRetries: 2 } as unknown as CheckModel;
+  m.stages = [{ ...newStage('a', 'research', 'a'), prompt: 'x', x: 100, y: 100, next: 'end', check: oldCheck }];
+  m.end = { x: 400, y: 120 };
+  const toml = pipeFiles(m)['pipe.toml']!;
+  assert.doesNotMatch(toml, /judge/);
+  assert.deepEqual(checkTables(toml), ['[stages.check]\nverdict = true\nmax_retries = 2']);
 });

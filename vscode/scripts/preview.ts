@@ -103,6 +103,25 @@ prompt = "仕様と突き合わせる"
 [stages.mcp_servers.jira]
 type = "http"
 url = "https://mcp.example.com/jira"
+[[stages]]
+name = "rubric"
+label = "ルーブリックの審査"
+output = "07_rubric.md"
+prompt = "成果物を審査する"
+[stages.check]
+on_fail = "spec-check"
+max_retries = 2
+[stages.check.judge]
+threshold = 0.7
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすい"
+[[stages.check.judge.criteria]]
+name = "accuracy"
+description = "事実に合っている"
+[[stages.check.judge.must]]
+name = "no_secret"
+description = "秘密の値を書かない"
 `;
 
 // ジェネレーターのひな形「diagrams」（pipe-in-gen new で作られるパイプ）。prompts/ も読み込む
