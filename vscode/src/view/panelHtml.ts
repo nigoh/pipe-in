@@ -1,10 +1,13 @@
 // 図の状態 → パネルの HTML の文字列（純粋）。色はすべて var(--vscode-*)、外部の読み込みはしない。
 // CSS は id セレクタを使わずクラスだけ（色の直書きの検査に掛からないように）。
 // このファイルは CSP・style・script の束ねと、図（.flow）・動きの基本の CSS を持つ。パネルの本体（上のバー・左の一覧・右の詳細）は shellHtml.ts、
-// 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、パネルの中のスクリプトは panelScript.ts、止まっているかも（D0021）の印の共通部品は staleMark.ts。
+// 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、「成果物」のタブ（一覧＋プレビュー、D0025）とその CSS は artifactsHtml.ts、
+// パネルの中のスクリプトは panelScript.ts、止まっているかも（D0021）の印の共通部品は staleMark.ts。
+// 成果物の CSS（ARTIFACTS_STYLE）は SHELL_STYLE より前に束ねる（SHELL_STYLE の既存の 2 つの @media の中の規則が、基本の規則を上書きできるように。幅の @media はここに足さない）。
 // 図の印（.node-stale・点線の枠・矢印の点を止める）の CSS はここ。動き（animation）は no-preference の中だけで、見える・見えない・点線・色は外（動きを減らす設定でも印は出る）。
 import type { PipelineView } from '../domain/pipelineView.ts';
 import type { RunListView } from '../domain/runList.ts';
+import { ARTIFACTS_STYLE } from './artifactsHtml.ts';
 import { escapeHtml } from './escape.ts';
 import { GANTT_STYLE } from './ganttHtml.ts';
 import { PANEL_SCRIPT } from './panelScript.ts';
@@ -72,9 +75,6 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .terminal { margin: 0; padding: 8px; flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--vscode-terminal-background, var(--vscode-editor-background)); color: var(--vscode-terminal-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-panel-border); font-family: var(--vscode-editor-font-family); }
 .line { white-space: pre-wrap; word-break: break-word; }
 .line-tool { color: var(--vscode-descriptionForeground); }
-.artifacts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.artifact { font: inherit; padding: 2px 6px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-textLink-foreground); cursor: pointer; }
-.artifact:disabled { color: var(--vscode-descriptionForeground); cursor: default; }
 .banner-msg.is-waiting { color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .warnings { margin: 0; padding-left: 1.2em; color: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .flow .node[data-reasons] { cursor: pointer; }
@@ -99,7 +99,7 @@ export function renderPanelHtml(view: PipelineView, nonce: string, list?: RunLis
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pipe-in</title>
-<style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}${RUN_LIST_STYLE}${GANTT_STYLE}${SHELL_STYLE}</style>
+<style nonce="${n}">${STYLE}${REASONS_STYLE}${TIMES_STYLE}${USAGE_STYLE}${RUN_LIST_STYLE}${GANTT_STYLE}${ARTIFACTS_STYLE}${SHELL_STYLE}</style>
 </head>
 <body>
 <div class="root">${renderViewBody(view, list, staleAfterSec)}</div>

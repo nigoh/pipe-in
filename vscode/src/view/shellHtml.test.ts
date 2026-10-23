@@ -6,6 +6,8 @@ import { buildPipelineView } from '../domain/pipelineView.ts';
 import type { PipelineView } from '../domain/pipelineView.ts';
 import type { RunListView, RunRow } from '../domain/runList.ts';
 import { escapeHtml } from './escape.ts';
+import { FakeDocument } from '../test/fakeDom.ts';
+import type { FakeNode } from '../test/fakeDom.ts';
 import { DIAGRAMS_STAGES, snapshot, stageRunEntry, stateJson } from '../test/fixtures.ts';
 import { finishedView, runningView, viewAt, waitingView } from '../test/liveFixtures.ts';
 import { showcaseView } from '../test/reasonFixtures.ts';
@@ -283,14 +285,40 @@ test('D0019-AC-63: 一覧・図の枠・出力・時系列は、それぞれ別�
   assert.ok(out.indexOf('data-scroll="diagram"') < out.indexOf('data-scroll="output"') && out.indexOf('data-scroll="output"') < out.indexOf('data-scroll="gantt"'));
 });
 
-test('D0019-AC-64: 「成果物」タブに今までの成果物のボタン（data-artifact）があり、まだ無い成果物は押せない（disabled）。メッセージの元になるのはこのボタンだけ', async () => {
+// D0019-AC-64 の「成果物」タブの検査は、D0025 で一覧とプレビューの形に変わったので置き換えた（決定の記録 D0025「既存のテストを変えた理由」）。
+// 「成果物」タブには、成果物の一覧の行（選ぶ。data-art-pick。data-artifact を持たない）と、ある成果物のプレビューの「エディタで開く」（data-artifact）がある。
+// まだ無い行は押せない（disabled）。メッセージの元になる（data-artifact を持つ）のは、プレビューの「エディタで開く」だけ。
+test('D0025-AC-10: 「成果物」タブは、成果物の一覧の行（data-art-pick。data-artifact を持たない）と、ある成果物のプレビューの「エディタで開く」（data-artifact）でできていて、まだ無い行は押せない（disabled）。メッセージの元になるのはプレビューの「エディタで開く」だけ（D0019-AC-64 を D0025 で置き換え）', async () => {
   const view = buildPipelineView(snapshot({ artifacts: { '00_input.md': 'メモ', '01_requirements.md': '要件', '03_red_tests.md': '  ' } }));
   const [, artifacts] = panelsOf(await render(view, listView([])));
-  assert.match(artifacts!, /<button type="button" class="artifact" data-artifact="00_input\.md"/);
-  assert.match(artifacts!, /data-artifact="01_requirements\.md"/);
-  assert.match(artifacts!, /<button type="button" class="artifact" disabled/);
-  assert.doesNotMatch(artifacts!, /data-artifact="03_red_tests\.md"/, '空の成果物は押せない');
-  assert.match(plain(artifacts!), /成果物/);
+  const doc = new FakeDocument();
+  doc.innerHTML = artifacts!;
+  const fileOf = (n: FakeNode): string | undefined => n.querySelector('.art-file')?.textContent;
+  const rows = doc.querySelectorAll('.art-row');
+  assert.deepEqual(rows.map(fileOf), ['00_input.md', '01_requirements.md', '02_design.md', '03_red_tests.md', '04_implementation.md', '05_test_report.md', '99_summary.md'], '成果物の一覧は今までと同じ 7 行（同じ順）');
+  for (const r of rows) {
+    assert.equal(r.tagName, 'button');
+    assert.equal(r.hasAttribute('data-artifact'), false, '一覧の行は data-artifact を持たない（押しても openArtifact は送られない）');
+  }
+  assert.deepEqual(
+    rows.filter((r) => !r.disabled).map(fileOf),
+    ['00_input.md', '01_requirements.md'],
+    '押せる行は「ある」成果物だけ',
+  );
+  assert.deepEqual(
+    rows.filter((r) => r.disabled).map(fileOf),
+    ['02_design.md', '03_red_tests.md', '04_implementation.md', '05_test_report.md', '99_summary.md'],
+    '空・空白だけ・ファイルなしの成果物は押せない（disabled）',
+  );
+  const open = doc.querySelectorAll('[data-artifact]');
+  assert.deepEqual(open.map((n) => n.getAttribute('data-artifact')), ['00_input.md', '01_requirements.md'], 'data-artifact を持つのは「ある」成果物の「エディタで開く」だけ');
+  for (const b of open) {
+    assert.equal(b.tagName, 'button');
+    assert.equal(b.textContent.trim(), 'エディタで開く');
+    assert.ok(b.closest('[data-art-preview]') !== null, 'プレビューの見出しの中');
+    assert.ok(b.closest('.art-list') === null, '成果物の一覧の中には無い');
+  }
+  assert.doesNotMatch(artifacts!, /data-artifact="03_red_tests\.md"/, '空の成果物は押せない（プレビューも作らない）');
 });
 
 test('D0019-AC-64: 「使用量」タブに使用量の表（usage-table）がある。使用量の無い記録では空', async () => {

@@ -3,12 +3,14 @@
 // 色は var(--vscode-*)、CSS はクラスだけ（style= は使わない）。外から来た文字はすべて escapeHtml を通す。
 // 選んでいる run の行（一覧の rows のうち selected）があればそこから、無ければ図の状態（view）から詳細の上の部分を作る。
 // 選んだ行が動いていて段のログが目安の時間動かないとき（D0021）は、見出しに「⚠ 止まっているかも」のバッジ、メタの下に知らせを足す（どちらも行の quietSec から作る）。
-import type { ArtifactEntry } from '../domain/artifacts.ts';
+// 「成果物」のタブの中身（一覧＋プレビュー、D0025）は artifactsHtml.ts。その幅の規則は、ここの既存の 2 つの @media（1100px・800px）の中に書く。
+// 実際にスクロールする外側の枠（<main class="detail">・「成果物」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
 import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import { stateWord } from '../domain/runList.ts';
 import type { RunListView, RunRow } from '../domain/runList.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
+import { renderArtifacts } from './artifactsHtml.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
 import { renderFlowSvg } from './flowSvg.ts';
@@ -83,12 +85,18 @@ export const SHELL_STYLE = `
   .pane-right { display: flex; flex-direction: column; }
   .pane-output { flex: none; height: 40vh; }
   .pane-gantt { flex: none; max-height: 50vh; }
+  .art { grid-template-rows: auto; }
+  .art-list { max-height: 60vh; }
+  .art-body { max-height: 70vh; }
 }
 @media (max-width: 800px) {
   .app { height: auto; }
   .app-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
   .sidebar { max-height: 35vh; border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); }
   .detail { overflow: visible; }
+  .art { grid-template-columns: minmax(0, 1fr); }
+  .art-list { max-height: 30vh; }
+  .art-body { max-height: 60vh; }
 }
 `;
 
@@ -232,9 +240,11 @@ function renderTabs(): string {
   return `<div class="detail-tabs" role="tablist" aria-label="表示の切り替え">${buttons.join('')}</div>`;
 }
 
-function panel(key: string, body: string): string {
+/** タブパネル。scroll は、このパネル自身が実際にスクロールするとき、その位置を覚える印（data-scroll の値）。 */
+function panel(key: string, body: string, scroll?: string): string {
   const hide = key === 'diagram' ? '' : ' hidden';
-  return `<div class="tabpanel" role="tabpanel" data-detail-panel="${key}"${hide}>${body}</div>`;
+  const mark = scroll === undefined ? '' : ` data-scroll="${scroll}"`;
+  return `<div class="tabpanel" role="tabpanel" data-detail-panel="${key}"${hide}${mark}>${body}</div>`;
 }
 
 function renderWarnings(warnings: string[]): string {
@@ -261,15 +271,6 @@ function renderTerminal(view: PipelineView, terminal: TerminalView): string {
     `<section class="pane-output"><h2 class="terminal-title">${escapeHtml(title)}</h2>` +
     `<div class="terminal" data-scroll="output">${terminal.items.map(renderItem).join('')}</div></section>`
   );
-}
-
-function renderArtifacts(artifacts: ArtifactEntry[]): string {
-  const items = artifacts.map((a) => {
-    const label = escapeHtml(`${a.label}（${a.ready ? 'ある' : 'まだない'}）`);
-    const attrs = a.ready ? `data-artifact="${escapeHtml(a.name)}"` : 'disabled';
-    return `<li><button type="button" class="artifact" ${attrs} title="${escapeHtml(a.name)}">${label}</button></li>`;
-  });
-  return `<section><h2 class="terminal-title">成果物</h2><ul class="artifacts">${items.join('')}</ul></section>`;
 }
 
 // 図の拡大縮小のボタン（D0019-AC-79）。倍率の文字と aria-label は panelScript.ts が倍率に合わせて書き換える。
@@ -304,7 +305,7 @@ export function renderShell(view: PipelineView, list: RunListView, staleAfterSec
     renderTopbar(list, row) +
     '<div class="app-body">' +
     `<nav class="sidebar" aria-label="実行の一覧">${renderRunList(list, staleAfterSec)}</nav>` +
-    '<main class="detail">' +
+    '<main class="detail" data-scroll="detail">' +
     renderCrumbs(row) +
     renderHead(row, stale) +
     renderMeta(view, row) +
@@ -313,7 +314,7 @@ export function renderShell(view: PipelineView, list: RunListView, staleAfterSec
     renderStaleNotice(row, stale) +
     renderTabs() +
     panel('diagram', renderDiagramPanel(view, staleAfterSec)) +
-    panel('artifacts', renderArtifacts(view.artifacts)) +
+    panel('artifacts', renderArtifacts(view), 'panel-artifacts') +
     panel('usage', renderUsage(view.usage)) +
     '</main></div></div>'
   );

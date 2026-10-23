@@ -14,6 +14,13 @@
 //   選んだ run が変わったときは、図の枠・出力・時系列・ページの位置を先頭に戻す（一覧の位置・絞り込み・タブの選びは残す）。
 // - 図の拡大縮小（AC-79）：Ctrl（⌘）＋ホイールと図の枠のボタンで 50%〜200%（10% 刻み）。倍率は svg の width 属性で効かせ、描き直しのあとも付け直す。
 // - 日本語入力の変換中（compositionstart から compositionend まで）に来た描き直しは取っておき、終わったあとに最後の 1 回だけ適用する。
+// D0025 で足したもの（「成果物」のタブ。どれもパネルの変数だけで持ち、拡張へは送らず、保存もしない）：
+// - 成果物の選び：一覧の行（data-art-pick）を押すと、その成果物を選ぶ（artPicked）。押していないあいだは、HTML が決めた既定（data-art-default）を見せる。
+//   選んだ成果物が「まだない」になる・一覧から消えたら、選びを捨てて既定に戻す。見える成果物が替わったら、記憶したスクロールを捨てて先頭から見せる。
+// - スクロールの記憶は、枠が data-scroll-name を持つときは名前つき（名前が合うときだけ戻す）。外側の枠（detail・panel-artifacts）も覚える。
+// - 選んだ行へ寄せる（revealArtRow）：選びが替わったときだけ、一覧の枠の中に見える位置まで動かす。枠が見えていないあいだは持ち越し、見えたときに寄せる。
+// - 焦点：戻す先が隠れたプレビュー・押せない行のときは、見えているプレビューの枠へ移す。
+// - 見る実行が替わったときは、選びを既定に戻し、成果物まわりのスクロールを先頭に戻す。
 export const PANEL_SCRIPT = `
 (function () {
   const vscode = acquireVsCodeApi();
@@ -31,6 +38,9 @@ export const PANEL_SCRIPT = `
   let composing = false;
   let pendingHtml = null;
   let shownRun = null;
+  let artPicked = null;
+  let artShown = null;
+  let artReveal = false;
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
@@ -164,6 +174,56 @@ export const PANEL_SCRIPT = `
       p.hidden = p.getAttribute('data-detail-panel') !== detailTab;
     });
     applyPick();
+    applyArtifacts();
+  }
+
+  // ---- 成果物のタブ（選びと、選んだ行へ寄せること） ----
+  // 名前で要素を探すときは、属性の値を getAttribute で取って === で比べる（セレクタに名前を連ねない）。
+  function artRows() {
+    return Array.from(root.querySelectorAll('button[data-art-pick]'));
+  }
+  function selectedArtRow() {
+    return artRows().find(function (r) { return r.getAttribute('aria-pressed') === 'true'; }) || null;
+  }
+  function artFrame(name) {
+    const preview = Array.from(root.querySelectorAll('[data-art-preview]')).find(function (p) { return p.getAttribute('data-art-preview') === name; });
+    return preview ? preview.querySelector('.art-body') : null;
+  }
+  function applyArtifacts() {
+    const art = root.querySelector('.art');
+    if (!art) return;
+    const rows = artRows();
+    let name = art.getAttribute('data-art-default');
+    if (artPicked !== null) {
+      const row = rows.find(function (r) { return r.getAttribute('data-art-pick') === artPicked; });
+      if (row && !row.disabled) name = artPicked;
+      else artPicked = null;
+    }
+    rows.forEach(function (r) {
+      const on = name !== null && !r.disabled && r.getAttribute('data-art-pick') === name;
+      r.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    root.querySelectorAll('[data-art-preview]').forEach(function (p) {
+      p.hidden = name === null || p.getAttribute('data-art-preview') !== name;
+    });
+    if (name === artShown) return;
+    artShown = name;
+    delete scrollMemo.artifact;
+    const frame = name === null ? null : artFrame(name);
+    if (frame) { frame.scrollTop = 0; frame.scrollLeft = 0; }
+    artReveal = true;
+  }
+  function revealArtRow() {
+    if (!artReveal || !root.querySelector('.art')) return;
+    const list = root.querySelector('[data-scroll="artifact-list"]');
+    if (!list || list.closest('[hidden]') !== null) return;
+    artReveal = false;
+    const row = selectedArtRow();
+    if (!row) return;
+    const top = row.offsetTop;
+    const bottom = top + row.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = Math.min(top, bottom - list.clientHeight);
   }
 
   // ---- スクロール位置・焦点の保持 ----
@@ -172,14 +232,14 @@ export const PANEL_SCRIPT = `
   }
   function captureScroll() {
     visibleScrollers().forEach(function (el) {
-      scrollMemo[el.getAttribute('data-scroll')] = { top: el.scrollTop, left: el.scrollLeft };
+      scrollMemo[el.getAttribute('data-scroll')] = { name: el.getAttribute('data-scroll-name'), top: el.scrollTop, left: el.scrollLeft };
     });
     if (typeof window.scrollY === 'number') scrollMemo.page = { top: window.scrollY, left: window.scrollX || 0 };
   }
   function restoreScroll() {
     visibleScrollers().forEach(function (el) {
       const m = scrollMemo[el.getAttribute('data-scroll')];
-      if (m) { el.scrollTop = m.top; el.scrollLeft = m.left; }
+      if (m && m.name === el.getAttribute('data-scroll-name')) { el.scrollTop = m.top; el.scrollLeft = m.left; }
     });
     if (scrollMemo.page && typeof window.scrollTo === 'function') window.scrollTo(scrollMemo.page.left, scrollMemo.page.top);
   }
@@ -193,12 +253,21 @@ export const PANEL_SCRIPT = `
     if (typeof el.selectionStart === 'number') { key.start = el.selectionStart; key.end = el.selectionEnd; }
     return key;
   }
+  // 戻す先が隠れたプレビューの中・押せない行（その成果物が「まだない」になった）のときは、focus が効かず焦点が body に落ちる。
+  // 成果物の data-keep（art- で始まる）に限り、見えているプレビューの枠（無ければ選んだ行）へ移す。
+  function focusTarget(again, key) {
+    const lost = again.closest('[hidden]') !== null || again.disabled;
+    if (!lost || key.attr !== 'data-keep' || String(key.value).indexOf('art-') !== 0) return again;
+    const frame = artShown === null ? null : artFrame(artShown);
+    return frame || selectedArtRow() || again;
+  }
   function restoreFocus(key) {
     if (key === null) return;
     const again = Array.from(root.querySelectorAll('[' + key.attr + ']')).find(function (n) { return n.getAttribute(key.attr) === key.value; });
     if (!again) return;
-    again.focus();
-    if (key.start !== null && typeof again.setSelectionRange === 'function') again.setSelectionRange(key.start, key.end);
+    const target = focusTarget(again, key);
+    target.focus();
+    if (target === again && key.start !== null && typeof again.setSelectionRange === 'function') again.setSelectionRange(key.start, key.end);
   }
 
   // ---- 図の拡大縮小（倍率はここだけで持つ。拡張へは送らず、保存もしない） ----
@@ -234,11 +303,18 @@ export const PANEL_SCRIPT = `
       delete scrollMemo.output;
       delete scrollMemo.gantt;
       delete scrollMemo.page;
+      delete scrollMemo.artifact;
+      delete scrollMemo['artifact-list'];
+      delete scrollMemo.detail;
+      delete scrollMemo['panel-artifacts'];
+      artPicked = null;
+      artShown = null;
       wasNear = true;
     }
     applyUi();
     applyZoom();
     restoreScroll();
+    revealArtRow();
     markNewLoops();
     startTimer();
     restoreFocus(key);
@@ -267,11 +343,14 @@ export const PANEL_SCRIPT = `
     change();
     applyUi();
     restoreScroll();
+    revealArtRow();
   }
   root.addEventListener('click', function (event) {
     const target = event.target;
     const button = target.closest('button[data-artifact]');
     if (button && !button.disabled) vscode.postMessage({ type: 'openArtifact', name: button.getAttribute('data-artifact') });
+    const pick = target.closest('button[data-art-pick]');
+    if (pick && !pick.disabled) switchTab(function () { artPicked = pick.getAttribute('data-art-pick'); });
     const run = target.closest('button[data-run]');
     if (run) vscode.postMessage({ type: 'selectRun', id: run.getAttribute('data-run') });
     const listBtn = target.closest('button[data-list-tab]');
@@ -328,6 +407,7 @@ export const PANEL_SCRIPT = `
   shownRun = pressedRun();
   applyUi();
   applyZoom();
+  revealArtRow();
   markNewLoops();
   startTimer();
   follow(true);

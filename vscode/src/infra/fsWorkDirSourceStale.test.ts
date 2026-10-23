@@ -1,8 +1,11 @@
 // 基盤：段のログの更新時刻（mtimeMs）を記録の写しに付ける（D0021・止まっているかもしれない実行の印の元）。AC-01・02・03・47。
 // 一時フォルダに記録を作り、utimes で更新時刻を決めて読ませる。偽の fs は手で書く（モックのライブラリは使わない）。
-// 偽の fs を渡せるのは listPlaceRuns の側だけ（createFsWorkDirSource は fs を受けない。どちらも readStageLogs 1 つを通る）。
-// そのため、選んだ実行の道（createFsWorkDirSource().read()）の AC-02 は、偽物なしで実ファイルの更新時刻を 0 にして確かめる。
-// 今のまま通るテスト（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）：AC-03 の 2 件（操作の種類・口が 6 つ）と AC-47 の 3 件。ほかは赤。
+// 偽の fs は listPlaceRuns の側に渡す（どちらも readStageLogs 1 つを通る）。この冒頭のテストを書いた D0021 のころは、
+// createFsWorkDirSource が fs を受けなかった。D0025 から createFsWorkDirSource も options.fs で偽の口を受けられる
+// （成果物の読みを偽の口で確かめるときは options.fs を渡す。fsWorkDirSourceArtifacts.test.ts）。
+// そのため、選んだ実行の道（createFsWorkDirSource().read()）の AC-02 は、偽物なしで実ファイルの更新時刻を 0 にして確かめた
+// （この版でも、その確かめ方のまま残している）。
+// 今のまま通るテスト（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）：AC-03 の 2 件（操作の種類・口が 6 つ）と AC-47 の 3 件（D0021 のテスト先行のとき、ほかは赤だった）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { utimes } from 'node:fs/promises';
