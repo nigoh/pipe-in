@@ -30,6 +30,7 @@
 | [D0024](D0024-status-counts.md) | ステータスバーに、並列で動いている実行と確認待ちの件数を出す。別の worktree の行があるあいだはパネルを閉じても約5秒ごとに読み直し、ボタンは確認待ちの実行を先に出す |
 | [D0025](D0025-artifact-preview.md) | 実行パネルの「成果物」タブを、左に成果物の一覧・右に中身のプレビューの形にする（Markdown を許すタグだけの HTML に直す。1 つにつき先頭 256 KiB・合計 4 MiB までの上限つきで読み、symlink は読まない） |
 | [D0026](D0026-sdk-buffer.md) | 段が大きい画像を Read しても落ちないようにする（SDK の受信バッファの上限 `[pipeline] max_buffer_mb`、既定 32MB。超えたら段の失敗にして直し方を出す） |
+| [D0027](D0027-live-artifact.md) | Claude のアーティファクトで進み具合を見る（`pipe-in live snapshot`・`pipe-in live page` と `/pipe-in --artifact`。写しには要件メモの本文・セッション ID・パス・自由な文を入れない。見るだけ） |
 
 ## ひな形
 

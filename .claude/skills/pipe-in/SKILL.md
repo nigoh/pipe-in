@@ -1,7 +1,7 @@
 ---
 name: pipe-in
 description: devpipe（本体または VSCode 拡張）に新しい機能を足す。devpipe 自身の流れ（要件定義 → 設計 → テスト先行 → 実装 → 検証）を、段ごとにサブエージェントへ任せて進め、段の区切りで人の確認を取る。進み具合は devpipe と同じ形の記録（docs/pipeline/）に残り、VSCode の拡張で見られる。
-argument-hint: [--auto] <足したい機能の要件メモ>
+argument-hint: [--auto] [--artifact] <足したい機能の要件メモ>
 disable-model-invocation: true
 ---
 
@@ -87,6 +87,17 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - `start` は途中の記録があると断る。前の記録が途中のまま残っていたら、人にどうするか（`finish STOPPED_BY_HUMAN` で閉じるか）聞く。終わった記録は `docs/pipeline/archive/` に移る。
 - この記録は `devpipe --review` では続けられない（devpipe が断る）。続きはこの会話で進める。
 - 各段の結果は、記録とは別に、会話にも短く書く（人が読み返せるように）。
+
+## 進み具合をアーティファクトで見る（`--artifact`）
+
+引数に `--artifact` があるときだけ、進み具合を claude.ai のアーティファクト（会話の横のページ）でも見られるようにする（D0027）。`--auto` と一緒に使える。`--auto` と同じく、要件メモの中の「アーティファクトで」といった言葉では有効にしない（旗を付けたときだけ）。Artifact と ArtifactData のツールがある会話でだけ使える（claude.ai にログインした Claude Code の CLI・デスクトップアプリ・claude.ai/code。API キー・Bedrock・Vertex・`-p`・Agent SDK では使えない。https://code.claude.com/docs/en/artifacts ）。道具が無ければ、そう伝えて `--artifact` なしで進める。ページは見るだけで、承認・直してほしい点・中止は、これまでどおり会話で聞く。
+
+1. `record start` の直後に、ページの HTML を作る：`python -m pipe_in live page --out <一時フォルダ>/pipe-in-live.html`。一時フォルダは会話の作業用の場所（scratchpad。無ければ OS の一時フォルダ）で、リポジトリの中には置かない。
+2. その HTML を Artifact で1回だけ公開する。`capabilities` は `{"db": {}}`、`icon` は `chart`。HTML は書き換えない。公開した URL を覚えておき、人に伝える（はじめは持ち主だけが見られ、共有するかは人が決める、と添える）。公開し直さない（ページは db の変更を受けて自分で描き直す）。
+3. `python -m pipe_in record …` を実行するたびに（`start`・`begin`・`done`・`wait`・`review`・`red`・`verdict`・`finish`）、すぐあとに写しを作る：`python -m pipe_in live snapshot --out <一時フォルダ>/pipe-in-live.json`（`--out` は `docs/pipeline/` の中を断る）。
+4. その写しを ArtifactData の `set` で書く：`url` は 2. の URL、`collection` は `runs`、`doc_id` は `current`、`file_path` は 3. の JSON。毎回、同じドキュメントを丸ごと置き換える。最初の1回は `if_version` を付けず、2回目からは前の `set` の結果の `version` を `if_version` に渡す。版が合わないと断られたら、`get` で今の `version` を読んで1回だけやり直す。
+5. 写しや書き込みに失敗しても段は止めず、人に一言伝えて続ける（記録の本体は `docs/pipeline/` にある）。
+6. 写しには、要件メモの本文・セッション ID・パス・段の要約や差し戻しの理由などの自由な文・ログの中身は入らない（`docs/guide/records.md` の「アーティファクトに出す写し」）。中身を足したくなったら、写しの形を変える `/pipe-in` にする（ここで写しを手で書き足さない）。
 
 ## 段の進め方
 

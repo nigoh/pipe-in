@@ -123,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         from .dev.record import main as record_main
 
         return record_main(argv[1:])
+    if argv and argv[0] == "live":
+        # 進み具合の写しとページを出す（記録は読むだけ）。Claude のアーティファクトで進み具合を見るのに使う
+        from .engine.live_cmd import main as live_main
+
+        return live_main(argv[1:])
     args = _parse_args(argv)
     if args.review:
         if args.input is not None or args.text is not None or args.from_stage is not None or args.yes:
