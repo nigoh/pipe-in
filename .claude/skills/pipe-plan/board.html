@@ -3,53 +3,49 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* 配電盤のような作業面：上に「いま動いているセッション」の差し込み口、段階ごとの進み具合の帯、下に状態ごとの列。 */
+/* 色はブランド「プラグ」（docs/design/README.md）。コーラル＝人が手を出す、ティール＝流れている・選んでいる。
+   状態は色だけでなく、アイコンの形と言葉でも伝える。 */
 :root {
-  --bg: #f3f5f8;
-  --panel: #ffffff;
-  --panel-2: #e9edf3;
-  --line: #d3dae4;
-  --fg: #18202b;
-  --muted: #5a6677;
-  --accent: #0b6e86;
-  --accent-soft: #d6eef3;
-  --ok: #1d7a46;
-  --warn: #9a6200;
-  --warn-soft: #fbefd9;
-  --bad: #b3261e;
-  --info: #5b48b5;
-  --s-idea: #7a6a9e;
-  --s-todo: #3f6fb0;
-  --s-doing: #0b6e86;
-  --s-check: #9a6200;
-  --s-done: #1d7a46;
-  --shadow: 0 1px 2px rgba(20, 30, 45, .08);
-  --toast-bg: #18202b;
-  --toast-fg: #f3f5f8;
+  --bg: #f6f6f4; --panel: #ffffff; --panel-2: #ecebe7; --line: #e4ded8; --fg: #23201e; --muted: #6b625c;
+  --coral: #c2471f; --coral-soft: #fde6dd; --coral-text: #a83a17; --on-coral: #ffffff;
+  --teal: #167d6b; --teal-soft: #dcefe9; --teal-text: #0f5a4d;
+  --blue: #3f6fb0; --blue-soft: #e1eaf7; --blue-text: #2c5590;
+  --bad: #b3261e; --bad-soft: #fbe2df; --bad-text: #9a1f18;
+  --ok: #2e7d32; --ok-soft: #e3f1e3; --ok-text: #22652a;
+  --quiet: #ecebe7; --quiet-text: #5b534d; --idea: #8f857e;
+  --shadow: 0 1px 2px rgba(35, 32, 30, .08); --shadow-lift: 0 8px 24px rgba(35, 32, 30, .18);
+  --toast-bg: #23201e; --toast-fg: #f6f6f4;
   --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
-    --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
-    --ok: #6fd39a; --warn: #f0b75a; --warn-soft: #3a2e17; --bad: #ff8a80; --info: #b4a6ff;
-    --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
-    --toast-bg: #e6ebf2; --toast-fg: #11161d;
+    --bg: #161514; --panel: #211f1d; --panel-2: #1d1b19; --line: #36322f; --fg: #f2ece6; --muted: #ada39b;
+    --coral: #ff8a65; --coral-soft: #4a2316; --coral-text: #ffb59c; --on-coral: #2a140b;
+    --teal: #5fc4ab; --teal-soft: #15392f; --teal-text: #8fe0c6;
+    --blue: #8db4ee; --blue-soft: #1c2b45; --blue-text: #b3cdf5;
+    --bad: #ff8a80; --bad-soft: #4a1f1c; --bad-text: #ffb4ab;
+    --ok: #81c784; --ok-soft: #1e3a20; --ok-text: #a5d6a7;
+    --quiet: #2c2926; --quiet-text: #c4bab2; --idea: #8a8079;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .45); --shadow-lift: 0 8px 24px rgba(0, 0, 0, .55);
+    --toast-bg: #f2ece6; --toast-fg: #161514;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #11161d; --panel: #1a212b; --panel-2: #222b37; --line: #313c4b;
-  --fg: #e6ebf2; --muted: #9aa7b8; --accent: #5cc8de; --accent-soft: #163a44;
-  --ok: #6fd39a; --warn: #f0b75a; --warn-soft: #3a2e17; --bad: #ff8a80; --info: #b4a6ff;
-  --s-idea: #b9a8e0; --s-todo: #8db4ee; --s-doing: #5cc8de; --s-check: #f0b75a; --s-done: #6fd39a;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
-  --toast-bg: #e6ebf2; --toast-fg: #11161d;
+  --bg: #161514; --panel: #211f1d; --panel-2: #1d1b19; --line: #36322f; --fg: #f2ece6; --muted: #ada39b;
+  --coral: #ff8a65; --coral-soft: #4a2316; --coral-text: #ffb59c; --on-coral: #2a140b;
+  --teal: #5fc4ab; --teal-soft: #15392f; --teal-text: #8fe0c6;
+  --blue: #8db4ee; --blue-soft: #1c2b45; --blue-text: #b3cdf5;
+  --bad: #ff8a80; --bad-soft: #4a1f1c; --bad-text: #ffb4ab;
+  --ok: #81c784; --ok-soft: #1e3a20; --ok-text: #a5d6a7;
+  --quiet: #2c2926; --quiet-text: #c4bab2; --idea: #8a8079;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .45); --shadow-lift: 0 8px 24px rgba(0, 0, 0, .55);
+  --toast-bg: #f2ece6; --toast-fg: #161514;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.6;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -58,8 +54,10 @@ body {
 }
 .wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; }
 header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
-h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .02em; text-wrap: balance; }
-h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--accent); font-weight: 600; margin-right: 8px; }
+h1 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: .02em; text-wrap: balance; }
+h1 { display: flex; align-items: center; gap: 10px; }
+h1 .logo { width: 18px; height: 18px; border-radius: 6px; background: var(--coral); flex: none; }
+h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--muted); font-weight: 600; }
 .lede { color: var(--muted); margin: 2px 0 0; font-size: 13px; }
 .sync { font-size: 12px; color: var(--muted); font-family: var(--f-mono); }
 .sync.err { color: var(--bad); }
@@ -67,7 +65,7 @@ h1 .tag { font-family: var(--f-mono); font-size: 13px; color: var(--accent); fon
 kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel); }
 
 /* いま動いているセッション */
-.live { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.live { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
 .live-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .live-head h2 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .live-head .stamp { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
@@ -77,47 +75,51 @@ kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line)
 .live-msg.err { color: var(--bad); }
 .sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 .sess {
-  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; display: grid; gap: 5px; min-width: 0;
-  background: var(--panel); border-left: 3px solid var(--line);
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; display: grid; gap: 5px; min-width: 0;
+  background: var(--panel);
 }
-.sess.b-working { border-left-color: var(--accent); }
-.sess.b-blocked { border-left-color: var(--warn); background: var(--warn-soft); }
-.sess.b-review { border-left-color: var(--info); }
-.sess.b-failed { border-left-color: var(--bad); }
+.sess.b-blocked { border-color: var(--coral); background: var(--coral-soft); }
+.sess.b-failed { border-color: var(--bad); }
 .sess .row1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
-.sess .title { font-weight: 500; font-size: 13px; overflow-wrap: anywhere; flex: 1; min-width: 0; }
+.sess .title { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; flex: 1; min-width: 0; }
 .sess .detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.sess .detail.need { color: var(--warn); font-weight: 500; }
+.sess .detail.need { color: var(--coral-text); font-weight: 500; }
 .sess .foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
-.sess .foot a { color: var(--accent); }
+.sess .foot a { color: var(--teal); }
 .sess .foot .grow { flex: 1; }
-.state { font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; border: 1px solid currentColor; }
-.state.b-working { color: var(--accent); }
-.state.b-blocked { color: var(--warn); }
-.state.b-review { color: var(--info); }
-.state.b-failed { color: var(--bad); }
-.state.b-done { color: var(--muted); }
-.pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+/* 状態の札：形（アイコン）＋言葉＋色 */
+.state { font-size: 11px; padding: 1px 9px; border-radius: 999px; white-space: nowrap; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.state .ic { width: 12px; height: 12px; flex: none; }
+.state.b-blocked { background: var(--coral-soft); color: var(--coral-text); }
+.sess.b-blocked .state.b-blocked { background: var(--panel); }
+.state.b-working { background: var(--teal-soft); color: var(--teal-text); }
+.state.b-review { background: var(--blue-soft); color: var(--blue-text); }
+.state.b-failed { background: var(--bad-soft); color: var(--bad-text); }
+.state.b-done { background: var(--quiet); color: var(--quiet-text); }
 @media (prefers-reduced-motion: no-preference) {
-  .b-working .pulse { animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  .state.b-working .ic { animation: spin 2.4s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 }
-.linkbtn { font: inherit; font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
+.linkbtn { font: inherit; font-size: 12px; background: none; border: none; color: var(--teal); cursor: pointer; padding: 0; text-decoration: underline; }
 
 /* 段階の帯 */
 .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .stage {
-  text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   padding: 10px 12px; color: var(--fg); font: inherit; cursor: pointer; display: grid; gap: 6px; min-width: 0;
 }
-.stage:hover { border-color: var(--accent); }
-.stage[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.stage:hover { border-color: var(--teal); }
+.stage[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: var(--teal-soft); }
 .stage .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .stage .num { font-family: var(--f-mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
 .stage .name { font-weight: 700; font-size: 14px; }
 .stage .frac { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--panel-2); }
-.bar span { display: block; height: 100%; }
+/* 進み具合の棒：色だけに頼らず、模様（完了＝塗り・手で確かめる＝斜線・進行中＝点）と区切りで分ける */
+.bar { display: flex; gap: 2px; height: 8px; border-radius: 3px; overflow: hidden; background: var(--panel-2); }
+.bar span { display: block; height: 100%; border-radius: 2px; }
+.bar .g-done { background: var(--ok); }
+.bar .g-check { background: repeating-linear-gradient(135deg, var(--coral) 0 3px, var(--coral-soft) 3px 6px); }
+.bar .g-doing { background: radial-gradient(var(--teal) 1.4px, var(--teal-soft) 1.6px) 0 0 / 5px 5px; }
 .stage .sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 道具の列 */
@@ -131,62 +133,61 @@ kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line)
   font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--panel); color: var(--muted); cursor: pointer;
 }
-.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 700; }
 .btn {
-  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line);
+  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 8px; min-height: 34px; border: 1px solid var(--line);
   background: var(--panel); color: var(--fg); cursor: pointer;
 }
-.btn.small { padding: 3px 10px; font-size: 12px; }
-.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn.small { padding: 3px 10px; font-size: 12px; min-height: 28px; }
+.btn.primary { background: var(--coral); color: var(--on-coral); border-color: var(--coral); font-weight: 700; }
 .btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, .card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 
 /* 列 */
 .board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: start; }
 @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .board { grid-template-columns: minmax(0, 1fr); } }
-.col { background: var(--panel-2); border-radius: 10px; padding: 10px; display: grid; gap: 8px; min-width: 0; border: 2px dashed transparent; }
-.col.drop { border-color: var(--accent); background: var(--accent-soft); }
+.col { background: var(--panel-2); border-radius: 14px; padding: 10px; display: grid; gap: 8px; min-width: 0; border: 2px dashed transparent; }
+.col.drop { border-color: var(--teal); background: var(--teal-soft); }
 .col h2 { margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: .03em; }
-.col h2 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.col h2 .ic { width: 14px; height: 14px; flex: none; }
 .col h2 .count { margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
 .col .hint { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
 .col .empty { font-size: 12px; color: var(--muted); padding: 10px; border: 1px dashed var(--line); border-radius: 6px; text-align: center; }
-.more { font: inherit; font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer; padding: 4px; text-align: left; }
+.more { font: inherit; font-size: 12px; background: none; border: none; color: var(--teal); cursor: pointer; padding: 4px; text-align: left; }
 
 .card {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+  background: var(--panel); border: 1px solid transparent; border-radius: 10px; padding: 9px 10px;
   display: grid; gap: 6px; box-shadow: var(--shadow); min-width: 0; cursor: pointer; color: var(--fg);
-  border-left: 3px solid var(--line);
 }
-.card:hover { border-color: var(--accent); }
+.card:hover { border-color: var(--teal); }
 .card.dragging { opacity: .4; }
-.card.p-high { border-left-color: var(--bad); }
-.card.p-mid { border-left-color: var(--warn); }
-.card.p-low { border-left-color: var(--muted); }
-.card .t { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.card .head { display: flex; gap: 6px; align-items: flex-start; }
+.card .t { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; flex: 1; min-width: 0; }
+/* 優先は棒の本数で伝える（高 3・中 2・低 1） */
+.prio { display: inline-flex; gap: 2px; padding-top: 4px; flex: none; }
+.prio i { width: 3px; height: 10px; border-radius: 1px; background: var(--line); }
+.prio.p-high i { background: var(--coral); }
+.prio.p-mid i:nth-child(-n+2) { background: var(--fg); }
+.prio.p-low i:first-child { background: var(--muted); }
 .card .note { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card .acts { display: flex; gap: 4px; justify-content: flex-end; }
 .mv {
-  font: inherit; font-size: 11px; padding: 1px 8px; border-radius: 4px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--muted); cursor: pointer;
+  font: inherit; font-size: 11px; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); cursor: pointer; min-height: 24px;
 }
-.mv:hover { color: var(--accent); border-color: var(--accent); }
+.mv:hover { color: var(--teal-text); border-color: var(--teal); }
 .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.pill { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+.pill { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--quiet); color: var(--muted); white-space: nowrap; }
 .pill.mono { font-family: var(--f-mono); }
-.pill.k-fix { color: var(--bad); }
-.pill.k-verify { color: var(--warn); }
-.pill.k-idea { color: var(--info); }
-.pill.k-feature { color: var(--accent); }
 
 /* 編集 */
 dialog {
   border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg);
-  width: min(560px, calc(100vw - 32px)); padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,.3);
+  width: min(560px, calc(100vw - 32px)); padding: 0; box-shadow: var(--shadow-lift);
 }
-dialog::backdrop { background: rgba(10, 14, 20, .55); }
+dialog::backdrop { background: rgba(22, 21, 20, .55); }
 dialog form { display: grid; gap: 12px; padding: 18px; }
 dialog h3 { margin: 0; font-size: 16px; }
 .field { display: grid; gap: 4px; min-width: 0; }
@@ -198,14 +199,14 @@ dialog input[type="text"], dialog select { width: 100%; }
 .actions .right { display: flex; gap: 8px; margin-left: auto; }
 .confirm { font-size: 12px; color: var(--bad); }
 .links { font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
-.links a { color: var(--accent); }
+.links a { color: var(--teal); }
 .ro-note { font-size: 12px; color: var(--muted); }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--toast-bg); color: var(--toast-fg); border-radius: 8px; padding: 8px 14px;
-  display: flex; gap: 12px; align-items: center; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  display: flex; gap: 12px; align-items: center; font-size: 13px; box-shadow: var(--shadow-lift);
   max-width: calc(100vw - 32px); z-index: 20;
 }
 .toast button { font: inherit; font-size: 13px; background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
@@ -215,7 +216,7 @@ dialog input[type="text"], dialog select { width: 100%; }
 <div class="wrap">
   <header>
     <div>
-      <h1><span class="tag">pipe-in</span>計画ボード</h1>
+      <h1><span class="logo" aria-hidden="true"></span>計画ボード<span class="tag">pipe-in</span></h1>
       <p class="lede">できたこと・まだのこと・やりたいことを、段階と状態で並べます。カードは引いて別の列に移すか、下の矢印で進めます。</p>
     </div>
     <div>
@@ -288,12 +289,14 @@ dialog input[type="text"], dialog select { width: 100%; }
   const REPO_SLUG = "nigoh/pipe-in";
   const SESSION_SERVER = "Claude Code Remote";
   const SESSION_URL = "https://claude.ai/code/";
+  // アイコンは Lucide（ISC。docs/design/LICENSE-lucide.txt）の線画をそのまま使う。
+  const ICONS = {"hand": "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15", "spin": "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5", "eye": "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0", "x": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M15 9l-6 6M9 9l6 6", "ok": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12", "bulb": "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4", "circle": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "play": "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996zM2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "clip": "M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1ZM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4"};
   const STATUSES = [
-    { id: "idea", name: "アイデア", hint: "やりたいこと。まだ段階に入れていない", color: "--s-idea" },
-    { id: "todo", name: "やる予定", hint: "イシューがあり、手を付けていない", color: "--s-todo" },
-    { id: "doing", name: "進行中", hint: "ブランチ・PR で作っている", color: "--s-doing" },
-    { id: "check", name: "手で確かめる", hint: "作ったが、実機・手での確認がまだ", color: "--s-check" },
-    { id: "done", name: "完了", hint: "main に入り、確認も済んだ", color: "--s-done" },
+    { id: "idea", name: "アイデア", hint: "やりたいこと。まだ段階に入れていない", icon: "bulb", color: "--idea" },
+    { id: "todo", name: "やる予定", hint: "イシューがあり、手を付けていない", icon: "circle", color: "--fg" },
+    { id: "doing", name: "進行中", hint: "ブランチ・PR で作っている", icon: "play", color: "--teal" },
+    { id: "check", name: "手で確かめる", hint: "作ったが、実機・手での確認がまだ", icon: "clip", color: "--coral" },
+    { id: "done", name: "完了", hint: "main に入り、確認も済んだ", icon: "ok", color: "--ok" },
   ];
   const STAGES = [
     { id: "0", name: "足場", sub: "残りを片づける" },
@@ -310,11 +313,11 @@ dialog input[type="text"], dialog select { width: 100%; }
   const PRIOS = [{ id: "", name: "—" }, { id: "high", name: "高" }, { id: "mid", name: "中" }, { id: "low", name: "低" }];
   // セッションの状態（status_bucket）を、見る人の言葉に直す。並びは気にしてほしい順。
   const BUCKETS = {
-    BLOCKED: { cls: "b-blocked", name: "待ち", rank: 0 },
-    WORKING: { cls: "b-working", name: "作業中", rank: 1 },
-    REVIEW_READY: { cls: "b-review", name: "見てほしい", rank: 2 },
-    FAILED: { cls: "b-failed", name: "失敗", rank: 3 },
-    COMPLETED: { cls: "b-done", name: "一区切り", rank: 4 },
+    BLOCKED: { cls: "b-blocked", name: "待ち", icon: "hand", rank: 0 },
+    WORKING: { cls: "b-working", name: "作業中", icon: "spin", rank: 1 },
+    REVIEW_READY: { cls: "b-review", name: "見てほしい", icon: "eye", rank: 2 },
+    FAILED: { cls: "b-failed", name: "失敗", icon: "x", rank: 3 },
+    COMPLETED: { cls: "b-done", name: "一区切り", icon: "ok", rank: 4 },
   };
   const DONE_LIMIT = 8;
   const QUIET_LIMIT = 4;
@@ -330,6 +333,16 @@ dialog input[type="text"], dialog select { width: 100%; }
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const icon = (name) => {
+    const s = document.createElementNS(SVG_NS, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+    s.setAttribute("stroke-width", "2.2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+    s.setAttribute("aria-hidden", "true"); s.setAttribute("class", "ic");
+    const p = document.createElementNS(SVG_NS, "path"); p.setAttribute("d", ICONS[name] || ""); s.append(p);
+    return s;
+  };
+  const stateChip = (b, text) => { const c = el("span", "state " + b.cls); c.append(icon(b.icon), document.createTextNode(text)); return c; };
   const nameOf = (list, id) => (list.find((x) => x.id === id) || {}).name || id || "";
   const prioRank = { high: 0, mid: 1, low: 2, "": 3 };
 
@@ -419,10 +432,7 @@ dialog input[type="text"], dialog select { width: 100%; }
     for (const [key, b] of Object.entries(BUCKETS)) {
       const n = scoped.filter((s) => bucketOf(s) === b).length;
       if (!n) continue;
-      const chip = el("span", "state " + b.cls);
-      if (key === "WORKING") chip.append(el("span", "pulse"));
-      chip.append(document.createTextNode(`${b.name} ${n}`));
-      sum.append(chip);
+      sum.append(stateChip(b, `${b.name} ${n}`));
     }
 
     const box = $("sessions");
@@ -446,9 +456,7 @@ dialog input[type="text"], dialog select { width: 100%; }
     const b = bucketOf(s);
     const card = el("article", "sess " + b.cls);
     const r1 = el("div", "row1");
-    const st = el("span", "state " + b.cls);
-    st.append(el("span", "pulse"), document.createTextNode(b.name));
-    r1.append(el("span", "title", s.title || "(題なし)"), st);
+    r1.append(el("span", "title", s.title || "(題なし)"), stateChip(b, b.name));
     card.append(r1);
     const sm = summaryOf(s);
     if (sm.need) card.append(el("div", "detail need", "要ること：" + sm.need));
@@ -591,12 +599,11 @@ dialog input[type="text"], dialog select { width: 100%; }
       top.append(left, el("span", "frac", `${done}/${list.length}`));
       const bar = el("div", "bar");
       bar.setAttribute("aria-hidden", "true");
-      for (const st of STATUSES) {
-        const n = list.filter((it) => it.status === st.id).length;
+      for (const st of ["done", "check", "doing"]) {
+        const n = list.filter((it) => it.status === st).length;
         if (!n) continue;
-        const seg = el("span");
+        const seg = el("span", "g-" + st);
         seg.style.width = (n / list.length * 100) + "%";
-        seg.style.background = `var(${st.color})`;
         bar.append(seg);
       }
       b.append(top, bar, el("div", "sub", s.sub));
@@ -619,24 +626,30 @@ dialog input[type="text"], dialog select { width: 100%; }
   }
 
   function card(it) {
-    const c = el("article", "card" + (it.priority ? " p-" + it.priority : ""));
+    const c = el("article", "card");
     c.tabIndex = 0;
     c.setAttribute("role", "button");
     c.setAttribute("aria-label", (it.title || "") + "（押すと変えられます）");
-    c.append(el("div", "t", it.title || "(名前なし)"));
+    const head = el("div", "head");
+    head.append(el("div", "t", it.title || "(名前なし)"));
+    if (it.priority) {
+      const pr = el("span", "prio p-" + it.priority);
+      pr.setAttribute("role", "img"); pr.setAttribute("aria-label", "優先 " + nameOf(PRIOS, it.priority));
+      pr.append(el("i"), el("i"), el("i"));
+      head.append(pr);
+    }
+    c.append(head);
     const meta = el("div", "meta");
     const st = it.stage || "x";
     meta.append(el("span", "pill", st === "x" ? "段階外" : `段階${st}`));
-    meta.append(el("span", "pill k-" + it.kind, nameOf(KINDS, it.kind)));
+    meta.append(el("span", "pill", nameOf(KINDS, it.kind)));
     if (it.issue) meta.append(el("span", "pill mono", "#" + it.issue));
     if (it.decision) meta.append(el("span", "pill mono", it.decision));
-    if (it.priority) meta.append(el("span", "pill", "優先 " + nameOf(PRIOS, it.priority)));
     if (it.session) {
       const s = sessionsById.get(it.session);
       if (s) {
         const b = bucketOf(s);
-        const chip = el("span", "state " + b.cls);
-        chip.append(el("span", "pulse"), document.createTextNode("セッション " + b.name));
+        const chip = stateChip(b, "セッション " + b.name);
         chip.title = s.title || "";
         meta.append(chip);
       } else meta.append(el("span", "pill", "セッションあり"));
@@ -701,8 +714,8 @@ dialog input[type="text"], dialog select { width: 100%; }
         ? String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
         : (prioRank[a.priority || ""] - prioRank[b.priority || ""]) || String(a.stage || "x").localeCompare(String(b.stage || "x")) || (a.issue || 9999) - (b.issue || 9999));
       const h = el("h2");
-      const dot = el("span", "dot"); dot.style.background = `var(${s.color})`;
-      h.append(dot, document.createTextNode(s.name), el("span", "count", String(list.length)));
+      const ic = icon(s.icon); ic.style.color = `var(${s.color})`;
+      h.append(ic, document.createTextNode(s.name), el("span", "count", String(list.length)));
       column.append(h, el("p", "hint", s.hint));
       if (!list.length) column.append(el("div", "empty", canWrite && col ? "ここへ引いて移せます" : "ありません"));
       const shown = s.id === "done" && !showAllDone ? list.slice(0, DONE_LIMIT) : list;
