@@ -41,6 +41,7 @@
 | [D0036](D0036-bash-write-guard.md) | 段の Bash による書き込み（リダイレクト・tee・sed -i・cp・mv・touch・python -c など）を、段の書き込み範囲で止める。先が読めなければ止める。サンドボックスではない |
 | [D0037](D0037-build-judge.md) | プラグインの pipe-build と `pipe-in-gen design` で、検査と審査の段を組めるようにする（`references/stage-rules.md`・ひな形 diagrams の例） |
 | [D0038](D0038-pipe-lessons.md) | パイプを流して分かったこと（置き場所が要る段は docs、テストを書く段もあとの検査を流す、差し戻しは直せる段へ など）を、pipe-build のスキルと `pipe-in-gen check` の警告（`⚠`。誤りにはしない）に入れる |
+| [D0039](D0039-skill-tidy.md) | /pipe-in のスキルを、長い会話でも決まりが残る形に整える（冒頭の決まり・補助ファイル 3 つ・許可の規則・前の名前の残り） |
 
 ## ひな形
 

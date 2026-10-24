@@ -11,6 +11,11 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git show:*)",
+      "Bash(npm --prefix vscode test)",
+      "Bash(npm --prefix vscode run typecheck)",
+      "Bash(npm --prefix vscode run build)",
+      "Bash(npm --prefix vscode run preview)",
+      "Bash(python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview)",
       "Agent(pipe-in-analyst)",
       "Agent(pipe-in-tester)",
       "Agent(pipe-in-coder)",
@@ -22,6 +27,8 @@
     ],
     "ask": [
       "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
       "Bash(npm publish:*)",
       "Bash(npx vsce publish:*)",
       "Bash(twine upload:*)"

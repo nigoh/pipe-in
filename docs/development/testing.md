@@ -7,7 +7,7 @@
 | 単体 | 純粋な関数（判断） | `choosePipesDir`（`vscode/src/app/pipeEditor.test.ts`）・`check_bash`（`tests/test_guard_hook.py`） |
 | 組み合わせ | 偽物の口（runner・PipeStore など）で、流れを最初から最後まで通す | `tests/test_pipeline.py` の `FakeRunner`、`tests/test_pipe_flow.py` の `ScriptedRunner` |
 | 構造 | 依存の向き・層・公開してよいか・文書と実物の食い違い | `tests/test_architecture.py`・`tests/test_rules.py`・`vscode/src/architecture.test.ts` |
-| 画面 | 見た目（重なり・はみ出し・読めない色）と操作 | Playwright（MCP）で確認用のページを開いて撮る（`/pipe-in` の「5. 検証」）。判断は純粋な関数に置いて、そちらは単体で確かめる |
+| 画面 | 見た目（重なり・はみ出し・読めない色）と操作 | Playwright（MCP）で確認用のページを開いて撮る（手順は `.claude/skills/pipe-in/screen-check.md`、ページの一覧は `docs/assets/README.md`）。判断は純粋な関数に置いて、そちらは単体で確かめる |
 | 手で | 単体では確かめられない、手元の環境での動き（例：Git Bash と PowerShell から呼ぶ） | 手順と結果を決定の記録に書く |
 | 実機 | SDK を呼ぶ・Claude Code にプラグインを入れる | **人に言われたときだけ**（利用料や、手元の設定が変わる）。結果を決定の記録に書く |
 

@@ -38,9 +38,23 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 - 助言は WebSearch と、公式の文書の場所の WebFetch を許します（ガードの `DOC_HOSTS`・`GITHUB_HOSTS` と同じ）。WebSearch の行き先や、github の `anthropics/` の下への絞りはガードが受け持ちます（許可の書き方では絞れません）。
 - `--max-budget-usd 5` は目安の上限で、超えることがあります（サブエージェントの費用も数えます）。好みで変えてください。`--model sonnet` なども任意です。回数の上限は `--max-turns`、断られたときに再試行させないのは `--permission-prompts none`（v2.1.259 以降。どちらも任意）。
 - `--bare`・`--disable-slash-commands` は付けません。付けるとスキルが開かれず、`/pipe-audit …` がふつうの文としてモデルに渡ります。公式の文書に「`--bare` は将来 `-p` の既定になる」とあり、そうなると開かれなくなるので、下の見分け方で確かめてください。
-- 信頼していない作業フォルダ（新しい worktree など）では、`.claude/settings.json` の allow が無視されます。さらに `.mcp.json` のサーバーは確認なしでつながります。入れている MCP の道具（プラグインのものを含む）は `--tools` では消えませんが、`dontAsk` で許可に無ければ断られます。`--allowedTools` は省かないでください。
+- 信頼していない作業フォルダ（対話の会話で一度も信頼したことのないリポジトリなど。信頼はリポジトリの根で決まり、worktree では main の作業フォルダの場所で見ます）では、`.claude/settings.json` の allow が無視されます。さらに `.mcp.json` のサーバーは確認なしでつながります。入れている MCP の道具（プラグインのものを含む）は `--tools` では消えませんが、`dontAsk` で許可に無ければ断られます。`--allowedTools` は省かないでください。
 - 会話を開かない呼び方では、報告を出して止まります。直すのは、人が承認したあと、会話（`/pipe-audit` を対話で開く、またはメインに頼む）でします。
 - 開かれたか確かめるときだけ、末尾に `--output-format stream-json --verbose` を足し、最初の `system/init` の `slash_commands`（と `skills`）に `pipe-audit`（`/pipe-advise` のときは `pipe-advise`）があるかを見ます。あれば開かれています。サブエージェントが動いたかは `parent_tool_use_id` で追えます。無ければ、作業フォルダがこのリポジトリか、`--bare`・`--disable-slash-commands` を付けていないか、`claude --version` を確かめます。
+
+### スキルの構成と許可の規則
+
+`/pipe-in` のスキル（`.claude/skills/pipe-in/`）は、必ず守る決まりを `SKILL.md` の冒頭の「必ず守ること」に置き、長い手順（記録のコマンド・`--artifact`・画面の確認）を同じフォルダの補助ファイル（`record.md`・`artifact.md`・`screen-check.md`）に分けています。長い会話では、自動の要約のあとに、呼んだスキルの先頭（5,000 トークンまで。スキル全部で 25,000 トークンまで）しか戻らないため、決まりを先頭に集めました（公式の文書による。日本語 1 字が何トークンかは確かめていません）。
+
+- 手順があやふやになったら、思い出しで進めず、`SKILL.md` と補助ファイルの該当する節を読み直します。補助ファイルが読めないときは、止まって人に伝えます。機能の枝が補助ファイルを持たない古い worktree なら、`git rebase --autostash main` で載せ直してから読み直します。
+- `.claude/settings.json` の `allow` に、手元のテスト・型検査・ビルド・確認用ページの作成と配信の 5 つのコマンドを、完全に一致する形で足しました（`npm --prefix vscode test`・`npm --prefix vscode run typecheck`・`npm --prefix vscode run build`・`npm --prefix vscode run preview`・`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview`）。コマンドは 1 つずつ流します（つないだときは、どの部分も規則に当たらないと確認が出ます）。
+- `ask`（確認を出す一覧）に `git commit`・`git merge` を足しました（`git push` は前から入っています）。公式の文書では、規則は deny → ask → allow の順に当てはめ、個人の設定（`.claude/settings.local.json`）の `allow` は共有の `ask` より上になりません（実機では確かめていません）。確認そのものを飛ばすモード（`bypassPermissions`）では、出ないことがあります。また `ask` は守りの境目ではありません。つないだコマンドはどれか 1 つが当たれば確認が出ますが、`git -C . commit` のような別の書き方には当たりません。
+- `record` の規則（`python -m pipe_in record …`）は足していません。`--input` で任意のファイルを読め、`--project` で別のフォルダに書けるためです。
+- 個人の許可は、`.claude/settings.local.json` に書きます（`.gitignore` 済みで、リポジトリには入りません）。worktree で作業するときも、main の作業フォルダのこのファイルが読まれ、すべての worktree に効きます（公式の文書。v2.1.211 以降）。
+- 足した `allow` の 5 つは、フックが効かないとき（`python` が無い・時間切れなど。下の「フックが働く条件」）と、フックが見ない呼び出し元（メインと、`pipe-in-` で始まらないサブエージェント）では、確認なしで流れます。手元のテスト・型検査・ビルド・確認用ページの作成と配信だけなので、このリスクを受け入れました。
+- 新しい worktree では、その枝の `.claude/settings.json` が読まれます。枝がこの変更より前の main から切られていると、5 つの `allow` はまだありません。共有の `allow` は作業フォルダの信頼のあとに効き、worktree の信頼は main の作業フォルダの場所で見ます（`ask` と `deny` は信頼を待たずに効きます）。どちらも公式の文書によるもので、実機では確かめていません。効かなくても、確認が今までどおり出るだけです。
+
+この決めたことと理由は [D0039](../decisions/D0039-skill-tidy.md) にあります。
 
 ### フックが働く条件
 

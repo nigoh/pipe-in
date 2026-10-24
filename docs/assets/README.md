@@ -26,23 +26,38 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
 画像は、見本の記録（`tests/fixtures/showcase/`）と見本のパイプを、拡張の本物の画面で写したものです。費用・トークン・利用枠の数字は見本です。`vscode-*.png` は、拡張を入れた本物の VSCode（VS Code Server のブラウザ版）で写したもので、ほかは確認用のページで写したものです。
 
+## 確認用のページの一覧
+
+`npm run preview`（下の「撮り直す」の手順2）で `vscode/out/preview/` にできるページの一覧です。一覧の持ち場はここ 1 つで、ページの種類ごとに 1 行です。いちばん右の列が、画像に撮るかどうかです。開発のときに Playwright（MCP）で画面を確かめる手順は `.claude/skills/pipe-in/screen-check.md` にあります。
+
+| ページ | 見るもの | 画像に撮るか |
+| --- | --- | --- |
+| `pipe-editor-dark.html`・`pipe-editor-light.html` | パイプ作業台（暗い・明るい）。ブロック「ソースの調査」を1回押すと、右に段の設定が出る | 撮る：`pipe-editor-dark.png`・`pipe-editor-light.png` |
+| `pipe-editor-diagrams.html` | ひな形のパイプ diagrams を開いた作業台の見本 | 撮らない |
+| `run-panel-light.html`・`run-panel-dark.html` | 完了した見本の「実行を見る」パネル（明るい・暗い） | 撮らない（`run-panel-light.png`・`run-panel-dark.png` は、下の実行の一覧のページ `run-panel-runs-*` から撮る） |
+| `run-panel-running-light.html`・`run-panel-running-dark.html`（`run-panel-running-*`） | 動いている実行の動き（脈打ち・点の流れ・点滅）。動きは静止画に写らない | 撮らない |
+| `run-panel-waiting-light.html`・`run-panel-waiting-dark.html`（`run-panel-waiting-*`） | 確認待ちの実行の動き（点滅）。動きは静止画に写らない | 撮らない |
+| `run-panel-runs-light.html`・`run-panel-runs-dark.html`（`run-panel-runs-*`） | 実行の一覧と詳細（上のバー・左の一覧・右の詳細）。行を押して選び方・絞り込み・タブ・待ち時間の増え方を確かめる | 撮る：`run-list-light.png`・`run-list-dark.png`・`run-list.gif`・`run-panel-light.png`・`run-panel-dark.png`（撮り方は手順5） |
+| `run-panel-runs-omitted-dark.html` | `archive/` の前の実行を省いた一覧 | 撮らない |
+| `run-panel-stale-light.html`・`run-panel-stale-dark.html`（`run-panel-stale-*`） | 止まっているかもしれない実行の印（D0021）。動いている実行の最後の更新が、目安の10分を12秒過ぎた見本 | 撮らない |
+| `run-panel-stale-soon-dark.html` | 目安の5秒手前の見本。数秒待つと印が出て、`window.__previewNext()` で更新後の本体を送ると消える | 撮らない |
+| `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html`（`run-panel-artifacts-*`） | 成果物のタブ（D0025）。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。成果物の一覧・プレビュー・選び・描き直しのあとの動きと内容を見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
+
+見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が作ります。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
+
 ## 撮り直す
 
-1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。見本は4つ（`showcase/`：完了、`showcase_running/`・`showcase_running_next/`：動いている途中、`showcase_waiting/`：確認待ち）で、まとめて作り直されます。画像の `run-panel-*.png` に使うのは完了の見本だけです。残りの3つは、確認用のページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`）と、実行の一覧のページ（`run-panel-runs-*.html`）と、更新なしの印が出るページ（`run-panel-stale-*.html`）と、成果物のタブのページ（`run-panel-artifacts-*.html`）の素材です。見本の記録は、セッション名（`name`）を持つ形で作り直されます（`session_id` と、段の受け持ち `agent` は見本の記録には書かず、一覧のページを組み立てるときに足します）。
+1. 見本の記録を作り直す（本体の記録の形が変わったときだけ。`tests/test_showcase.py` が落ちて知らせます）。見本は4つ（`showcase/`：完了、`showcase_running/`・`showcase_running_next/`：動いている途中、`showcase_waiting/`：確認待ち）で、まとめて作り直されます。画像の `run-panel-*.png` に使うのは完了の見本だけです。残りの3つは、動いている・確認待ち・実行の一覧・更新なしの印・成果物のタブの確認用のページ（上の「確認用のページの一覧」）の素材です。見本の記録は、セッション名（`name`）を持つ形で作り直されます（`session_id` と、段の受け持ち `agent` は見本の記録には書かず、一覧のページを組み立てるときに足します）。
 
    ```bash
    python tests/showcase.py
    ```
 
-2. 確認用のページを作る。`vscode/out/preview/` に `run-panel-light.html`・`run-panel-dark.html`・`pipe-editor-light.html`・`pipe-editor-dark.html` などができます。動き（脈打ち・点の流れ・点滅）を見るためのページ `run-panel-running-*.html`・`run-panel-waiting-*.html` もできますが、動きは静止画に写らないので、画像には撮りません。
+2. 確認用のページを作る。`vscode/out/preview/` に、上の「確認用のページの一覧」の表のページができます。どれを画像に撮るかも、その表のいちばん右の列にあります（動き・印・成果物のタブを見るためのページは、動きが静止画に写らないので、画像には撮りません）。
 
-   止まっているかもしれない実行の印（D0021）を見るページ `run-panel-stale-light.html`・`run-panel-stale-dark.html`（動いている実行の最後の更新が、目安の10分を12秒過ぎた見本）と、`run-panel-stale-soon-dark.html`（目安の5秒手前の見本。数秒待つと印が出て、`window.__previewNext()` で更新後の本体を送ると消える）もできます。これらも印を見るためのページで、画像には撮りません。
+   ページの作り方（コードは `vscode/scripts/preview.ts` と `previewPages.ts`）：動いている・確認待ちのページ（`run-panel-running-*`・`run-panel-waiting-*`）と、実行の一覧・更新なし・成果物のタブのページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。写した成果物（`*.md` と、成果物の見本の `.txt`）の更新時刻も、見本の「今」から決めた固定の値にそろえます（`setArtifactTimes`。成果物の一覧の時刻の欄が、ビルドのたびに変わらないようにするためです）。成果物の見本の木も一時フォルダに作り、読み終えたら消します。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
 
-   成果物のタブ（D0025）を見るページ `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html` もできます。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持ちます（`window.__previewNext()` で、動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まります）。成果物の一覧・プレビュー・選び・描き直しのあとの動きを見るための、動きと内容を見るためのページで、画像には撮らないページです。見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が作ります。
-
-   動いている・確認待ちのページと、実行の一覧のページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。写した成果物（`*.md` と、成果物の見本の `.txt`）の更新時刻も、見本の「今」から決めた固定の値にそろえます（`setArtifactTimes`。成果物の一覧の時刻の欄が、ビルドのたびに変わらないようにするためです）。成果物の見本の木も一時フォルダに作り、読み終えたら消します。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
-
-   実行の一覧のページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`、archive を省く一覧の `run-panel-runs-omitted-dark.html`）は、上の4つの見本の記録から、一時フォルダの中に「主の checkout＋2つの別の worktree＋`archive/`」の木を組み立て、拡張の本物の読み取りで読んで作ります（`vscode/scripts/previewPages.ts`。`tests/fixtures/` には何も足さず、一時フォルダは作ったあとで消します）。木に写すとき、写しごとに セッション名（`name`）・セッション ID・段の受け持ち（`agent`）を足し、時刻（`started_at`・`updated_at`・`since`・段のログの `at`）をまとめて動かして、動いている実行は「今」の少し前に始まり、終わった実行は数時間〜数日前になるようにします（時系列の帯が見えるようにするため）。行を押すと右の詳細（図・出力・時系列）が切り替わるので、ブラウザで選び方・絞り込み・タブ・待ち時間の増え方を確かめられます。ここから `run-list-light.png`・`run-list-dark.png`・`run-list.gif` を撮ります（撮り方は下の手順5）。
+   実行の一覧のページ（`run-panel-runs-*` と、archive を省く一覧の `run-panel-runs-omitted-*`）は、上の4つの見本の記録から、一時フォルダの中に「主の checkout＋2つの別の worktree＋`archive/`」の木を組み立て、拡張の本物の読み取りで読んで作ります（`vscode/scripts/previewPages.ts`。`tests/fixtures/` には何も足さず、一時フォルダは作ったあとで消します）。木に写すとき、写しごとに セッション名（`name`）・セッション ID・段の受け持ち（`agent`）を足し、時刻（`started_at`・`updated_at`・`since`・段のログの `at`）をまとめて動かして、動いている実行は「今」の少し前に始まり、終わった実行は数時間〜数日前になるようにします（時系列の帯が見えるようにするため）。行を押すと右の詳細（図・出力・時系列）が切り替わるので、ブラウザで選び方・絞り込み・タブ・待ち時間の増え方を確かめられます。ここから `run-list-light.png`・`run-list-dark.png`・`run-list.gif` を撮ります（撮り方は下の手順5）。
 
    ```bash
    cd vscode

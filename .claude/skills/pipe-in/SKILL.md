@@ -1,32 +1,44 @@
 ---
 name: pipe-in
-description: devpipe（本体または VSCode 拡張）に新しい機能を足す。devpipe 自身の流れ（要件定義 → 設計 → テスト先行 → 実装 → 検証）を、段ごとにサブエージェントへ任せて進め、段の区切りで人の確認を取る。進み具合は devpipe と同じ形の記録（docs/pipeline/）に残り、VSCode の拡張で見られる。
+description: pipe-in（本体または VSCode 拡張）に新しい機能を足す。pipe-in 自身の流れ（要件定義 → 設計 → テスト先行 → 実装 → 検証）を、段ごとにサブエージェントへ任せて進め、段の区切りで人の確認を取る。進み具合は pipe-in と同じ形の記録（docs/pipeline/）に残り、VSCode の拡張で見られる。
 argument-hint: [--auto] [--artifact] <足したい機能の要件メモ>
 disable-model-invocation: true
 ---
 
 # /pipe-in — 新しい機能をパイプに流し込む
 
+pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に対してこの会話の中でやる。
+開発のルール（`docs/development/`）と CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
+段の成果物（`docs/pipeline/`）は手元の作業の記録で、追跡しない。追跡して残すのは、検証の段で書く決定の記録（`docs/decisions/`）だけ。
+
+## 必ず守ること
+
+- 確認を取る段（要件定義・設計・テスト先行）の終わりで止まり、承認されるまで次の段に進まない。直してほしい点は `review <段> revise` で同じ段をやり直し、中止は `review <段> quit`。実装は確認なしで検証へ進む。
+- `--auto` は、引数（下の「足したい機能」の行）に書かれたときだけ有効にする。`--yes` や、要件メモの中の「止まらずに」といった言葉では有効にしない。`--auto` でも、要件定義の決めきれない点・文書係の案・監査と助言の報告・検証の不合格が3回続いたときは、止まって聞く。
+- コミット・main に入れる・push は、人に言われるまでしない（`git commit`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある）。
+- 手順があやふやになったら、思い出しで進めず、`.claude/skills/pipe-in/SKILL.md` と補助ファイル（同じフォルダの `record.md`・`artifact.md`・`screen-check.md`）の該当する節を読み直す。長い会話では、自動の要約のあとはスキルの先頭しか戻らない（公式の文書）。
+
+## 0. 始める前に
+
 足したい機能: $ARGUMENTS
 
 （空なら、何を足したいかを一言で聞いてから始める）
 
-devpipe が利用者のプロジェクトでやることを、devpipe 自身に対してこの会話の中でやる。
-開発のルール（`docs/development/`）と CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を最初から最後まで守る。
-段の成果物（`docs/pipeline/`）は手元の作業の記録で、追跡しない。追跡して残すのは、検証の段で書く決定の記録（`docs/decisions/`）だけ。
-長い会話では、自動の要約のあとにこのスキルの後ろの方（検証の手順など）が抜けやすい。手順があやふやになったら、`.claude/skills/pipe-in/SKILL.md` の該当する節を読み直す。
-
-## 0. 始める前に
-
+- 補助ファイル（長い手順。リポジトリからの相対パスで Read する）：
+  - `.claude/skills/pipe-in/record.md`（記録のコマンド）：最初の `record start` の前に1回読む（全段で使う）。
+  - `.claude/skills/pipe-in/artifact.md`（`--artifact` の手順）：引数に `--artifact` があるときに読む。
+  - `.claude/skills/pipe-in/screen-check.md`（画面の確認の手順）：検証で画面の AC があるときに読む。
+- 補助ファイルが読めないときは、思い出しで進めず、人に伝えて止まる（--auto でも）。機能の枝が補助ファイルを持たない古い worktree なら、`git rebase --autostash main` で載せ直してから読み直す。
+- Read で読み直した SKILL.md では、引数とセッション ID は置き換わらない。要件メモは `docs/pipeline/00_input.md` から取る。
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
-  - いちばん確かなのは、会話を worktree のフォルダで始めること。会話を worktree の中で始めたとき、または下の EnterWorktree で移ったあとは、そのまま進める。
+  - いちばん確かなのは、会話を worktree のフォルダで始めること（main で始めて移ると、フックは main の版が動く）。会話を worktree の中で始めたとき、または下の EnterWorktree で移ったあとは、そのまま進める。
   - 会話が main の作業フォルダで始まっていたら、先に下の `git status` を見てから、`git worktree add ../pipe-in-<名前> -b feat/<名前>` で切り、`EnterWorktree` に `path`（切った worktree の絶対パス）を渡して、会話ごと移る（切ったこと・移ったことを伝える）。`cd` では移れない（プロジェクトの外へ出ると戻される）。人が打つ `/cd <パス>` でも移れる。
   - 移るのは、段のサブエージェントが会話のその時の作業フォルダから始まり、フック（`.claude/hooks/pipe_in_guard.py`）がその `cwd` を基準に書ける場所を決めるため。移らずに任せると、main を基準に判定されて、worktree への書き込みが止まる。
   - `../pipe-in-<名前>` は `.claude/worktrees/` の外なので、EnterWorktree は移るたびに人の承認を求める（`--auto` でもここは人が答える）。EnterWorktree で新しく作る形（`name`）はブランチ名が決まりと合わないので使わず、`git worktree add` で切ってから `path` で移る。
   - `docs/pipeline/` の記録も、その worktree の中にできる。
 - main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る（EnterWorktree で移る前に見る。移ったあとは main の作業フォルダを指す git のコマンドが止められる）。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
 - フック（`.claude/hooks/pipe_in_guard.py`）は `python` が動いて初めて働く。始める前に `python --version` で確かめる（動かないと、段のサブエージェントの書き込みと Bash の絞りが外れて通る。`docs/guide/develop.md` の「フックが働く条件」・D0032）。
-- worktree の中では、直したコードを確かめるのに `python -m devpipe …`・`python -m pytest` を使う（`devpipe-gen` などのコマンドは main のコードを動かす）。拡張を触るなら、その worktree で `npm --prefix vscode ci` をする。
+- worktree の中では、直したコードを確かめるのに `python -m pipe_in …`・`python -m pytest` を使う（`pipe-in`・`pipe-in-gen` などのコマンドは main のコードを動かす）。拡張を触るなら、その worktree で `npm --prefix vscode ci` をする。
 
 ## main が進んだら載せ直す
 
@@ -70,40 +82,17 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 ## 記録（VSCode の拡張で見る）
 
-段を進めるたびに、`python -m pipe_in record …` で devpipe と同じ形の記録を `docs/pipeline/`（`.gitignore` 済み）に書く。SDK は呼ばず、利用料もかからない。
-拡張の「pipe-in: 実行を見る」とステータスバーに、動いている段・確認待ち・差し戻し・最後の結果が出る（並列の実行や別の worktree の確認待ちがあるときは、ステータスバーは `動き N・確認待ち M` の件数になり、段や結果は説明に出る）。
-
-| いつ | コマンド |
-| --- | --- |
-| 始めるとき（要件メモを渡す） | `python -m pipe_in record start --text "<要件メモ>" --name "<セッション名>"`（長いときは `--input <ファイル>`。`--name` を省くと要件メモの最初の行から作る。今の会話の ID を `--session-id "${CLAUDE_SESSION_ID}"` で付ける（スキルが呼ばれたときに今の会話の ID に置き換わる）。空白や改行を含む値と 100 文字を超える値は断られる） |
-| 段を任せる直前 | `python -m pipe_in record begin <段> --agent <サブエージェント>`（要件定義と設計は `pipe-in-analyst`、テスト先行は `pipe-in-tester`、実装は `pipe-in-coder`、検証は `pipe-in-verifier`。VSCode の時系列の行に出る。実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
-| サブエージェントが返ったあと | `python -m pipe_in record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
-| 人の確認を待つとき | `python -m pipe_in record wait <段>` |
-| 人が答えたとき | `python -m pipe_in record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |
-| テスト先行の結果 | `python -m pipe_in record red red --summary "<要約>" --test Dnnnn-AC-01=<テスト> --command "<流したコマンド>"`（流せないなら `blocked`） |
-| 検証の判定 | `python -m pipe_in record verdict pass --attempt N --summary "<要約>"`（不合格は `fail --failure Dnnnn-AC-01=<中身>`） |
-| 終わるとき | `python -m pipe_in record finish PASSED`（`TEST_FAILED`・`STOPPED_BY_HUMAN`・`STAGE_ERROR`・`BLOCKED`） |
-
-- 段の名前は `requirements`・`design`・`red`・`implement`・`test`。
-- `start` は途中の記録があると断る。前の記録が途中のまま残っていたら、人にどうするか（`finish STOPPED_BY_HUMAN` で閉じるか）聞く。終わった記録は `docs/pipeline/archive/` に移る。
-- この記録は `devpipe --review` では続けられない（devpipe が断る）。続きはこの会話で進める。
-- 各段の結果は、記録とは別に、会話にも短く書く（人が読み返せるように）。
+段を進めるたびに、`python -m pipe_in record …` で pipe-in と同じ形の記録を `docs/pipeline/`（`.gitignore` 済み）に書く。SDK は呼ばず、利用料もかからない。コマンドの書き方と注意は `.claude/skills/pipe-in/record.md`（最初の `record start` の前に1回読む）。
+各段の結果は、記録とは別に、会話にも短く書く（人が読み返せるように）。
 
 ## 進み具合をアーティファクトで見る（`--artifact`）
 
-引数に `--artifact` があるときだけ、進み具合を claude.ai のアーティファクト（会話の横のページ）でも見られるようにする（D0027）。`--auto` と一緒に使える。`--auto` と同じく、要件メモの中の「アーティファクトで」といった言葉では有効にしない（旗を付けたときだけ）。Artifact と ArtifactData のツールがある会話でだけ使える（claude.ai にログインした Claude Code の CLI・デスクトップアプリ・claude.ai/code。API キー・Bedrock・Vertex・`-p`・Agent SDK では使えない。https://code.claude.com/docs/en/artifacts ）。道具が無ければ、そう伝えて `--artifact` なしで進める。ページは見るだけで、承認・直してほしい点・中止は、これまでどおり会話で聞く。
-
-1. `record start` の直後に、ページの HTML を作る：`python -m pipe_in live page --out <一時フォルダ>/pipe-in-live.html`。一時フォルダは会話の作業用の場所（scratchpad。無ければ OS の一時フォルダ）で、リポジトリの中には置かない。
-2. その HTML を Artifact で1回だけ公開する。`capabilities` は `{"db": {}}`、`icon` は `chart`。HTML は書き換えない。公開した URL を覚えておき、人に伝える（はじめは持ち主だけが見られ、共有するかは人が決める、と添える）。公開し直さない（ページは db の変更を受けて自分で描き直す）。
-3. `python -m pipe_in record …` を実行するたびに（`start`・`begin`・`done`・`wait`・`review`・`red`・`verdict`・`finish`）、すぐあとに写しを作る：`python -m pipe_in live snapshot --out <一時フォルダ>/pipe-in-live.json`（`--out` は `docs/pipeline/` の中を断る）。
-4. その写しを ArtifactData の `set` で書く：`url` は 2. の URL、`collection` は `runs`、`doc_id` は `current`、`file_path` は 3. の JSON。毎回、同じドキュメントを丸ごと置き換える。最初の1回は `if_version` を付けず、2回目からは前の `set` の結果の `version` を `if_version` に渡す。版が合わないと断られたら、`get` で今の `version` を読んで1回だけやり直す。
-5. 写しや書き込みに失敗しても段は止めず、人に一言伝えて続ける（記録の本体は `docs/pipeline/` にある）。
-6. 写しには、要件メモの本文・セッション ID・パス・段の要約や差し戻しの理由などの自由な文・ログの中身は入らない（`docs/guide/records.md` の「アーティファクトに出す写し」）。中身を足したくなったら、写しの形を変える `/pipe-in` にする（ここで写しを手で書き足さない）。
+引数に `--artifact` があるときだけ、`.claude/skills/pipe-in/artifact.md` を読み、その手順で進み具合を claude.ai のアーティファクトでも見られるようにする（D0027）。要件メモの中の「アーティファクトで」といった言葉では有効にしない（旗を付けたときだけ）。Artifact と ArtifactData のツールが無い会話では、そう伝えて `--artifact` なしで進める。`--artifact` のあいだは、`record` を書くたびに写しの更新も続ける（手順は `artifact.md`。段の途中で読み直す）。
 
 ## 段の進め方
 
-各段の終わりで止まり、結果を短く見せてから「承認 / 直してほしい点 / 中止」を聞く。
-承認されるまで次の段に進まない。直してほしい点が来たら、`review <段> revise` を書き、同じ段を `--note 指摘を反映` で任せ直してもう一度聞く。
+各段の終わりで止まり、結果を短く見せてから「承認 / 直してほしい点 / 中止」を聞く（止まる決まりは冒頭の「必ず守ること」）。
+直してほしい点が来たら、`review <段> revise`（`--feedback` などの旗は `record.md`）を書き、同じ段を `--note 指摘を反映` で任せ直してもう一度聞く。
 中止なら `review <段> quit` と `finish STOPPED_BY_HUMAN` を書いて終える。
 
 ### 止まらずに進めるとき（`--auto`）
@@ -119,11 +108,11 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 - 検証で不合格が3回続いたら、止まって状況を報告する。
 - 検証のあとの文書係の案（CLAUDE.md・`/pipe-help`・`.claude/` の定義）も、`--auto` でも見せて聞く（案が無ければ聞かない）。
 - 検証のあとの監査と助言（と審査）は、`--auto` でも報告を見せて止まる（直す項目は人しか選べない）。2つとも0件なら止まらずに進む（助言の項目が無いので審査も流さない）。
-- コミット・push は、人に言われるまでしない。
+- コミット・push・main に入れることは、人に言われるまでしない。
 
 ### 1. 要件定義（`pipe-in-analyst`）
 
-- `record start` → `record begin requirements` → `pipe-in-analyst` に要件定義を任せる → `record done requirements`。
+- `python -m pipe_in record start --text "<要件メモ>" --session-id "${CLAUDE_SESSION_ID}"`（`--name` などは `record.md`）→ `record begin requirements` → `pipe-in-analyst` に要件定義を任せる → `record done requirements`。
 - 成果物（`01_requirements.md`）の要点を会話に書く：目的・FR・AC（`Dnnnn-AC-xx`。画面の AC は `Dnnnn-AC-xx（画面）：…`、手で・実機で確かめるものは `（手で）`・`（実機）`）・対象外・触る側。
 - サブエージェントが「決めきれない点」を返したら、ここで質問にまとめて聞く（`--auto` でも聞く）。
 - `record wait requirements` → 人に聞く → `record review requirements …`。
@@ -138,8 +127,8 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - `record begin red` → `pipe-in-tester` にテストだけを書かせる → `record done red`。
 - メインでテストを流し直し、**足したテストが期待した理由で落ちる**こと・既存のテストが通ったままであることを確かめる（本体 `python -m pytest -q`、拡張 `npm --prefix vscode test`）。やり方は `docs/development/testing.md` の「赤の確かめ方」：足したテストのファイルだけを流し、失敗を1件ずつ、出力を切らずに読む。構文・つづり・補助の誤りで落ちているのは赤ではない。import の失敗で落ちているなら、空の形を置いてやり直す。今の作りのままで通るテストは、そう書く。
-- テストの名前（拡張）か docstring（Python）の頭に `Dnnnn-AC-xx:` が付いているか、リポジトリの実物（`pipes/`・`.devpipe/`・`docs/pipeline/` の記録の外）に書いていないかも見る。
-- `record red red …`（流せないなら `blocked`）を書き、AC とテストの対応・落ちた様子・画面の確認の手順を会話に見せる。
+- テストの名前（拡張）か docstring（Python）の頭に `Dnnnn-AC-xx:` が付いているか、リポジトリの実物（`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/` の記録の外）に書いていないかも見る。
+- `record red red …`（流せないなら `blocked`。旗は `record.md`）を書き、AC とテストの対応・落ちた様子・画面の確認の手順を会話に見せる。
 - `record wait red` → 人に聞く → `record review red …`。ここで承認されたテストと画面の確認の手順が仕様になる。
 
 ### 4. 実装（`pipe-in-coder`）
@@ -153,15 +142,9 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
-- 画面の AC があれば、メインが Playwright（MCP。道具の名前は、プラグイン版なら `mcp__plugin_playwright_playwright__*`、`claude mcp add` で入れた版なら `mcp__playwright__*`）で画面を開いて確かめる：
-  1. 確認用のページを作る：`npm --prefix vscode run build` と `npm --prefix vscode run preview`（`out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、明るい・暗い・ひな形 diagrams の作業台のページと、明るい・暗いのパネルのページ（`run-panel-light.html`・`run-panel-dark.html`。見本の記録 `tests/fixtures/showcase/` から）と、動いている・確認待ちのパネルのページ（`run-panel-running-*.html`・`run-panel-waiting-*.html`。`tests/fixtures/showcase_running/` などから）と、実行の一覧のパネルのページ（`run-panel-runs-light.html`・`run-panel-runs-dark.html`・`run-panel-runs-omitted-dark.html`。見本から一時フォルダに主の checkout・別の worktree・`archive/` の木を組み立てて作る）と、更新なしの印が出るパネルのページ（`run-panel-stale-light.html`・`run-panel-stale-dark.html`（目安を過ぎた見本）・`run-panel-stale-soon-dark.html`（目安の 5 秒手前の見本。`window.__previewNext()` で更新後の本体を送れる）。動いている見本は一時フォルダに写してログの更新時刻を「今」からの相対にそろえる）と、成果物のタブのパネルのページ（`run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html`。動いている開発フローと 12 個のパイプの 2 つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` に送ったメッセージの種類が貯まる。成果物は一時フォルダに作り、更新時刻を固定の値にそろえる）ができる）
-  2. 手元だけで配る：`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview` を裏で動かす（`file:` では開けない。外には出さない）
-  3. 開いて撮る：`http://127.0.0.1:8765/pipe-editor-dark.html` と `-light.html` を開き、`browser_take_screenshot` で撮る（保存先は `.playwright-mcp/`）。狭い幅（`browser_resize` で 800×700 など）も撮る。パネルのページ（`http://127.0.0.1:8765/run-panel-dark.html` と `-light.html`、動いている・確認待ち・実行の一覧・更新なしの `run-panel-*.html`）も同じように開いて撮る。実行の一覧のページは幅 1280×800・1000×700・800×600 で並び（3 領域・2 列・1 列）を見る。更新なしのページは、印の時間が 1 秒ごとに増えること、`run-panel-stale-soon-dark.html` で 5 秒待つと印が一度に現れ `window.__previewNext()` で消えること、既存のページには 15 秒待っても印が出ないことを見る。成果物のタブのページ（`run-panel-artifacts-*.html`）は「成果物」のタブを開き、幅 1280×800・1000×700・801 と 800 の幅、高さ 400 の低い窓でも開いて、ページに横スクロールが出ないこと、プレビューの枠が窓に収まること、行を押しても `window.__posted` が増えないこと、`window.__previewNext()` で既定の行が移ることを見る（パネルには保存が無いので、4. の `window.__saved` の確認は作業台のページだけ）
-  4. 操作する：テスト先行の段で書いた手順どおりに押す・ドラッグする・入力する。保存の確認は `browser_evaluate` で `window.__saved` を見る
-  5. 見る：撮った画面を読み、重なり・はみ出し・読めない色・崩れがないか、手順の「合格の見え方」になっているかを確かめる。`browser_console_messages` でエラーが0件かも見る
-  6. 片付ける：配るのを止め（TaskStop）、`.playwright-mcp/` を消す（`.gitignore` 済みだが残さない）
+- 画面の AC があれば、メインが Playwright（MCP）で画面を開いて確かめる。手順（ページを作る・配る・開いて撮る・操作する・見る・片付ける）は `.claude/skills/pipe-in/screen-check.md`（この手順に入る前に読む）。ページの一覧は `docs/assets/README.md`。
   - 画面で見つかった不具合は、テスト先行と実装の段に戻して直す（純粋な関数のテストで捕まえてから）。
-- サブエージェントの判定と画面の確認を合わせて `record verdict <pass|fail|blocked> --attempt N …` を書き、AC ごとの 合格 / 不合格 の表を会話に見せる。
+- サブエージェントの判定と画面の確認を合わせて `record verdict <pass|fail|blocked> --attempt N …`（旗は `record.md`）を書き、AC ごとの 合格 / 不合格 の表を会話に見せる。
 - 不合格なら 4 に戻る（`--attempt` を増やす。最大3回。それでも通らなければ `finish TEST_FAILED` を書いて止め、状況を報告する）。
 - 合格なら、下の「文書をそろえる」と「監査と助言」を流してから、決定の記録を書く。
 
@@ -192,6 +175,6 @@ devpipe が利用者のプロジェクトでやることを、devpipe 自身に�
 
 - メインが決定の記録 `docs/decisions/Dnnnn-<名前>.md` を書き、`docs/decisions/README.md` の表に1行足す（形は `docs/development/specs.md`。`tests/test_rules.py` が検査するので、書いたらもう一度流す）。決めたことと理由・受け入れたリスク・確かめたこと（手で・実機で確かめていないものは「まだ」）を書く。`docs/pipeline/` の中身をそのまま貼らない（セッション ID や手元のパスが入っている）。
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
-  形は既存に合わせる：`feat(devpipe): …` / `feat(devpipe-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
+  形は既存に合わせる：`feat(pipe-in): …` / `feat(pipe-in-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
   **コミット・main に入れる・push は、人に言われるまでしない。**
 - main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら worktree とブランチを片付ける。

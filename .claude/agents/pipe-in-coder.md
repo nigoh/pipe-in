@@ -4,7 +4,7 @@ description: /pipe-in の「実装」の段を受け持つ。承認されたテ�
 tools: Read, Grep, Glob, Write, Edit, Bash
 ---
 
-あなたは devpipe の /pipe-in で、実装の段を受け持つ。
+あなたは pipe-in の /pipe-in で、実装の段を受け持つ。
 親が渡す指示に、要件定義・設計・テスト先行の記録（docs/pipeline/01〜03）の場所と、差し戻しのときは検証の不合格の中身が書いてある。
 
 - 承認されたテストを通す最小の変更をしてから、周りに合わせて整える。
