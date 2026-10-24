@@ -1758,19 +1758,172 @@ def test_D0025_AC_77_78_検査そのものは行の番号と表の順を取り�
     assert row_starting("", DESIGN_PAGE_ROW) is None
 
 
-# ---- D0032: 段の中のサブエージェントの呼び方を守る ------------------------------------------------
+# ---- D0034: 段の中のサブエージェントの呼び方を守る ------------------------------------------------
 
-D0032_EXAMPLE_LINE = "max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）"
-
-
-def test_D0032_AC_16_パイプの書き方の例にmax_agent_callsの行がある():
-    """D0032-AC-16: docs/guide/pipes.md の「Agent SDK の設定」の書き方の例（コードブロック）に、max_agent_calls の行がある。"""
-    assert D0032_EXAMPLE_LINE in all_code_lines(read_doc(GUIDE / "pipes.md"))
+D0034_EXAMPLE_LINE = "max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）"
 
 
-def test_D0032_AC_01_05_08_安全の文書に裏で動かす形と上限と入れ子がある():
-    """D0032-AC-01・05・08: docs/guide/safety.md に、裏で動かす形（run_in_background）・上限（max_agent_calls）・サブエージェントの中からの呼び出しを止めることが書いてある。"""
+def test_D0034_AC_16_パイプの書き方の例にmax_agent_callsの行がある():
+    """D0034-AC-16: docs/guide/pipes.md の「Agent SDK の設定」の書き方の例（コードブロック）に、max_agent_calls の行がある。"""
+    assert D0034_EXAMPLE_LINE in all_code_lines(read_doc(GUIDE / "pipes.md"))
+
+
+def test_D0034_AC_01_05_08_安全の文書に裏で動かす形と上限と入れ子がある():
+    """D0034-AC-01・05・08: docs/guide/safety.md に、裏で動かす形（run_in_background）・上限（max_agent_calls）・サブエージェントの中からの呼び出しを止めることが書いてある。"""
     text = read_doc(GUIDE / "safety.md")
     assert "run_in_background" in text
     assert "max_agent_calls" in text
     assert "サブエージェントの中からのサブエージェントの呼び出し" in text
+
+
+# ---- D0032：サブエージェント用のフックが失敗したとき、通す側でなく止める側に倒す（文書と決定の記録） ----
+#
+# AC-25・26 は、ガイド・設計の表・原則に探す言葉があるかを見る（言い方は文書を書く人が決める）。AC-28 は決定の記録と索引の行、
+# AC-29 は記録に残す言葉。docs/decisions/ は文書係が書けないので、メインが書く（骨組みはテスト先行の前、本体は検証の段）。
+# 文書は読むだけで書かない。フックの動きの検査は tests/test_pipe_in_guard.py にある。
+
+DEVELOP_GUIDE = GUIDE / "develop.md"
+DEVELOP_GUIDE_TITLE = "Claude Code で開発するとき"
+PRINCIPLES_DOC = ROOT / "docs" / "development" / "principles.md"
+GUARD_HOOK_PATH = ".claude/hooks/pipe_in_guard.py"
+
+# （pytest の id, 何を書くか, 探す言葉）。言葉は要件の AC-25 に合わせる
+D0032_GUIDE_WORDS = [
+    ("python-version", "/pipe-in を始める前に python --version で確かめること", "python --version"),
+    ("on-failure", "onFailure を付けるか付けないか（付けない）", "onFailure"),
+    ("passes-silently", "python が見つからない・時間切れ・構文エラーのときはフックが効かず通ること", "効かず通る"),
+    ("git-bash", "Git Bash が無い Windows でのフックの動きは確かめていないこと", "Git Bash"),
+]
+# 原則の「4. 安全側に倒す」に足す言葉。素通り は今の節にもあるので、確かめにならない
+D0032_PRINCIPLES_WORDS = [
+    ("d0032", "素通りの例を書いた決定の記録 D0032", "D0032"),
+    ("python", "python が見つからない例", "python"),
+    ("timeout", "時間切れの例", "時間切れ"),
+    ("syntax", "構文エラーの例", "構文エラー"),
+]
+# 決定の記録の本文に残す言葉（要件の AC-29）
+D0032_RECORD_WORDS = [
+    ("widen", "止める範囲を広げる側の変更とその理由", "広げる"),
+    ("accepted-risk", "受け入れたリスク", "受け入れたリスク"),
+    ("pass-through", "python が無い・時間切れ・構文エラーは素通りになること", "素通り"),
+    ("plugin-hook", "generator/guard_hook.py を別の issue にすること", "generator/guard_hook.py"),
+    ("v-01", "D0008 の残った課題 V-01（ここで扱った）", "V-01"),
+    ("v-21", "D0008 の残った課題 V-21（ここで扱った）", "V-21"),
+    ("v-07", "D0008 の残った課題 V-07（残した）", "V-07"),
+    ("v-19", "D0008 の残った課題 V-19（残した）", "V-19"),
+    ("on-failure", "onFailure の結果", "onFailure"),
+    ("unconfirmed", "確かめていないこと", "確かめていない"),
+]
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0032_GUIDE_WORDS], ids=[i for i, _, _ in D0032_GUIDE_WORDS])
+def test_D0032_AC_25_開発のガイドにフックが効かない場合が書いてある(label, word):
+    """D0032-AC-25: docs/guide/develop.md の「Claude Code で開発するとき」に、フックが働くには python が動く必要があること、
+    python が見つからない・時間切れ・構文エラーのときはフックが効かず通ること、/pipe-in を始める前に python --version で確かめること、
+    onFailure を付けるか付けないか、Git Bash が無い Windows でのフックの動きは確かめていないこと、が書いてある。"""
+    part = heading_part(read_doc(DEVELOP_GUIDE), DEVELOP_GUIDE_TITLE)
+    assert part, f"{DEVELOP_GUIDE.relative_to(ROOT).as_posix()} に「{DEVELOP_GUIDE_TITLE}」の節が無い"
+    found = word in part  # 長い節の本文を assert の失敗の表示に出さない
+    assert found, f"develop.md の「{DEVELOP_GUIDE_TITLE}」の節に、{label} の説明が無い（探した言葉：{word}）"
+
+
+def test_D0032_AC_26_設計の置き場所の表のフックの行に例外が出ても止めると書いてある():
+    """D0032-AC-26: docs/development/design.md の置き場所の表の .claude/hooks/pipe_in_guard.py の行（| で始まる行）に「例外が出ても止める」がある。"""
+    md = read_doc(DESIGN_DOC)
+    rows = [line for line in md.splitlines() if line.startswith("|") and GUARD_HOOK_PATH in line]
+    assert rows, f"design.md の表に {GUARD_HOOK_PATH} の行が無い"
+    assert any("例外が出ても止める" in row for row in rows), f"{GUARD_HOOK_PATH} の行に「例外が出ても止める」が無い：{rows}"
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0032_PRINCIPLES_WORDS], ids=[i for i, _, _ in D0032_PRINCIPLES_WORDS])
+def test_D0032_AC_26_原則の安全側に倒すに素通りの例が書いてある(label, word):
+    """D0032-AC-26: docs/development/principles.md の「4. 安全側に倒す」に、D0032 と、止められない場合（python が無い・時間切れ・構文エラー）が
+    素通りになり決定の記録に書いてあること、が書いてある。探すのは今の節に無い言葉（素通り は今の節にもある）。"""
+    part = heading_part(read_doc(PRINCIPLES_DOC), "安全側に倒す")
+    assert part, "principles.md に「安全側に倒す」の節が無い"
+    found = word in part  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"principles.md の「安全側に倒す」の節に、{label} が無い（探した言葉：{word}）"
+
+
+def d0032_records() -> list[Path]:
+    return sorted((ROOT / "docs" / "decisions").glob("D0032-*.md"))
+
+
+# 決まった 5 つの見出しと、自分の D0032-AC-xx が 1 つ以上あることは、すべての記録を見る tests/test_rules.py の
+# test_decision_records_have_sections が確かめる（ここには写さない。1つの知識は1か所）。AC-28 のテストは、D0032 に固有のことだけを見る。
+
+
+def test_D0032_AC_28_決定の記録が1つあり1行目が題_守る():
+    """D0032-AC-28: docs/decisions/D0032-*.md が 1 つあり、1 行目が「# D0032 <題>」である。骨組みをテスト先行の前に置いたので、最初から通る。
+    （今のまま通る。守る）"""
+    records = d0032_records()
+    assert len(records) == 1, [p.name for p in records]
+    assert records[0].read_text(encoding="utf-8").startswith("# D0032 "), "1 行目は「# D0032 <題>」"
+
+
+def d0032_missing_ac_rows(text: str) -> list[str]:
+    """記録の文字から、D0032-AC-01〜D0032-AC-34 のうち書かれていない ID を返す。"""
+    found = set(re.findall(r"D0032-AC-\d{2}\b", text))
+    return [f"D0032-AC-{n:02d}" for n in range(1, 35) if f"D0032-AC-{n:02d}" not in found]
+
+
+def test_D0032_AC_28_決定の記録にAC01から34の行がある_守る():
+    """D0032-AC-28: 決定の記録に D0032-AC-01〜D0032-AC-34 の受け入れ基準が 1 つずつある（骨組みの AC の行）。（今のまま通る。守る）"""
+    (record,) = d0032_records()
+    missing = d0032_missing_ac_rows(record.read_text(encoding="utf-8"))
+    assert missing == [], f"記録に無い受け入れ基準：{missing}"
+
+
+@pytest.mark.parametrize("ac", ["D0032-AC-33", "D0032-AC-34"])
+def test_D0032_AC_28_記録からAC33かAC34の行が消えると見つける_守る(ac):
+    """D0032-AC-28: 検査そのものが違反を見つけられる（testing.md「名前と粒度」）。記録の文字（コピー）から ac を消すと、
+    AC-01〜34 の確かめが ac だけを「無い」と返す。リポジトリの記録は書き換えない。（今のまま通る。守る）"""
+    (record,) = d0032_records()
+    real = record.read_text(encoding="utf-8")
+    assert ac in real, f"{record.name} に {ac} が無い"
+    assert d0032_missing_ac_rows(real.replace(ac, "")) == [ac]
+
+
+def test_D0032_AC_28_READMEの表のD0032の行は番号の順で記録を指す_守る():
+    """D0032-AC-28: docs/decisions/README.md の表に D0032 の行が、番号の順の位置（前の行はそれより小さい番号のうちいちばん大きい番号、
+    次の行があればそれより大きい番号）にあり、その行が記録のファイルを指している（作業のあいだに main に入る行と、ほかの PR が使う番号で
+    前の行が変わるため、前の番号を決め打ちしない）。（今のまま通る。守る）"""
+    (record,) = d0032_records()
+    md = read_doc(DECISIONS_README)
+    ids = table_decision_ids(md)
+    assert "D0032" in ids, f"決定の記録の表に D0032 の行が無い（今の行：{ids[-6:]}）"
+    at = ids.index("D0032")
+    smaller = [i for i in ids if i < "D0032"]
+    assert at > 0 and ids[at - 1] == max(smaller), f"D0032 の行は、それより小さい番号の行の次にする（今の並び：{ids[-6:]}）"
+    assert at == len(ids) - 1 or ids[at + 1] > "D0032", f"D0032 の行の次は、それより大きい番号の行にする（今の並び：{ids[-6:]}）"
+    row = next(line for line in md.splitlines() if line.startswith("| [D0032]"))
+    assert f"({record.name})" in row, f"D0032 の行が記録 {record.name} を指していない：{row}"
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0032_RECORD_WORDS], ids=[i for i, _, _ in D0032_RECORD_WORDS])
+def test_D0032_AC_29_決定の記録に残す言葉がある(label, word):
+    """D0032-AC-29: 決定の記録 D0032 に、止める範囲を広げる側の変更とその理由・受け入れたリスク（python が無い・時間切れ・構文エラーは素通り）・
+    generator/guard_hook.py を別の issue にすること・D0008 の残った課題 V-01・V-21 をここで扱ったことと V-07・V-19 を残したこと・
+    onFailure の結果・確かめていないこと、が書いてある。骨組みにはこれらの言葉が無く、メインが記録の本体を書くまでは赤だった。"""
+    records = sorted((ROOT / "docs" / "decisions").glob("D0032-*.md"))
+    assert len(records) == 1, [p.name for p in records]
+    text = records[0].read_text(encoding="utf-8")
+    found = word in text  # 記録の本文を assert の失敗の表示に出さない
+    assert found, f"{records[0].name} に、{label} が無い（探した言葉：{word}）"
+
+
+# ---- D0033-AC-08: 古い版で上限を超えて落ちたときの説明 ----
+
+
+def test_D0033_AC_08_設定のガイドに古い版で落ちたときの入れ直しの説明がある():
+    """D0033-AC-08: docs/guide/config.md の max_buffer_mb の表の行より後ろ・「段の名前は」より前に、
+    maximum buffer size of 1048576 bytes で落ちたときは入れ直す、という説明（1048576 と「入れ直」の語）がある。"""
+    md = read_doc(GUIDE / "config.md")
+    lines = md.splitlines()
+    row = next((i for i, line in enumerate(lines) if line.startswith("| `max_buffer_mb`")), None)
+    assert row is not None, "config.md に max_buffer_mb の表の行が無い"
+    end = next((i for i in range(row + 1, len(lines)) if lines[i].startswith("段の名前は")), None)
+    assert end is not None, "config.md の max_buffer_mb の行のあとに「段の名前は」の段落が無い"
+    part = "\n".join(lines[row + 1:end])
+    assert "1048576" in part, f"max_buffer_mb の行と「段の名前は」のあいだに 1048576 が無い:\n{part}"
+    assert "入れ直" in part, f"max_buffer_mb の行と「段の名前は」のあいだに「入れ直」が無い:\n{part}"

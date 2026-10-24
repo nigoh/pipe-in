@@ -25,7 +25,7 @@
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
 | このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/`・計画ボード `.claude/skills/pipe-plan/`（ページのひな形 `board.html`） |
-| /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` は読むだけにする） |
+| /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` と、文字列でない `agent_type` は読むだけにする。判断の途中で例外が出ても止める） |
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
@@ -94,7 +94,7 @@ pipe_in.usage
 - D0021 は記録の形（`state.json`・`logs/*.jsonl`・`99_summary.md`）を変えません。拡張の内側の記録の写しに、省ける項目（段のログの更新時刻 `mtimeMs`・前の実行の目印 `previous`・最後の更新からの秒 `quietSec`）を足しただけです。`mtimeMs` を持たない写しは「印なし」として読み、`previous` を持たない写しは前の実行でないものとして読みます。
 - D0025 は記録の形（`state.json`・`logs/*.jsonl`・`99_summary.md`）を変えません。拡張の内側の記録の写しの成果物の項目を、文字だけの形から `{ text, mtimeMs, cut }`（中身・更新時刻・先頭 256 KiB で切れた印）に広げ、HTML に成果物のタブ（一覧とプレビュー）を足しました。文字だけの形の写しも読みます（時刻は「—」、切れた印なし）。意味が変わるのは次の 3 つです。(1) symlink の成果物：今まで辿って読めたものを読まなくなり、「まだない」と同じ見た目にします（理由は画面に出しません。外のファイルを画面に出さないためで、読めるようにはしません。確かめてから開くまでのあいだの差し替えは塞いでいません）。`00_input.md` が symlink だと、図の依頼メモ（開発フローでは要件メモ）の節が「まだ」になり、`state.json` もログも無い実行は「記録がありません」にもなります。(2) 「ある」かどうかを、全文でなく読んだ範囲（先頭 256 KiB）で決めるので、先頭 256 KiB が空白だけで後ろに文字がある成果物は「まだない」になります。(3) 1 回の読みの合計が 4 MiB に届くと、一覧の後ろの成果物は読まず「まだない」と同じ見た目になります（今までは全部読んでいました。開発フローの 7 つでは届きません）。
 - D0026 で `pipeline.toml` の `[pipeline]` に `max_buffer_mb` を足しました。無ければ 32（MB）として読みます。足すだけで、ほかの項目の意味は変えません。
-- D0032 で `pipe.toml` の `[[stages]]` に `max_agent_calls` を足しました。無ければ 20 として読みます。拡張の作業台は知らない項目として、書き出すときに落とします（上限は既定の 20 に戻ります）。
+- D0034 で `pipe.toml` の `[[stages]]` に `max_agent_calls` を足しました。無ければ 20 として読みます。拡張の作業台は知らない項目として、書き出すときに落とします（上限は既定の 20 に戻ります）。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

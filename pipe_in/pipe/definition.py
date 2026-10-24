@@ -138,7 +138,7 @@ class PipeStage:
     add_dirs: list[str] = field(default_factory=list)
     agents: dict[str, AgentDef] = field(default_factory=dict)
     mcp_servers: dict[str, McpServerDef] = field(default_factory=dict)
-    # 段の1回の実行で呼べるサブエージェントの数（D0032）。省くと既定（20）。agents のある段だけに書ける
+    # 段の1回の実行で呼べるサブエージェントの数（D0034）。省くと既定（20）。agents のある段だけに書ける
     max_agent_calls: int | None = None
     # 読み込みのときに見つけた、型の誤り（check_pipe が報告する）
     problems: list[str] = field(default_factory=list)

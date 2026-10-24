@@ -113,7 +113,7 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
         "resume": resume,
         "setting_sources": cfg.setting_sources,
         "max_buffer_size": cfg.max_buffer_bytes,
-        # 裏の作業を止め、サブエージェントの入れ子を 1 段までにする（D0032）。手元の環境変数では上書きされない。
+        # 裏の作業を止め、サブエージェントの入れ子を 1 段までにする（D0034）。手元の環境変数では上書きされない。
         "env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1", "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"},
     }
     if spec.max_thinking_tokens:
@@ -132,7 +132,7 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
 
 def stage_guard(spec: StageSpec, cfg: Config, on_deny: Callable[[str, str], None] | None = None):
     """段の1回の実行のガード。呼ぶたびに新しい数（0 から）を持つので、差し戻しのやり直し・人の指摘の反映・
-    グループの段の1つは、それぞれ 0 から数える（D0032）。"""
+    グループの段の1つは、それぞれ 0 から数える（D0034）。"""
     return make_guard_hook(
         project_dir=cfg.project_dir,
         can_write=spec.can_write,

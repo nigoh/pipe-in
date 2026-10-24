@@ -1,4 +1,4 @@
-# D0032 段の中のサブエージェントの呼び方を守る（裏で動かす形・入れ子を止め、1回の実行で呼べる数に上限 `max_agent_calls`、既定 20）
+# D0034 段の中のサブエージェントの呼び方を守る（裏で動かす形・入れ子を止め、1回の実行で呼べる数に上限 `max_agent_calls`、既定 20）
 
 ## 目的
 
@@ -8,48 +8,48 @@
 ## 機能要件と受け入れ基準
 
 - FR-01 段の中で `Agent` か `Task` を、`run_in_background` を付けて（値が `false` 以外で）呼ぶと、ガードが止める。理由の文に「`run_in_background: false` で呼び直してください」を入れる。
-  - D0032-AC-01 `Agent` に `run_in_background: True` を渡すと理由を返し、その文に `run_in_background: false` が入る。SDK に渡すサブエージェントは `background` を持たない（`tests/test_agent_guard.py::test_d0032_ac01_*`・`test_d0032_sdk_options*`）。
-  - D0032-AC-02 `Task` に `run_in_background: True` を渡すと理由を返す（`test_d0032_ac02_*`）。
-  - D0032-AC-03 `run_in_background` が `"true"`・`"false"`・`1`・`0`・`None`・`[]`・`{}` のときも止まる。`tool_input` が表でないときも止まる（`test_d0032_ac03_*`・`test_d0032_tool_inputが表でない*`）。
+  - D0034-AC-01 `Agent` に `run_in_background: True` を渡すと理由を返し、その文に `run_in_background: false` が入る。SDK に渡すサブエージェントは `background` を持たない（`tests/test_agent_guard.py::test_d0034_ac01_*`・`test_d0034_sdk_options*`）。
+  - D0034-AC-02 `Task` に `run_in_background: True` を渡すと理由を返す（`test_d0034_ac02_*`）。
+  - D0034-AC-03 `run_in_background` が `"true"`・`"false"`・`1`・`0`・`None`・`[]`・`{}` のときも止まる。`tool_input` が表でないときも止まる（`test_d0034_ac03_*`・`test_d0034_tool_inputが表でない*`）。
 - FR-02 `Bash` も `run_in_background` を付けて呼ぶと止める。理由の文に「`run_in_background` を付けずに呼び直してください」を入れる。
-  - D0032-AC-04 `Bash` の `ls` に `True`・`"true"`・`None`・`1` を付けると止まり、理由に「run_in_background を付けずに」が入る（`test_d0032_ac04_*`）。
+  - D0034-AC-04 `Bash` の `ls` に `True`・`"true"`・`None`・`1` を付けると止まり、理由に「run_in_background を付けずに」が入る（`test_d0034_ac04_*`）。
 - FR-03 `Agent`・`Task` は `run_in_background: false`（真偽値）の呼び出しだけを通す。`Bash` は書かない呼び出しと `false` を、今までどおり通す。（監査と助言のあとに直した。はじめは `Agent`・`Task` も「書かない」を通していた。）
-  - D0032-AC-10 `Agent`・`Task` は、`False` で上限まで通る（`test_d0032_ac10_*`）。
-  - D0032-AC-11 `Bash` は、キーなし・`False` で今までどおり危ないコマンドの判定だけが掛かる（`test_d0032_ac11_*`）。
-  - D0032-AC-12 `agents` の無い段では、待つ形・裏の形のどちらも「この段では Agent を使えません」（`Task` も同じ）で、数えるより前に止まる（`test_d0032_ac12_*`）。
+  - D0034-AC-10 `Agent`・`Task` は、`False` で上限まで通る（`test_d0034_ac10_*`）。
+  - D0034-AC-11 `Bash` は、キーなし・`False` で今までどおり危ないコマンドの判定だけが掛かる（`test_d0034_ac11_*`）。
+  - D0034-AC-12 `agents` の無い段では、待つ形・裏の形のどちらも「この段では Agent を使えません」（`Task` も同じ）で、数えるより前に止まる（`test_d0034_ac12_*`）。
 - FR-04・FR-05 段の1回の実行の中で、ガードを通った `Agent`・`Task` を合わせて数え、上限（既定 20。`pipe.toml` の `[[stages]]` の `max_agent_calls`）に達したあとは止める。理由の文に上限の数と「これまでに返った結果で成果物を書いてください」を入れる。
-  - D0032-AC-05 上限 3 で 4 回目が deny になり、理由に 3 が入る。`Agent` と `Task` を混ぜても合わせて数える。1つの応答で 25 個を並べて渡しても、上限 20 なら通るのはちょうど 20（`test_d0032_ac05_*`・`test_d0032_並べて呼んでも*`）。
-  - D0032-AC-06 上限を超えたあとは何度呼んでも deny のまま。上限が 1 未満・真偽値・`None`・文字のガードは作れない（`ValueError`）（`test_d0032_ac06_*`・`test_d0032_make_guard_hookは*`）。
-  - D0032-AC-15 `max_agent_calls` を書かない段の上限は 20（`test_d0032_ac15_*`）。
-  - D0032-AC-16 `max_agent_calls = 5` の段は上限 5 で、その段のガードは 6 回目を止める。ガイドの書き方の例に `max_agent_calls` の行がある（`test_d0032_ac16_*`・`tests/test_guide.py::test_D0032_AC_16_*`）。
+  - D0034-AC-05 上限 3 で 4 回目が deny になり、理由に 3 が入る。`Agent` と `Task` を混ぜても合わせて数える。1つの応答で 25 個を並べて渡しても、上限 20 なら通るのはちょうど 20（`test_d0034_ac05_*`・`test_d0034_並べて呼んでも*`）。
+  - D0034-AC-06 上限を超えたあとは何度呼んでも deny のまま。上限が 1 未満・真偽値・`None`・文字のガードは作れない（`ValueError`）（`test_d0034_ac06_*`・`test_d0034_make_guard_hookは*`）。
+  - D0034-AC-15 `max_agent_calls` を書かない段の上限は 20（`test_d0034_ac15_*`）。
+  - D0034-AC-16 `max_agent_calls = 5` の段は上限 5 で、その段のガードは 6 回目を止める。ガイドの書き方の例に `max_agent_calls` の行がある（`test_d0034_ac16_*`・`tests/test_guide.py::test_D0034_AC_16_*`）。
 - FR-06 数えるのは段の1回の実行ごと。止めた呼び出しは数えない。
-  - D0032-AC-07 裏で動かす形・入れ子で止めた呼び出しは数に入らない（`test_d0032_ac07_*`）。
-  - D0032-AC-13 別々に作った2つのガードは数を分け合わない。本物の経路（`run_stage_sdk`）も `stage_guard` で段の実行ごとにガードを作る（`test_d0032_ac13_*`・`test_d0032_run_stage_sdkは*`）。
-  - D0032-AC-14 差し戻しでやり直した段のガードは 0 から数え、差し戻しが続いても段を流す回数は `check.max_retries` で止まる（`tests/test_pipe_flow.py::test_d0032_ac14_*`）。
+  - D0034-AC-07 裏で動かす形・入れ子で止めた呼び出しは数に入らない（`test_d0034_ac07_*`）。
+  - D0034-AC-13 別々に作った2つのガードは数を分け合わない。本物の経路（`run_stage_sdk`）も `stage_guard` で段の実行ごとにガードを作る（`test_d0034_ac13_*`・`test_d0034_run_stage_sdkは*`）。
+  - D0034-AC-14 差し戻しでやり直した段のガードは 0 から数え、差し戻しが続いても段を流す回数は `check.max_retries` で止まる（`tests/test_pipe_flow.py::test_d0034_ac14_*`）。
 - FR-07 上限で止めたことは、ほかの止めた操作と同じく `StageRun.denials` に残る。段は失敗にしない。
-  - D0032-AC-09 上限で止めると `on_deny` が呼ばれ、`"Agent: <理由>"` の形で残り、上限の数が入る（`test_d0032_ac09_*`）。
+  - D0034-AC-09 上限で止めると `on_deny` が呼ばれ、`"Agent: <理由>"` の形で残り、上限の数が入る（`test_d0034_ac09_*`）。
 - FR-08 サブエージェントの中からの `Agent`・`Task`（入れ子）は止める。見分けがつかない呼び出しは段の呼び出しとして数える。
-  - D0032-AC-08 フックの入力に `agent_id` があれば（値は問わない）、上限に余りがあっても止まる。`agent_type` だけの呼び出しは入れ子とみなさず数える。サブエージェントの中の `Read` は通る。安全の文書に、裏で動かす形・上限・入れ子を止めることが書いてある（`test_d0032_ac08_*`・`tests/test_guide.py::test_D0032_AC_01_05_08_*`）。
+  - D0034-AC-08 フックの入力に `agent_id` があれば（値は問わない）、上限に余りがあっても止まる。`agent_type` だけの呼び出しは入れ子とみなさず数える。サブエージェントの中の `Read` は通る。安全の文書に、裏で動かす形・上限・入れ子を止めることが書いてある（`test_d0034_ac08_*`・`tests/test_guide.py::test_D0034_AC_01_05_08_*`）。
 - FR-09 定義の検査（`check_pipe`）は、`max_agent_calls` が 1 以上の整数でないとき、または `agents` の無い段に書いたときに誤りにする。
-  - D0032-AC-17 `0`・`-1`・`"5"`・`true`・`1.5` のとき「max_agent_calls は 1 以上の整数で書いてください」（`test_d0032_ac17_*`）。
-  - D0032-AC-18 `agents` の無い段の `max_agent_calls` は誤り（`test_d0032_ac18_*`）。
+  - D0034-AC-17 `0`・`-1`・`"5"`・`true`・`1.5` のとき「max_agent_calls は 1 以上の整数で書いてください」（`test_d0034_ac17_*`）。
+  - D0034-AC-18 `agents` の無い段の `max_agent_calls` は誤り（`test_d0034_ac18_*`）。
 - FR-10 `agents` のある段の system prompt に、`Agent`・`Task` は `run_in_background: false` を付けて呼ぶことと上限の数を入れる（`Bash` の行は「`run_in_background` を付けずに」）。
-  - D0032-AC-19 `agents` のある段の `system_append` に `run_in_background` と「<上限> 回まで」が入る。`agents` の無い段には入らない（`test_d0032_ac19_*`）。
+  - D0034-AC-19 `agents` のある段の `system_append` に `run_in_background` と「<上限> 回まで」が入る。`agents` の無い段には入らない（`test_d0034_ac19_*`）。
 - FR-11 `Agent`・`Task` を `run_in_background` を書かずに呼ぶと止める。メインから呼ぶと、書かないときは裏で動くため（公式の文書 https://code.claude.com/docs/en/agent-sdk/python の Agent の入力「Default when omitted: your main agent's call runs the new agent in the background」）。
-  - D0032-AC-22 書かない `Agent`・`Task` は「run_in_background: false を付けて呼び直してください」で止まり、数に入らない。`Bash` は書かなくても通る（`test_d0032_ac22_*`）。
-  - D0032-AC-23 `agents` のある段の system prompt は `run_in_background: false` を付けて呼ぶように書く（`test_d0032_ac23_*`）。
+  - D0034-AC-22 書かない `Agent`・`Task` は「run_in_background: false を付けて呼び直してください」で止まり、数に入らない。`Bash` は書かなくても通る（`test_d0034_ac22_*`）。
+  - D0034-AC-23 `agents` のある段の system prompt は `run_in_background: false` を付けて呼ぶように書く（`test_d0034_ac23_*`）。
 - FR-12 `tool_input` が表でないとき（`[]`・`""`・`None`・`"x"`・`["x"]`）は、`Agent`・`Task`・`Bash` とも、本物のガードの経路で止め、数に入れない。`tool_input` のキーが無いときは `Agent`・`Task` を止め、ほかは今のまま。
-  - D0032-AC-24 表でない値のとき止まり、数に入らない（`test_d0032_ac24_*`）。
-  - D0032-AC-25 キーが無いとき `Agent`・`Task` は止まり、`Read`・`Bash` は今までどおり（`test_d0032_ac25_*`）。
+  - D0034-AC-24 表でない値のとき止まり、数に入らない（`test_d0034_ac24_*`）。
+  - D0034-AC-25 キーが無いとき `Agent`・`Task` は止まり、`Read`・`Bash` は今までどおり（`test_d0034_ac25_*`）。
 - FR-13 段の SDK の options の `env` に `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` と `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` を必ず入れる。手元の環境変数に別の値があっても上書きされない。
-  - D0032-AC-26 `sdk_options` と `ClaudeAgentOptions` の `env` に2つが "1" で入る（`test_d0032_ac26_*`）。
+  - D0034-AC-26 `sdk_options` と `ClaudeAgentOptions` の `env` に2つが "1" で入る（`test_d0034_ac26_*`）。
 - FR-14 段の `agents` から作るサブエージェントには `disallowedTools = ["Agent", "Task"]` を渡す。
-  - D0032-AC-27 サブエージェントの dict と `AgentDefinition` に `disallowedTools` が入る（`test_d0032_ac27_*`・`tests/test_pipe_sdk.py::test_sdk_options_from_spec`）。
+  - D0034-AC-27 サブエージェントの dict と `AgentDefinition` に `disallowedTools` が入る（`test_d0034_ac27_*`・`tests/test_pipe_sdk.py::test_sdk_options_from_spec`）。
 - FR-15 `Agent`・`Task` の `isolation` は書かないときだけ通す。値があれば（`None` も）止める。
-  - D0032-AC-28 `worktree`・`remote`・`None` などで止まり、理由に `isolation` が入る（`test_d0032_ac28_*`）。
+  - D0034-AC-28 `worktree`・`remote`・`None` などで止まり、理由に `isolation` が入る（`test_d0034_ac28_*`）。
 - 古い形
-  - D0032-AC-20 `max_agent_calls` の無い前からの `pipe.toml`（`pipe-in-` の頭も前の版の頭も）は、検査を今までどおり通り、上限は 20。記録の形は変わらない（`test_d0032_ac20_*` と、通ったままの `tests/test_showcase.py`・`tests/test_pipeline.py`）。
-  - D0032-AC-21 開発フローの段は `Agent`・`Task` を今までどおり止める（`test_d0032_ac21_*`）。
+  - D0034-AC-20 `max_agent_calls` の無い前からの `pipe.toml`（`pipe-in-` の頭も前の版の頭も）は、検査を今までどおり通り、上限は 20。記録の形は変わらない（`test_d0034_ac20_*` と、通ったままの `tests/test_showcase.py`・`tests/test_pipeline.py`）。
+  - D0034-AC-21 開発フローの段は `Agent`・`Task` を今までどおり止める（`test_d0034_ac21_*`）。
 
 ## 決めたことと理由
 
@@ -110,16 +110,16 @@ N は段の `max_agent_calls`（1 以上。既定 20）。
 
 ## 番号
 
-D0022 が予約した D0023〜D0025 とは重ならない（D0031 は main の live-watch が使ったので、D0032 にした）。
+D0022 が予約した D0023〜D0025 とは重ならない（D0031 は main の live-watch が、D0032 は main の guard-fail-closed が、D0033 は main の sdk-buffer のテストが使ったので、D0034 にした）。
 
 ## 確かめたこと
 
-- `tests/test_agent_guard.py`・`tests/test_pipe_flow.py`・`tests/test_guide.py` の D0032 のテストと、全体のテストが通った（SDK は呼ばない）。
+- `tests/test_agent_guard.py`・`tests/test_pipe_flow.py`・`tests/test_guide.py` の D0034 のテストと、全体のテストが通った（SDK は呼ばない）。
 - 実機の SDK で、裏で動かす形の呼び出しと入れ子の呼び出しが止まるかは、まだ確かめていない。
 - 公式の文書（https://code.claude.com/docs/en/agent-sdk/hooks・https://code.claude.com/docs/en/agent-sdk/python）と照らした。`run_in_background` を書かないときにメインからは裏で動くこと、`agent_id` がサブエージェントとチームの仲間の中で入ることは、文書のとおり。
 
 ## 監査と助言
 
 検証で合格したあと、矛盾監査（A-01〜A-05）と公式の文書と照らした助言（V-01〜V-08）を流した。助言の報告の審査は総合 0.85 で合格。人が「全部直す」を選んだ。
-- コードで直した：V-01（書かない `Agent`・`Task` を止める）、A-01・A-02（表でない `tool_input` を本物の経路で止める）、V-02・V-05（環境変数）、V-04（`disallowedTools`）、V-07（`isolation`）。テストは D0032-AC-22〜28。
+- コードで直した：V-01（書かない `Agent`・`Task` を止める）、A-01・A-02（表でない `tool_input` を本物の経路で止める）、V-02・V-05（環境変数）、V-04（`disallowedTools`）、V-07（`isolation`）。テストは D0034-AC-22〜28。
 - 文書で直した：A-03（`Bash` の裏で動かす形はどの段でも止める）、A-04（呼び直しの書き方をそろえた。プラグインの pipe-build も）、A-05（安全の文書に `Agent`・`Task`）、V-03（時間切れの `Bash` は環境変数で切る）、V-06（チームの仲間にも `agent_id`）、V-08（出典の URL）。
