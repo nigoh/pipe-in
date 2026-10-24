@@ -8,6 +8,7 @@ record と同じ形で state.json を書く Recorder の包み）。本物の時
 from __future__ import annotations
 
 import ast
+import errno
 import gc
 import inspect
 import json
@@ -1549,3 +1550,149 @@ def test_d0031_ac55_archive_dir_as_work_dir_is_static_and_stops_at_final(tmp_pat
     assert res.lines == [line("final", 1, "PASSED")] and res.code == 0 and res.reads == 1
     assert tree(archived[0]) == before
     assert json.loads(out.read_bytes())["name"] == "終わった実行"
+
+
+# ---- D0037 Windows でも、標準出力が閉じた・書けないときは静かに 1 で止まる ------------------------------------------------------
+
+CLOSED_TEXT = "pipe-in live watch: 標準出力が閉じられました\n"
+COULD_NOT_WRITE_TEXT = "pipe-in live watch: 標準出力に書けませんでした（OSError）\n"
+
+
+def einval() -> OSError:
+    """Windows で、読み手のいないパイプへの書き込みが出す例外と同じ形。"""
+    return OSError(errno.EINVAL, "Invalid argument")
+
+
+def plain_oserror(code: int, text: str = "x") -> OSError:
+    """errno を持つ素の OSError（OSError(errno.EPIPE, …) は BrokenPipeError に替わって作られるので、あとから errno を入れる）。"""
+    e = OSError(text)
+    e.errno = code
+    return e
+
+
+def started_record(tmp_path: Path) -> Rec:
+    rec = Rec(tmp_path / "p")
+    rec.start("メモ")
+    rec.begin("requirements")
+    return rec
+
+
+@pytest.mark.parametrize("fail_at", [1, 2], ids=["first_line", "second_line"])
+def test_d0037_ac01_einval_on_flush_exits1_quietly(tmp_path, fail_at):
+    """D0037-AC-01: flush が OSError(EINVAL)（Windows の閉じたパイプ）を出すと、1つ目・2つ目の行のどちらでも、落ちずに終了コード 1。標準エラーは閉じた文の1行だけで、一時ファイルは残らず、--out は完全な写し。"""
+    rec = started_record(tmp_path)
+    out = out_path(tmp_path)
+    so = FakeOut(flush_error=lambda n: einval() if n == fail_at else None)
+    res = drive(rec.work, out, steps={1: lambda: rec.done("requirements", "書いた")}, timeout=100.0, stdout=so)
+    assert res.code == 1
+    assert res.errtext == CLOSED_TEXT
+    assert "Traceback" not in res.errtext
+    assert listing(out.parent) == [out.name]
+    assert json.loads(out.read_bytes())["schema"] == 1, "書いた --out は完全な写しのまま"
+
+
+@pytest.mark.parametrize("write_at", [1, 2], ids=["first_line", "second_line"])
+def test_d0037_ac02_einval_on_write_exits1_quietly(tmp_path, write_at):
+    """D0037-AC-02: write が OSError(EINVAL) を出しても、AC-01 と同じく終了コード 1・閉じた文の1行だけ・一時ファイルなし・--out は完全な写し。"""
+    rec = started_record(tmp_path)
+    out = out_path(tmp_path)
+    so = FakeOut(write_error=lambda n: einval() if n == write_at else None)
+    res = drive(rec.work, out, steps={1: lambda: rec.done("requirements", "書いた")}, timeout=100.0, stdout=so)
+    assert res.code == 1
+    assert res.errtext == CLOSED_TEXT
+    assert "Traceback" not in res.errtext
+    assert listing(out.parent) == [out.name]
+    assert json.loads(out.read_bytes())["schema"] == 1, "書いた --out は完全な写しのまま"
+
+
+def test_d0037_ac03_einval_on_the_timeout_line_exits1(tmp_path):
+    """D0037-AC-03: timeout の行を出すときに flush が EINVAL を出すと、124 でなく 1。標準エラーは閉じた文の1行だけ。"""
+    so = FakeOut(flush_error=lambda n: einval() if n == 2 else None)
+    res = drive(midway(tmp_path), out_path(tmp_path), timeout=4.0, stdout=so)
+    assert res.code == 1
+    assert res.errtext == CLOSED_TEXT
+
+
+def test_d0037_ac03_einval_on_the_final_line_exits1(tmp_path):
+    """D0037-AC-03: final の行を出すときに flush が EINVAL を出すと、0 でなく 1。標準エラーは閉じた文の1行だけ。"""
+    so = FakeOut(flush_error=lambda n: einval())
+    res = drive(finished_record(tmp_path / "p"), out_path(tmp_path), timeout=4.0, stdout=so)
+    assert res.code == 1
+    assert res.errtext == CLOSED_TEXT
+
+
+OTHER_OSERRORS = [
+    OSError(errno.ENOSPC, "No space left on device", "D:/private/out.json"),
+    OSError(errno.EIO, "SECRET-io"),
+    OSError("SECRET-plain"),
+]
+
+
+@pytest.mark.parametrize("exc", OTHER_OSERRORS, ids=["enospc", "eio", "noerrno"])
+def test_d0037_ac04_other_oserror_says_could_not_write(tmp_path, exc):
+    """D0037-AC-04: 閉じた以外の OSError（ENOSPC・EIO・errno なし）を flush で出すと、終了コード 1。標準エラーは「標準出力に書けませんでした（OSError）」の1行で、例外の文・パスを含まない。一時ファイルは残らない。"""
+    out = out_path(tmp_path)
+    assert type(exc) is OSError, "素の OSError で確かめる"
+    res = drive(midway(tmp_path), out, timeout=100.0, stdout=FakeOut(flush_error=lambda n: exc if n == 1 else None))
+    assert res.code == 1
+    assert res.errtext == COULD_NOT_WRITE_TEXT
+    for leak in ("SECRET", "No space", "D:/", "private", "Traceback"):
+        assert leak not in res.errtext
+    assert listing(out.parent) == [out.name]
+
+
+STDOUT_FAILURES = [
+    (einval(), "標準出力が閉じられました"),
+    (OSError(errno.ENOSPC, "No space left on device", "D:/private/out.json"), "標準出力に書けませんでした（OSError）"),
+    (OSError(errno.EIO, "SECRET-io"), "標準出力に書けませんでした（OSError）"),
+    (OSError("SECRET-plain"), "標準出力に書けませんでした（OSError）"),
+    (OSError(errno.EPIPE, "Broken pipe"), "標準出力が閉じられました"),
+    (plain_oserror(errno.EPIPE), "標準出力が閉じられました"),
+    (plain_oserror(errno.EINVAL), "標準出力が閉じられました"),
+    (BrokenPipeError(), "標準出力が閉じられました"),
+    (ValueError("I/O operation on closed file."), "標準出力が閉じられました"),
+    (ConnectionResetError(errno.ECONNRESET, "x"), "標準出力に書けませんでした（ConnectionResetError）"),
+]
+
+
+@pytest.mark.parametrize("exc,text", STDOUT_FAILURES,
+                         ids=["einval", "enospc", "eio", "noerrno", "epipe_built", "epipe_plain", "einval_plain", "brokenpipe_noerrno", "closedfile", "connreset"])
+def test_d0037_ac04_stdout_failure_text_by_error(exc, text):
+    """D0037-AC-04: 標準出力の失敗から標準エラーの文を決める純粋な関数。閉じた（BrokenPipeError・EPIPE・EINVAL・ValueError）は閉じた文、そのほかは型の名前だけの「書けませんでした」。"""
+    assert live_watch._stdout_failure_text(exc) == text
+
+
+@pytest.mark.parametrize("how", ["built", "plain"])
+def test_d0037_ac05_plain_oserror_with_epipe_is_closed(tmp_path, how):
+    """D0037-AC-05: errno が EPIPE の OSError は閉じた扱い（BrokenPipeError と同じ）。OSError(EPIPE, …) は BrokenPipeError として作られ、errno をあとから入れた素の OSError でも閉じた文になる。"""
+    if how == "built":
+        exc = OSError(errno.EPIPE, "Broken pipe")
+        assert type(exc) is BrokenPipeError, "Python は OSError(EPIPE, …) を BrokenPipeError に替えて作る"
+    else:
+        exc = plain_oserror(errno.EPIPE, "Broken pipe")
+        assert type(exc) is OSError and exc.errno == errno.EPIPE
+    out = out_path(tmp_path)
+    res = drive(midway(tmp_path), out, timeout=100.0, stdout=FakeOut(flush_error=lambda n: exc if n == 1 else None))
+    assert res.code == 1
+    assert res.errtext == CLOSED_TEXT
+    assert listing(out.parent) == [out.name]
+
+
+@pytest.mark.parametrize("exc,code,message",
+                         [(KeyboardInterrupt(), 130, "pipe-in live watch: 中断しました\n"),
+                          (live_watch.Terminated(), 143, "pipe-in live watch: 終了の合図を受けました\n")],
+                         ids=["keyboardinterrupt", "terminated"])
+def test_d0037_ac06_interrupts_on_stdout_flush_are_not_swallowed(tmp_path, exc, code, message):
+    """D0037-AC-06: 標準出力の flush の最中に KeyboardInterrupt・Terminated が来ると、1 でなく 130・143。標準出力の失敗の捕まえ方が止める合図を飲み込まない（今のままで通る。守り続ける検査）。"""
+    res = drive(midway(tmp_path), out_path(tmp_path), timeout=100.0, stdout=FakeOut(flush_error=lambda n: exc if n == 1 else None))
+    assert res.code == code
+    assert res.errtext == message
+
+
+def test_d0037_ac07_einval_on_out_write_is_not_stdout_closed(tmp_path):
+    """D0037-AC-07: --out への書き込みが OSError(EINVAL) を出すときは、標準出力が閉じた扱いにならない。行を出さずにやり直し、3回で「--out に書けませんでした（OSError）」で 1（今のままで通る。守り続ける検査）。"""
+    res = drive(midway(tmp_path), out_path(tmp_path), timeout=100.0, write_fault=lambda n: einval())
+    assert res.code == 1 and res.lines == []
+    assert res.write_attempts == 3
+    assert res.errtext == "pipe-in live watch: --out に書けませんでした（OSError）\n"
+    assert "標準出力" not in res.errtext

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import math
 import os
@@ -37,7 +38,15 @@ class Terminated(BaseException):
 
 
 class _StdoutClosed(Exception):
-    """標準出力が閉じられた。"""
+    """標準出力が使えなくなった（閉じた・書けない）。message は標準エラーに出す文（パスや strerror を含まない）。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+# 閉じた出力として扱う errno。EINVAL は Windows で、読み手のいないパイプに書いたときに出る。
+_CLOSED_ERRNOS = frozenset({errno.EPIPE, errno.EINVAL})
 
 
 # ---- 純粋な部分 -----------------------------------------------------------------------------------------------------------
@@ -141,12 +150,25 @@ def _say(stderr: Any, text: str) -> None:
         pass
 
 
+def _stdout_failure_text(e: BaseException) -> str:
+    """標準出力の write・flush の失敗から、標準エラーの文（"pipe-in live watch: " の後ろ）を決める。
+
+    閉じた出力（BrokenPipeError・errno が EPIPE か EINVAL の OSError・閉じたストリームの ValueError）は
+    「閉じられました」。そのほかの OSError は型の名前だけを添える（パスや strerror は入れない）。
+    """
+    if isinstance(e, (BrokenPipeError, ValueError)):
+        return "標準出力が閉じられました"
+    if isinstance(e, OSError) and e.errno in _CLOSED_ERRNOS:
+        return "標準出力が閉じられました"
+    return f"標準出力に書けませんでした（{type(e).__name__}）"
+
+
 def _emit(stdout: Any, line: str) -> None:
     try:
         stdout.write(line)
         stdout.flush()
-    except (BrokenPipeError, ValueError) as e:
-        raise _StdoutClosed() from e
+    except (OSError, ValueError) as e:  # OSError は BrokenPipeError を含む。errno は問わない
+        raise _StdoutClosed(_stdout_failure_text(e)) from e
 
 
 def watch(
@@ -222,6 +244,6 @@ def watch(
     except Terminated:
         _say(stderr, "終了の合図を受けました")
         return EXIT_SIGTERM
-    except _StdoutClosed:
-        _say(stderr, "標準出力が閉じられました")
+    except _StdoutClosed as e:
+        _say(stderr, e.message)
         return EXIT_WRITE_OR_PIPE
