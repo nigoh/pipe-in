@@ -503,3 +503,28 @@ def test_main_denies_non_dict_json(monkeypatch, text):
     code, out = run_main(monkeypatch, text)
     assert code == 0
     assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ---- D0036-AC-25: Bash で書く形は、この許す一覧のフックで今も止まる（仕組みは足さない） ------------------
+
+WRITE_FORMS = [
+    "echo x > f",
+    "echo x >> f",
+    "echo x > /etc/hosts",
+    "tee f",
+    "printf a | tee f",
+    "sed -i 's/a/b/' f",
+    "cp a b",
+    "mv a b",
+    "touch f",
+    "rm f",
+    "python -c \"open('f','w').write('x')\"",
+    "echo x > $TMPDIR/a.txt",
+    "cat > f <<'EOF'\nx\nEOF",
+]
+
+
+@pytest.mark.parametrize("command", WRITE_FORMS)
+def test_d0036_ac25_書き込みの形は今も止まる(tmp_path, command):
+    """D0036-AC-25: pipe-builder の Bash は、リダイレクト・tee・sed -i・cp・mv・touch・python -c の書き込みの形を今も止める（許すコマンドの一覧に無く、記号でも止まる）。今も止まる。"""
+    assert decide(tmp_path, "Bash", {"command": command}), command

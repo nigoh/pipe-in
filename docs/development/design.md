@@ -8,7 +8,7 @@
 | 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
 | 段の設定の型・protected_paths | `pipe_in/engine/spec.py` |
-| 止める操作（pipe-in が流す段の PreToolUse フック） | `pipe_in/engine/guard.py` |
+| 止める操作（pipe-in が流す段の PreToolUse フック）と、Bash のコマンドの文字列から書き込み先を読む部品（標準ライブラリだけ。シェルは起こさない） | `pipe_in/engine/guard.py`・`bashwrite.py` |
 | SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
 | 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
 | 設定の読み込み | `pipe_in/engine/config.py` |
