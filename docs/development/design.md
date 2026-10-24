@@ -19,7 +19,7 @@
 | パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/` |
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
-| Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`） | `.claude-plugin/marketplace.json`・`plugin/` |
+| Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方で、pipe-builder に絶対パスで渡して Read させる） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
 | プラグインの採点の計算（総合点・合否・`--runs` のばらつき。標準ライブラリだけ） | `generator/judge_score.py` |
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |

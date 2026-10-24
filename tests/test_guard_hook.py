@@ -503,3 +503,69 @@ def test_main_denies_non_dict_json(monkeypatch, text):
     code, out = run_main(monkeypatch, text)
     assert code == 0
     assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# ---- D0035: pipe-builder が段の決め方（references/stage-rules.md）を読む。守る仕組みは狭めも広げもしない --------------------
+# 今の作りのままで通る（フックを変えないことの検査。狭める変更が入ったら落ちる）。
+
+RULES_REL = "plugin/skills/pipe-build/references/stage-rules.md"
+
+
+def _rules_paths(tmp_path: Path) -> list[str]:
+    return [str(tmp_path.parent / "plugin-cache" / RULES_REL), str(tmp_path / RULES_REL), RULES_REL]  # プロジェクトの外・中・相対
+
+
+@pytest.mark.parametrize("agent_type", BUILDERS)
+@pytest.mark.parametrize("tool", ["Read", "Glob", "Grep"])
+@pytest.mark.parametrize("where", [0, 1, 2], ids=["outside", "inside", "relative"])
+def test_d0035_ac08_builder_can_read_stage_rules(tmp_path, agent_type, tool, where):
+    """D0035-AC-08: どの pipe-builder の名前でも、stage-rules.md を Read・Glob・Grep で読むことは止められない（プロジェクトの外の絶対パスも）。"""
+    path = _rules_paths(tmp_path)[where]
+    tool_input = {"file_path": path} if tool == "Read" else {"pattern": "*", "path": path}
+    assert decide(tmp_path, tool, tool_input, agent_type) is None
+
+
+@pytest.mark.parametrize("agent_type", BUILDERS)
+@pytest.mark.parametrize("tool", ["Write", "Edit", "MultiEdit"])
+@pytest.mark.parametrize("where", [0, 1, 2], ids=["outside", "inside", "relative"])
+def test_d0035_ac09_builder_cannot_write_stage_rules(tmp_path, agent_type, tool, where):
+    """D0035-AC-09: stage-rules.md を書き換えて次の pipe-builder の指示を変える道は閉じたまま（Write・Edit・MultiEdit は止まる）。"""
+    assert decide(tmp_path, tool, {"file_path": _rules_paths(tmp_path)[where], "content": "x"}, agent_type)
+
+
+@pytest.mark.parametrize("agent_type", BUILDERS)
+@pytest.mark.parametrize(
+    "tool,tool_input",
+    [
+        ("PowerShell", {"command": "Set-Content plugin/skills/pipe-build/references/stage-rules.md x"}),
+        ("NotebookEdit", {"notebook_path": RULES_REL}),
+        ("mcp__x__write_file", {"path": RULES_REL}),
+        ("Agent", {"prompt": "stage-rules.md を直して", "subagent_type": "general-purpose"}),
+        ("Task", {"prompt": "stage-rules.md を直して"}),
+        ("WebFetch", {"url": "https://example.com"}),
+        ("WebSearch", {"query": "stage-rules"}),
+        ("Skill", {"skill": "pipe-in:pipe-build"}),
+    ],
+)
+def test_d0035_ac09_other_routes_stay_closed(tmp_path, agent_type, tool, tool_input):
+    """D0035-AC-09: PowerShell・MCP・Agent・Task・Web・Skill・NotebookEdit での回り道は、references/ を狙っても止まる。"""
+    assert decide(tmp_path, tool, tool_input, agent_type), tool
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f"cat {RULES_REL}",
+        f"pipe-in-gen check x > {RULES_REL}",
+        f"pipe-in-gen check x >> {RULES_REL}",
+        "pipe-in-gen check x; cat " + RULES_REL,
+        "pipe-in-gen check x && cat " + RULES_REL,
+        "pipe-in-gen check x | tee " + RULES_REL,
+        "pipe-in-gen design x",
+        "pipe-in-gen new x --force",
+        "sed -i s/a/b/ " + RULES_REL,
+    ],
+)
+def test_d0035_ac09_bash_stays_closed(tmp_path, command):
+    """D0035-AC-09: Bash で stage-rules.md を読む・書く形（cat・リダイレクト・つなぐ記号・sed -i）と、design・--force は止まる。"""
+    assert decide(tmp_path, "Bash", {"command": command}), command

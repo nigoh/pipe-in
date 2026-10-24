@@ -37,6 +37,7 @@
 | [D0031](D0031-live-watch.md) | ターミナルで流す pipe-in の進み具合もアーティファクトで見る（`pipe-in live watch` が記録を見張り、プラグインのスキル `/pipe-in:pipe-live` が Monitor で受けて写しを書く。見るだけ） |
 | [D0032](D0032-guard-fail-closed.md) | サブエージェント用のフック（`pipe_in_guard.py`）が例外や想定外の入力で落ちても、pipe-in-* の呼び出しは止める側に倒す（入口を囲み、書けないときは終了コード 2。止める表と許す表は変えず、例外と型のおかしい `agent_type` では止める側に広げる） |
 | [D0034](D0034-first-run-watch.md) | work_dir がまだ無いプロジェクトでも、最初の実行でパネルとステータスバーが進む（拡張が約 3 秒ごとに `stat` で有無だけを確かめ、できたら見張りを張って読み直す。消えたら外す。拡張は work_dir を作らない） |
+| [D0035](D0035-build-judge.md) | プラグインの pipe-build と `pipe-in-gen design` で、検査と審査の段を組めるようにする（`references/stage-rules.md`・ひな形 diagrams の例） |
 
 ## ひな形
 
