@@ -183,10 +183,10 @@ def test_d0027_ac70_live_modules_use_only_stdlib(name):
 
 
 def test_d0027_ac70_live_cmd_depends_only_on_config_and_the_live_parts():
-    """D0027-AC-70: コマンドの口（live_cmd.py）は、標準ライブラリと config.py と live・live_page だけを読む（SDK・runner・dev・pipe を読まない）。"""
+    """D0027-AC-70・D0031-AC-52: コマンドの口（live_cmd.py）は、標準ライブラリと config.py と live・live_page・live_watch だけを読む（SDK・runner・dev・pipe を読まない）。"""
     path = ROOT / "pipe_in" / "engine" / "live_cmd.py"
     assert path.is_file()
-    allowed = ("pipe_in.engine.config", "pipe_in.engine.live", "pipe_in.engine.live_page")
+    allowed = ("pipe_in.engine.config", "pipe_in.engine.live", "pipe_in.engine.live_page", "pipe_in.engine.live_watch")
     found = [t for t in _imports(path, "pipe_in.engine.live_cmd") if t.split(".")[0] == "pipe_in" and t != "pipe_in.engine" and t != "pipe_in"]
     assert [t for t in found if not t.startswith(allowed)] == []
     outside = [t for t in _outside_stdlib(path, "pipe_in.engine.live_cmd") if t != "pipe_in"]
@@ -263,3 +263,72 @@ def test_legacy_is_not_imported_from_lower_layers(tmp_path, monkeypatch):
     monkeypatch.setattr(__import__(__name__), "ROOT", tmp_path)
     forbidden = dict((r[0], r[2]) for r in RULES)["pipe_in/engine"]
     assert any("pipe_in.legacy" in f for f in _violations("pipe_in/engine", "pipe_in.engine", forbidden))
+
+
+# ---- D0031：見張り（live_watch.py）の依存 ---------------------------------------------------------------------------------
+
+WATCH_NEVER = {"subprocess", "claude_agent_sdk", "anyio", "mcp", "multiprocessing"}
+
+
+def _watch_violations(path: Path, module: str) -> list[str]:
+    """live_watch が読んでよいのは、標準ライブラリと pipe_in.engine.live だけ。それ以外と、子プロセス・SDK を読むものを返す。"""
+    found = _imports(path, module)
+    bad = [t for t in found if t.split(".")[0] == "pipe_in" and t not in ("pipe_in", "pipe_in.engine", "pipe_in.engine.live")]
+    bad += [t for t in _outside_stdlib(path, module) if t != "pipe_in"]
+    bad += sorted({t for t in (x.split(".")[0] for x in found) if t in WATCH_NEVER})
+    return sorted(set(bad))
+
+
+def test_d0031_ac52_live_watch_uses_only_stdlib_and_live():
+    """D0031-AC-52: 見張り（live_watch.py）は、標準ライブラリと pipe_in.engine.live だけを読む（config・pipeline・runner・live_page・live_cmd・SDK・子プロセスを読まない）。"""
+    path = ROOT / "pipe_in" / "engine" / "live_watch.py"
+    assert path.is_file()
+    assert _watch_violations(path, "pipe_in.engine.live_watch") == []
+
+
+def test_d0031_ac52_live_watch_check_finds_forbidden_imports(tmp_path):
+    """D0031-AC-52: 見張りの検査そのものが、config・pipeline・live_page・live_cmd・subprocess・SDK を読んだ場合を見つけられること。"""
+    bad = tmp_path / "live_watch.py"
+    bad.write_text(
+        "import json\nimport subprocess\nimport claude_agent_sdk\nfrom . import live\nfrom .config import load_config\n"
+        "from .pipeline import Pipeline\nfrom .live_page import build_page\nfrom . import live_cmd\n",
+        encoding="utf-8",
+    )
+    found = _watch_violations(bad, "pipe_in.engine.live_watch")
+    for word in ("subprocess", "claude_agent_sdk", "pipe_in.engine.config", "pipe_in.engine.pipeline", "pipe_in.engine.live_page", "pipe_in.engine.live_cmd"):
+        assert any(word in f for f in found), (word, found)
+    assert not any(f.endswith("engine.live") for f in found), "live は読んでよい"
+
+
+def test_d0031_ac52_live_and_live_page_do_not_read_live_watch():
+    """D0031-AC-52: live.py・live_page.py は live_watch を読まない（写しとページは見張りを知らない。依存は live_cmd → live_watch → live の向き）。"""
+    for name in ("live", "live_page"):
+        path = ROOT / "pipe_in" / "engine" / f"{name}.py"
+        assert not [t for t in _imports(path, f"pipe_in.engine.{name}") if "live_watch" in t], name
+
+
+def test_d0031_ac52_live_cmd_may_read_live_watch():
+    """D0031-AC-52: live_cmd.py は live_watch を読んでよく、実際に読んでいる（watch の下位コマンド）。cli.py は分岐の中で live_cmd を読むだけで live_watch を直接読まない。"""
+    path = ROOT / "pipe_in" / "engine" / "live_cmd.py"
+    assert "pipe_in.engine.live_watch" in _imports(path, "pipe_in.engine.live_cmd")
+    cli = (ROOT / "pipe_in" / "cli.py").read_text(encoding="utf-8")
+    assert "live_watch" not in cli
+
+
+def test_d0031_ac52_dependencies_unchanged():
+    """D0031-AC-52: 外部のパッケージの依存を足さない（pyproject.toml の dependencies が claude-agent-sdk だけ、extras は dev だけ）。今のままで通る（守り続ける検査）。"""
+    import tomllib
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    assert project["dependencies"] == ["claude-agent-sdk>=0.2.159,<0.3"]
+    assert set(project.get("optional-dependencies", {})) == {"dev"}
+
+
+def test_d0031_ac52_live_watch_is_in_an_installed_package():
+    """D0031-AC-52: 新しい .py は pipe_in.engine の中（packages に載っている）。package-data を増やさない。"""
+    import tomllib
+
+    cfg = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["setuptools"]
+    assert "pipe_in.engine" in cfg["packages"]
+    assert not any("live" in str(v) for v in cfg.get("package-data", {}).values())
+    assert (ROOT / "pipe_in" / "engine" / "live_watch.py").is_file()

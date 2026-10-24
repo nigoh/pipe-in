@@ -16,6 +16,7 @@
 | エージェント `pipe-builder` | 確認が取れた表どおりに `pipe.toml`・`prompts/`・`README.md` を書き、`pipe-in-gen check` が通るまで直す。表に無い権限の拡大はせず差し戻す |
 | スキル `/pipe-in:pipe-eval` | パイプの成果物を、検査のコマンド（`pipe.toml` の `[stages.check]` の `command`、または渡したコマンド）で確かめる。流す前に一覧を見せて返事を待ち、項目ごとの合否（終了コード 0 だけが合格）を JSON で返す。成果物は書かない・直さない |
 | スキル `/pipe-in:pipe-judge` | 成果物を、依頼とルーブリックに照らして審査する。点は審査役 `pipe-judge` が付け、総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算する。結果は JSON で返し、成果物は直さない・パイプへ差し戻さない |
+| スキル `/pipe-in:pipe-live` | ターミナルで流している pipe-in の進み具合を、Claude のアーティファクトでも見る。ページを1回だけ公開し、Monitor で `pipe-in live watch` を動かして、行を受けるたびに ArtifactData へ写しを書く。見るだけで、止める・進める・承認はできない。使えるのは claude.ai にログインした Claude Code で、Artifact・ArtifactData・Monitor が要る（無ければ何もせず止まる）。人が呼んだときだけ動く。使い方は[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch) |
 | エージェント `pipe-judge` | 項目ごとに、先に理由、次に 5 段階の点（0.0・0.25・0.5・0.75・1.0。採点できなければ null）を返す審査役。must は違反の有無と根拠。読む道具（Read・Grep・Glob）だけを持つ |
 | フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。ほかのエージェントには何もしない |
 
@@ -42,6 +43,19 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 - `--runs N`（1〜5、既定 1）で審査役を N 回呼び、平均とばらつき（`variance` の `verdict_disagreement`・`overall_range`）を出します。審査役を呼ぶたびに Claude の利用料がかかるので、2 以上では呼ぶ前に「約 N 倍」と見せて返事を待ちます。範囲の外は断ります。
 - 返す JSON のキーは `runs`・`scores`・`must_violations`・`must_unchecked`・`overall`・`threshold`・`verdict`（と、2 回以上なら `variance`）です。結果はファイルに残しません。
 - 審査役は読む道具しか持たず、成果物の中の指示には従いません。ただし Read で成果物以外のファイルも読めます（書けず、外へも出せません）。
+
+## `/pipe-in:pipe-live [--work-dir 記録のフォルダ]`
+
+ターミナルで流している `pipe-in` の進み具合を、会話の横のアーティファクトでも見ます。人が呼んだときだけ動き、見るだけです（実行を止めたり進めたり、承認したりはできません）。
+
+- はじめに、Artifact・ArtifactData・Monitor が会話にあるかを確かめます。claude.ai にログインした Claude Code で使えます（API キー・Bedrock・Vertex・Foundry では使えず、`-p`・Agent SDK などでは既定で切れています）。無ければ何もせず止まります。
+- ページは `pipe-in live page` で作って1回だけ公開し、Monitor で `pipe-in live watch` を動かします。行を受けるたびに、その写しを ArtifactData の `runs/current` に書きます。
+- `final` の行で終わります。Monitor は1回の見張りが最長30分なので、`--timeout 1750` で見張り、`timeout` の行（または Monitor の期限）で止まったときは、実行が続いていれば起こし直します。行の形と終了コードは[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch)。
+- 書くのは一時フォルダのファイルと ArtifactData だけです。利用料はかかりません。
+
+## 0.3.0 以前から更新するとき
+
+0.4.0 でスキル `/pipe-in:pipe-live` が増えました。0.3.0 以前を入れていた人は、`/plugin` で更新して入れ直してください（開いている会話に反映するには `/reload-plugins`）。`pipe-in live watch` は本体にあるので、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します。
 
 ## 0.2.0 から更新するとき
 

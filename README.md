@@ -68,7 +68,7 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 
 拡張を入れた VSCode で対象のプロジェクトを開き、コマンドパレットの「pipe-in: 実行を見る」を選ぶと、流している実行をパネルで見られます。下のステータスバーにも今の状態が出ます。入れ方は [VSCode の拡張](docs/guide/vscode.md)。
 
-Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、会話の横の Claude のアーティファクトでも進み具合（どの段が動いているか・確認待ちか・経過）を見られます。ページは見るだけで、承認は会話で行います。→ [使い方](docs/guide/usage.md#進み具合を-claude-のアーティファクトで見るpipe-in-live)
+Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、会話の横の Claude のアーティファクトでも進み具合（どの段が動いているか・確認待ちか・経過）を見られます。ページは見るだけで、承認は会話で行います。ターミナルで流している実行は、別の会話で `/pipe-in:pipe-live`（プラグイン。裏で `pipe-in live watch` が動く）を呼ぶと見られます。→ [使い方](docs/guide/usage.md#進み具合を-claude-のアーティファクトで見るpipe-in-live)
 
 <picture>
   <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="docs/assets/vscode-run-dark.png">
@@ -94,10 +94,10 @@ Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、
 
 | 文書 | 中身 |
 | --- | --- |
-| [使い方](docs/guide/usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・Claude のアーティファクトで見る（`pipe-in live`、`--artifact`）・注意 |
+| [使い方](docs/guide/usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・Claude のアーティファクトで見る（`pipe-in live`、`--artifact`、ターミナルの実行を見る `pipe-in live watch` と `/pipe-in:pipe-live`）・注意 |
 | [VSCode の拡張](docs/guide/vscode.md) | 入れ方・実行を見る・パイプ作業台 |
 | [パイプ](docs/guide/pipes.md) | 作り方・ひな形・見本のパイプ・`pipe.toml`・検証と差し戻し・分岐・Agent SDK の設定 |
-| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査のスキル・フック） |
+| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査と進み具合を見る `/pipe-in:pipe-live` のスキル・フック） |
 | [安全のしくみ](docs/guide/safety.md) | 段ごとの書き込める範囲・どの段でも止める操作 |
 | [記録と使用量](docs/guide/records.md) | 作られるファイル・アーティファクトに出す写し・まとめに出る使用量・終了コード |
 | [設定](docs/guide/config.md) | `pipeline.toml` |

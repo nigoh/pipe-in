@@ -2,9 +2,11 @@
 
   pipe-in live snapshot [--project DIR] [--config FILE] [--work-dir DIR] [--out FILE]
   pipe-in live page [--out FILE]
+  pipe-in live watch --out FILE [--project DIR] [--config FILE] [--work-dir DIR] [--interval 秒] [--timeout 秒]
 
 - 記録は読むだけ。書くのは --out のファイルだけで、読み先のフォルダの中・シンボリックリンク・親のフォルダが無い所には書かない。
 - 記録が無い・壊れているときも「記録なし」の形を出して終了コード 0。引数の誤りは終了コード 2、書けなかったときは 1。
+- watch は記録を見張り、写しが変わったときだけ --out に写しを書いて標準出力に1行（JSON）を出す。final で 0、上限で 124 で止まる。
 - 段は流さず、SDK も子プロセスも使わない。
 """
 
@@ -15,18 +17,19 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from . import live, live_page
+from . import live, live_page, live_watch
 from .config import load_config
 
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="pipe-in live",
-        description="進み具合の写し（JSON）と、それを見せるページ（HTML）を出します。記録は読むだけです。",
+        description="進み具合の写し（JSON）と、それを見せるページ（HTML）を出し、記録を見張って変わったときだけ1行を出します。記録は読むだけです。",
         allow_abbrev=False,
     )
-    sub = p.add_subparsers(dest="action", required=True, metavar="{snapshot,page}")
+    sub = p.add_subparsers(dest="action", required=True, metavar="{snapshot,page,watch}")
     s = sub.add_parser("snapshot", help="記録から写し（JSON）を作って出す", allow_abbrev=False)
     s.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
     s.add_argument("--config", type=Path, help="設定ファイル（既定: プロジェクト直下の pipeline.toml）")
@@ -38,6 +41,27 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--out", type=Path, help="書き出すファイル（省くと標準出力）")
     g = sub.add_parser("page", help="進み具合のページ（HTML）を出す", allow_abbrev=False)
     g.add_argument("--out", type=Path, help="書き出すファイル（省くと標準出力）")
+    w = sub.add_parser("watch", help="記録を見張り、写しが変わったときだけ1行（JSON）を出す", allow_abbrev=False)
+    w.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
+    w.add_argument("--config", type=Path, help="設定ファイル（既定: プロジェクト直下の pipeline.toml）")
+    w.add_argument(
+        "--work-dir",
+        type=Path,
+        help="読む記録のフォルダ（既定: 設定の work_dir。パイプの記録は docs/pipeline/<パイプ名> を渡す）",
+    )
+    w.add_argument("--out", type=Path, required=True, help="写し（JSON）を書き出すファイル（必須。標準出力は行の専用）")
+    w.add_argument(
+        "--interval",
+        type=live_watch.parse_interval,
+        default=live_watch.DEFAULT_INTERVAL,
+        help=f"読む間隔（秒。{live_watch.MIN_INTERVAL:g}〜{live_watch.MAX_INTERVAL:g}、既定 {live_watch.DEFAULT_INTERVAL:g}）",
+    )
+    w.add_argument(
+        "--timeout",
+        type=live_watch.parse_timeout,
+        default=live_watch.DEFAULT_TIMEOUT,
+        help=f"見張る上限（秒。{live_watch.MIN_TIMEOUT:g}〜{live_watch.MAX_TIMEOUT:g}、既定 {live_watch.DEFAULT_TIMEOUT:g}）",
+    )
     return p
 
 
@@ -83,9 +107,41 @@ def _emit(data: bytes, out: Path | None) -> int:
     return 0
 
 
-def main(argv: list[str], *, now: datetime | None = None) -> int:
+def _detach_stdout() -> None:
+    """標準出力の受け側が閉じたあと、終了時の flush でまた落ちないよう、記述子を os.devnull に付け替える。"""
+    try:
+        fd = os.open(os.devnull, os.O_WRONLY)
+        try:
+            os.dup2(fd, sys.stdout.fileno())
+        finally:
+            os.close(fd)
+    except Exception:  # noqa: BLE001 - 付け替えられなくても止まり方は変えない
+        pass
+
+
+def _watch(parser: argparse.ArgumentParser, args: argparse.Namespace, deps: dict[str, Any] | None) -> int:
+    work_dir = args.work_dir if args.work_dir is not None else load_config(args.project, args.config).work_dir
+    reason = _check_out(args.out, work_dir)
+    if reason is None and args.out.is_dir():
+        reason = "--out にフォルダは指定できません"
+    if reason:
+        parser.error(reason)
+    hide = _hide_forms(work_dir)
+    restore = live_watch.install_sigterm()
+    try:
+        code = live_watch.watch(work_dir, args.out, interval=args.interval, timeout=args.timeout, hide=hide, **(deps or {}))
+    finally:
+        restore()
+    if code == live_watch.EXIT_WRITE_OR_PIPE and not (deps and "stdout" in deps):
+        _detach_stdout()
+    return code
+
+
+def main(argv: list[str], *, now: datetime | None = None, watch_deps: dict[str, Any] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
+    if args.action == "watch":
+        return _watch(parser, args, watch_deps)
     if args.action == "page":
         if args.out is not None:
             reason = _check_out(args.out, None)
