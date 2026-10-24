@@ -51,6 +51,8 @@ SNS 向けの短い紹介動画を、段の区切りで人が確かめながら�
   - D0011-AC-67 `render`・`verify` の指示文に、最後の回が空で1案だけなら承認されたものとして扱うことが書いてある（`tests/test_video_example.py::test_render_and_verify_treat_approved_last_round_as_chosen`）
 - FR-10 `verify` は、こまを幅 540 以下の JPEG に縮めて取り出してから読む（実機で流して、原寸 1080×1920 の PNG を読んだところ、SDK の1通の上限 1MB を超えて段ごと落ちたため。縮めると利用料も下がる）
   - D0011-AC-68 `verify` の指示文に、幅 540 以下・JPEG・1MB の上限のことが書いてある（`tests/test_video_example.py::test_verify_reads_small_frames`）
+- FR-11 `verify` が読むこまは 16 枚までにする。字幕の切り替わりごとに1枚と最初と最後を基本にし、気になる所だけ足す（実機で流して、こまを 43 枚読み、利用料の上限 1 ドルを超えて判定を書く前に止まったため）
+  - D0011-AC-69 `verify` の指示文に、16 枚までと、切り替わりごとに1枚が書いてある（`tests/test_video_example.py::test_verify_caps_frames_it_reads`）
 - 手で・実機で確かめるもの（利用料がかかる、または Playwright・ffmpeg が要る）
   - D0011-AC-17（実機）最後まで流すと、縦長 1080×1920・30fps・H.264・yuv420p の MP4 が1本できる
   - D0011-AC-18・D0011-AC-19（実機）`ask` の答えが字幕に、直した台本がこまに反映される

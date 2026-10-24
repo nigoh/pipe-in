@@ -450,7 +450,7 @@ def test_structured_output_tool_is_never_denied(tmp_path):
         assert reason is None, name
 
 
-# ---- D0032: 差し戻しでやり直した段のサブエージェントの数え直し ---------------------------------
+# ---- D0034: 差し戻しでやり直した段のサブエージェントの数え直し ---------------------------------
 
 
 AGENT_STAGE = (
@@ -471,15 +471,15 @@ class AgentCallingRunner(ScriptedRunner):
         guard = self.stage_guard(spec, cfg)
         passed = []
         for i in range(spec.max_agent_calls + 1):
-            # 待つ形（run_in_background: False）。書かない形は D0032-AC-22 で止まるので、数え直しを見るには足す
+            # 待つ形（run_in_background: False）。書かない形は D0034-AC-22 で止まるので、数え直しを見るには足す
             out = await guard({"tool_name": "Agent", "tool_input": {"prompt": f"x{i}", "run_in_background": False}}, f"t-{i}", None)
             passed.append(out == {})
         self.agent_results.append(passed)
         return await super().__call__(spec, prompt, cfg, resume=resume, log_name=log_name)
 
 
-def test_d0032_ac14_差し戻しでやり直した段のガードは0から数える(tmp_path):
-    """D0032-AC-14: 1回目の実行で上限まで呼び、検証が fail で差し戻した2回目の実行のガードは 0 から数え、最初の呼び出しが通る。"""
+def test_d0034_ac14_差し戻しでやり直した段のガードは0から数える(tmp_path):
+    """D0034-AC-14: 1回目の実行で上限まで呼び、検証が fail で差し戻した2回目の実行のガードは 0 から数え、最初の呼び出しが通る。"""
     from pipe_in.engine.runner import stage_guard
 
     pipe = make_pipe(tmp_path, pipe_toml(stage_toml("s", AGENT_STAGE + '[stages.check]\nverdict = true\n')))
@@ -489,8 +489,8 @@ def test_d0032_ac14_差し戻しでやり直した段のガードは0から数�
     assert r.agent_results == [[True, True, False], [True, True, False]]
 
 
-def test_d0032_ac14_差し戻しが続いてもmax_retriesで止まる(tmp_path):
-    """D0032-AC-14: 差し戻しが続いても、段を流す回数は今までどおり check.max_retries で止まる（runner は max_retries + 1 回）。"""
+def test_d0034_ac14_差し戻しが続いてもmax_retriesで止まる(tmp_path):
+    """D0034-AC-14: 差し戻しが続いても、段を流す回数は今までどおり check.max_retries で止まる（runner は max_retries + 1 回）。"""
     from pipe_in.engine.runner import stage_guard
 
     pipe = make_pipe(tmp_path, pipe_toml(stage_toml("s", AGENT_STAGE + '[stages.check]\nverdict = true\nmax_retries = 2\n')))

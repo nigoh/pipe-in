@@ -1,4 +1,4 @@
-# D0033 段の Bash による書き込みを、段の書き込み範囲で止める（リダイレクト・tee・sed -i・cp・mv・touch・python -c など。先が読めなければ止める）
+# D0035 段の Bash による書き込みを、段の書き込み範囲で止める（リダイレクト・tee・sed -i・cp・mv・touch・python -c など。先が読めなければ止める）
 
 ## 目的
 
@@ -28,41 +28,41 @@
 
 ### 受け入れ基準
 
-- D0033-AC-01 `access = "code"` の段で `echo x > tests/test_a.py`・`echo x >> tests/test_a.py`・`echo x &> tests/log.txt`・`echo x >| tests/t.py` は止まり、理由は「この段で書き込めるのは … だけです（tests/test_a.py は対象外）」の形。
-- D0033-AC-02 範囲の中への書き込み（`code` の段の `echo x > src/a.py`、`tests` の段の `echo x > tests/test_a.py`、開発フローの実装の段の `echo x > docs/pipeline/04_implementation.md`）は通る。
-- D0033-AC-03 `/dev/null` への書き込みと fd の付け替え（`ls > /dev/null 2>&1`・`ls 2>&1`・`ls >&2`・`pytest -q 2>&1 | tail -20`）は、どの段でも通る。
-- D0033-AC-04 `tee`（`-a` を含む）・`sed -i`（`-i.bak`・`-ni`・`--in-place=.bak`・`-e` つき）・`perl -pi -e` の書き込み先が範囲外なら止まる。`sed -n '1,5p' tests/a.py`（`-i` なし）と、先が範囲内のものは通る。
-- D0033-AC-05 `cp`・`mv`・`ln -s`・`install` は宛先（`-t`・末尾 `/`・複数の元でのディレクトリ宛先を含む）が範囲外なら止まる。`mv` は元が範囲外でも止まる。`cp tests/a.py /tmp/a.py` や `cp src/a.py src/b.py`（`code` の段）は通る。
-- D0033-AC-06 `touch`・`rm`・`unlink`・`rmdir`・`truncate`・`dd of=`・`git restore`・`git rm`・`git mv` の先が範囲外なら止まる。`rm build/tmp.txt`（実装の段）は今までどおり通る。
-- D0033-AC-07 `find <範囲外のフォルダ> … -delete` は止まる。`find … -exec <書き込みの形> {} \;` と `… | xargs rm` は、渡す先が読めないので止まる。書き込みの形でない `find . -name x -exec grep y {} \;` は通る。
-- D0033-AC-08 `mkdir` は、プロジェクトの外（一時の場所を除く）・読めない先のときだけ止め、プロジェクトの中は通す（空のフォルダを作るだけで、テストやコードの中身は変えられないため）。
-- D0033-AC-09 `python -c`・`python3 -c`・`node -e` の中の書き込みの形（FR-04 の一覧）の先が文字で書かれ、範囲外なら止まる。範囲内・読み取り（`open('x')`・`open('x','r')`）は通る。
-- D0033-AC-10 `python - <<'EOF' … open('tests/t.py','w') … EOF` のように、標準入力から読ませるコードも `-c` と同じに見る。コードに書き込みの形が無い `python - <<'EOF' print(1) EOF` は通る。
-- D0033-AC-11 プロジェクトの外：`echo x > /etc/hosts`・`echo x > ../outside.txt`・`echo x > ~/note.txt`・`echo x > /tmp/../etc/passwd`・`tee /etc/x` は止まり、理由は「プロジェクトの外には書き込めません」。
-- D0033-AC-12 一時の場所：`echo x > /tmp/a.txt`・`pytest -q 2>&1 | tee /tmp/out.log`・`echo x > $TMPDIR/a.txt`・`echo x > ${TMPDIR}/a.txt`・`mkdir -p /tmp/work` は通る。同じコマンドの中か前の呼び出しで `TMPDIR`・`TEMP`・`TMP`・`HOME` に代入があるときは、`$TMPDIR/…`・`~/…` は読めない先として止まる。
-- D0033-AC-13 先が読み取れない書き込みの形は止まり、理由に「先を文字で書いてください」が入る：`echo x > $OUT`・`tee "$F"`・`cp a.py $(dirname b)/x`・`touch $(mktemp)`・`` echo x > `pwd`/a ``・`python -c "open(p,'w')"`。
-- D0033-AC-14 続くコマンドと入れ子：`ls; echo x > tests/a.py`・`ls && cmd | tee tests/a.py`・改行区切り・`( … )`・`bash -c 'echo x > tests/a.py'`・`echo $(touch tests/a.py)`・`env FOO=1 timeout 10 tee tests/a.py` は、どこかに範囲外の書き込みがあれば止まる。範囲内だけなら通る。
-- D0033-AC-15 引用符とヒアドキュメント：`echo "a > b"`・`grep '>' src/a.py`・`cat <<'EOF'`（本文に `> tests/a.py`）は書き込みでないので通る。`cat > src/app.py <<'EOF'`（`tests` の段）は止まる。引用符なしの区切りの本文の `$(touch tests/a.py)` は止まる。
-- D0033-AC-16 `cd` を追う：`cd tests && touch a.py`（`code` の段）は止まり、`cd src && touch a.py` は通る。`cd tests` を通したあとの別の呼び出しの `touch a.py` も止まる（作業フォルダが変わった可能性を残す）。`cd $X` のあとの `touch a.py` は止まる。
-- D0033-AC-17 `access = "read"` の段：自分の成果物（`echo x > docs/pipeline/xx.md`）への書き込みは通り、`echo x > src/a.py`・`cp a b`・`sed -i … src/a.py` は止まる。
-- D0033-AC-18 `writes` で絞った段（`writes = ["out/*.svg"]` など）：絞りの中の先は通り、絞りの外は止まる。`protected_paths` に当たる先は止まる。
-- D0033-AC-19 今までのコマンドは止まらない：`pytest -q`・`python -m pytest -q tests/ -x`・`npm test`・`npm --prefix vscode test`・`sh check.sh --fast`・`git status`・`pip install pytest`・`pytest --junitxml=report.xml`・`ls`・`pytest > /dev/null 2>&1`。既存のテスト（`tests/test_pipeline.py`・`test_pipe.py`・`test_agent_guard.py` など）が変更なしで通る。
-- D0033-AC-20 見分けられない形は止めない：`python build.py`・`make test`・`./gen.sh`・`echo hi | python script.py`・`git apply x.patch`・`tar xf a.tar` は通る（すり抜けの道として決定の記録に書く）。
-- D0033-AC-21 `DANGEROUS_BASH` が先に効く：`git push > /dev/null`・`rm -rf tests > /dev/null` は、書き込み先が範囲内でも今までの理由で止まる。`allow_bash = false` の段の `Bash` は「この段では Bash を使えません」のまま。
-- D0033-AC-22 読めない入力：引用符が閉じていない（`echo "abc > x`）・`$(` が閉じていない・入れ子が 5 段を超える（`bash -c 'bash -c …'`）・`command` が文字でない（`None`・`[]`）ときは、落ちずに理由を返して止まる。空のコマンドは今までどおりの扱い。
-- D0033-AC-23 止めた操作は、ほかの止めた操作と同じく `StageRun.denials` に `"Bash: <理由>"` の形で残る（`on_deny`）。段は失敗にならない。
-- D0033-AC-24 `make_guard_hook` が作るガードを通る本物の経路でも、AC-01・AC-11・AC-16 が同じに止まる。2つのガードは作業フォルダの覚えを分け合わない。
-- D0033-AC-25 `generator/guard_hook.py`（pipe-builder）と `.claude/hooks/pipe_in_guard.py`（tester・coder・verifier・analyst・documenter・読むだけの役）は変えず、`echo x > f`・`tee f`・`sed -i`・`cp`・`mv`・`touch`・`python -c …` が今も止まる。
-- D0033-AC-26 新しい部品 `pipe_in/engine/bashwrite.py` は標準ライブラリだけを読み、`pipe_in.dev`・`pipe_in.pipe`・`pipe_in_generator` を読まない（`tests/test_architecture.py`）。
-- D0033-AC-27 （古い形）記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）・終了コード・`pipeline.toml`・`pipe.toml`・置き場所は変わらない。新しい設定項目は足さない。止めるようになった操作は、今の `denials` の形で残る。
+- D0035-AC-01 `access = "code"` の段で `echo x > tests/test_a.py`・`echo x >> tests/test_a.py`・`echo x &> tests/log.txt`・`echo x >| tests/t.py` は止まり、理由は「この段で書き込めるのは … だけです（tests/test_a.py は対象外）」の形。
+- D0035-AC-02 範囲の中への書き込み（`code` の段の `echo x > src/a.py`、`tests` の段の `echo x > tests/test_a.py`、開発フローの実装の段の `echo x > docs/pipeline/04_implementation.md`）は通る。
+- D0035-AC-03 `/dev/null` への書き込みと fd の付け替え（`ls > /dev/null 2>&1`・`ls 2>&1`・`ls >&2`・`pytest -q 2>&1 | tail -20`）は、どの段でも通る。
+- D0035-AC-04 `tee`（`-a` を含む）・`sed -i`（`-i.bak`・`-ni`・`--in-place=.bak`・`-e` つき）・`perl -pi -e` の書き込み先が範囲外なら止まる。`sed -n '1,5p' tests/a.py`（`-i` なし）と、先が範囲内のものは通る。
+- D0035-AC-05 `cp`・`mv`・`ln -s`・`install` は宛先（`-t`・末尾 `/`・複数の元でのディレクトリ宛先を含む）が範囲外なら止まる。`mv` は元が範囲外でも止まる。`cp tests/a.py /tmp/a.py` や `cp src/a.py src/b.py`（`code` の段）は通る。
+- D0035-AC-06 `touch`・`rm`・`unlink`・`rmdir`・`truncate`・`dd of=`・`git restore`・`git rm`・`git mv` の先が範囲外なら止まる。`rm build/tmp.txt`（実装の段）は今までどおり通る。
+- D0035-AC-07 `find <範囲外のフォルダ> … -delete` は止まる。`find … -exec <書き込みの形> {} \;` と `… | xargs rm` は、渡す先が読めないので止まる。書き込みの形でない `find . -name x -exec grep y {} \;` は通る。
+- D0035-AC-08 `mkdir` は、プロジェクトの外（一時の場所を除く）・読めない先のときだけ止め、プロジェクトの中は通す（空のフォルダを作るだけで、テストやコードの中身は変えられないため）。
+- D0035-AC-09 `python -c`・`python3 -c`・`node -e` の中の書き込みの形（FR-04 の一覧）の先が文字で書かれ、範囲外なら止まる。範囲内・読み取り（`open('x')`・`open('x','r')`）は通る。
+- D0035-AC-10 `python - <<'EOF' … open('tests/t.py','w') … EOF` のように、標準入力から読ませるコードも `-c` と同じに見る。コードに書き込みの形が無い `python - <<'EOF' print(1) EOF` は通る。
+- D0035-AC-11 プロジェクトの外：`echo x > /etc/hosts`・`echo x > ../outside.txt`・`echo x > ~/note.txt`・`echo x > /tmp/../etc/passwd`・`tee /etc/x` は止まり、理由は「プロジェクトの外には書き込めません」。
+- D0035-AC-12 一時の場所：`echo x > /tmp/a.txt`・`pytest -q 2>&1 | tee /tmp/out.log`・`echo x > $TMPDIR/a.txt`・`echo x > ${TMPDIR}/a.txt`・`mkdir -p /tmp/work` は通る。同じコマンドの中か前の呼び出しで `TMPDIR`・`TEMP`・`TMP`・`HOME` に代入があるときは、`$TMPDIR/…`・`~/…` は読めない先として止まる。
+- D0035-AC-13 先が読み取れない書き込みの形は止まり、理由に「先を文字で書いてください」が入る：`echo x > $OUT`・`tee "$F"`・`cp a.py $(dirname b)/x`・`touch $(mktemp)`・`` echo x > `pwd`/a ``・`python -c "open(p,'w')"`。
+- D0035-AC-14 続くコマンドと入れ子：`ls; echo x > tests/a.py`・`ls && cmd | tee tests/a.py`・改行区切り・`( … )`・`bash -c 'echo x > tests/a.py'`・`echo $(touch tests/a.py)`・`env FOO=1 timeout 10 tee tests/a.py` は、どこかに範囲外の書き込みがあれば止まる。範囲内だけなら通る。
+- D0035-AC-15 引用符とヒアドキュメント：`echo "a > b"`・`grep '>' src/a.py`・`cat <<'EOF'`（本文に `> tests/a.py`）は書き込みでないので通る。`cat > src/app.py <<'EOF'`（`tests` の段）は止まる。引用符なしの区切りの本文の `$(touch tests/a.py)` は止まる。
+- D0035-AC-16 `cd` を追う：`cd tests && touch a.py`（`code` の段）は止まり、`cd src && touch a.py` は通る。`cd tests` を通したあとの別の呼び出しの `touch a.py` も止まる（作業フォルダが変わった可能性を残す）。`cd $X` のあとの `touch a.py` は止まる。
+- D0035-AC-17 `access = "read"` の段：自分の成果物（`echo x > docs/pipeline/xx.md`）への書き込みは通り、`echo x > src/a.py`・`cp a b`・`sed -i … src/a.py` は止まる。
+- D0035-AC-18 `writes` で絞った段（`writes = ["out/*.svg"]` など）：絞りの中の先は通り、絞りの外は止まる。`protected_paths` に当たる先は止まる。
+- D0035-AC-19 今までのコマンドは止まらない：`pytest -q`・`python -m pytest -q tests/ -x`・`npm test`・`npm --prefix vscode test`・`sh check.sh --fast`・`git status`・`pip install pytest`・`pytest --junitxml=report.xml`・`ls`・`pytest > /dev/null 2>&1`。既存のテスト（`tests/test_pipeline.py`・`test_pipe.py`・`test_agent_guard.py` など）が変更なしで通る。
+- D0035-AC-20 見分けられない形は止めない：`python build.py`・`make test`・`./gen.sh`・`echo hi | python script.py`・`git apply x.patch`・`tar xf a.tar` は通る（すり抜けの道として決定の記録に書く）。
+- D0035-AC-21 `DANGEROUS_BASH` が先に効く：`git push > /dev/null`・`rm -rf tests > /dev/null` は、書き込み先が範囲内でも今までの理由で止まる。`allow_bash = false` の段の `Bash` は「この段では Bash を使えません」のまま。
+- D0035-AC-22 読めない入力：引用符が閉じていない（`echo "abc > x`）・`$(` が閉じていない・入れ子が 5 段を超える（`bash -c 'bash -c …'`）・`command` が文字でない（`None`・`[]`）ときは、落ちずに理由を返して止まる。空のコマンドは今までどおりの扱い。
+- D0035-AC-23 止めた操作は、ほかの止めた操作と同じく `StageRun.denials` に `"Bash: <理由>"` の形で残る（`on_deny`）。段は失敗にならない。
+- D0035-AC-24 `make_guard_hook` が作るガードを通る本物の経路でも、AC-01・AC-11・AC-16 が同じに止まる。2つのガードは作業フォルダの覚えを分け合わない。
+- D0035-AC-25 `generator/guard_hook.py`（pipe-builder）と `.claude/hooks/pipe_in_guard.py`（tester・coder・verifier・analyst・documenter・読むだけの役）は変えず、`echo x > f`・`tee f`・`sed -i`・`cp`・`mv`・`touch`・`python -c …` が今も止まる。
+- D0035-AC-26 新しい部品 `pipe_in/engine/bashwrite.py` は標準ライブラリだけを読み、`pipe_in.dev`・`pipe_in.pipe`・`pipe_in_generator` を読まない（`tests/test_architecture.py`）。
+- D0035-AC-27 （古い形）記録（`state.json`・`99_summary.md`・`logs/*.jsonl`）・終了コード・`pipeline.toml`・`pipe.toml`・置き場所は変わらない。新しい設定項目は足さない。止めるようになった操作は、今の `denials` の形で残る。
 
 監査のあとに足した受け入れ基準（`code` の段で確かめる）：
 
-- D0033-AC-28 `tee --output-error tests/a.py` は止まる。`--output-error` は `=` つきのときだけ値を持つ（`tee --output-error=warn tests/a.py` も止まる）。
-- D0033-AC-29 フォルダの `mv`・`rmdir`（`mv tests x`・`mv tests/ /tmp/x`・`rmdir tests`）は、フォルダそのものとその下の両方が書けるときだけ通す。`mv src/a.py src/b.py` は通る。
-- D0033-AC-30 最後の部品に glob（`*`・`?`・`[`）を含む先は、本物のファイルを指さないので読めない先として止める（`rm *.py`・`rm ?est_a.py`・`git restore '*.py'`）。一時の場所の下（`rm /tmp/*.log`）は通す。`:` で始まる `git` の pathspec（`git restore :/tests`）は止める。
-- D0033-AC-31 `node --eval=…` を `-e` と同じに読む。`Path(先).open('w')` のモードも見る（`Path('tests/a.py').open('w')` は止まり、`open()`・`open('r')` は通る）。
-- D0033-AC-32 根や上を指すフォルダの操作（`find . -delete`・`git restore .`）は、プロジェクトの中に実際にあるファイルを下まで見て、1つでも段の範囲外があれば止める。`.git` の中は見ない。見るファイルが 5000 を超えたら止める（安全側）。
+- D0035-AC-28 `tee --output-error tests/a.py` は止まる。`--output-error` は `=` つきのときだけ値を持つ（`tee --output-error=warn tests/a.py` も止まる）。
+- D0035-AC-29 フォルダの `mv`・`rmdir`（`mv tests x`・`mv tests/ /tmp/x`・`rmdir tests`）は、フォルダそのものとその下の両方が書けるときだけ通す。`mv src/a.py src/b.py` は通る。
+- D0035-AC-30 最後の部品に glob（`*`・`?`・`[`）を含む先は、本物のファイルを指さないので読めない先として止める（`rm *.py`・`rm ?est_a.py`・`git restore '*.py'`）。一時の場所の下（`rm /tmp/*.log`）は通す。`:` で始まる `git` の pathspec（`git restore :/tests`）は止める。
+- D0035-AC-31 `node --eval=…` を `-e` と同じに読む。`Path(先).open('w')` のモードも見る（`Path('tests/a.py').open('w')` は止まり、`open()`・`open('r')` は通る）。
+- D0035-AC-32 根や上を指すフォルダの操作（`find . -delete`・`git restore .`）は、プロジェクトの中に実際にあるファイルを下まで見て、1つでも段の範囲外があれば止める。`.git` の中は見ない。見るファイルが 5000 を超えたら止める（安全側）。
 
 ## 決めたことと理由
 
@@ -116,18 +116,18 @@
 
 ## 番号
 
-D0031・D0032 の次の空いた番号。D0032（段の中のサブエージェントの呼び方）の上に積んでいる。
+D0031〜D0034 は使われていた（D0032 は guard-fail-closed、D0033 は sdk-buffer のテスト、D0034 は段の中のサブエージェントの呼び方）ので、D0035 にした。D0034 の上に積んでいる。
 
 ## 確かめたこと
 
-- `tests/test_bash_write_guard.py`（止める例・通す例を `check_tool` と `make_guard_hook` の両方の経路で）と、`tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py`・`tests/test_architecture.py` の D0033 のテスト、全体のテストが通った（SDK は呼ばない）。
+- `tests/test_bash_write_guard.py`（止める例・通す例を `check_tool` と `make_guard_hook` の両方の経路で）と、`tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py`・`tests/test_architecture.py` の D0035 のテスト、全体のテストが通った（SDK は呼ばない）。
 - 実機の SDK の段で止まるかは、まだ確かめていない。
 - 監査と助言のあとに足した AC-28〜32 も、テストが通った。AC-32 のテストの前提（パイプのフォルダの `pipe.toml` は `code` の段の範囲外なので、根を指す削除で止まるのが正しい）は、実装の段の異議を受けて直した。
 
 ## 監査と助言
 
 検証で合格したあと、矛盾監査（A-01〜A-14）と公式の文書と照らした助言（V-01〜V-09）を流した。助言の報告の審査は総合 0.94 で合格。人が「コードと文書を直し、sandbox は後の機能にする」を選んだ。
-- コードで直した：A-01（`tee --output-error`）、A-02（フォルダの `mv`・`rmdir`）、A-04（glob と `:` の pathspec）、A-07（`node --eval=`・`Path().open(モード)`）、A-12（根を指すフォルダの操作は実際のファイルを見る）。テストは D0033-AC-28〜32。
+- コードで直した：A-01（`tee --output-error`）、A-02（フォルダの `mv`・`rmdir`）、A-04（glob と `:` の pathspec）、A-07（`node --eval=`・`Path().open(モード)`）、A-12（根を指すフォルダの操作は実際のファイルを見る）。テストは D0035-AC-28〜32。
 - 文書で直した：A-03・A-05・A-06・A-13（すり抜けの道に足した）、A-08（止める形の一覧にした理由）、A-09（理由の文の書き方）、A-10・A-11（安全側に止めるもの・`mkdir` の例外）、A-14（開発の文書の検査の表）、V-07（公式の文書の出典）。
 - 後の機能にした：V-01〜V-05（Agent SDK の `sandbox` を重ねる。「対象外・残った課題」に決めることを書いた）。V-06・V-08・V-09 は今のままでよいことの確認。
 

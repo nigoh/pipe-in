@@ -22,7 +22,7 @@ def _stage_rules() -> str:
 
 
 def _agent_rules(limit: int, *, bash: bool) -> str:
-    """agents のある段だけに足す、サブエージェントの呼び方の決まり（D0032）。ガードが止めることを先に伝える。"""
+    """agents のある段だけに足す、サブエージェントの呼び方の決まり（D0034）。ガードが止めることを先に伝える。"""
     lines = [
         "",
         "",

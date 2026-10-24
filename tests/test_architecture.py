@@ -334,8 +334,8 @@ def test_d0031_ac52_live_watch_is_in_an_installed_package():
     assert (ROOT / "pipe_in" / "engine" / "live_watch.py").is_file()
 
 
-def test_d0033_ac26_bashwriteは標準ライブラリだけ():
-    """D0033-AC-26: pipe_in/engine/bashwrite.py は標準ライブラリだけを読む（pipe_in.dev・pipe_in.pipe・pipe_in_generator・SDK を読まない）。"""
+def test_d0035_ac26_bashwriteは標準ライブラリだけ():
+    """D0035-AC-26: pipe_in/engine/bashwrite.py は標準ライブラリだけを読む（pipe_in.dev・pipe_in.pipe・pipe_in_generator・SDK を読まない）。"""
     path = ROOT / "pipe_in" / "engine" / "bashwrite.py"
     assert path.is_file(), "pipe_in/engine/bashwrite.py がまだ無い"
     assert _outside_stdlib(path, "pipe_in.engine.bashwrite") == []
