@@ -70,5 +70,7 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
 - 作った物を確かめる段には `[stages.check]`（`verdict = true` で判定させ、`on_fail` で直す段へ戻す。テストで確かめられるなら `command`）。
 - 目的で道が分かれるなら `[stages.routes]`、分岐先の最後には `next`。互いに独立した段は `group` で同時に流す。
 - 段の中で手分けしたいときは `[stages.agents.<名前>]`。方針だけを立てさせたい段は `permission_mode = "plan"`。
+- サブエージェントは待つ形（`run_in_background: false` を付ける。付けないと裏で動くので止まる）でしか呼べず、`isolation` も付けられない。1回の実行で呼べるのは `max_agent_calls` 回まで（既定 20。`agents` のある段だけに書ける）。手分けの数が多い段だけ、要る数を `max_agent_calls` に書く。サブエージェントの中からさらにサブエージェントは呼べない。段の指示文にもこの呼び方を書いておくと、止められて呼び直す手間が減る。
+- Bash を裏で動かす呼び方（`run_in_background: true`）は、どの段でも止まる。
 - Web や MCP は、要る段だけに `web`・`mcp` を書く。`web` はできればドメインの一覧で絞り、MCP は読むだけの道具を選ぶ。MCP を使うなら、対象の `pipeline.toml` の `setting_sources` に設定の出どころが要ることを伝える。
 - 会話を挟まずに Claude に段を組ませる `pipe-in-gen design` もあるが、利用料がかかるので、人に言われたときだけ使う（pipe-builder には使わせない）。

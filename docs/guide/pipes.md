@@ -209,6 +209,11 @@ group = "draw"
 
 - 許可のモード（`permission_mode`）・考える量（`max_thinking_tokens`）・予備のモデル（`fallback_model`）・この段の決まり（`system_append`）・追加で読めるフォルダ（`add_dirs`）・使う MCP の道具（`mcp`）・サブエージェント（`agents`）・この段だけの MCP サーバー（`mcp_servers`）。
 - `agents` のある段だけ、サブエージェントに任せる道具（`Task`・`Agent`）を通します。サブエージェントの道具の呼び出しにも guard が掛かるので、書き込める範囲や止める操作は段と同じです（本物で確かめています）。
+- サブエージェント（`Agent`・`Task`）は `run_in_background: false` を付けて（待つ形で）呼びます。付けないとメインからは裏で動くので、guard が止めます。段は、応答が終わると裏の作業の結果を待てないためです。`isolation` を付けた呼び出しも止めます。`Bash` は `run_in_background` を書かなければ待つ形で、`false` 以外の値を付けると、どの段でも止めます。段の指示文に「`run_in_background: false` で呼び、全部返るまで待つ」と書いておくと、止められて呼び直す手間が減ります。
+- 1回の実行で呼べるサブエージェントは、`max_agent_calls` 回までです（既定 20。1 以上の整数で、`agents` のある段だけに書けます）。超えた呼び出しは止めて、それまでに返った結果で成果物を書かせます。段は失敗にしません。差し戻しのやり直し・指摘の反映・`group` の段は、それぞれ 0 から数えます。止めた呼び出しは数えません。
+- サブエージェントの中からのサブエージェントの呼び出しは止めます（くわしくは[安全の仕組み](safety.md#どの段でも止める操作)）。
+- VSCode の作業台でパイプを開いて保存すると、`max_agent_calls` は消えます（上限は既定の 20 に戻ります）。変えた上限を残すときは、`pipe.toml` を直接直してください。
+- 古い版の pipe-in は `max_agent_calls` を知らないキーとして黙って無視します（古い版には上限がありません）。
 - `mcp_servers` を書いても、使う道具を `mcp` に書かなければ使えません。
 - 受信バッファの上限（`max_buffer_size`）だけは、書かなくてもいつも SDK に渡します。値は段ごとではなく、`pipeline.toml` の `[pipeline]` の `max_buffer_mb`（既定 32MB）で決めます（[設定](config.md)）。
 
@@ -225,6 +230,7 @@ fallback_model = "sonnet"         # 予備のモデル
 system_append = "表を使って書く"   # この段の決まり（system prompt に足す）
 add_dirs = ["../shared-docs"]     # 追加で読めるフォルダ（プロジェクトからの相対パス。書き込みはできない）
 mcp = ["mcp__jira__get_issue"]    # 使う MCP の道具
+max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）
 
 [stages.agents.module-reader]     # サブエージェント
 description = "1つのモジュールを読んで要点を返す"

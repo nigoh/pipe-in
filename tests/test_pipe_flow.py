@@ -450,6 +450,56 @@ def test_structured_output_tool_is_never_denied(tmp_path):
         assert reason is None, name
 
 
+# ---- D0032: 差し戻しでやり直した段のサブエージェントの数え直し ---------------------------------
+
+
+AGENT_STAGE = (
+    'max_agent_calls = 2\n'
+    '[stages.agents.reader]\ndescription = "1つのモジュールを読む"\nprompt = "渡されたモジュールだけを読む"\ntools = ["Read"]\n'
+)
+
+
+class AgentCallingRunner(ScriptedRunner):
+    """呼ばれるたびに、本物と同じ stage_guard で段の1回の実行のガードを作り、上限＋1 回の Agent を通して結果を残す偽物。"""
+
+    def __init__(self, pipe, structured=None, *, stage_guard):
+        super().__init__(pipe, structured)
+        self.stage_guard = stage_guard
+        self.agent_results: list[list[bool]] = []  # 実行ごとに、各呼び出しが通ったか
+
+    async def __call__(self, spec, prompt, cfg, *, resume, log_name):
+        guard = self.stage_guard(spec, cfg)
+        passed = []
+        for i in range(spec.max_agent_calls + 1):
+            # 待つ形（run_in_background: False）。書かない形は D0032-AC-22 で止まるので、数え直しを見るには足す
+            out = await guard({"tool_name": "Agent", "tool_input": {"prompt": f"x{i}", "run_in_background": False}}, f"t-{i}", None)
+            passed.append(out == {})
+        self.agent_results.append(passed)
+        return await super().__call__(spec, prompt, cfg, resume=resume, log_name=log_name)
+
+
+def test_d0032_ac14_差し戻しでやり直した段のガードは0から数える(tmp_path):
+    """D0032-AC-14: 1回目の実行で上限まで呼び、検証が fail で差し戻した2回目の実行のガードは 0 から数え、最初の呼び出しが通る。"""
+    from pipe_in.engine.runner import stage_guard
+
+    pipe = make_pipe(tmp_path, pipe_toml(stage_toml("s", AGENT_STAGE + '[stages.check]\nverdict = true\n')))
+    r = AgentCallingRunner(pipe, {"s": [FAIL(), PASS]}, stage_guard=stage_guard)
+    assert run(tmp_path, pipe, r) == Exit.PASSED
+    assert len(r.calls) == 2
+    assert r.agent_results == [[True, True, False], [True, True, False]]
+
+
+def test_d0032_ac14_差し戻しが続いてもmax_retriesで止まる(tmp_path):
+    """D0032-AC-14: 差し戻しが続いても、段を流す回数は今までどおり check.max_retries で止まる（runner は max_retries + 1 回）。"""
+    from pipe_in.engine.runner import stage_guard
+
+    pipe = make_pipe(tmp_path, pipe_toml(stage_toml("s", AGENT_STAGE + '[stages.check]\nverdict = true\nmax_retries = 2\n')))
+    r = AgentCallingRunner(pipe, {"s": [FAIL(), FAIL(), FAIL(), FAIL()]}, stage_guard=stage_guard)
+    assert run(tmp_path, pipe, r) == Exit.TEST_FAILED
+    assert len(r.calls) == 3
+    assert all(results == [True, True, False] for results in r.agent_results), r.agent_results
+
+
 # ---- D0001-AC-14: pipe-in --pipe は対象の .pipe-in/pipes/ から読む ---------------------------
 
 

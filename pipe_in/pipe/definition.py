@@ -138,6 +138,8 @@ class PipeStage:
     add_dirs: list[str] = field(default_factory=list)
     agents: dict[str, AgentDef] = field(default_factory=dict)
     mcp_servers: dict[str, McpServerDef] = field(default_factory=dict)
+    # 段の1回の実行で呼べるサブエージェントの数（D0032）。省くと既定（20）。agents のある段だけに書ける
+    max_agent_calls: int | None = None
     # 読み込みのときに見つけた、型の誤り（check_pipe が報告する）
     problems: list[str] = field(default_factory=list)
 
@@ -258,6 +260,9 @@ def find_pipe(name_or_path: str, pipes_dir: Path | None = None, *, project: Path
 
 
 # ---- 読み込み -------------------------------------------------------------
+
+
+MAX_AGENT_CALLS_ERROR = "max_agent_calls は 1 以上の整数で書いてください"
 
 
 def _opt_int(value: Any) -> int | None:
@@ -395,6 +400,9 @@ def _load_stage(s: dict[str, Any], pipe_dir: Path) -> PipeStage:
         routes = dict(routes_raw)
     else:
         problems.append("routes は「選んだ値 = 次の段」の表（[stages.routes]）で書いてください")
+    max_agent_calls = _opt_int(s.get("max_agent_calls"))
+    if "max_agent_calls" in s and max_agent_calls is None:
+        problems.append(MAX_AGENT_CALLS_ERROR)
     return PipeStage(
         name=str(s.get("name", "")),
         label=str(s.get("label") or s.get("name", "")),
@@ -423,6 +431,7 @@ def _load_stage(s: dict[str, Any], pipe_dir: Path) -> PipeStage:
         add_dirs=_str_list(s.get("add_dirs"), "add_dirs", problems),
         agents=_load_agents(s.get("agents"), problems),
         mcp_servers=_load_mcp_servers(s.get("mcp_servers"), problems),
+        max_agent_calls=max_agent_calls,
         problems=problems,
     )
 
@@ -539,6 +548,10 @@ def _check_sdk(s: PipeStage, at: str) -> list[str]:
         )
     if s.max_thinking_tokens is not None and s.max_thinking_tokens < 1:
         errors.append(at + "max_thinking_tokens は 1 以上の整数で書いてください")
+    if s.max_agent_calls is not None and s.max_agent_calls < 1:
+        errors.append(at + MAX_AGENT_CALLS_ERROR)
+    if s.max_agent_calls is not None and not s.agents:
+        errors.append(at + "max_agent_calls は agents を書いた段だけに書けます（サブエージェントを呼ばない段には要りません）")
     for d in s.add_dirs:
         if not d or d.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", d):
             errors.append(at + f"add_dirs の「{d}」は、プロジェクトからの相対パスで書いてください（手元の絶対パスを書かないため）")

@@ -24,7 +24,16 @@
 
 `git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得（パイプでは、`web` を書いた段を除く）。
 
-また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Agent`・`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+
+次のものも止めます。段の中でサブエージェントの呼び出しが回り続けたり、段のあとに作業が残ったりしないようにするためです。
+
+- `Bash` の、裏で動かす形（`run_in_background` に `false` 以外の値）の呼び出し。どの段でも止めます（パイプの段も、`/pipe-in` の開発の段も）。`Bash` は `run_in_background` を書かなければ待つ形です。
+- サブエージェント（`Agent`・`Task`）の、`run_in_background: false` を付けない呼び出し。メインから呼ぶと、書かないときは裏で動くためです（[公式の文書](https://code.claude.com/docs/en/agent-sdk/python)）。段は応答が終わると結果を待てないので、`run_in_background: false` を付けて呼び直させます。`isolation`（worktree などで動かす）を付けた呼び出しも止めます。
+- サブエージェントの中からのサブエージェントの呼び出し（入れ子）。フックの入力の `agent_id` で見分けます（この印は、同じプロセスの中で動くチームの仲間にも入るので、それも止めます）。SDK にもサブエージェントの道具から `Agent`・`Task` を外すよう渡し、環境変数 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` で深さを 1 に絞ります。
+- 1回の実行での、`max_agent_calls`（既定 20）回を超えるサブエージェントの呼び出し。止めた呼び出しは数えず、超えたあとは何度呼んでも止めます。上限の無いガードは作れません（[パイプの書き方](pipes.md#agent-sdk-の設定)）。
+
+あわせて、段の SDK には環境変数 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` を渡し、裏で動く作業そのものを切ります。`Bash` は時間切れになったコマンドを裏に回すことがあり、これはフックでは止められないためです。
 
 止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `pipe_in/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
 

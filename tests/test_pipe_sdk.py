@@ -133,8 +133,9 @@ def test_subagent_tools_are_allowed_only_with_agents(tmp_path):
         return check_tool(tool, inp, project_dir=cfg.project_dir, can_write=s.can_write, allow_bash=s.allow_bash,
                           write_scope_hint=s.write_scope_hint, allowed_tools=s.allowed_tools, fetch_domains=s.fetch_domains)
 
-    assert check(spec, "Task", prompt="x") is None
-    assert check(spec, "Agent", prompt="x") is None
+    # D0032-AC-22：Agent・Task は run_in_background: false を書いたときだけ通る（書かない形は裏で動くので止まる）
+    assert check(spec, "Task", prompt="x", run_in_background=False) is None
+    assert check(spec, "Agent", prompt="x", run_in_background=False) is None
     assert check(spec, "PowerShell", command="ls") is not None  # ほかの道は開かない
     assert check(spec, "Write", file_path="src/a.py") is not None  # 書き込みの範囲はそのまま
     assert check(spec, "Write", file_path="../shared-docs/a.md") is not None  # 追加のフォルダは読むだけ
@@ -156,7 +157,7 @@ def test_sdk_options_from_spec(tmp_path):
     assert opts["max_thinking_tokens"] == 16000
     assert opts["fallback_model"] == "sonnet"
     assert opts["add_dirs"] == spec.add_dirs
-    assert opts["agents"]["module-reader"] == {"description": "1つのモジュールを読んで要点を返す", "prompt": "渡されたモジュールだけを読む", "tools": ["Read", "Grep"], "model": "haiku"}
+    assert opts["agents"]["module-reader"] == {"description": "1つのモジュールを読んで要点を返す", "prompt": "渡されたモジュールだけを読む", "tools": ["Read", "Grep"], "model": "haiku", "disallowedTools": ["Agent", "Task"]}  # disallowedTools は D0032-AC-27
     assert opts["mcp_servers"]["local"] == {"type": "stdio", "command": "node", "args": ["server.js", "--quiet"]}
     assert opts["resume"] == "s-1"
     assert opts["system_prompt"]["append"] == spec.system_append

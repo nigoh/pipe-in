@@ -8,7 +8,7 @@ from importlib import resources
 from typing import Any
 
 from ..engine.config import Config
-from ..engine.guard import is_test_path
+from ..engine.guard import DEFAULT_MAX_AGENT_CALLS, is_test_path
 from ..engine.pipeline import INPUT
 from ..engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec, protect
 from .definition import AgentDef, McpServerDef, PipeDef, PipeStage, StageJudge
@@ -19,6 +19,24 @@ DEFAULT_MAX_TURNS = 100
 
 def _stage_rules() -> str:
     return resources.files("pipe_in.pipe").joinpath("stage_rules.md").read_text(encoding="utf-8")
+
+
+def _agent_rules(limit: int, *, bash: bool) -> str:
+    """agents のある段だけに足す、サブエージェントの呼び方の決まり（D0032）。ガードが止めることを先に伝える。"""
+    lines = [
+        "",
+        "",
+        "## サブエージェントの呼び方",
+        "",
+        "- サブエージェント（Agent・Task）は、run_in_background: false を付けて呼び、結果が返るまで待ってください。"
+        "isolation は付けないでください。書かない呼び出しと、裏で動かす形の呼び出しは止められます（段は裏の作業の結果を待てません）。",
+        f"- この段の1回の実行で呼べるサブエージェントは {limit} 回までです。"
+        "上限に達したら、それまでに返った結果で成果物を書いてください。",
+        "- サブエージェントの中から、さらにサブエージェントを呼ぶことはできません。",
+    ]
+    if bash:
+        lines.append("- Bash を使う段でも、run_in_background は付けないでください。")
+    return "\n".join(lines) + "\n"
 
 
 def _can_write(cfg: Config, stage: PipeStage) -> tuple[Callable[[str], bool], str]:
@@ -122,6 +140,8 @@ def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
     for s in pipe.stages:
         can_write, hint = _can_write(cfg, s)
         allowed, disallowed = _tools(s)
+        limit = s.max_agent_calls or DEFAULT_MAX_AGENT_CALLS
+        agent_rules = _agent_rules(limit, bash=s.bash) if s.agents else ""
         specs[s.name] = StageSpec(
             name=s.name,
             label=s.label,
@@ -132,7 +152,7 @@ def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
             allow_bash=s.bash,
             can_write=_outside_pipe(can_write, cfg, pipe),
             write_scope_hint=hint,
-            system_append=rules + (f"\n\n## この段の決まり\n\n{s.system_append.strip()}\n" if s.system_append else ""),
+            system_append=rules + agent_rules + (f"\n\n## この段の決まり\n\n{s.system_append.strip()}\n" if s.system_append else ""),
             output_format=output_format(s),
             permission_mode=s.permission_mode,
             max_thinking_tokens=s.max_thinking_tokens,
@@ -144,6 +164,7 @@ def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
             model=s.model,
             max_turns=s.max_turns or DEFAULT_MAX_TURNS,
             max_budget_usd=s.max_budget_usd,
+            max_agent_calls=limit,
         )
     return protect(specs, cfg)
 

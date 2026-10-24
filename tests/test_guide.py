@@ -1756,3 +1756,21 @@ def test_D0025_AC_77_78_検査そのものは行の番号と表の順を取り�
     assert row_starting("| 画面の確認用のページ（開発用） | `a` | `b` |\n| 別 | x | y |\n", DESIGN_PAGE_ROW) == "| 画面の確認用のページ（開発用） | `a` | `b` |"
     assert row_starting("文中の | 画面の確認用のページ", DESIGN_PAGE_ROW) is None
     assert row_starting("", DESIGN_PAGE_ROW) is None
+
+
+# ---- D0032: 段の中のサブエージェントの呼び方を守る ------------------------------------------------
+
+D0032_EXAMPLE_LINE = "max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）"
+
+
+def test_D0032_AC_16_パイプの書き方の例にmax_agent_callsの行がある():
+    """D0032-AC-16: docs/guide/pipes.md の「Agent SDK の設定」の書き方の例（コードブロック）に、max_agent_calls の行がある。"""
+    assert D0032_EXAMPLE_LINE in all_code_lines(read_doc(GUIDE / "pipes.md"))
+
+
+def test_D0032_AC_01_05_08_安全の文書に裏で動かす形と上限と入れ子がある():
+    """D0032-AC-01・05・08: docs/guide/safety.md に、裏で動かす形（run_in_background）・上限（max_agent_calls）・サブエージェントの中からの呼び出しを止めることが書いてある。"""
+    text = read_doc(GUIDE / "safety.md")
+    assert "run_in_background" in text
+    assert "max_agent_calls" in text
+    assert "サブエージェントの中からのサブエージェントの呼び出し" in text

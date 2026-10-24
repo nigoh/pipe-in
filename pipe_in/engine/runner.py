@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -112,6 +113,8 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
         "resume": resume,
         "setting_sources": cfg.setting_sources,
         "max_buffer_size": cfg.max_buffer_bytes,
+        # 裏の作業を止め、サブエージェントの入れ子を 1 段までにする（D0032）。手元の環境変数では上書きされない。
+        "env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1", "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"},
     }
     if spec.max_thinking_tokens:
         opts["max_thinking_tokens"] = spec.max_thinking_tokens
@@ -120,10 +123,26 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
     if spec.add_dirs:
         opts["add_dirs"] = list(spec.add_dirs)
     if spec.agents:
-        opts["agents"] = {name: dict(a) for name, a in spec.agents.items()}
+        # サブエージェントの中から Agent・Task を呼ばせない（ガードの入れ子の検査に加える二重の守り）。
+        opts["agents"] = {name: {**a, "disallowedTools": ["Agent", "Task"]} for name, a in spec.agents.items()}
     if spec.mcp_servers:
         opts["mcp_servers"] = {name: dict(m) for name, m in spec.mcp_servers.items()}
     return opts
+
+
+def stage_guard(spec: StageSpec, cfg: Config, on_deny: Callable[[str, str], None] | None = None):
+    """段の1回の実行のガード。呼ぶたびに新しい数（0 から）を持つので、差し戻しのやり直し・人の指摘の反映・
+    グループの段の1つは、それぞれ 0 から数える（D0032）。"""
+    return make_guard_hook(
+        project_dir=cfg.project_dir,
+        can_write=spec.can_write,
+        allow_bash=spec.allow_bash,
+        write_scope_hint=spec.write_scope_hint,
+        allowed_tools=spec.allowed_tools,
+        fetch_domains=spec.fetch_domains,
+        max_agent_calls=spec.max_agent_calls,
+        on_deny=on_deny,
+    )
 
 
 async def run_stage_sdk(
@@ -149,15 +168,7 @@ async def run_stage_sdk(
         run.denials.append(f"{tool}: {reason}")
         print(f"    ✋ 止めました: {tool} — {reason}", flush=True)
 
-    guard = make_guard_hook(
-        project_dir=cfg.project_dir,
-        can_write=spec.can_write,
-        allow_bash=spec.allow_bash,
-        write_scope_hint=spec.write_scope_hint,
-        allowed_tools=spec.allowed_tools,
-        fetch_domains=spec.fetch_domains,
-        on_deny=on_deny,
-    )
+    guard = stage_guard(spec, cfg, on_deny)
     opts = sdk_options(spec, cfg, resume=resume)
     if "agents" in opts:
         opts["agents"] = {name: AgentDefinition(**a) for name, a in opts["agents"].items()}
