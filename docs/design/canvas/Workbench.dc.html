@@ -175,7 +175,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
                 <path d="M110 120 L152 92 L194 120 L152 148 Z" fill="{{t.card}}" stroke="{{t.edge}}" stroke-width="1.8" stroke-linejoin="round"></path>
                 <g transform="translate(144 112) scale(.67)"><path d="{{icons.branch}}" fill="none" stroke="{{t.fg}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g>
                 <sc-for list="{{joints}}" as="j">
-                  <g transform="translate({{j.x}} {{j.y}})"><circle cx="0" cy="0" r="9" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="1.5"></circle><rect x="-22" y="-7" width="20" height="14" rx="4" fill="{{t.coral}}" stroke="{{t.canvas}}" stroke-width="1.5"></rect></g>
+                  <g transform="translate({{j.x}} {{j.y}})"><circle cx="0" cy="0" r="10" fill="{{t.teal}}"></circle><rect x="-6" y="-5" width="11" height="3" rx="1" fill="{{t.canvas}}"></rect><rect x="-6" y="2" width="11" height="3" rx="1" fill="{{t.canvas}}"></rect><rect x="-22" y="-7" width="16" height="14" rx="4" fill="{{t.coral}}"></rect><rect x="-7" y="-5" width="8" height="3" rx="1" fill="{{t.coral}}"></rect><rect x="-7" y="2" width="8" height="3" rx="1" fill="{{t.coral}}"></rect></g>
                 </sc-for>
               </svg>
               <span style="position: absolute; left: 10px; top: 107px; width: 60px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
@@ -283,7 +283,8 @@ class Component extends DCLogic {
     };
     return {
       blocks, icons: I,
-      joints: [{ x: 110, y: 120 }, { x: 250, y: 52 }, { x: 410, y: 52 }, { x: 290, y: 192 }, { x: 556, y: 120 }],
+      // コンセントはブロックの左の縁の外に置き、差さったプラグごと見えるようにする
+      joints: [{ x: 110, y: 120 }, { x: 240, y: 52 }, { x: 400, y: 52 }, { x: 280, y: 192 }, { x: 546, y: 120 }],
       themes: [build(L), build(D)],
     };
   }
