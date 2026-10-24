@@ -800,6 +800,32 @@ def test_d0015_ac25_judge_is_read_only_under_the_old_hook(guard, monkeypatch, to
     assert (reason is None) == ok, f"{tool}: {reason}"
 
 
+# ---- D0036-AC-25: Bash で書く形は、このフックで今も止まる（仕組みは足さない） ------------------------
+
+D0036_WRITE_FORMS = [
+    "echo x > f",
+    "echo x >> f",
+    "echo x > /etc/hosts",
+    "tee f",
+    "printf a | tee f",
+    "sed -i 's/a/b/' f",
+    "cp a b",
+    "mv a b",
+    "touch f",
+    "rm f",
+    "python -c \"open('f','w').write('x')\"",
+    "echo x > $TMPDIR/a.txt",
+    "cat > f <<'EOF'\nx\nEOF",
+]
+
+
+@pytest.mark.parametrize("command", D0036_WRITE_FORMS)
+@pytest.mark.parametrize("agent", [*AGENTS, "pipe-in-documenter", *READONLY, "pipe-in-judge"])
+def test_d0036_ac25_書き込みの形は今も止まる(guard, agent, command):
+    """D0036-AC-25: 全エージェント（analyst・tester・coder・verifier・documenter・読むだけの役）の Bash は、書き込みの形を今も止める。今も止まる。"""
+    assert bash(guard, agent, command) is not None, f"{agent} `{command}`"
+
+
 # ==== D0032：フックの内側が失敗しても、通す側でなく止める側に倒す ======================================================
 #
 # - まだ無い部品（is_pipe_in_agent・is_guarded_caller・is_read_only_tool・REASON_LIMIT・_quiet_exit_streams）は、need() で取り出す。

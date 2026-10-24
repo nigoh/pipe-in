@@ -459,7 +459,7 @@ def test_design_cli_needs_purpose(tmp_path, capsys):
     assert e.value.code == 2  # --purpose がない
 
 
-# ---- D0035: 検査（command）と審査（judge）を組む ---------------------------------------------
+# ---- D0037: 検査（command）と審査（judge）を組む ---------------------------------------------
 
 
 def judge_design(**judge) -> dict:
@@ -487,8 +487,8 @@ def write_rendered(tmp_path: Path, design_: dict) -> Path:
     return folder
 
 
-def test_d0035_ac15_judge_only_design_renders(tmp_path):
-    """D0035-AC-15: judge（threshold・criteria・must）だけの check を render_pipe に渡すと [stages.check] と [stages.check.judge] と criteria・must の表が書かれ、読んで check_pipe が誤りを返さない。design_pipe を通してもパイプが書かれる。"""
+def test_d0037_ac15_judge_only_design_renders(tmp_path):
+    """D0037-AC-15: judge（threshold・criteria・must）だけの check を render_pipe に渡すと [stages.check] と [stages.check.judge] と criteria・must の表が書かれ、読んで check_pipe が誤りを返さない。design_pipe を通してもパイプが書かれる。"""
     files = design_mod().render_pipe("apidoc", "目的", judge_design())
     text = files["pipe.toml"]
     for word in ["[stages.check]", "[stages.check.judge]", "[[stages.check.judge.criteria]]", "[[stages.check.judge.must]]", "threshold = 0.8"]:
@@ -509,8 +509,8 @@ def test_d0035_ac15_judge_only_design_renders(tmp_path):
     assert written.stages[2].check.judge.must[0].name == "ソースにある"
 
 
-def test_d0035_ac16_readme_check_column():
-    """D0035-AC-16: judge だけの設計でも README の段の表の「検証」の欄が「あり」になる。check の無い段は「なし」。"""
+def test_d0037_ac16_readme_check_column():
+    """D0037-AC-16: judge だけの設計でも README の段の表の「検証」の欄が「あり」になる。check の無い段は「なし」。"""
     readme = design_mod().render_pipe("apidoc", "目的", judge_design())["README.md"]
     rows = [ln for ln in readme.splitlines() if ln.startswith("| ") and "`0" in ln]
     assert len(rows) == 3
@@ -555,8 +555,8 @@ def small_with(check):
     ids=["verdict", "command", "no-check-fields", "no-check"],
 )
 @pytest.mark.parametrize("judge", [None, {}, "absent"], ids=["judge-none", "judge-empty", "judge-absent"])
-def test_d0035_ac17_render_without_judge_unchanged(check, tail, mark, judge):
-    """D0035-AC-17: 今の作りのままで通る（変更前の出力を固定した検査）。verdict または command だけの設計は、judge が無くても None でも空でも、pipe.toml と README の表が文字まで同じ。"""
+def test_d0037_ac17_render_without_judge_unchanged(check, tail, mark, judge):
+    """D0037-AC-17: 今の作りのままで通る（変更前の出力を固定した検査）。verdict または command だけの設計は、judge が無くても None でも空でも、pipe.toml と README の表が文字まで同じ。"""
     if check is not None and judge != "absent":
         check = {**check, "judge": judge}
     files = design_mod().render_pipe("x", "目的", small_with(check))
@@ -574,8 +574,8 @@ def test_d0035_ac17_render_without_judge_unchanged(check, tail, mark, judge):
         ("dup", "重複", {"criteria": [{"name": "同じ", "description": "a"}, {"name": "同じ", "description": "b"}]}),
     ],
 )
-def test_d0035_ac18_bad_judge_asks_again(tmp_path, why, word, judge):
-    """D0035-AC-18: threshold が範囲外・criteria が空・名前が重なる審査は check_pipe が止め、直しの依頼文に理由が入る。max_rounds 回通らなければ何も書かない。"""
+def test_d0037_ac18_bad_judge_asks_again(tmp_path, why, word, judge):
+    """D0037-AC-18: threshold が範囲外・criteria が空・名前が重なる審査は check_pipe が止め、直しの依頼文に理由が入る。max_rounds 回通らなければ何も書かない。"""
     bad = judge_design(**judge)
     r = DesignRunner([bad, judge_design()])
     assert design(tmp_path, r) == 0
@@ -590,8 +590,8 @@ def test_d0035_ac18_bad_judge_asks_again(tmp_path, why, word, judge):
     assert not (again / "pipes/pipe-in-apidoc").exists()
 
 
-def test_d0035_ac19_schema_has_judge():
-    """D0035-AC-19: DESIGN_SCHEMA の check に judge があり、criteria・must の要素は name・description を持つ。judge は必須ではない。"""
+def test_d0037_ac19_schema_has_judge():
+    """D0037-AC-19: DESIGN_SCHEMA の check に judge があり、criteria・must の要素は name・description を持つ。judge は必須ではない。"""
     check = design_mod().DESIGN_SCHEMA["properties"]["stages"]["items"]["properties"]["check"]
     judge = check["properties"]["judge"]
     assert judge["properties"]["threshold"]["type"] == "number"
@@ -603,8 +603,8 @@ def test_d0035_ac19_schema_has_judge():
     assert "judge" not in judge.get("required", [])
 
 
-def test_d0035_ac20_design_rules_words():
-    """D0035-AC-20: design_rules.md に judge・must・「審査で差し戻すなら」・「command と組む」があり、designer_spec の system_append にそのまま入る。"""
+def test_d0037_ac20_design_rules_words():
+    """D0037-AC-20: design_rules.md に judge・must・「審査で差し戻すなら」・「command と組む」があり、designer_spec の system_append にそのまま入る。"""
     from importlib import resources
 
     rules = resources.files("pipe_in_generator").joinpath("design_rules.md").read_text(encoding="utf-8")
@@ -613,8 +613,8 @@ def test_d0035_ac20_design_rules_words():
     assert rules in design_mod().designer_spec().system_append
 
 
-def test_d0035_ac21_rules_example_design_passes_check(tmp_path):
-    """D0035-AC-21: design_rules.md の中の設計の例（```json の囲み。judge と command を含む）を設計の段が返したものとして渡すと、design_pipe が 0 を返し check_pipe が通る。"""
+def test_d0037_ac21_rules_example_design_passes_check(tmp_path):
+    """D0037-AC-21: design_rules.md の中の設計の例（```json の囲み。judge と command を含む）を設計の段が返したものとして渡すと、design_pipe が 0 を返し check_pipe が通る。"""
     import re
     from importlib import resources
 
@@ -632,7 +632,7 @@ def test_d0035_ac21_rules_example_design_passes_check(tmp_path):
     assert any(s.check is not None and s.check.judge is not None for s in pipe.stages)
 
 
-# ---- D0035: ひな形 diagrams の審査 -------------------------------------------------------
+# ---- D0037: ひな形 diagrams の審査 -------------------------------------------------------
 
 
 def new_pipe(tmp_path: Path, template: str):
@@ -646,8 +646,8 @@ def verify_stage(pipe):
     return next(s for s in pipe.stages if s.name == "verify")
 
 
-def test_d0035_ac23_diagrams_verify_has_judge(tmp_path):
-    """D0035-AC-23: ひな形 diagrams の verify 段に judge（must 1つ以上・criteria 2つ以上・threshold が範囲内）があり、verdict = true・on_fail = draw・max_retries = 2 はそのまま。command は python -c で始まる。"""
+def test_d0037_ac23_diagrams_verify_has_judge(tmp_path):
+    """D0037-AC-23: ひな形 diagrams の verify 段に judge（must 1つ以上・criteria 2つ以上・threshold が範囲内）があり、verdict = true・on_fail = draw・max_retries = 2 はそのまま。command は python -c で始まる。"""
     _, _, pipe = new_pipe(tmp_path, "diagrams")
     c = verify_stage(pipe).check
     assert c is not None
@@ -658,8 +658,8 @@ def test_d0035_ac23_diagrams_verify_has_judge(tmp_path):
     assert c.command and c.command.startswith("python -c")
 
 
-def test_d0035_diagrams_command_text_is_quote_safe(tmp_path):
-    """D0035-AC-23: command に、sh と cmd.exe で壊れる文字（バッククォート・$・%・!・\\）が無く、DANGEROUS_BASH に当たらない（check が通る）。"""
+def test_d0037_diagrams_command_text_is_quote_safe(tmp_path):
+    """D0037-AC-23: command に、sh と cmd.exe で壊れる文字（バッククォート・$・%・!・\\）が無く、DANGEROUS_BASH に当たらない（check が通る）。"""
     project, _, pipe = new_pipe(tmp_path, "diagrams")
     command = verify_stage(pipe).check.command
     assert command, "verify 段に command が無い"
@@ -685,42 +685,42 @@ def run_diagrams_command(tmp_path: Path, files: dict[str, str]) -> int:
     return result.returncode
 
 
-def test_d0035_diagrams_command_runs_on_shell_passes_with_mermaid(tmp_path):
-    """D0035-AC-23: Mermaid のブロックがある *.md が図の置き場所にあれば、command は終了コード 0（合格）。"""
+def test_d0037_diagrams_command_runs_on_shell_passes_with_mermaid(tmp_path):
+    """D0037-AC-23: Mermaid のブロックがある *.md が図の置き場所にあれば、command は終了コード 0（合格）。"""
     fence = "`" * 3
     code = run_diagrams_command(tmp_path, {"docs/diagrams/flow.md": f"# 図\n\n{fence}mermaid\ngraph TD\n  A --> B\n{fence}\n"})
     assert code == 0
 
 
-def test_d0035_diagrams_command_runs_on_shell_fails_without_mermaid(tmp_path):
-    """D0035-AC-23: Mermaid のブロックが無い *.md だけなら終了コード 1（不合格）。"""
+def test_d0037_diagrams_command_runs_on_shell_fails_without_mermaid(tmp_path):
+    """D0037-AC-23: Mermaid のブロックが無い *.md だけなら終了コード 1（不合格）。"""
     assert run_diagrams_command(tmp_path, {"docs/diagrams/flow.md": "# 図は文字だけ\n"}) == 1
 
 
-def test_d0035_diagrams_command_runs_on_shell_fails_without_folder(tmp_path):
-    """D0035-AC-23: 図の置き場所のフォルダが無ければ終了コード 1（不合格）。"""
+def test_d0037_diagrams_command_runs_on_shell_fails_without_folder(tmp_path):
+    """D0037-AC-23: 図の置き場所のフォルダが無ければ終了コード 1（不合格）。"""
     assert run_diagrams_command(tmp_path, {}) == 1
 
 
 @pytest.mark.parametrize("name", ["dev", "spec-qa"])
-def test_d0035_ac12_old_templates_without_judge_load(tmp_path, name):
-    """D0035-AC-12: 今の作りのままで通る。これまでのひな形（dev・spec-qa）から作った judge のない pipe.toml は、読み込み・検査が変わらず、どの段も check.judge は None。"""
+def test_d0037_ac12_old_templates_without_judge_load(tmp_path, name):
+    """D0037-AC-12: 今の作りのままで通る。これまでのひな形（dev・spec-qa）から作った judge のない pipe.toml は、読み込み・検査が変わらず、どの段も check.judge は None。"""
     project, _, pipe = new_pipe(tmp_path, name)
     assert all(s.check is None or s.check.judge is None for s in pipe.stages)
     assert gen(tmp_path, "check", "pics", "--project", str(project)) == 0
 
 
 @pytest.mark.parametrize("name", ["dev", "spec-qa"])
-def test_d0035_ac25_dev_and_spec_qa_templates_unchanged(name):
-    """D0035-AC-25: 今の作りのままで通る。dev・spec-qa のひな形の pipe.toml に judge も command の追加も無い。"""
+def test_d0037_ac25_dev_and_spec_qa_templates_unchanged(name):
+    """D0037-AC-25: 今の作りのままで通る。dev・spec-qa のひな形の pipe.toml に judge も command の追加も無い。"""
     text = (gen_cli().templates_dir() / name / "pipe.toml").read_text(encoding="utf-8")
     assert "judge" not in text
     assert not [ln for ln in text.splitlines() if ln.strip().startswith("command")]
     assert "[stages.check" not in text
 
 
-def test_d0035_ac26_diagrams_docs_mention_judge():
-    """D0035-AC-26: diagrams の README の段の表と説明、prompts/03_verify.md に、審査と must の説明がある。README には python が無い環境の注意もある。"""
+def test_d0037_ac26_diagrams_docs_mention_judge():
+    """D0037-AC-26: diagrams の README の段の表と説明、prompts/03_verify.md に、審査と must の説明がある。README には python が無い環境の注意もある。"""
     tdir = gen_cli().templates_dir() / "diagrams"
     readme = (tdir / "README.md").read_text(encoding="utf-8")
     verify = (tdir / "prompts/03_verify.md").read_text(encoding="utf-8")
@@ -764,8 +764,8 @@ max_retries = 2
 '''
 
 
-def test_d0035_ac27_old_diagrams_shape_still_loads(tmp_path):
-    """D0035-AC-27: 今の作りのままで通る。judge も command も無く verdict・on_fail・max_retries だけの、足す前の diagrams 形のパイプは、読み込みも検査もできる。"""
+def test_d0037_ac27_old_diagrams_shape_still_loads(tmp_path):
+    """D0037-AC-27: 今の作りのままで通る。judge も command も無く verdict・on_fail・max_retries だけの、足す前の diagrams 形のパイプは、読み込みも検査もできる。"""
     folder = tmp_path / "pipes/pipe-in-old"
     (folder / "prompts").mkdir(parents=True)
     (folder / "pipe.toml").write_text(OLD_DIAGRAMS, encoding="utf-8")

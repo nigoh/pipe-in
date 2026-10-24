@@ -14,6 +14,14 @@
 
 `protected_paths` に書いたパスは、どの段も書けません。
 
+書き込める範囲は、`Write`・`Edit` だけでなく `Bash` にも掛かります（D0036）。コマンドの文字列から書き込み先が読める形、つまりリダイレクト（`>`・`>>`）・`tee`・`sed -i`・`perl -i`・`cp`・`mv`・`ln`・`install`・`touch`・`rm`・`truncate`・`dd of=`・`find -delete`・`git restore`/`rm`/`mv`・`python -c`（とヒアドキュメント）・`node -e` の中の書き込みは、先が範囲の外かプロジェクトの外なら止めます。`bash -c`・`$(...)`・`;`・`&&`・`|` で続くコマンドや、`cd` で移った先も読みます。
+
+- `/dev/null`・`2>&1` などの付け替えと、`/tmp`・`$TMPDIR` の下への書き出しは通します（例：`pytest -q 2>&1 | tee /tmp/out.log`）。
+- 書き込みの形なのに先が変数や `$(...)` で読めないときは止めます。先を文字で書いてください。
+- 先の最後に glob（`*`・`?`・`[`）を含むもの（`rm *.py`）も、どのファイルか決まらないので止めます（`/tmp` の下は通します）。`find . -delete`・`git restore .` のように根や上のフォルダを指す操作は、その下に実際にあるファイルを見て、1つでも範囲の外があれば止めます。
+- プロジェクトの中の `mkdir` と、テストを流すコマンド（`pytest`・`npm test` など）が書く副作用は止めません。
+- **サンドボックスではありません。** `python file.py`・`make`・`sh script.sh`・`| sh` のように、書くコードが別の所にあるものは見分けられず、通ります。段の指示文で「Bash で範囲の外を書かない」と書き、批評や検証で差分を見てください。残る道の一覧は決定の記録 `docs/decisions/D0036-bash-write-guard.md` にあります。
+
 実装とテストの担当を分けているのは、実装の担当が「テストを都合よく直して通す」ことを防ぐためです。実装の担当はテストに不満があれば、実装の記録に「テストへの異議」として書き、次の検証の段がそれを判断します。
 
 テスト先行の段は、判定（`red` / `blocked`）と「AC とテストの対応」を構造化出力で返します。パイプラインは要件定義書から `AC-数字` を拾い、テストのない AC があれば同じ会話で一度だけ補わせ、それでも残れば止めます（終了コード 3）。`test_command` があれば、テスト先行のあとにも実行し、通ってしまったら「赤になっていません」と注意を残します（止めはしません）。
@@ -24,7 +32,16 @@
 
 `git push`、`git reset --hard`、`git clean -f`、ブランチの切り替え、再帰的な削除（`rm -r`）、`sudo`、`curl`・`wget`・`ssh` などの外部通信、パッケージの公開、プロジェクトの外への書き込み、Web 検索と Web 取得（パイプでは、`web` を書いた段を除く）。
 
-また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+また、段ごとに許したツール（`pipe_in/dev/specs.py`・`pipe_in/pipe/specs.py` の `allowed_tools`）と、読むだけの道具（`Read`・`Glob`・`Grep`・`Skill`・`ToolSearch`・`TodoWrite`）と構造化出力を返す道具（`StructuredOutput`）以外は、すべて止めます。PowerShell・MCP のツール・サブエージェント（`Agent`・`Task`）などから、書き込み範囲や危ない操作の判定をすり抜けられないようにするためです。PowerShell は最初から使えないツールにも入れています。
+
+次のものも止めます。段の中でサブエージェントの呼び出しが回り続けたり、段のあとに作業が残ったりしないようにするためです。
+
+- `Bash` の、裏で動かす形（`run_in_background` に `false` 以外の値）の呼び出し。どの段でも止めます（パイプの段も、`/pipe-in` の開発の段も）。`Bash` は `run_in_background` を書かなければ待つ形です。
+- サブエージェント（`Agent`・`Task`）の、`run_in_background: false` を付けない呼び出し。メインから呼ぶと、書かないときは裏で動くためです（[公式の文書](https://code.claude.com/docs/en/agent-sdk/python)）。段は応答が終わると結果を待てないので、`run_in_background: false` を付けて呼び直させます。`isolation`（worktree などで動かす）を付けた呼び出しも止めます。
+- サブエージェントの中からのサブエージェントの呼び出し（入れ子）。フックの入力の `agent_id` で見分けます（この印は、同じプロセスの中で動くチームの仲間にも入るので、それも止めます）。SDK にもサブエージェントの道具から `Agent`・`Task` を外すよう渡し、環境変数 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` で深さを 1 に絞ります。
+- 1回の実行での、`max_agent_calls`（既定 20）回を超えるサブエージェントの呼び出し。止めた呼び出しは数えず、超えたあとは何度呼んでも止めます。上限の無いガードは作れません（[パイプの書き方](pipes.md#agent-sdk-の設定)）。
+
+あわせて、段の SDK には環境変数 `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` を渡し、裏で動く作業そのものを切ります。`Bash` は時間切れになったコマンドを裏に回すことがあり、これはフックでは止められないためです。
 
 止めた操作はその場で表示され、`99_summary.md` にも残ります。仕組みは `pipe_in/engine/guard.py` の PreToolUse フックで、すべてのツールに掛かり、自動承認したツールにも効きます。
 

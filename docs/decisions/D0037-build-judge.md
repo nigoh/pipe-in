@@ -1,4 +1,4 @@
-# D0035 プラグインの pipe-build と pipe-in-gen design で、検査と審査の段を組めるようにする
+# D0037 プラグインの pipe-build と pipe-in-gen design で、検査と審査の段を組めるようにする
 
 ## 目的
 
@@ -16,20 +16,20 @@
 - FR-06 段の表の `check` の欄を、`verdict`・`command`・`judge` の別が分かる形にする。
 - FR-07 プラグインの版を 0.5.0 に上げる。
 - FR-08 `generator/guard_hook.py` は変えない。
-- D0035-AC-01 `stage-rules.md` があり、前の「段の決め方」の中身がそこに移っている（`tests/test_plugin.py`）。
-- D0035-AC-02 `stage-rules.md` に組み方の要点の語がある（同上）。
-- D0035-AC-03 `stage-rules.md` の `pipe.toml` の例が、読み込みと `check_pipe` を通る（同上）。
-- D0035-AC-04 `stage-rules.md` に、古い版の pipe-in では `judge` が無視されることが書かれている（同上）。
-- D0035-AC-05 `SKILL.md` の「3.」が `${CLAUDE_SKILL_DIR}/references/stage-rules.md` を渡すと書き、`pipe-builder.md` が渡されたものに従い、読めなければ差し戻すと書く。`${CLAUDE_PLUGIN_ROOT}` には頼らない（同上）。
-- D0035-AC-06 `pipe-builder.md` に、審査だけで差し戻す形を書かずに差し戻すことが書かれている（同上）。
-- D0035-AC-07 pipe-builder の `tools`、`plugin/hooks/hooks.json`、`generator/guard_hook.py` は変わらない（同上）。
-- D0035-AC-08 pipe-builder がプラグインの `references/stage-rules.md` を Read・Glob・Grep で読むのは止められない（`tests/test_guard_hook.py`）。
-- D0035-AC-09 pipe-builder が `stage-rules.md` に書くこと、PowerShell・MCP・Agent・Web・`cat`・`>`・`--force`・`pipe-in-gen design` は、今までどおり止められる（同上）。
-- D0035-AC-10 版が 0.5.0 で、テストと `docs/guide/plugin.md` の更新の節がそろっている（`tests/test_plugin.py`）。
-- D0035-AC-11 0.4.0 までのプラグインはこれまでどおり動き、更新の節に入れ直しの案内がある（同上）。
-- D0035-AC-12 これまでのひな形から作った `judge` の無い `pipe.toml` は、結果が変わらない（`tests/test_generator.py`）。
-- D0035-AC-13（手で）`/pipe-in:pipe-build` で検査と審査を組むパイプを頼むと、段の表に `command` と `judge` が分かれて出て、できたパイプが検査を通る。
-- D0035-AC-14（実機）プラグインを入れた Claude Code で、pipe-builder が `stage-rules.md` の中身を使えて、フックに止められない。
+- D0037-AC-01 `stage-rules.md` があり、前の「段の決め方」の中身がそこに移っている（`tests/test_plugin.py`）。
+- D0037-AC-02 `stage-rules.md` に組み方の要点の語がある（同上）。
+- D0037-AC-03 `stage-rules.md` の `pipe.toml` の例が、読み込みと `check_pipe` を通る（同上）。
+- D0037-AC-04 `stage-rules.md` に、古い版の pipe-in では `judge` が無視されることが書かれている（同上）。
+- D0037-AC-05 `SKILL.md` の「3.」が `${CLAUDE_SKILL_DIR}/references/stage-rules.md` を渡すと書き、`pipe-builder.md` が渡されたものに従い、読めなければ差し戻すと書く。`${CLAUDE_PLUGIN_ROOT}` には頼らない（同上）。
+- D0037-AC-06 `pipe-builder.md` に、審査だけで差し戻す形を書かずに差し戻すことが書かれている（同上）。
+- D0037-AC-07 pipe-builder の `tools`、`plugin/hooks/hooks.json`、`generator/guard_hook.py` は変わらない（同上）。
+- D0037-AC-08 pipe-builder がプラグインの `references/stage-rules.md` を Read・Glob・Grep で読むのは止められない（`tests/test_guard_hook.py`）。
+- D0037-AC-09 pipe-builder が `stage-rules.md` に書くこと、PowerShell・MCP・Agent・Web・`cat`・`>`・`--force`・`pipe-in-gen design` は、今までどおり止められる（同上）。
+- D0037-AC-10 版が 0.5.0 で、テストと `docs/guide/plugin.md` の更新の節がそろっている（`tests/test_plugin.py`）。
+- D0037-AC-11 0.4.0 までのプラグインはこれまでどおり動き、更新の節に入れ直しの案内がある（同上）。
+- D0037-AC-12 これまでのひな形から作った `judge` の無い `pipe.toml` は、結果が変わらない（`tests/test_generator.py`）。
+- D0037-AC-13（手で）`/pipe-in:pipe-build` で検査と審査を組むパイプを頼むと、段の表に `command` と `judge` が分かれて出て、できたパイプが検査を通る。
+- D0037-AC-14（実機）プラグインを入れた Claude Code で、pipe-builder が `stage-rules.md` の中身を使えて、フックに止められない。
 
 ### pipe-in-gen design
 
@@ -38,25 +38,25 @@
 - FR-11 README の段の表の「検証」の欄は、`verdict`・`command`・`judge` のどれかがあれば「あり」。
 - FR-12 `judge` の無い設計は、今までと同じ出力になる。
 - FR-13 `design_rules.md` に組み方を短く足す。
-- D0035-AC-15 `judge` だけの設計から、審査の表を持つ `pipe.toml` が書かれ、検査を通る（`tests/test_generator.py`）。
-- D0035-AC-16 その設計で README の「検証」の欄が「あり」になる（同上）。
-- D0035-AC-17 `verdict` か `command` だけの設計の出力は、変更の前と文字まで同じ（同上）。
-- D0035-AC-18 しきい値が範囲外・`criteria` が空・名前が重なる設計は、検査が止めて直しの依頼文に理由が入り、通らないまま上限に達すれば何も書かない（同上）。
-- D0035-AC-19 設計図の形の `check` に `judge` があり、必須ではない（同上）。
-- D0035-AC-20 `design_rules.md` と `stage-rules.md` の両方に、組み方の要点の語がある（`tests/test_generator.py`・`tests/test_plugin.py`）。
-- D0035-AC-21 `design_rules.md` の設計の例から作ったパイプが検査を通る（`tests/test_generator.py`）。
-- D0035-AC-22（実機）実際の Claude で `pipe-in-gen design` を流すと、返る設計が `command` か `judge` を含み、検査を通る。
+- D0037-AC-15 `judge` だけの設計から、審査の表を持つ `pipe.toml` が書かれ、検査を通る（`tests/test_generator.py`）。
+- D0037-AC-16 その設計で README の「検証」の欄が「あり」になる（同上）。
+- D0037-AC-17 `verdict` か `command` だけの設計の出力は、変更の前と文字まで同じ（同上）。
+- D0037-AC-18 しきい値が範囲外・`criteria` が空・名前が重なる設計は、検査が止めて直しの依頼文に理由が入り、通らないまま上限に達すれば何も書かない（同上）。
+- D0037-AC-19 設計図の形の `check` に `judge` があり、必須ではない（同上）。
+- D0037-AC-20 `design_rules.md` と `stage-rules.md` の両方に、組み方の要点の語がある（`tests/test_generator.py`・`tests/test_plugin.py`）。
+- D0037-AC-21 `design_rules.md` の設計の例から作ったパイプが検査を通る（`tests/test_generator.py`）。
+- D0037-AC-22（実機）実際の Claude で `pipe-in-gen design` を流すと、返る設計が `command` か `judge` を含み、検査を通る。
 
 ### ひな形 diagrams
 
 - FR-14 `diagrams` の `verify` 段に、Mermaid の図があるかを確かめる `python -c` の `command` と、`judge`（`criteria` 2つ・`must` 1つ）を組む。`verdict = true`・`on_fail = "draw"`・`max_retries = 2` はそのまま。
 - FR-15 そのひな形から作ったパイプが検査を通り、README と `prompts/03_verify.md` もそろえる。
-- D0035-AC-23 `verify` 段に `judge` と `command` があり、`command` を実際に流すと、図があれば終了コード 0、無ければ 1 になる。引用符は sh でも cmd.exe でも崩れない書き方（`tests/test_generator.py`）。
-- D0035-AC-24 `diagrams` から作ったパイプが検査を通る（`tests/test_generator.py` の既存のテスト）。
-- D0035-AC-25 `dev`・`spec-qa` のひな形は変わらない（同上）。
-- D0035-AC-26 `diagrams` の README と `prompts/03_verify.md` に、審査の項目と `must` の説明がある（同上）。
-- D0035-AC-27 足す前の `diagrams` から作った `judge` の無いパイプは、そのまま動く（同上）。
-- D0035-AC-28 依存の向きと拡張の層が変わらず、`pipe_in/` と `vscode/` は変えない（`tests/test_architecture.py`）。
+- D0037-AC-23 `verify` 段に `judge` と `command` があり、`command` を実際に流すと、図があれば終了コード 0、無ければ 1 になる。引用符は sh でも cmd.exe でも崩れない書き方（`tests/test_generator.py`）。
+- D0037-AC-24 `diagrams` から作ったパイプが検査を通る（`tests/test_generator.py` の既存のテスト）。
+- D0037-AC-25 `dev`・`spec-qa` のひな形は変わらない（同上）。
+- D0037-AC-26 `diagrams` の README と `prompts/03_verify.md` に、審査の項目と `must` の説明がある（同上）。
+- D0037-AC-27 足す前の `diagrams` から作った `judge` の無いパイプは、そのまま動く（同上）。
+- D0037-AC-28 依存の向きと拡張の層が変わらず、`pipe_in/` と `vscode/` は変えない（`tests/test_architecture.py`）。
 
 ## 決めたことと理由
 
@@ -74,8 +74,9 @@
 
 ### main に合わせたこと
 
-- 決定の記録の番号は、作業を始めたときは D0033 にしていた。しかし main の別の作業（SDK の受信バッファの上限の続き）が、記録の無いまま D0033 の AC をテストで使っていたので、D0034 に振り直した。そのあと main に入った別の直し（PR #68、最初の実行の見張り）が D0034 を使ったので、もう一度載せ直したときに **D0035** に振り直した。
+- 決定の記録の番号は、作業を始めたときは D0033 にしていた。しかし main の別の作業（SDK の受信バッファの上限の続き）が、記録の無いまま D0033 の AC をテストで使っていたので、D0034 に振り直した。そのあと main に入った別の直し（PR #68、最初の実行の見張り）が D0034 を使ったので、もう一度載せ直したときに D0035 に振り直した。PR を出したあと、main に入った2つの機能（PR #64・#66、段のサブエージェントの呼び方と段の Bash の書き込み）が D0035・D0036 を使ったので、main を取り込んだときに **D0037** に振り直した。
 - 検証の前に、main に入った PR #67（同じ作業の続き。`generator/design.py` と `docs/guide/pipes.md` も触っていた）に載せ直した。`docs/guide/pipes.md` の `pipe-in-gen design` の説明の行がぶつかったので、main の文（上限を超えたら止まる）とこのブランチの文（`judge` も組める・審査で差し戻すなら `command` と組む）を両方残した。
+- PR を出したあとに main を取り込んだとき、main（PR #64）が `SKILL.md` の「段の決め方」にサブエージェントの呼び方の2つの決まり（待つ形でしか呼べない・`max_agent_calls`、Bash を裏で動かさない）を足していた。このブランチではその節を `references/stage-rules.md` に移しているので、2つの決まりを `stage-rules.md` に移して残した。`tests/test_guard_hook.py` は、両方が足したテストをどちらも残した。
 
 ### 受け入れたリスク
 
@@ -98,5 +99,5 @@
 ## 確かめたこと
 
 - `pytest -q`：全件通過（`tests/test_plugin.py`・`tests/test_generator.py`・`tests/test_guard_hook.py` に足した）。`pipe_in/`・`vscode/`・`generator/guard_hook.py`・`plugin/hooks/` は変えていない。
-- D0035-AC-13 のうち Claude を呼ばない範囲：ひな形 `diagrams` から作ったパイプが検査を通り、ひな形の検査コマンドを実際に流すと、図があれば終了コード 0、無いときとフォルダが無いときは 1 になった。
-- まだ：D0035-AC-13 の残り（`/pipe-in:pipe-build` を実際に流す）、D0035-AC-14・22（実機）。どれも Claude を呼ぶので、人に言われたときに流す。
+- D0037-AC-13 のうち Claude を呼ばない範囲：ひな形 `diagrams` から作ったパイプが検査を通り、ひな形の検査コマンドを実際に流すと、図があれば終了コード 0、無いときとフォルダが無いときは 1 になった。
+- まだ：D0037-AC-13 の残り（`/pipe-in:pipe-build` を実際に流す）、D0037-AC-14・22（実機）。どれも Claude を呼ぶので、人に言われたときに流す。

@@ -505,7 +505,7 @@ def test_main_denies_non_dict_json(monkeypatch, text):
     assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-# ---- D0035: pipe-builder が段の決め方（references/stage-rules.md）を読む。守る仕組みは狭めも広げもしない --------------------
+# ---- D0037: pipe-builder が段の決め方（references/stage-rules.md）を読む。守る仕組みは狭めも広げもしない --------------------
 # 今の作りのままで通る（フックを変えないことの検査。狭める変更が入ったら落ちる）。
 
 RULES_REL = "plugin/skills/pipe-build/references/stage-rules.md"
@@ -518,8 +518,8 @@ def _rules_paths(tmp_path: Path) -> list[str]:
 @pytest.mark.parametrize("agent_type", BUILDERS)
 @pytest.mark.parametrize("tool", ["Read", "Glob", "Grep"])
 @pytest.mark.parametrize("where", [0, 1, 2], ids=["outside", "inside", "relative"])
-def test_d0035_ac08_builder_can_read_stage_rules(tmp_path, agent_type, tool, where):
-    """D0035-AC-08: どの pipe-builder の名前でも、stage-rules.md を Read・Glob・Grep で読むことは止められない（プロジェクトの外の絶対パスも）。"""
+def test_d0037_ac08_builder_can_read_stage_rules(tmp_path, agent_type, tool, where):
+    """D0037-AC-08: どの pipe-builder の名前でも、stage-rules.md を Read・Glob・Grep で読むことは止められない（プロジェクトの外の絶対パスも）。"""
     path = _rules_paths(tmp_path)[where]
     tool_input = {"file_path": path} if tool == "Read" else {"pattern": "*", "path": path}
     assert decide(tmp_path, tool, tool_input, agent_type) is None
@@ -528,8 +528,8 @@ def test_d0035_ac08_builder_can_read_stage_rules(tmp_path, agent_type, tool, whe
 @pytest.mark.parametrize("agent_type", BUILDERS)
 @pytest.mark.parametrize("tool", ["Write", "Edit", "MultiEdit"])
 @pytest.mark.parametrize("where", [0, 1, 2], ids=["outside", "inside", "relative"])
-def test_d0035_ac09_builder_cannot_write_stage_rules(tmp_path, agent_type, tool, where):
-    """D0035-AC-09: stage-rules.md を書き換えて次の pipe-builder の指示を変える道は閉じたまま（Write・Edit・MultiEdit は止まる）。"""
+def test_d0037_ac09_builder_cannot_write_stage_rules(tmp_path, agent_type, tool, where):
+    """D0037-AC-09: stage-rules.md を書き換えて次の pipe-builder の指示を変える道は閉じたまま（Write・Edit・MultiEdit は止まる）。"""
     assert decide(tmp_path, tool, {"file_path": _rules_paths(tmp_path)[where], "content": "x"}, agent_type)
 
 
@@ -547,8 +547,8 @@ def test_d0035_ac09_builder_cannot_write_stage_rules(tmp_path, agent_type, tool,
         ("Skill", {"skill": "pipe-in:pipe-build"}),
     ],
 )
-def test_d0035_ac09_other_routes_stay_closed(tmp_path, agent_type, tool, tool_input):
-    """D0035-AC-09: PowerShell・MCP・Agent・Task・Web・Skill・NotebookEdit での回り道は、references/ を狙っても止まる。"""
+def test_d0037_ac09_other_routes_stay_closed(tmp_path, agent_type, tool, tool_input):
+    """D0037-AC-09: PowerShell・MCP・Agent・Task・Web・Skill・NotebookEdit での回り道は、references/ を狙っても止まる。"""
     assert decide(tmp_path, tool, tool_input, agent_type), tool
 
 
@@ -566,6 +566,30 @@ def test_d0035_ac09_other_routes_stay_closed(tmp_path, agent_type, tool, tool_in
         "sed -i s/a/b/ " + RULES_REL,
     ],
 )
-def test_d0035_ac09_bash_stays_closed(tmp_path, command):
-    """D0035-AC-09: Bash で stage-rules.md を読む・書く形（cat・リダイレクト・つなぐ記号・sed -i）と、design・--force は止まる。"""
+def test_d0037_ac09_bash_stays_closed(tmp_path, command):
+    """D0037-AC-09: Bash で stage-rules.md を読む・書く形（cat・リダイレクト・つなぐ記号・sed -i）と、design・--force は止まる。"""
+
+
+# ---- D0036-AC-25: Bash で書く形は、この許す一覧のフックで今も止まる（仕組みは足さない） ------------------
+
+WRITE_FORMS = [
+    "echo x > f",
+    "echo x >> f",
+    "echo x > /etc/hosts",
+    "tee f",
+    "printf a | tee f",
+    "sed -i 's/a/b/' f",
+    "cp a b",
+    "mv a b",
+    "touch f",
+    "rm f",
+    "python -c \"open('f','w').write('x')\"",
+    "echo x > $TMPDIR/a.txt",
+    "cat > f <<'EOF'\nx\nEOF",
+]
+
+
+@pytest.mark.parametrize("command", WRITE_FORMS)
+def test_d0036_ac25_書き込みの形は今も止まる(tmp_path, command):
+    """D0036-AC-25: pipe-builder の Bash は、リダイレクト・tee・sed -i・cp・mv・touch・python -c の書き込みの形を今も止める（許すコマンドの一覧に無く、記号でも止まる）。今も止まる。"""
     assert decide(tmp_path, "Bash", {"command": command}), command
