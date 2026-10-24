@@ -41,3 +41,16 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 - 信頼していない作業フォルダ（新しい worktree など）では、`.claude/settings.json` の allow が無視されます。さらに `.mcp.json` のサーバーは確認なしでつながります。入れている MCP の道具（プラグインのものを含む）は `--tools` では消えませんが、`dontAsk` で許可に無ければ断られます。`--allowedTools` は省かないでください。
 - 会話を開かない呼び方では、報告を出して止まります。直すのは、人が承認したあと、会話（`/pipe-audit` を対話で開く、またはメインに頼む）でします。
 - 開かれたか確かめるときだけ、末尾に `--output-format stream-json --verbose` を足し、最初の `system/init` の `slash_commands`（と `skills`）に `pipe-audit`（`/pipe-advise` のときは `pipe-advise`）があるかを見ます。あれば開かれています。サブエージェントが動いたかは `parent_tool_use_id` で追えます。無ければ、作業フォルダがこのリポジトリか、`--bare`・`--disable-slash-commands` を付けていないか、`claude --version` を確かめます。
+
+### フックが働く条件
+
+`/pipe-in` の段を受け持つサブエージェントの書ける場所と Bash は、`.claude/hooks/pipe_in_guard.py` が絞ります。Claude Code が道具を呼ぶたびに、`.claude/settings.json` の `command`（`python "$CLAUDE_PROJECT_DIR/.claude/hooks/pipe_in_guard.py"`。`timeout` は 30 秒）でこのフックを動かします。
+
+- フックが働くには、`python` が動くことが要ります。`python` が見つからない・時間切れ・構文エラーのときは、Python の中では止められないので、フックが効かず通る形になります（絞りが外れます）。macOS や Linux では、`python` が無く `python3` だけのことがあります。
+- `/pipe-in` を始める前に、`python --version` で `python` が動くことを確かめてください。公式の文書によると、フックが失敗すると会話に `hook error` の知らせが出ます。`/pipe-in` の最初の道具の呼び出しのあとに、この知らせが出ていないかも見てください。出ていれば、フックが効いていません。
+- `python` が動いていれば、判断の途中で例外が出ても、`pipe-in-*` の呼び出しは止めます（読むだけの道具と、報告を親に渡す道具は通します）。メインなど `pipe-in-` で始まらない呼び出しは止めません。フックが壊れたときに、それを直す呼び出しまで止まらないようにするためです（ただし、入力そのものが読めず、だれの呼び出しか分からないときは、メインでも止めます）。`agent_type` が文字列でも null でもない呼び出し（リスト・数値など）も、分からない相手として止めます。
+- 止めるときは、まず止める理由つきの deny の JSON を出します。それも書けないとき（標準出力が閉じているなど）は、JSON に頼らず、標準エラーに理由を書いて終了コード 2 で止めます。公式の文書によると、終了コード 2 のときは標準エラーの文が、止めた理由として Claude（サブエージェント）に届きます。人にどう見えるかは、実際の Claude Code ではまだ確かめていません。
+- `.claude/settings.json` のフックには `onFailure` を付けていません。付けると、`python` が無い環境でメインを含むすべての道具が止まり、フックを直すこともできなくなるためです（`onFailure` は v2.1.295 以降の Claude Code で使えます）。
+- Windows で Git Bash が無いときのフックの動きは、確かめていません。このフックの `command` は、シェルが `$CLAUDE_PROJECT_DIR` を展開する書き方です。公式の文書によると、Git Bash が無い Windows では、この書き方のフックが失敗すると、通らずに道具の呼び出しが止まることがあります（`onFailure` を付けていなくても。メインも止まります）。
+
+この決めたことと理由は [D0032](../decisions/D0032-guard-fail-closed.md) にあります。

@@ -13,6 +13,7 @@ cd ../pipe-in-<名前>
 - 切る前に、main の作業フォルダの `git status` を見ます。まだコミットされていない変更（ほかの会話の作業）があれば、それがどのファイルかを覚えておきます（あとで main に入れるときに重なりを確かめるため）。
 - 同じファイルを大きく触る機能は、同時に進めません（あとで合わせるのが難しくなる）。
 - 終わったら、main に入れたあとで `git worktree remove ../pipe-in-<名前>` と `git branch -d <ブランチ>` で片付けます。
+- Claude Code で `/pipe-in` を進めるときは、始める前に `python --version` で `python` が動くことを確かめます。段のサブエージェントを絞るフック（`.claude/hooks/pipe_in_guard.py`）は `python` で動き、動かないとフックが効かず、絞りが外れて通るためです（[D0032](../decisions/D0032-guard-fail-closed.md)。くわしくは [docs/guide/develop.md](../guide/develop.md) の「フックが働く条件」）。
 
 ### worktree で気をつけること
 
