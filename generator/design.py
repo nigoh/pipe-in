@@ -22,6 +22,15 @@ from pipe_in.pipe import definition as pd
 from .cli import refuse_clash
 from .detect import Env, detect
 
+JUDGE_ITEMS_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
+        "required": ["name", "description"],
+    },
+}
+
 STAGE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -41,6 +50,14 @@ STAGE_SCHEMA: dict[str, Any] = {
                 "command": {"type": "string"},
                 "on_fail": {"type": "string"},
                 "max_retries": {"type": "integer"},
+                "judge": {
+                    "type": "object",
+                    "properties": {
+                        "threshold": {"type": "number"},
+                        "criteria": JUDGE_ITEMS_SCHEMA,
+                        "must": JUDGE_ITEMS_SCHEMA,
+                    },
+                },
             },
         },
     },
@@ -130,7 +147,10 @@ def render_pipe(name: str, purpose: str, design: dict[str, Any]) -> dict[str, st
             lines.append("review = true")
         lines.append(f"prompt_file = {_q(prompt_rel)}")
         check = s.get("check")
-        if isinstance(check, dict) and (check.get("verdict") or check.get("command")):
+        judge = check.get("judge") if isinstance(check, dict) else None
+        has_judge = isinstance(judge, dict) and bool(judge)
+        has_check = isinstance(check, dict) and bool(check.get("verdict") or check.get("command") or has_judge)
+        if has_check:
             lines.append("[stages.check]")
             if check.get("verdict") is True:
                 lines.append("verdict = true")
@@ -140,10 +160,24 @@ def render_pipe(name: str, purpose: str, design: dict[str, Any]) -> dict[str, st
                 lines.append(f"on_fail = {_q(str(check['on_fail']))}")
             if isinstance(check.get("max_retries"), int):
                 lines.append(f"max_retries = {check['max_retries']}")
+            if has_judge:
+                # TOML の決まりで、スカラーを先に、副表を後に書く
+                lines.append("[stages.check.judge]")
+                if isinstance(judge.get("threshold"), (int, float)) and not isinstance(judge["threshold"], bool):
+                    lines.append(f"threshold = {judge['threshold']}")
+                for key in ("criteria", "must"):
+                    items = judge.get(key)
+                    for item in items if isinstance(items, list) else []:
+                        if isinstance(item, dict):
+                            lines += [
+                                f"[[stages.check.judge.{key}]]",
+                                f"name = {_q(str(item.get('name', '')))}",
+                                f"description = {_q(str(item.get('description', '')))}",
+                            ]
         scope = s.get("access", "read") + (f"（{s['docs_dir']}/）" if s.get("docs_dir") else "")
         table_rows.append(
             f"| {s.get('label', sname)} | `{s.get('output', '')}` | {scope} | {'あり' if s.get('review') else 'なし'} | "
-            f"{'あり' if isinstance(check, dict) and (check.get('verdict') or check.get('command')) else 'なし'} |"
+            f"{'あり' if has_check else 'なし'} |"
         )
     files[pd.PIPE_FILE] = "\n".join(lines) + "\n"
     need = ' --text "依頼メモ"' if design.get("input") == "required" else ""

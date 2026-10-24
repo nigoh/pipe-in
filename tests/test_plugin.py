@@ -39,9 +39,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03・D0031-AC-56: プラグインの版は 0.4.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0）。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.4.0"
+    assert manifest["version"] == "0.5.0"
 
 
 PLUGIN_TEXTS = [
@@ -418,6 +418,127 @@ def test_d0031_ac59_guides_mention_watch_lines_and_exit_codes():
     assert any(line.startswith("|") and "live_watch.py" in line for line in design.splitlines())
 
 
+# ---- D0037: pipe-build で検査と審査の段を組めるようにする（references/stage-rules.md） ---------------------------------------
+
+
+STAGE_RULES = PLUGIN / "skills/pipe-build/references/stage-rules.md"
+SKILL_BUILD = PLUGIN / "skills/pipe-build/SKILL.md"
+AGENT_BUILDER = PLUGIN / "agents/pipe-builder.md"
+
+
+def _stage_rules() -> str:
+    """段の決め方の文書。無ければ、無いことを失敗の理由にする。"""
+    assert STAGE_RULES.is_file(), "plugin/skills/pipe-build/references/stage-rules.md がまだ無い"
+    return STAGE_RULES.read_text(encoding="utf-8")
+
+
+def test_d0037_ac01_stage_rules_moved():
+    """D0037-AC-01: 「段の決め方」の節の中身は references/stage-rules.md に移り、SKILL.md の本文には残らず、SKILL.md からそこへのリンクがある。"""
+    rules = _stage_rules()
+    skill = SKILL_BUILD.read_text(encoding="utf-8")
+    assert "## 段の決め方" not in skill
+    moved = ["いちばん狭い型", "setting_sources", "permission_mode", "pipe-in-gen design", "Mermaid", "routes", "group", "web"]
+    assert _missing(rules, moved) == []
+    assert [w for w in ["いちばん狭い型", "setting_sources", "permission_mode"] if w in skill] == []
+    assert "(references/stage-rules.md)" in skill
+
+
+def test_d0037_ac02_stage_rules_words():
+    """D0037-AC-02: stage-rules.md に、合否は検査で決める・審査で差し戻すときは command と組む・must（違反は即不合格）・threshold（既定 0.7）・on_fail・max_retries の語がある。"""
+    rules = _stage_rules()
+    assert "検査と審査の組み方" in rules
+    assert _missing(rules, ["合否は検査で決め", "command と組む", "must", "違反は即不合格", "threshold", "0.7", "on_fail", "max_retries"]) == []
+
+
+def _toml_blocks(text: str) -> list[str]:
+    return re.findall(r"```toml\n(.*?)```", text, re.S)
+
+
+def test_d0037_ac03_stage_rules_example_loads(tmp_path):
+    """D0037-AC-03: stage-rules.md の ```toml の例（[stages.check.judge] つき）を pipe_in.pipe.definition で読み込み、check_pipe が誤りを返さない。"""
+    from pipe_in.pipe import definition as pd
+
+    blocks = _toml_blocks(_stage_rules())
+    assert blocks, "```toml の例が1つも無い"
+    judged = [b for b in blocks if "[stages.check.judge]" in b]
+    assert judged, "[stages.check.judge] の例が無い"
+    folder = tmp_path / "pipe-in-sample"
+    folder.mkdir()
+    (folder / pd.PIPE_FILE).write_text(judged[0], encoding="utf-8")
+    for rel in re.findall(r'prompt_file\s*=\s*"([^"]+)"', judged[0]):
+        (folder / rel).parent.mkdir(parents=True, exist_ok=True)
+        (folder / rel).write_text("指示\n", encoding="utf-8")
+    project = tmp_path / "app"
+    project.mkdir()
+    pipe = pd.load_pipe(folder)
+    assert pd.check_pipe(pipe, project) == []
+    checks = [s.check for s in pipe.stages if s.check is not None and s.check.judge is not None]
+    assert checks, "judge を持つ段が読めていない"
+    c = checks[0]
+    assert c.command and c.judge.criteria and c.judge.must
+
+
+def test_d0037_ac04_stage_rules_old_version_note():
+    """D0037-AC-04: stage-rules.md に、古い版の pipe-in では judge が黙って無視される旨がある。"""
+    assert _missing(_stage_rules(), ["古い版", "黙って無視"]) == []
+
+
+def test_d0037_ac05_skill_passes_path_agent_reads_it():
+    """D0037-AC-05: SKILL.md の「3.」の節が ${CLAUDE_SKILL_DIR}/references/stage-rules.md を渡すと書き、pipe-builder.md が渡された stage-rules.md を Read で読む・読めなければ差し戻すと書く。${CLAUDE_PLUGIN_ROOT} には頼らない。"""
+    skill = SKILL_BUILD.read_text(encoding="utf-8")
+    section = skill.split("## 3.", 1)[1].split("\n## ", 1)[0]
+    assert "${CLAUDE_SKILL_DIR}/references/stage-rules.md" in section
+    agent = frontmatter(AGENT_BUILDER)[1]
+    assert _missing(agent, ["stage-rules.md", "Read", "差し戻"]) == []
+    assert "${CLAUDE_PLUGIN_ROOT}" not in agent
+    assert "渡された" in agent and "読めなければ" in agent
+
+
+def test_d0037_ac06_builder_refuses_judge_without_command():
+    """D0037-AC-06: pipe-builder.md の「権限の拡大は差し戻す」の節に、judge に on_fail があるのに command が無い（審査だけで差し戻す）形は書かずに差し戻すことがある。"""
+    body = frontmatter(AGENT_BUILDER)[1]
+    section = body.split("## 権限の拡大は差し戻す", 1)[1].split("\n## ", 1)[0]
+    assert _missing(section, ["judge", "on_fail", "command", "審査だけ"]) == []
+
+
+def test_d0037_ac07_hooks_unchanged():
+    """D0037-AC-07: 今の作りのままで通る（守り続けるための検査）。hooks.json の matcher・command・args と pipe-builder の道具は変わらない。"""
+    hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert [e["matcher"] for e in hooks] == ["*"]
+    assert hooks[0]["hooks"][0]["command"] == "pipe-in-gen" and hooks[0]["hooks"][0]["args"] == ["guard-hook"]
+    fields, _ = frontmatter(AGENT_BUILDER)
+    assert [t.strip() for t in fields["tools"].split(",")] == ["Read", "Glob", "Grep", "Write", "Edit", "Bash"]
+    for ignored in ["hooks", "permissionMode", "mcpServers"]:
+        assert ignored not in fields, ignored
+
+
+def _guide_update_section() -> str:
+    text = _read("docs/guide/plugin.md")
+    m = re.search(r"^## [^\n]*0\.4\.0 以前[^\n]*更新[^\n]*\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+    assert m, "docs/guide/plugin.md に「0.4.0 以前から更新するとき」の節が無い"
+    return m.group(1)
+
+
+def test_d0037_ac10_guide_update_note():
+    """D0037-AC-10: docs/guide/plugin.md の更新の節（0.4.0 以前から更新するとき）に、0.5.0・stage-rules・/reload-plugins がある。"""
+    section = _guide_update_section()
+    assert _missing(section, ["0.5.0", "stage-rules", "/reload-plugins"]) == []
+
+
+def test_d0037_ac11_old_plugin_note():
+    """D0037-AC-11: 更新の節に、0.4.0 以前を入れていた人は /plugin で更新すること、0.4.0 までの版はこれまでどおり動くことが書かれている。"""
+    assert _missing(_guide_update_section(), ["0.4.0 以前", "/plugin", "これまでどおり"]) == []
+
+
+def test_d0037_ac20_rules_agree_with_stage_rules():
+    """D0037-AC-20: 検査と審査の組み方の要点の語が、stage-rules.md と generator/design_rules.md の両方にある（2か所の文が食い違わないように）。"""
+    rules = _stage_rules()
+    design_rules = _read("generator/design_rules.md")
+    for word in ["must", "command と組む", "threshold", "max_retries"]:
+        assert word in rules, ("stage-rules.md", word)
+        assert word in design_rules, ("design_rules.md", word)
+
+
 # ---- D0001-AC-05: /pipe-craft は残っていない -------------------------------------------------
 
 
@@ -435,6 +556,19 @@ def test_pipe_craft_is_gone():
 
 
 # ---- D0038-AC-13: パイプを作るときの教訓 -------------------------------------------------------------
+
+
+def rules_section(heading_word: str) -> str:
+    """pipe-build の references/stage-rules.md の「## …」の節（見出しに heading_word を含むもの）の本文。無ければ空。"""
+    out: list[str] = []
+    inside = False
+    for line in (PLUGIN / "skills/pipe-build/references/stage-rules.md").read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            inside = heading_word in line
+            continue
+        if inside:
+            out.append(line)
+    return "\n".join(out)
 
 
 def skill_section(heading_word: str) -> str:
@@ -471,19 +605,19 @@ D0038_RUNNING_WORDS = [
 
 @pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0038_DECIDING_WORDS], ids=[i for i, _, _ in D0038_DECIDING_WORDS])
 def test_pipe_build_skill_has_lessons(label, word):
-    """D0038-AC-13: スキル pipe-build の「段の決め方」に、分かったこと 1〜5 の要点（言葉の目印）が入っている。"""
-    part = skill_section("段の決め方")
-    assert part, "スキルに「段の決め方」の節が無い"
+    """D0038-AC-13: スキル pipe-build の「段の決め方」（references/stage-rules.md に移った）に、分かったこと 1〜5 の要点（言葉の目印）が入っている。"""
+    part = rules_section("段の決め方")
+    assert part, "references/stage-rules.md に「段の決め方」の節が無い"
     found = word in part  # 節の本文を assert の失敗の表示に出さない
     assert found, f"「段の決め方」に、{label} が無い（探した言葉：{word}）"
 
 
 @pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0038_RUNNING_WORDS], ids=[i for i, _, _ in D0038_RUNNING_WORDS])
 def test_pipe_build_skill_has_running_section(label, word):
-    """D0038-AC-13: スキル pipe-build の末尾に節「流すとき」があり、分かったこと 6 の要点（言葉の目印）が入っている。"""
-    part = skill_section("流すとき")
-    assert part, "スキルに「流すとき」の節が無い"
+    """D0038-AC-13: スキル pipe-build の references/stage-rules.md の末尾に節「流すとき」があり、分かったこと 6 の要点（言葉の目印）が入っている。"""
+    part = rules_section("流すとき")
+    assert part, "references/stage-rules.md に「流すとき」の節が無い"
     found = word in part
     assert found, f"「流すとき」に、{label} が無い（探した言葉：{word}）"
-    _, body = frontmatter(PLUGIN / "skills/pipe-build/SKILL.md")
+    body = (PLUGIN / "skills/pipe-build/references/stage-rules.md").read_text(encoding="utf-8")
     assert [l for l in body.splitlines() if l.startswith("## ")][-1].find("流すとき") >= 0, "「流すとき」は末尾の節にする"

@@ -24,7 +24,7 @@
 - FR-03 警告 W3：`access = "tests"` の段が `bash = true` でなく、あとの段に `check.command` があるとき、「この段は検査を流せない。`bash = true` にして、あとの段と同じ検査を流させる」と知らせる。
 - FR-04 警告 W5：`check` の `on_fail` が自分以外の段を指し、その段が `access = "read"` のとき、「その段は成果物以外を書けず、指摘を直せない」と知らせる。
 - FR-05 `pipe-in-gen check` と `pipe-in-gen new` の結果に、警告を出す。誤りが無ければ終了コード 0 のまま。誤りがあれば今までどおり 1。
-- FR-06 `plugin/skills/pipe-build/SKILL.md` の「段の決め方」に分かったことの 1〜5 を、末尾の新しい節「流すとき」に 6 を書く。
+- FR-06 `plugin/skills/pipe-build/references/stage-rules.md`（main の D0037 で、SKILL.md の「段の決め方」がここに移った）の「段の決め方」に分かったことの 1〜5 を、末尾の新しい節「流すとき」に 6 を書く。
 - FR-07 `plugin/agents/pipe-builder.md` の check の扱いを、警告も読み、直すか、直さない理由を返す形に直す。
 - FR-08 `docs/guide/pipes.md` に、警告の一覧と出し方を書く。
 
