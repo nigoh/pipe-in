@@ -159,7 +159,7 @@ def check_tool(
         raw_cmd = tool_input.get("command", "")
         if "command" in tool_input and not isinstance(raw_cmd, str):
             return "Bash のコマンドを読み取れなかったため止めました"
-        # 書き込みの形があれば、Write・Edit と同じ範囲で止める（D0035）
+        # 書き込みの形があれば、Write・Edit と同じ範囲で止める（D0036）
         return check_bash_writes(
             raw_cmd, project_dir=project_dir, can_write=can_write, write_scope_hint=write_scope_hint, state=bash_state
         )

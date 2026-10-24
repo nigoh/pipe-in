@@ -800,9 +800,9 @@ def test_d0015_ac25_judge_is_read_only_under_the_old_hook(guard, monkeypatch, to
     assert (reason is None) == ok, f"{tool}: {reason}"
 
 
-# ---- D0035-AC-25: Bash で書く形は、このフックで今も止まる（仕組みは足さない） ------------------------
+# ---- D0036-AC-25: Bash で書く形は、このフックで今も止まる（仕組みは足さない） ------------------------
 
-D0035_WRITE_FORMS = [
+D0036_WRITE_FORMS = [
     "echo x > f",
     "echo x >> f",
     "echo x > /etc/hosts",
@@ -819,10 +819,10 @@ D0035_WRITE_FORMS = [
 ]
 
 
-@pytest.mark.parametrize("command", D0035_WRITE_FORMS)
+@pytest.mark.parametrize("command", D0036_WRITE_FORMS)
 @pytest.mark.parametrize("agent", [*AGENTS, "pipe-in-documenter", *READONLY, "pipe-in-judge"])
-def test_d0035_ac25_書き込みの形は今も止まる(guard, agent, command):
-    """D0035-AC-25: 全エージェント（analyst・tester・coder・verifier・documenter・読むだけの役）の Bash は、書き込みの形を今も止める。今も止まる。"""
+def test_d0036_ac25_書き込みの形は今も止まる(guard, agent, command):
+    """D0036-AC-25: 全エージェント（analyst・tester・coder・verifier・documenter・読むだけの役）の Bash は、書き込みの形を今も止める。今も止まる。"""
     assert bash(guard, agent, command) is not None, f"{agent} `{command}`"
 
 
