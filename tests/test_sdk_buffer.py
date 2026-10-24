@@ -1,4 +1,5 @@
 """段が大きい画像を Read しても落ちないようにする（D0026）：受信バッファの上限の設定・SDK への受け渡し・上限を超えたときの案内と段の失敗。
+D0033：パイプ（--pipe）の道と pipe-in-gen design で上限を超えたとき。
 
 SDK は呼ばない。run_stage_sdk を通すテストは、sys.modules の claude_agent_sdk を手で書いた偽物の箱に差し替える（テストのあとに戻る）。
 ファイルは tmp_path の中にだけ作る。runner.buffer_overflow_notice は使うところで取り、名前が消えたらその理由で落とす（テスト先行のときの形を残している）。
@@ -531,16 +532,16 @@ class CountingShell:
         return ShellResult(0, "")
 
 
-def d32_stage(name: str, extra: str = "") -> str:
+def pipe_stage(name: str, extra: str = "") -> str:
     """成果物が <段>.md の、読むだけの段（PipeOverflowRunner が書く名前に合わせる）。"""
     return f'\n[[stages]]\nname = "{name}"\nlabel = "{name}の段"\noutput = "{name}.md"\naccess = "read"\nprompt = "{name}をする"\n{extra}'
 
 
-def d32_pipe_toml(*stages: str) -> str:
+def pipe_toml_of(*stages: str) -> str:
     return '[pipe]\nkind = "linear"\nlabel = "試し"\n' + "".join(stages)
 
 
-def make_d32_pipe(project: Path, toml: str) -> pd.PipeDef:
+def make_pipe_def(project: Path, toml: str) -> pd.PipeDef:
     d = project / "pipes" / "pipe-in-p"
     d.mkdir(parents=True, exist_ok=True)
     (d / "pipe.toml").write_text(toml, encoding="utf-8")
@@ -551,7 +552,7 @@ def run_pipe(tmp_path: Path, toml: str, runner, shell=None) -> tuple[Exit, dict]
     """tmp_path の中にパイプを置いて LinearPipeline で流し、終了コードと state.json を返す。"""
     from pipe_in.pipe.pipeline import LinearPipeline
 
-    pipe = make_d32_pipe(tmp_path, toml)
+    pipe = make_pipe_def(tmp_path, toml)
     cfg = load_config(tmp_path, None, auto_approve=True).for_pipe(pipe.name, own_work_dir=True)
     extra = {"shell": shell} if shell is not None else {}
     result = asyncio.run(LinearPipeline(cfg, pipe, runner=runner, **extra).run("x"))
@@ -572,7 +573,7 @@ def test_D0033_AC_01_パイプのふつうの段で上限を超えると終了�
     2段目は呼ばれず、state.json の final は STAGE_ERROR、runs にその段の is_error・subtype・errors が残る。成果物を書いていても止まる。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
     r = PipeOverflowRunner(["a"], notice, write_target=write_target)
-    result, state = run_pipe(tmp_path, d32_pipe_toml(d32_stage("a"), d32_stage("b")), r)
+    result, state = run_pipe(tmp_path, pipe_toml_of(pipe_stage("a"), pipe_stage("b")), r)
     assert result == Exit.STAGE_ERROR, f"終了コードが {result!r}（{int(result)}）"
     assert int(result) == 3
     assert r.calls == ["a"]
@@ -597,7 +598,7 @@ def test_D0033_AC_02_検証つきの段で上限を超えると差し戻さず�
     check = f'[stages.check]\nverdict = true\ncommand = "make check"\n{back}max_retries = 2\n'
     r = PipeOverflowRunner(["verify"], notice)
     shell = CountingShell()
-    result, state = run_pipe(tmp_path, d32_pipe_toml(d32_stage("a"), d32_stage("verify", check)), r, shell)
+    result, state = run_pipe(tmp_path, pipe_toml_of(pipe_stage("a"), pipe_stage("verify", check)), r, shell)
     assert result != Exit.TEST_FAILED, "差し戻しの上限まで検証に通らなかった扱いになった"
     assert result == Exit.STAGE_ERROR, f"終了コードが {result!r}（{int(result)}）"
     assert r.calls.count("verify") == 1, r.calls
@@ -615,7 +616,7 @@ def test_D0033_AC_03_グループの片方で上限を超えると終了コー�
     """D0033-AC-03: 同じ group の2段（a・b）の片方が上限を超えた形の StageRun を返し、もう片方がふつうに終わると、
     終了コード 3 で止まり、グループのあとの段（c）は呼ばれず、超えた段の subtype が state.json に残る。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
-    toml = d32_pipe_toml(d32_stage("a", 'group = "g"\n'), d32_stage("b", 'group = "g"\n'), d32_stage("c"))
+    toml = pipe_toml_of(pipe_stage("a", 'group = "g"\n'), pipe_stage("b", 'group = "g"\n'), pipe_stage("c"))
     r = PipeOverflowRunner([target], notice)
     result, state = run_pipe(tmp_path, toml, r)
     assert result == Exit.STAGE_ERROR, f"終了コードが {result!r}（{int(result)}）"
@@ -634,7 +635,7 @@ def test_D0033_AC_04_パイプの段の上限はpipeline_tomlのmax_buffer_mbで
     """D0033-AC-04: pipeline.toml に max_buffer_mb = 64 を書くと、for_pipe("x", own_work_dir=True) の設定とパイプの段から作る
     sdk_options の max_buffer_size は 67108864。書かないときは 33554432。"""
     write_toml(tmp_path, f"[pipeline]\n{line}\n")
-    pipe = make_d32_pipe(tmp_path, PIPE_TOML)
+    pipe = make_pipe_def(tmp_path, PIPE_TOML)
     cfg = cfg_of(tmp_path).for_pipe("x", own_work_dir=True)
     spec = ps.build_pipe_specs(cfg, pipe)["a"]
     assert sdk_options(spec, cfg, resume=None).get("max_buffer_size") == expected
@@ -733,7 +734,7 @@ def test_D0033_AC_07_前の版のpipeline_tomlとpipe_tomlでも上限超えは�
     AC-01 の流れを流しても、読み込みで止まらず、段の上限は 33554432 で、終了コード 3 になる。"""
     write_toml(tmp_path, OLD_TOML)
     toml = PIPE_TOML + '[[stages]]\nname = "b"\nlabel = "b"\noutput = "b.md"\nprompt = "x"\n'
-    pipe = make_d32_pipe(tmp_path, toml)
+    pipe = make_pipe_def(tmp_path, toml)
     cfg = cfg_of(tmp_path).for_pipe(pipe.name, own_work_dir=True)
     assert sdk_options(ps.build_pipe_specs(cfg, pipe)["a"], cfg, resume=None).get("max_buffer_size") == 33554432
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
