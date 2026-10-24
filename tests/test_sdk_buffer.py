@@ -496,7 +496,7 @@ def test_D0026_AC_12_検証の段で上限を超えると終了コード3にな�
     assert runs[0]["errors"] == [notice]
 
 
-# ==== D0032: パイプ・pipe-in-gen design で上限を超えたとき ===================================
+# ==== D0033: パイプ・pipe-in-gen design で上限を超えたとき ===================================
 #
 # パイプ（LinearPipeline）と pipe-in-gen design（pipe_in_generator.design）で、段が上限を超えた形の StageRun を返したときの
 # 止まり方を確かめる。runner・shell は偽物。ファイルは tmp_path の中だけに作る。
@@ -563,12 +563,12 @@ def overflow_runs(state: dict, stage: str) -> list[dict]:
     return [h for h in state["runs"] if h.get("stage") == stage and "is_error" in h]
 
 
-# ---- D0032-AC-01: パイプのふつうの段 -----------------------------------------------------
+# ---- D0033-AC-01: パイプのふつうの段 -----------------------------------------------------
 
 
 @pytest.mark.parametrize("write_target", [False, True], ids=["no_output", "with_output"])
-def test_D0032_AC_01_パイプのふつうの段で上限を超えると終了コード3になりstate_jsonに残る(tmp_path, write_target):
-    """D0032-AC-01: 2段のパイプの1段目の runner が上限を超えた形の StageRun を返すと、終了コード 3（STAGE_ERROR）で止まり、
+def test_D0033_AC_01_パイプのふつうの段で上限を超えると終了コード3になりstate_jsonに残る(tmp_path, write_target):
+    """D0033-AC-01: 2段のパイプの1段目の runner が上限を超えた形の StageRun を返すと、終了コード 3（STAGE_ERROR）で止まり、
     2段目は呼ばれず、state.json の final は STAGE_ERROR、runs にその段の is_error・subtype・errors が残る。成果物を書いていても止まる。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
     r = PipeOverflowRunner(["a"], notice, write_target=write_target)
@@ -584,12 +584,12 @@ def test_D0032_AC_01_パイプのふつうの段で上限を超えると終了�
     assert runs[0]["errors"] == [notice]
 
 
-# ---- D0032-AC-02: 検証つきの段 ---------------------------------------------------------
+# ---- D0033-AC-02: 検証つきの段 ---------------------------------------------------------
 
 
 @pytest.mark.parametrize("on_fail", ["self", "a"])
-def test_D0032_AC_02_検証つきの段で上限を超えると差し戻さず終了コード3(tmp_path, on_fail):
-    """D0032-AC-02: 検証（verdict・command・max_retries = 2）つきの段の runner が上限を超えた形の StageRun を返すと、
+def test_D0033_AC_02_検証つきの段で上限を超えると差し戻さず終了コード3(tmp_path, on_fail):
+    """D0033-AC-02: 検証（verdict・command・max_retries = 2）つきの段の runner が上限を超えた形の StageRun を返すと、
     差し戻さず（その段の runner は1回だけ、on_fail の段も1回だけ）終了コード 3 で止まり、TEST_FAILED にならない。
     確認用のコマンドは流れず、state.json に検証の記録も残らない。on_fail = "self" は on_fail を書かない（自分へ戻す）形。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
@@ -607,12 +607,12 @@ def test_D0032_AC_02_検証つきの段で上限を超えると差し戻さず�
     assert overflow_runs(state, "verify")[0]["subtype"] == "error_max_buffer_size"
 
 
-# ---- D0032-AC-03: グループの段 ---------------------------------------------------------
+# ---- D0033-AC-03: グループの段 ---------------------------------------------------------
 
 
 @pytest.mark.parametrize("target", ["a", "b"])
-def test_D0032_AC_03_グループの片方で上限を超えると終了コード3で後の段に進まない(tmp_path, target):
-    """D0032-AC-03: 同じ group の2段（a・b）の片方が上限を超えた形の StageRun を返し、もう片方がふつうに終わると、
+def test_D0033_AC_03_グループの片方で上限を超えると終了コード3で後の段に進まない(tmp_path, target):
+    """D0033-AC-03: 同じ group の2段（a・b）の片方が上限を超えた形の StageRun を返し、もう片方がふつうに終わると、
     終了コード 3 で止まり、グループのあとの段（c）は呼ばれず、超えた段の subtype が state.json に残る。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
     toml = d32_pipe_toml(d32_stage("a", 'group = "g"\n'), d32_stage("b", 'group = "g"\n'), d32_stage("c"))
@@ -626,12 +626,12 @@ def test_D0032_AC_03_グループの片方で上限を超えると終了コー�
     assert runs[0]["subtype"] == "error_max_buffer_size"
 
 
-# ---- D0032-AC-04: パイプの段の上限は pipeline.toml で決まる ----------------------------------
+# ---- D0033-AC-04: パイプの段の上限は pipeline.toml で決まる ----------------------------------
 
 
 @pytest.mark.parametrize(("line", "expected"), [("max_buffer_mb = 64", 67108864), ("", 33554432)], ids=["64MB", "no_key"])
-def test_D0032_AC_04_パイプの段の上限はpipeline_tomlのmax_buffer_mbで決まる(tmp_path, line, expected):
-    """D0032-AC-04: pipeline.toml に max_buffer_mb = 64 を書くと、for_pipe("x", own_work_dir=True) の設定とパイプの段から作る
+def test_D0033_AC_04_パイプの段の上限はpipeline_tomlのmax_buffer_mbで決まる(tmp_path, line, expected):
+    """D0033-AC-04: pipeline.toml に max_buffer_mb = 64 を書くと、for_pipe("x", own_work_dir=True) の設定とパイプの段から作る
     sdk_options の max_buffer_size は 67108864。書かないときは 33554432。"""
     write_toml(tmp_path, f"[pipeline]\n{line}\n")
     pipe = make_d32_pipe(tmp_path, PIPE_TOML)
@@ -640,7 +640,7 @@ def test_D0032_AC_04_パイプの段の上限はpipeline_tomlのmax_buffer_mbで
     assert sdk_options(spec, cfg, resume=None).get("max_buffer_size") == expected
 
 
-# ---- D0032-AC-05・06: pipe-in-gen design --------------------------------------------------
+# ---- D0033-AC-05・06: pipe-in-gen design --------------------------------------------------
 
 
 class DesignSeqRunner:
@@ -683,8 +683,8 @@ def overflow_run(notice: str) -> StageRun:
     return StageRun(stage="design", session_id="d-1", is_error=True, subtype="error_max_buffer_size", errors=[notice])
 
 
-def test_D0032_AC_05_designで上限を超えるとやり直さず案内を出して何も作らない(tmp_path, monkeypatch, capsys):
-    """D0032-AC-05: pipe-in-gen design の設計の段の runner が上限を超えた形の StageRun を返すと、runner は1回だけ呼ばれ（やり直さない）、
+def test_D0033_AC_05_designで上限を超えるとやり直さず案内を出して何も作らない(tmp_path, monkeypatch, capsys):
+    """D0033-AC-05: pipe-in-gen design の設計の段の runner が上限を超えた形の StageRun を返すと、runner は1回だけ呼ばれ（やり直さない）、
     標準出力に案内の文（errors[0]）が出て、パイプのフォルダも .design-staging も無く、終了コードは 1。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
     r = DesignSeqRunner([overflow_run(notice)])
@@ -699,8 +699,8 @@ def test_D0032_AC_05_designで上限を超えるとやり直さず案内を出�
     assert not (tmp_path / "pipes" / ".design-staging").exists()
 
 
-def test_D0032_AC_05_前の回で検査に落ちたあと上限を超えても作業用フォルダが残らない(tmp_path, monkeypatch, capsys):
-    """D0032-AC-05（補い）: 1回目は検査に通らない設計（stages が空）、2回目で上限を超えると、3回目は流さず（呼び出しは2回）終了コード 1 で、
+def test_D0033_AC_05_前の回で検査に落ちたあと上限を超えても作業用フォルダが残らない(tmp_path, monkeypatch, capsys):
+    """D0033-AC-05（補い）: 1回目は検査に通らない設計（stages が空）、2回目で上限を超えると、3回目は流さず（呼び出しは2回）終了コード 1 で、
     .design-staging もパイプのフォルダも残らない。"""
     notice = notice_fn()(OVERFLOW_TEXT, 32 * MIB)
     bad = StageRun(stage="design", session_id="d-1", structured={"label": "x", "input": "optional", "stages": []})
@@ -713,8 +713,8 @@ def test_D0032_AC_05_前の回で検査に落ちたあと上限を超えても�
 
 
 @pytest.mark.parametrize("subtype", ["error_max_turns", ""])
-def test_D0032_AC_06_designは上限超え以外の失敗では今までどおりやり直す(tmp_path, monkeypatch, capsys, subtype):
-    """D0032-AC-06: 設計の段の runner が上限を超えた以外の失敗（is_error=True・subtype が error_max_buffer_size でない）を返し続けると、
+def test_D0033_AC_06_designは上限超え以外の失敗では今までどおりやり直す(tmp_path, monkeypatch, capsys, subtype):
+    """D0033-AC-06: 設計の段の runner が上限を超えた以外の失敗（is_error=True・subtype が error_max_buffer_size でない）を返し続けると、
     今までどおり max_rounds（3）回までやり直し、終了コード 1 で「3 回直しても検査に通らなかった」と出す。"""
     r = DesignSeqRunner([StageRun(stage="design", session_id="d-1", is_error=True, subtype=subtype)])
     capsys.readouterr()
@@ -725,11 +725,11 @@ def test_D0032_AC_06_designは上限超え以外の失敗では今までどお�
     assert "3 回直しても検査に通らなかった" in out, out
 
 
-# ---- D0032-AC-07: 前の版の pipeline.toml と pipe.toml -----------------------------------------
+# ---- D0033-AC-07: 前の版の pipeline.toml と pipe.toml -----------------------------------------
 
 
-def test_D0032_AC_07_前の版のpipeline_tomlとpipe_tomlでも上限超えは終了コード3(tmp_path):
-    """D0032-AC-07: max_buffer_mb の無い前の版の pipeline.toml（OLD_TOML）と、上限の項目の無い前の版の pipe.toml（PIPE_TOML に2段目を足したもの）で
+def test_D0033_AC_07_前の版のpipeline_tomlとpipe_tomlでも上限超えは終了コード3(tmp_path):
+    """D0033-AC-07: max_buffer_mb の無い前の版の pipeline.toml（OLD_TOML）と、上限の項目の無い前の版の pipe.toml（PIPE_TOML に2段目を足したもの）で
     AC-01 の流れを流しても、読み込みで止まらず、段の上限は 33554432 で、終了コード 3 になる。"""
     write_toml(tmp_path, OLD_TOML)
     toml = PIPE_TOML + '[[stages]]\nname = "b"\nlabel = "b"\noutput = "b.md"\nprompt = "x"\n'

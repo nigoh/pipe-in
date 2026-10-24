@@ -2,20 +2,24 @@
 
 .claude/settings.json から、どの道具の呼び出しでもここを呼ぶ。入力の agent_type が pipe-in- で始まるときだけ検査し、
 メインエージェントやほかのサブエージェント（プラグインの pipe-in:pipe-builder・Explore など）には何もしない。
+agent_type が文字列でも null でもないとき（リスト・辞書・数値・真偽）は、分からない相手として、読むことと報告のほかは止める。
 - pipe-in-analyst（要件定義・設計）：docs/pipeline/01_requirements.md・02_design.md だけ。Bash なし
 - pipe-in-tester（テスト先行）：tests/・vscode/src の *.test.ts と vscode/src/test/・docs/pipeline/03_red_tests.md。Bash はテストを流すだけ
 - pipe-in-coder（実装）：テスト・.claude/・.git/・.env・ほかの段の記録を除いた所と docs/pipeline/04_implementation.md。Bash はテスト・型検査・ビルド
 - pipe-in-verifier（検証）：docs/pipeline/05_test_report.md だけ。Bash はテスト・型検査・ビルド・git の読むだけのコマンド
 - pipe-in-documenter（文書をそろえる）：README.md・vscode/README.md・pipes/README.md・docs/assets/README.md と docs/guide/・docs/development/ の .md だけ。Bash なし。
   CLAUDE.md・.claude/・決定の記録（docs/decisions/）は書けず、案を親に返す
-- pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）・pipe-in-judge（審査）：どこにも書けない・Bash なし。報告は SubagentHandback で返すだけ
+- pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）・pipe-in-judge（審査）：どこにも書けない・Bash なし。報告は返答で返すだけ（auto モードでは SubagentHandback）
 - Web は pipe-in-advisor（WebFetch・WebSearch）と pipe-in-judge（WebFetch だけ）だけ、公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ
 - 表に無い pipe-in-* は、Read・Glob・Grep・SubagentHandback だけ（表に足し忘れても絞られるように）
 PowerShell・MCP・Agent・Web（アドバイザーと審査役の公式の文書のほか）・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
-報告を親に渡す SubagentHandback は止めない。書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ
+報告を親に渡す SubagentHandback（auto モードで渡される）は止めない。書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ
 （worktree ならその worktree。見つからなければ CLAUDE_PROJECT_DIR）。
 
-道具を呼ぶたびに動くので、標準ライブラリだけを使う。入力が読めないときは止める。
+道具を呼ぶたびに動くので、標準ライブラリだけを使う。入力が読めないときは、だれの呼び出しか分からないので止める。
+例外が出ても pipe-in-* は止める（判断の途中で例外が出ても通さない。メインなど pipe-in- で始まらない呼び出しは止めない。
+読むだけの道具と報告は通す）。deny の JSON を書けないときは、JSON に頼らず標準エラーの理由で止める。最後の砦は終了コード 2。
+python が無い・時間切れ・構文エラーは、このファイルの中では止められない（D0032）。
 """
 
 from __future__ import annotations
@@ -29,7 +33,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 READ_TOOLS = {"Read", "Glob", "Grep"}
-# 報告を親に渡すだけの道具。止めると、どの段も報告を返せずに終わる（ファイルにも外にも書かない）
+# 報告を親に渡すだけの道具（auto モードで渡される）。止めると、auto モードではどの段も報告を返せずに終わる（ファイルにも外にも書かない）
 REPORT_TOOLS = {"SubagentHandback"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 WORK = "docs/pipeline/"
@@ -52,6 +56,28 @@ WEB_AGENTS: dict[str, frozenset[str]] = {
 }
 # この名前で始まり、表に無いエージェントは読むだけにする
 UNKNOWN_PREFIX = "pipe-in-"
+# 止める理由の本文の長さの上限（文字数）。外から来た文字列が極端に長くても、deny の出力が読まれるように切る。
+# 切ったときは CUT_MARK の分だけ長くなる（D0032。値は目安。公式の文書では、フックの出力は 10,000 文字まで）
+REASON_LIMIT = 1000
+CUT_MARK = "…（長いため途中で切りました）"
+
+
+def is_pipe_in_agent(agent: Any) -> bool:
+    """pipe-in-* の名前か（大文字小文字は区別しない）。decide と入口の判定は、この規則だけを使う。例外は出さない。"""
+    return isinstance(agent, str) and agent.lower().startswith(UNKNOWN_PREFIX)
+
+
+def is_guarded_caller(agent: Any) -> bool:
+    """絞る相手か。agent_type が無い・null・空・pipe-in- で始まらない名前は False（メインなど）。
+    pipe-in-* と、文字列でも null でもないもの（リスト・辞書・数値・真偽）は True（分からない相手として止める）。例外は出さない。"""
+    if agent is None:
+        return False
+    return is_pipe_in_agent(agent) if isinstance(agent, str) else True
+
+
+def is_read_only_tool(tool: Any) -> bool:
+    """書かない道具（読むだけの道具と、報告を親に渡す道具）か。例外は出さない。"""
+    return isinstance(tool, str) and (tool in READ_TOOLS or tool in REPORT_TOOLS)
 
 
 def _analyst(rel: str) -> bool:
@@ -157,7 +183,11 @@ def official_doc_url(url: Any) -> bool:
         return False
     if not url.lower().startswith("https://"):
         return False
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        # 読めない URL（角かっこの形・NFKC に直すと / ? # @ : が出るホストなど）は、公式の場所ではない
+        return False
     # ユーザー情報（@）・ポート（:）で、ホストを見せかける道を止める
     if "@" in parts.netloc or ":" in parts.netloc:
         return False
@@ -197,23 +227,25 @@ def check_web(tool: str, tool_input: dict[str, Any], agent: str) -> str | None:
 def decide(payload: dict[str, Any], *, root: str) -> str | None:
     """止める理由を返す。止めないときは None。pipe-in- で始まらない呼び出しには何もしない。"""
     agent = payload.get("agent_type")
+    if not is_guarded_caller(agent):
+        return None
     unknown = False
-    if agent in AGENTS:
+    if isinstance(agent, str) and agent in AGENTS:
         can_write, bash, where = AGENTS[agent]
-    elif isinstance(agent, str) and agent.lower().startswith(UNKNOWN_PREFIX):
-        # 表に足し忘れたエージェントも、読むことと報告のほかは止める
+    else:
+        # 表に足し忘れたエージェントと、文字列でない agent_type（分からない相手）も、読むことと報告のほかは止める
         can_write, bash, where = _nowhere, [], ""
         unknown = True
-    else:
-        return None
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
         tool_input = {}
-    if tool in READ_TOOLS or tool in REPORT_TOOLS:
+    if is_read_only_tool(tool):
         return None
     if unknown:
-        return f"{agent} はフックの表（.claude/hooks/pipe_in_guard.py の AGENTS）に無いため、Read・Glob・Grep・SubagentHandback のほかは使えません（{tool}）"
+        # 文字列でない agent_type は、中身でなく型の名前だけを理由に入れる（外から来た文字を理由に増やさない）
+        who = agent if isinstance(agent, str) else f"文字列でない agent_type（{type(agent).__name__}）"
+        return f"{who} はフックの表（.claude/hooks/pipe_in_guard.py の AGENTS）に無いため、Read・Glob・Grep・SubagentHandback のほかは使えません（{tool}）"
     if tool in WRITE_TOOLS:
         rel = project_path(tool_input.get("file_path"), root)
         if not where:
@@ -229,6 +261,8 @@ def decide(payload: dict[str, Any], *, root: str) -> str | None:
 
 
 def _deny(reason: str) -> str:
+    if len(reason) > REASON_LIMIT:
+        reason = reason[:REASON_LIMIT] + CUT_MARK
     return json.dumps(
         {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}},
         ensure_ascii=False,
@@ -236,14 +270,18 @@ def _deny(reason: str) -> str:
 
 
 def _write(text: str) -> None:
-    # Claude Code は UTF-8 で読む。Windows の標準出力（cp932）のまま書くと理由が文字化けするので、バイトで書く
+    # Claude Code は UTF-8 で読む。Windows の標準出力（cp932）のまま書くと理由が文字化けするので、バイトで書く。
+    # UTF-8 にできない文字（単独のサロゲート）は ? にする。止める出力そのものが書けずに落ちないように（D0032）
+    data = text.encode("utf-8", errors="replace")
     buffer = getattr(sys.stdout, "buffer", None)
     if buffer is not None:
         sys.stdout.flush()
-        buffer.write(text.encode("utf-8"))
+        buffer.write(data)
         buffer.flush()
     else:
-        sys.stdout.write(text)
+        sys.stdout.write(data.decode("utf-8"))
+        # 書けない失敗を、終了処理でなくここで見つける（最後の砦へ渡すため）
+        sys.stdout.flush()
 
 
 def _read_stdin() -> str:
@@ -252,22 +290,97 @@ def _read_stdin() -> str:
     return buffer.read().decode("utf-8") if buffer is not None else sys.stdin.read()
 
 
-def main() -> int:
-    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。終了コードはいつも 0。"""
+def _failure_reason(exc: Exception) -> str:
+    # 入れるのは例外の種類の名前だけ（例外のメッセージと、入力の文字は入れない）
+    return (
+        f"フックの判断が失敗したため止めました（{type(exc).__name__}）。"
+        "親に知らせてください。直すのは .claude/hooks/pipe_in_guard.py です"
+    )
+
+
+def _run() -> int:
+    """入力を読み、止めるときだけ deny の JSON を書く。書き出しの失敗だけは外へ出す（main が最後の砦へ渡す）。"""
     try:
         payload = json.loads(_read_stdin())
-    except (ValueError, UnicodeDecodeError):
+    except Exception:
+        # 標準入力が無い・読めない・UTF-8 でない・壊れた JSON・入れ子が深すぎる、のどれも
         payload = None
     if not isinstance(payload, dict):
         # だれの呼び出しか分からないので、安全側に倒して止める
         _write(_deny("フックへの入力が読めないため止めました"))
         return 0
-    root = project_root(str(payload.get("cwd") or ""), os.environ.get("CLAUDE_PROJECT_DIR"))
-    reason = decide(payload, root=root)
+    agent = payload.get("agent_type")
+    tool = payload.get("tool_name")
+    if not is_guarded_caller(agent):
+        # メインなど、絞らない相手には何もしない（フックが壊れていても、直すための呼び出しを止めない）
+        return 0
+    try:
+        root = project_root(str(payload.get("cwd") or ""), os.environ.get("CLAUDE_PROJECT_DIR"))
+        reason = decide(payload, root=root)
+    except Exception as exc:
+        # 判断が失敗しても通さない。読むだけの道具と報告だけは通す（報告で親に知らせられるように）
+        reason = None if is_read_only_tool(tool) else _failure_reason(exc)
     if reason:
         _write(_deny(reason))
     return 0
 
 
+def _last_resort(exc: Exception) -> int:
+    """deny の JSON を書けなかったとき：JSON に頼らず、標準エラーの理由と終了コード 2 で止める。"""
+    text = (
+        "pipe-in のフック（.claude/hooks/pipe_in_guard.py）が deny の JSON を出せなかったため、"
+        f"終了コード 2 で止めました（{type(exc).__name__}）。親に知らせてください。\n"
+    )
+    try:
+        stream = sys.stderr
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            stream.flush()
+            buffer.write(text.encode("utf-8"))
+            buffer.flush()
+        else:
+            stream.write(text)
+            stream.flush()
+    except Exception:
+        # 標準エラーも書けないときは、理由は出せないが、終了コード 2 で止める
+        pass
+    return 2
+
+
+def main() -> int:
+    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。
+    戻り値は 0（deny の JSON を出した・止めない）か 2（最後の砦）だけ。例外は外に出さない。"""
+    try:
+        return _run()
+    except Exception as exc:
+        return _last_resort(exc)
+
+
+def _quiet_exit_streams() -> None:
+    """終了コード 2 のまま終わるための後始末。書けなかったバイトが標準出力・標準エラーに残っていると、
+    Python の終了処理の flush がまた失敗し、終了コードが 120 に変わって止まらなくなる。標準出力と標準エラーの fd を
+    捨て先（os.devnull）へ付け替え、付け替えられないものは sys から外す（終了処理が flush しない）。例外は出さない。"""
+    try:
+        sink = os.open(os.devnull, os.O_WRONLY)
+    except Exception:
+        sink = -1
+    for name in ("stdout", "stderr"):
+        try:
+            if sink < 0:
+                raise OSError("捨て先を開けない")
+            os.dup2(sink, getattr(sys, name).fileno())
+        except Exception:
+            setattr(sys, name, None)
+    if sink > 2:
+        try:
+            os.close(sink)
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    code = main()
+    if code != 0:
+        # 付け替えは main() の外でだけする（テストが main() を呼んでも、pytest の出力の取り込み先を壊さない）
+        _quiet_exit_streams()
+    raise SystemExit(code)

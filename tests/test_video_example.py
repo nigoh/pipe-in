@@ -342,6 +342,11 @@ def test_verify_reads_small_frames():
     assert_has_words("05_verify.md", prompt_of("verify"), ["540", "JPEG", "1MB"])
 
 
+def test_verify_caps_frames_it_reads():
+    """D0011-AC-69: verify が読むこまは 16 枚まで。字幕の切り替わりごとに1枚を基本にし、気になる所だけ足す（43 枚読んで利用料の上限を超えたため）。"""
+    assert_has_words("05_verify.md", prompt_of("verify"), ["16 枚まで", "切り替わりごとに1枚"])
+
+
 @pytest.mark.parametrize("stage", ["render", "verify"])
 def test_render_and_verify_treat_approved_last_round_as_chosen(stage):
     """D0011-AC-67: 見本の最後の回の「選んだ案」が空でも、その回が1案だけなら、人が承認して進めたものとして扱う（承認では誰も記録を埋めないため）。"""
