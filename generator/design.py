@@ -2,7 +2,7 @@
 
 Claude に対象を読むだけで調べさせ、パイプの設計を構造化出力で返させる。ジェネレーターがそれを
 pipe.toml・prompts/・README.md に書き、pipe_in.pipe の検査に通るまで（max_rounds 回まで）直させる。
-検査に通らなければ、何も書かない。
+検査に通らなければ、何も書かない。SDK の受信バッファの上限を超えたときは、やり直さずに止める。
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from pipe_in.engine.config import load_config
-from pipe_in.engine.runner import StageRunner, run_stage_sdk
+from pipe_in.engine.runner import BUFFER_OVERFLOW_SUBTYPE, StageRunner, run_stage_sdk
 from pipe_in.engine.spec import EDIT_TOOLS, NO_SHELL_BYPASS, NO_WEB, READ_TOOLS, StageSpec
 from pipe_in.pipe import definition as pd
 
@@ -212,6 +212,13 @@ async def _design(
         for round_ in range(1, max_rounds + 1):
             print(f"\n▶ パイプの設計（{round_} 回目）", flush=True)
             run = await runner(spec, prompt, cfg, resume=resume, log_name=f"{round_:02d}_design")
+            if run.is_error and run.subtype == BUFFER_OVERFLOW_SUBTYPE:
+                # やり直しても同じものを読んで同じように超えるので、すぐに止める。作業用フォルダは finally で消える
+                print("✗ 設計の段が SDK の受信バッファの上限を超えたため、やり直さずに止めます")
+                for e in run.errors:
+                    print(e)
+                print("パイプは作りませんでした")
+                return 1
             errors = ["設計の段が失敗しました"] if run.is_error else _validate(name, purpose, run.structured, staging, project)
             if not errors:
                 if dest.exists():
