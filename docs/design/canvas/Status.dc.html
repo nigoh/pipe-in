@@ -18,7 +18,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
   <header style="display: flex; flex-direction: column; gap: 6px;">
     <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · COMPONENTS · 03</span>
     <h1 style="margin: 0; font-size: 36px; font-weight: 900;">状態：札・進み具合・知らせ</h1>
-    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 900px;">状態は色だけでなく、印（● ▲ ✕ ✓）と言葉でも伝えます。あなた待ちはコーラル、動いているものはティール。色の見分けがつかなくても読めます。</p>
+    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 900px;">状態は色だけでなく、アイコンの形と言葉でも伝えます。あなた待ちはコーラル、動いているものはティール。色の見分けがつかなくても読めます。</p>
   </header>
   <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
     <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
@@ -29,17 +29,17 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
           <h2 style="margin: 0; font-size: 15px; font-weight: 700;">セッションの状態</h2>
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             <sc-for list="{{t.sessions}}" as="s">
-              <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; background: {{s.bg}}; color: {{s.fg}}; font-size: 12px; font-weight: 700;"><span aria-hidden="true">{{s.mark}}</span>{{s.label}}</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; background: {{s.bg}}; color: {{s.fg}}; font-size: 12px; font-weight: 700;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="{{s.icon}}"></path></svg>{{s.label}}</span>
             </sc-for>
           </div>
-          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">作業中の ● はゆっくり明滅（動きを減らす設定では止める）。</p>
+          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">色に頼らず、アイコンの形で見分けられる：手＝あなたの番、回る矢印＝作業中、目＝見てほしい、×＝失敗、✓の丸＝一区切り。作業中の矢印はゆっくり回る（動きを減らす設定では止める）。</p>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">項目の状態（列の見出しの点）</h2>
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">項目の状態（列の見出しのアイコン）</h2>
           <div style="display: flex; flex-wrap: wrap; gap: 16px;">
             <sc-for list="{{t.items}}" as="s">
-              <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{s.dot}};"></span>{{s.label}}</span>
+              <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;"><span style="color: {{s.dot}}; display: inline-flex;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="{{s.icon}}"></path></svg></span>{{s.label}}</span>
             </sc-for>
           </div>
         </div>
@@ -70,17 +70,20 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <h2 style="margin: 0; font-size: 15px; font-weight: 700;">段階の進み具合</h2>
           <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
-            <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 700;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; margin-right: 6px;">1</span>見る</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}};">6/11</span></div>
-              <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: {{t.col}};"><span style="width: 36%; background: {{t.ok}};"></span><span style="width: 18%; background: {{t.coral}};"></span><span style="width: 10%; background: {{t.teal}};"></span></div>
-              <span style="font-size: 12px; color: {{t.muted}};">ふだん</span>
-            </div>
-            <div style="background: {{t.tealSoft}}; border: 2px solid {{t.teal}}; border-radius: 14px; padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 700;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; margin-right: 6px;">0</span>足場</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}};">3/9</span></div>
-              <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: {{t.col}};"><span style="width: 33%; background: {{t.ok}};"></span><span style="width: 11%; background: {{t.coral}};"></span></div>
-              <span style="font-size: 12px; color: {{t.tealText}}; font-weight: 700;">しぼり込み中</span>
-            </div>
+            <sc-for list="{{t.tiles}}" as="g">
+              <div style="background: {{g.bg}}; border: {{g.border}}; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 700;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; margin-right: 6px;">{{g.n}}</span>{{g.name}}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}};">{{g.frac}}</span></div>
+                <div style="display: flex; gap: 2px; height: 12px; border-radius: 4px; overflow: hidden; background: {{t.col}};">
+                  <sc-for list="{{g.segs}}" as="s"><span style="width: {{s.w}}; background: {{s.bg}}; box-shadow: inset 0 0 0 1px {{s.edge}};"></span></sc-for>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px;">
+                  <sc-for list="{{g.segs}}" as="s"><span style="display: inline-flex; align-items: center; gap: 4px; color: {{t.fg}};"><span style="width: 18px; height: 10px; border-radius: 2px; background: {{s.bg}}; box-shadow: inset 0 0 0 1px {{s.edge}};"></span>{{s.label}} <strong style="font-family: 'JetBrains Mono', monospace;">{{s.count}}</strong></span></sc-for>
+                </div>
+                <span style="font-size: 12px; color: {{g.noteColor}}; font-weight: {{g.noteWeight}};">{{g.note}}</span>
+              </div>
+            </sc-for>
           </div>
+          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">帯は色だけでなく模様でも分ける（完了＝塗りつぶし、手で確かめる＝斜めの縞、進行中＝点）。区切りに隙間を入れ、下に名前と数を出すので、色の見分けがつかなくても読める。</p>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -112,18 +115,40 @@ class Component extends DCLogic {
       coral: "#ff8a65", coralSoft: "#4a2316", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6", onTeal: "#0b2620",
       blueSoft: "#1c2b45", blueText: "#b3cdf5", bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab", ok: "#81c784", okSoft: "#1e3a20", okText: "#a5d6a7",
       quiet: "#2c2926", quietText: "#c4bab2", toastBg: "#f2ece6", toastFg: "#161514", shadowLift: "0 8px 24px rgba(0,0,0,.55)", idea: "#8a8079" };
+    const IC = {
+      hand: "M8 13V6a1.5 1.5 0 0 1 3 0v5M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5a6.5 6.5 0 0 1-6.5 6.5h-.3a6 6 0 0 1-5-2.7L3.3 14a1.5 1.5 0 0 1 2.5-1.6L8 15",
+      spin: "M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5",
+      eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+      x: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9l6 6M15 9l-6 6",
+      check: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 12.5l2.7 2.7L16 10",
+      bulb: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z",
+      circle: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+      play: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5l5 3.5-5 3.5z",
+      clip: "M9 3h6v3H9zM8 4.5H5V21h14V4.5h-3M9 13.5l2 2 4-4",
+    };
     const add = (t) => Object.assign({}, t, {
       sessions: [
-        { label: "あなた待ち", mark: "▲", bg: t.coralSoft, fg: t.coralText },
-        { label: "作業中", mark: "●", bg: t.tealSoft, fg: t.tealText },
-        { label: "見てほしい", mark: "◆", bg: t.blueSoft, fg: t.blueText },
-        { label: "失敗", mark: "✕", bg: t.badSoft, fg: t.badText },
-        { label: "一区切り", mark: "—", bg: t.quiet, fg: t.quietText },
+        { label: "あなた待ち", icon: IC.hand, bg: t.coralSoft, fg: t.coralText },
+        { label: "作業中", icon: IC.spin, bg: t.tealSoft, fg: t.tealText },
+        { label: "見てほしい", icon: IC.eye, bg: t.blueSoft, fg: t.blueText },
+        { label: "失敗", icon: IC.x, bg: t.badSoft, fg: t.badText },
+        { label: "一区切り", icon: IC.check, bg: t.quiet, fg: t.quietText },
       ],
       items: [
-        { label: "アイデア", dot: t.idea }, { label: "やる予定", dot: t.fg }, { label: "進行中", dot: t.teal },
-        { label: "手で確かめる", dot: t.coral }, { label: "完了", dot: t.ok },
+        { label: "アイデア", dot: t.idea, icon: IC.bulb }, { label: "やる予定", dot: t.fg, icon: IC.circle }, { label: "進行中", dot: t.teal, icon: IC.play },
+        { label: "手で確かめる", dot: t.coral, icon: IC.clip }, { label: "完了", dot: t.ok, icon: IC.check },
       ],
+      tiles: (() => {
+        const done = (w, c) => ({ w, label: "完了", count: c, bg: t.ok, edge: t.ok });
+        const chk = (w, c) => ({ w, label: "手で確かめる", count: c, bg: "repeating-linear-gradient(135deg, " + t.coral + " 0 3px, " + t.coralSoft + " 3px 6px)", edge: t.coral });
+        const doing = (w, c) => ({ w, label: "進行中", count: c, bg: "radial-gradient(" + t.teal + " 1.4px, " + t.tealSoft + " 1.6px) 0 0 / 5px 5px", edge: t.teal });
+        return [
+          { n: "1", name: "見る", frac: "6/11", bg: t.panel, border: "1px solid " + t.line, note: "ふだん", noteColor: t.muted, noteWeight: "400",
+            segs: [done("36%", "4"), chk("18%", "2"), doing("9%", "1")] },
+          { n: "0", name: "足場", frac: "3/9", bg: t.tealSoft, border: "2px solid " + t.teal, note: "しぼり込み中", noteColor: t.tealText, noteWeight: "700",
+            segs: [done("33%", "3"), chk("11%", "1")] },
+        ];
+      })(),
     });
     return { themes: [add(L), add(D)] };
   }
