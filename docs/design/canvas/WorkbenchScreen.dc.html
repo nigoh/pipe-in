@@ -45,24 +45,29 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
               </div>
             </sc-for>
           </aside>
-          <div style="flex-grow: 1; min-width: 0; position: relative; background-color: {{t.canvas}}; background-image: radial-gradient({{t.dot}} 1px, transparent 1.2px); background-size: 18px 18px;">
-            <svg width="100%" height="100%" viewBox="0 0 760 760" preserveAspectRatio="none" style="position: absolute; inset: 0;" aria-hidden="true">
-              <path d="M96 300 C 120 300, 120 300, 150 300" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
-              <path d="M262 290 C 300 290, 300 250, 330 250" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-dasharray="12 4 2 4"></path>
-              <path d="M262 310 C 320 310, 320 520, 420 520" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-dasharray="12 4 2 4"></path>
-              <path d="M448 250 C 470 250, 470 250, 490 250" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
-              <path d="M612 250 C 650 250, 650 300, 684 300" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
-              <path d="M540 520 C 640 520, 640 310, 684 310" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
-              <path d="M550 226 C 550 160, 390 160, 390 196" fill="none" stroke="{{t.coral}}" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 5"></path>
-            </svg>
-            <span style="position: absolute; left: 3%; top: 37%; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
-            <div style="position: absolute; left: 20%; top: 35%; width: 15%; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 6px 8px; box-shadow: {{t.shadow}};"><div style="font-size: 11px; font-weight: 700;">依頼の仕分け</div><code style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: {{t.muted}};">triage</code></div>
-            <div style="position: absolute; left: 43%; top: 27%; width: 16%; background-color: {{t.tealSoft}}; border: 2px dashed {{t.teal}}; border-radius: 12px; height: 150px;"><span style="position: absolute; left: 8px; top: -10px; font-size: 10px; font-weight: 700; padding: 0 8px; border-radius: 999px; background: {{t.teal}}; color: {{t.onTeal}};">並列 · 2</span></div>
-            <div style="position: absolute; left: 45%; top: 30%; width: 12%; background: {{t.card}}; border: 2px solid {{t.teal}}; border-radius: 10px; padding: 5px 7px; box-shadow: 0 0 0 4px {{t.tealSoft}};"><div style="font-size: 11px; font-weight: 700;">ソースの調査</div><code style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: {{t.muted}};">survey</code></div>
-            <div style="position: absolute; left: 45%; top: 40%; width: 12%; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 6px 8px;"><div style="font-size: 11px; font-weight: 700;">フロー図</div><code style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: {{t.muted}};">flow</code></div>
-            <div style="position: absolute; left: 64%; top: 29%; width: 16%; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 6px 8px; box-shadow: {{t.shadow}};"><div style="font-size: 11px; font-weight: 700;">図とソースの突き合わせ</div><code style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: {{t.muted}};">verify · 判定する</code></div>
-            <div style="position: absolute; left: 55%; top: 64%; width: 16%; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 6px 8px; box-shadow: {{t.shadow}};"><div style="font-size: 11px; font-weight: 700;">仕様の突き合わせ</div><code style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: {{t.muted}};">spec_check</code></div>
-            <span style="position: absolute; left: 89%; top: 37%; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">終わり</span>
+          <div style="flex-grow: 1; min-width: 0; position: relative; overflow: hidden; background-color: {{t.canvas}}; background-image: radial-gradient({{t.dot}} 1px, transparent 1.3px); background-size: 20px 20px;">
+            <div style="position: absolute; left: 0; top: 0; width: 860px; height: 640px;">
+              <svg width="860" height="640" viewBox="0 0 860 640" style="position: absolute; left: 0; top: 0;" aria-hidden="true">
+                <path d="M84 314 H130" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M280 306 H310 Q322 306 322 294 V292 Q322 280 334 280 H340" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
+                <path d="M280 322 H298 Q310 322 310 334 V484 Q310 496 322 496 H420" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
+                <path d="M530 278 H580" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M740 278 H750 Q762 278 762 290 V302 Q762 314 774 314 H786" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M580 496 H750 Q762 496 762 484 V326 Q762 314 774 314" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M660 252 V172 Q660 160 648 160 H447 Q435 160 435 172 V210" fill="none" stroke="{{t.coral}}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6"></path>
+              </svg>
+              <span style="position: absolute; left: 20px; top: 301px; width: 64px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
+              <div style="position: absolute; left: 340px; top: 180px; width: 190px; height: 200px; box-sizing: border-box; border: 2px dashed {{t.teal}}; border-radius: 14px; background: {{t.frameFill}};"><span style="position: absolute; left: 10px; top: -11px; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: {{t.teal}}; color: {{t.onTeal}};">並列 · 2</span></div>
+              <sc-for list="{{t.nodes}}" as="n">
+                <div style="position: absolute; left: {{n.x}}; top: {{n.y}}; width: {{n.w}}; height: 52px; box-sizing: border-box; background: {{t.card}}; border: {{n.border}}; border-radius: 10px; box-shadow: {{n.shadow}}; padding: 0 10px; display: flex; align-items: center; gap: 8px;">
+                  <span style="position: absolute; left: -7px; top: 18px; width: 7px; height: 16px; border-radius: 4px 0 0 4px; background: {{t.edge}};" aria-hidden="true"></span>
+                  <span style="position: absolute; right: -9px; top: 21px; width: 9px; height: 10px; border-radius: 0 5px 5px 0; background: {{t.coral}};" aria-hidden="true"></span>
+                  <span style="width: 28px; height: 28px; flex: none; border-radius: 8px; background: {{n.chipBg}}; color: {{n.chipFg}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg></span>
+                  <div style="display: flex; flex-direction: column; min-width: 0;"><span style="font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{n.name}}</span><code style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: {{t.muted}};">{{n.id}}</code></div>
+                </div>
+              </sc-for>
+              <span style="position: absolute; left: 786px; top: 301px; width: 64px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">終わり</span>
+            </div>
             <div style="position: absolute; right: 12px; bottom: 12px; background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
               <strong style="font-size: 11px;">ケーブル</strong>
               <span style="display: flex; align-items: center; gap: 6px;"><svg width="28" height="6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" stroke="{{t.teal}}" stroke-width="3"></line></svg>次の段</span>
@@ -115,14 +120,25 @@ class Component extends DCLogic {
     };
     const L = { key: "l", bg: "#f6f6f4", panel: "#ffffff", card: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
       coral: "#c2471f", onCoral: "#ffffff", teal: "#167d6b", onTeal: "#ffffff", tealSoft: "#dcefe9", tealText: "#0f5a4d", blue: "#3f6fb0",
-      okSoft: "#e3f1e3", okText: "#22652a", canvas: "#fbfaf8", dot: "#d6cfc8", shadow: "0 1px 2px rgba(35,32,30,.1)" };
+      okSoft: "#e3f1e3", okText: "#22652a", canvas: "#eceae6", dot: "#d9d4ce", edge: "#8f857e", frameFill: "rgba(22,125,107,.06)", shadow: "0 1px 3px rgba(35,32,30,.18)" };
     const D = { key: "d", bg: "#161514", panel: "#211f1d", card: "#26231f", col: "#2a2724", line: "#36322f", fg: "#f2ece6", muted: "#ada39b",
       coral: "#ff8a65", onCoral: "#2a140b", teal: "#5fc4ab", onTeal: "#0b2620", tealSoft: "#15392f", tealText: "#8fe0c6", blue: "#8db4ee",
-      okSoft: "#1e3a20", okText: "#a5d6a7", canvas: "#1a1917", dot: "#3a3632", shadow: "0 1px 2px rgba(0,0,0,.5)" };
+      okSoft: "#1e3a20", okText: "#a5d6a7", canvas: "#100f0e", dot: "#2a2724", edge: "#8a8079", frameFill: "rgba(95,196,171,.07)", shadow: "0 2px 6px rgba(0,0,0,.6)" };
     const names = [["調べる", I.search], ["任せる", I.people], ["文書と図", I.doc], ["テスト", I.test], ["コード", I.code], ["確かめる", I.check], ["仕分け", I.branch], ["外を見る", I.globe], ["並列の枠", I.frame]];
+    const nodes = (t) => {
+      const n = (name, id, d, x, y, w, o) => Object.assign({ name, id, d, x: x + "px", y: y + "px", w: w + "px",
+        border: "1.5px solid " + t.edge, shadow: t.shadow, chipBg: t.col, chipFg: t.fg }, o || {});
+      return [
+        n("依頼の仕分け", "triage · 仕分け", I.branch, 130, 288, 150),
+        n("ソースの調査", "survey · 調べる", I.search, 360, 210, 150, { border: "2px solid " + t.teal, shadow: "0 0 0 4px " + t.tealSoft, chipBg: t.tealSoft, chipFg: t.tealText }),
+        n("フロー図", "flow · 文書と図", I.doc, 360, 300, 150),
+        n("図とソースの突き合わせ", "verify · 確かめる", I.check, 580, 252, 160),
+        n("仕様の突き合わせ", "spec_check · 確かめる", I.check, 420, 470, 160),
+      ];
+    };
     return {
       blocks: names.map(([name, d]) => ({ name, d, border: "1px solid transparent" })),
-      themes: [L, D],
+      themes: [Object.assign({}, L, { nodes: nodes(L) }), Object.assign({}, D, { nodes: nodes(D) })],
     };
   }
 }
