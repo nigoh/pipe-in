@@ -27,13 +27,13 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
           <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 14px; height: 14px; border-radius: 4px; background: {{t.coral}};" aria-hidden="true"></span><span style="font-size: 12px; color: {{t.muted}}; letter-spacing: .06em;">pipe-in · 進み具合</span><span style="flex-grow: 1;"></span><span style="font-size: 12px; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">12:40 更新</span></div>
           <div style="display: flex; flex-direction: column; gap: 6px;">
             <h2 style="margin: 0; font-size: 26px; font-weight: 900;">計画ボード /pipe-plan</h2>
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};">▲ 確認待ち：設計</span><span style="font-size: 12px; color: {{t.muted}};">合計 <span style="font-family: 'JetBrains Mono', monospace;">$1.82 · 31 ターン · 18:04</span></span></div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; vertical-align: -2px; margin-right: 4px;"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>確認待ち：設計</span><span style="font-size: 12px; color: {{t.muted}};">合計 <span style="font-family: 'JetBrains Mono', monospace;">$1.82 · 31 ターン · 18:04</span></span></div>
           </div>
           <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: {{t.col}};" aria-hidden="true"><span style="width: 20%; background: {{t.ok}};"></span><span style="width: 2px;"></span><span style="width: 20%; background: {{t.coral}};"></span></div>
           <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
             <sc-for list="{{t.stages}}" as="s">
               <li style="display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: {{s.bg}}; border: {{s.border}};">
-                <span style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; background: {{s.markBg}}; color: {{s.markFg}};" aria-hidden="true">{{s.mark}}</span>
+                <span style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; background: {{s.markBg}}; color: {{s.markFg}};" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; "><path d="{{s.icon}}"></path></svg></span>
                 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
                   <div style="display: flex; gap: 8px; align-items: baseline;"><strong style="font-size: 15px;">{{s.label}}</strong><span style="font-size: 12px; font-weight: 700; color: {{s.wordColor}};">{{s.word}}</span><span style="font-size: 11px; color: {{t.muted}};">{{s.attempt}}</span></div>
                   <span style="font-size: 12px; color: {{t.muted}};">{{s.note}}</span>
@@ -47,10 +47,10 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
         <div style="width: 390px; flex: none; background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 28px; padding: 22px 16px; display: flex; flex-direction: column; gap: 12px;">
           <span style="font-size: 11px; color: {{t.muted}}; text-align: center;">スマホの幅</span>
           <h2 style="margin: 0; font-size: 19px; font-weight: 900;">計画ボード /pipe-plan</h2>
-          <span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};">▲ 確認待ち：設計</span>
+          <span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; vertical-align: -2px; margin-right: 4px;"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>確認待ち：設計</span>
           <sc-for list="{{t.stages}}" as="s">
             <div style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: {{s.bg}}; border: {{s.border}};">
-              <span style="width: 24px; height: 24px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; background: {{s.markBg}}; color: {{s.markFg}};" aria-hidden="true">{{s.mark}}</span>
+              <span style="width: 24px; height: 24px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; background: {{s.markBg}}; color: {{s.markFg}};" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; "><path d="{{s.icon}}"></path></svg></span>
               <strong style="font-size: 14px; flex-grow: 1;">{{s.label}}</strong>
               <span style="font-size: 12px; font-weight: 700; color: {{s.wordColor}};">{{s.word}}</span>
             </div>
@@ -64,6 +64,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2720,"height":1100}}'>
 class Component extends DCLogic {
   renderVals() {
+    const LI = {"hand": "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15", "spin": "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5", "ok": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12", "x": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M15 9l-6 6M9 9l6 6", "todo": "M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7", "check": "M20 6 9 17l-5-5", "minus": "M5 12h14", "bulb": "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4", "circle": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "play": "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996zM2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "clip": "M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1ZM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4"};
     const L = { bg: "#f6f6f4", panel: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
       coral: "#c2471f", onCoral: "#ffffff", coralSoft: "#fde6dd", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d",
       ok: "#2e7d32", okSoft: "#e3f1e3", okText: "#22652a" };
@@ -71,9 +72,9 @@ class Component extends DCLogic {
       coral: "#ff8a65", onCoral: "#2a140b", coralSoft: "#4a2316", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6",
       ok: "#81c784", okSoft: "#1e3a20", okText: "#a5d6a7" };
     const stages = (t) => {
-      const done = { bg: t.panel, border: "1px solid " + t.line, mark: "✓", markBg: t.okSoft, markFg: t.okText, word: "完了", wordColor: t.okText };
-      const wait = { bg: t.coralSoft, border: "2px solid " + t.coral, mark: "▲", markBg: t.coral, markFg: t.onCoral, word: "確認待ち", wordColor: t.coralText };
-      const todo = { bg: "transparent", border: "1px dashed " + t.line, mark: "·", markBg: t.col, markFg: t.muted, word: "まだ", wordColor: t.muted };
+      const done = { bg: t.panel, border: "1px solid " + t.line, icon: LI.check, markBg: t.okSoft, markFg: t.okText, word: "完了", wordColor: t.okText };
+      const wait = { bg: t.coralSoft, border: "2px solid " + t.coral, icon: LI.hand, markBg: t.coral, markFg: t.onCoral, word: "確認待ち", wordColor: t.coralText };
+      const todo = { bg: "transparent", border: "1px dashed " + t.line, icon: LI.minus, markBg: t.col, markFg: t.muted, word: "まだ", wordColor: t.muted };
       return [
         Object.assign({}, done, { label: "要件定義", attempt: "2回目", note: "差し戻し 1回：受け入れ基準を足した", usage: "$0.42 · 9 ターン · 3:10" }),
         Object.assign({}, wait, { label: "設計", attempt: "", note: "docs/pipeline/02_design.md を読んで答えてください", usage: "$0.38 · 7 ターン · 2:48" }),

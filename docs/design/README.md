@@ -45,6 +45,8 @@ pipe-in の画面（計画ボード・実行パネル・進み具合のページ
 | アイデア・やる予定・進行中・手で確かめる・完了 | `lightbulb`・`circle`・`circle-play`・`clipboard-check`・`circle-check` |
 | 知らせ（案内・注意・失敗） | `info`・`triangle-alert`・`circle-x` |
 | ブロック（調べる・任せる・文書と図・テスト・コード・確かめる・仕分け・外を見る・並列の枠） | `search`・`users`・`file-text`・`flask-conical`・`code`・`shield-check`・`git-branch`・`globe`・`rows-2` |
+| 段の状態（流れの図・進み具合のページ） | `circle-check`・`check`・`hand`・`circle-dashed`・`minus` |
+| 更新なし | `clock-alert` |
 | 閉じる | `x` |
 
 コンセントとプラグ、フロー図の形のブロックの外形は pipe-in だけの形なので、自作のままです。

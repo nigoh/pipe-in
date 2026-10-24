@@ -45,8 +45,8 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
                 <span style="font-size: 11px; font-weight: 700; color: {{t.muted}}; letter-spacing: .06em; padding: 4px 2px 0;">{{g.label}}</span>
                 <sc-for list="{{g.runs}}" as="r">
                   <div style="border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; background: {{r.bg}}; border: {{r.border}};">
-                    <div style="display: flex; gap: 6px; align-items: baseline;"><span style="color: {{r.dot}}; font-size: 11px;" aria-hidden="true">{{r.mark}}</span><span style="flex-grow: 1; font-size: 13px; font-weight: 700;">{{r.title}}</span><span style="font-size: 11px; font-weight: 700; color: {{r.timeColor}}; font-family: 'JetBrains Mono', monospace;">{{r.time}}</span></div>
-                    <span style="font-size: 11px; color: {{t.muted}}; padding-left: 17px;">{{r.meta}}</span>
+                    <div style="display: flex; gap: 6px; align-items: baseline;"><span style="color: {{r.dot}}; display: inline-flex; align-self: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; "><path d="{{r.icon}}"></path></svg></span><span style="flex-grow: 1; font-size: 13px; font-weight: 700;">{{r.title}}</span><span style="font-size: 11px; font-weight: 700; color: {{r.timeColor}}; font-family: 'JetBrains Mono', monospace;">{{r.time}}</span></div>
+                    <span style="font-size: 11px; color: {{t.muted}}; padding-left: 20px;">{{r.meta}}</span>
                   </div>
                 </sc-for>
               </div>
@@ -56,7 +56,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
             <span style="font-size: 12px; color: {{t.muted}};">feat/export-csv › spec-qa</span>
             <div style="display: flex; align-items: center; gap: 12px;">
               <h2 style="margin: 0; font-size: 24px; font-weight: 900;">CSV 出力を足す</h2>
-              <span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};">▲ 確認待ち 0:08</span>
+              <span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.coralSoft}}; color: {{t.coralText}};"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; vertical-align: -2px; margin-right: 4px;"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>確認待ち 0:08</span>
               <span style="flex-grow: 1;"></span>
               <button type="button" style="font: inherit; font-size: 13px; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">成果物を開く</button>
             </div>
@@ -64,7 +64,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
               <span>パイプ <strong style="color: {{t.fg}};">spec-qa</strong></span><span>今の段 <strong style="color: {{t.fg}};">要件定義</strong></span><span>経過 <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">3:00</strong></span><span>費用 <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">$0.210</strong></span><span>最後に動いた <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">10/17 10:03</strong></span>
             </div>
             <div role="status" style="border-radius: 10px; padding: 10px 14px; background: {{t.coralSoft}}; border: 1px solid {{t.coral}}; display: flex; gap: 12px; align-items: center;">
-              <span style="color: {{t.coralText}}; font-weight: 700;" aria-hidden="true">▲</span>
+              <span style="color: {{t.coralText}}; display: inline-flex;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; "><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg></span>
               <div style="display: flex; flex-direction: column; flex-grow: 1;"><strong style="font-size: 13px; color: {{t.coralText}};">要件定義の確認を待っています</strong><span style="font-size: 12px; color: {{t.coralText}};">docs/pipeline/01_requirements.md を読んで、承認か修正の依頼を返してください</span></div>
             </div>
             <div style="display: flex; border-bottom: 1px solid {{t.line}};" role="tablist" aria-label="表示">
@@ -78,7 +78,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
                   <div style="display: flex; flex-direction: column; align-items: center;">
                     <sc-if value="{{s.arrow}}" hint-placeholder-val="{{true}}"><span style="width: 2px; height: 14px; background: {{t.line2}};" aria-hidden="true"></span></sc-if>
                     <div style="width: {{s.w}}; box-sizing: border-box; border-radius: {{s.radius}}; border: {{s.border}}; background: {{s.bg}}; box-shadow: {{s.ring}}; padding: 7px 12px; display: flex; flex-direction: column; gap: 2px;">
-                      <div style="display: flex; gap: 6px; align-items: baseline;"><span style="flex-grow: 1; font-size: 12px; font-weight: 700;">{{s.name}}</span><span style="font-size: 11px; font-weight: 700; color: {{s.stateColor}};">{{s.state}}</span></div>
+                      <div style="display: flex; gap: 6px; align-items: baseline;"><span style="flex-grow: 1; font-size: 12px; font-weight: 700;">{{s.name}}</span><span style="font-size: 11px; font-weight: 700; color: {{s.stateColor}}; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; "><path d="{{s.icon}}"></path></svg>{{s.state}}</span></div>
                       <sc-if value="{{s.meta}}" hint-placeholder-val="{{false}}"><span style="font-size: 10px; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">{{s.meta}}</span></sc-if>
                     </div>
                   </div>
@@ -121,6 +121,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2720,"height":1000}}'>
 class Component extends DCLogic {
   renderVals() {
+    const LI = {"hand": "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15", "spin": "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5", "ok": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12", "x": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M15 9l-6 6M9 9l6 6", "todo": "M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7", "check": "M20 6 9 17l-5-5", "minus": "M5 12h14", "bulb": "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4", "circle": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "play": "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996zM2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "clip": "M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1ZM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4"};
     const L = { key: "l", bg: "#f6f6f4", panel: "#ffffff", side: "#f0efec", card: "#ffffff", col: "#ecebe7", line: "#e4ded8", line2: "#c9c1ba", fg: "#23201e", muted: "#6b625c",
       coral: "#c2471f", coralSoft: "#fde6dd", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d",
       bad: "#b3261e", ok: "#2e7d32", okText: "#22652a", canvas: "#fbfaf8", dot: "#ddd6cf", blue: "#3f6fb0" };
@@ -132,25 +133,25 @@ class Component extends DCLogic {
       return Object.assign({}, t, {
         groups: [
           { label: "確認待ち", runs: [
-            run({ title: "CSV 出力を足す", mark: "▲", dot: t.coral, time: "待ち 0:08", timeColor: t.coralText, meta: "spec-qa · feat/export-csv · b21e07c4", bg: t.panel, border: "2px solid " + t.teal }),
-            run({ title: "仕様の QA を回す", mark: "▲", dot: t.coral, time: "待ち 0:41", timeColor: t.coralText, meta: "開発フロー · main · 要件定義" }) ] },
+            run({ title: "CSV 出力を足す", icon: LI.hand, dot: t.coral, time: "待ち 0:08", timeColor: t.coralText, meta: "spec-qa · feat/export-csv · b21e07c4", bg: t.panel, border: "2px solid " + t.teal }),
+            run({ title: "仕様の QA を回す", icon: LI.hand, dot: t.coral, time: "待ち 0:41", timeColor: t.coralText, meta: "開発フロー · main · 要件定義" }) ] },
           { label: "動いている", runs: [
-            run({ title: "ログインの不具合を直す", mark: "●", dot: t.teal, time: "15:21", meta: "開発フロー · fix/login · 実装" }),
-            run({ title: "設計図をそろえる", mark: "●", dot: t.teal, time: "14:54", meta: "diagrams · main · 実装（2回目）" }) ] },
+            run({ title: "ログインの不具合を直す", icon: LI.spin, dot: t.teal, time: "15:21", meta: "開発フロー · fix/login · 実装" }),
+            run({ title: "設計図をそろえる", icon: LI.spin, dot: t.teal, time: "14:54", meta: "diagrams · main · 実装（2回目）" }) ] },
           { label: "終わった", runs: [
-            run({ title: "アンケートを集計する", mark: "✓", dot: t.ok, time: "10/17", meta: "survey · main · 合格" }),
-            run({ title: "CSV 出力（1回目）", mark: "✕", dot: t.bad, time: "10/16", meta: "開発フロー · main · 不合格" }),
-            run({ title: "一覧の並び替え", mark: "✓", dot: t.ok, time: "10/15", meta: "開発フロー · main · 合格" }) ] },
+            run({ title: "アンケートを集計する", icon: LI.ok, dot: t.ok, time: "10/17", meta: "survey · main · 合格" }),
+            run({ title: "CSV 出力（1回目）", icon: LI.x, dot: t.bad, time: "10/16", meta: "開発フロー · main · 不合格" }),
+            run({ title: "一覧の並び替え", icon: LI.ok, dot: t.ok, time: "10/15", meta: "開発フロー · main · 合格" }) ] },
         ],
         flow: [
-          { name: "要件メモ", state: "✓ 完了", stateColor: t.okText, meta: "", w: "200px", radius: "10px", border: "2px dashed " + t.ok, bg: t.card, ring: "none", arrow: false },
-          { name: "要件定義", state: "✓ 完了", stateColor: t.okText, meta: "9 ターン · $0.210 · 0:48", w: "240px", radius: "10px", border: "2px solid " + t.ok, bg: t.card, ring: "none", arrow: true },
-          { name: "確認", state: "▲ 確認待ち 0:08", stateColor: t.coralText, meta: "", w: "200px", radius: "999px", border: "2px solid " + t.coral, bg: t.coralSoft, ring: "0 0 0 4px " + t.coralSoft, arrow: true },
-          { name: "設計", state: "まだ", stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
-          { name: "確認", state: "まだ", stateColor: t.muted, meta: "", w: "200px", radius: "999px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
-          { name: "テスト先行", state: "まだ", stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
-          { name: "実装", state: "まだ", stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
-          { name: "検証", state: "まだ", stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
+          { name: "要件メモ", state: "完了", icon: LI.ok, stateColor: t.okText, meta: "", w: "200px", radius: "10px", border: "2px dashed " + t.ok, bg: t.card, ring: "none", arrow: false },
+          { name: "要件定義", state: "完了", icon: LI.ok, stateColor: t.okText, meta: "9 ターン · $0.210 · 0:48", w: "240px", radius: "10px", border: "2px solid " + t.ok, bg: t.card, ring: "none", arrow: true },
+          { name: "確認", state: "確認待ち 0:08", icon: LI.hand, stateColor: t.coralText, meta: "", w: "200px", radius: "999px", border: "2px solid " + t.coral, bg: t.coralSoft, ring: "0 0 0 4px " + t.coralSoft, arrow: true },
+          { name: "設計", state: "まだ", icon: LI.todo, stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
+          { name: "確認", state: "まだ", icon: LI.todo, stateColor: t.muted, meta: "", w: "200px", radius: "999px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
+          { name: "テスト先行", state: "まだ", icon: LI.todo, stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
+          { name: "実装", state: "まだ", icon: LI.todo, stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
+          { name: "検証", state: "まだ", icon: LI.todo, stateColor: t.muted, meta: "", w: "240px", radius: "10px", border: "1px solid " + t.line2, bg: t.card, ring: "none", arrow: true },
         ],
       });
     };
