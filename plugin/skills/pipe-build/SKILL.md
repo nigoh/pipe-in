@@ -31,12 +31,12 @@ disable-model-invocation: true
 1. 目的を確かめる：何を作りたいか（成果物）、だれが読むか、どこまでを対象にするか、を一言ずつにまとめる。あいまいな点だけを質問にまとめて聞く（聞かなくても決められることは、決めて伝える）。
 2. 対象を読む（読むだけ）：言語・テストのコマンド・ソース／文書／仕様書の場所。
 3. 形を決めて見せる：ひな形（`dev` / `diagrams` / `spec-qa`）でほぼ足りるならそれをもとにし、足りなければいちばん近いひな形から段を足す・削る。
-   段ごとに、名前・表示名・成果物・`access`・`review`・`bash`・`check`・指示の要点を表にして見せ、確認を取る。決め方は下の「段の決め方」。
+   段ごとに、名前・表示名・成果物・`access`・`review`・`bash`・`check`（`verdict`／`command`／`judge(must n・criteria n)` を分けて書く）・指示の要点を表にして見せ、確認を取る。決め方は `references/stage-rules.md`。
    図で組み立てたい人には、VSCode の「pipe-in: パイプ作業台を開く」（作業台）も案内する。
 
 ## 2b. 直す
 
-1. `pipe.toml` と `prompts/` を読み、今の段を表にして見せる（名前・表示名・`access`・`review`・`bash`・`check`・つなぎ（`on_fail`・`routes`・`next`・`group`））。
+1. `pipe.toml` と `prompts/` を読み、今の段を表にして見せる（名前・表示名・`access`・`review`・`bash`・`check`（`verdict`／`command`／`judge` を分けて）・つなぎ（`on_fail`・`routes`・`next`・`group`））。
 2. 直したい点を聞き、変える点を「前 → 後」の表で見せて確認を取る。
    - 段の名前を変える・段を消すときは、つられて変わる所（ほかの段の `on_fail`・`routes`・`next`、`prompts/` のファイル名、README の段の表）も表に入れる。
    - **権限が広がる変更**（`access` を広くする・`bash`・`web`・`mcp` を足す・`writes` を緩める）には「⚠ 権限が広がる」と印を付け、なぜ要るのかを添えて、はっきり確認を取る。
@@ -49,6 +49,7 @@ disable-model-invocation: true
 - 作るときはもとにするひな形、直すときはパイプのフォルダのパス
 - 確認が取れた段の表（作るとき）か「前 → 後」の表（直すとき）。表に無いことはさせない
 - 確認が取れた権限の変更の一覧（これに無い権限の拡大は、pipe-builder が差し戻してくる）
+- 段の決め方の文書：`${CLAUDE_SKILL_DIR}/references/stage-rules.md`。呼ぶ前に自分で Read して、その中身を依頼文に貼る（展開した絶対パスも添える）。プラグインを入れた先によっては、この文書は作業フォルダの外にあり、pipe-builder が読もうとすると権限の確認が出ることがあるため。表に無いことはさせない
 
 pipe-builder が差し戻してきたら、理由を人に見せ、表を直して確認を取り直してから、もう一度任せる。
 
@@ -61,16 +62,4 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
   対象が公開リポジトリなら、`docs/pipeline/` を `.gitignore` に入れることと、`.pipe-in/pipes/` の指示文に社内の事情が入っていないかを見てからコミットすることを勧める。
 - **流すのは、人に言われてから。** pipe-in を流すと Claude の利用料がかかる。
 
-## 段の決め方
-
-- `access` は、目的を満たす中でいちばん狭い型にする（文書を作るだけなら `read`、別のフォルダに文書や図を置くなら `docs`）。書き込む場所が決まっているなら `writes` で絞る。
-- `bash = true` は、テストの実行など本当に必要な段だけ。
-- 人が中身を確かめるべき段（方針が決まる段・最終の成果物）には `review = true`。
-- 図は Mermaid で書かせる。
-- 作った物を確かめる段には `[stages.check]`（`verdict = true` で判定させ、`on_fail` で直す段へ戻す。テストで確かめられるなら `command`）。
-- 目的で道が分かれるなら `[stages.routes]`、分岐先の最後には `next`。互いに独立した段は `group` で同時に流す。
-- 段の中で手分けしたいときは `[stages.agents.<名前>]`。方針だけを立てさせたい段は `permission_mode = "plan"`。
-- サブエージェントは待つ形（`run_in_background: false` を付ける。付けないと裏で動くので止まる）でしか呼べず、`isolation` も付けられない。1回の実行で呼べるのは `max_agent_calls` 回まで（既定 20。`agents` のある段だけに書ける）。手分けの数が多い段だけ、要る数を `max_agent_calls` に書く。サブエージェントの中からさらにサブエージェントは呼べない。段の指示文にもこの呼び方を書いておくと、止められて呼び直す手間が減る。
-- Bash を裏で動かす呼び方（`run_in_background: true`）は、どの段でも止まる。
-- Web や MCP は、要る段だけに `web`・`mcp` を書く。`web` はできればドメインの一覧で絞り、MCP は読むだけの道具を選ぶ。MCP を使うなら、対象の `pipeline.toml` の `setting_sources` に設定の出どころが要ることを伝える。
-- 会話を挟まずに Claude に段を組ませる `pipe-in-gen design` もあるが、利用料がかかるので、人に言われたときだけ使う（pipe-builder には使わせない）。
+段ごとの決め方・検査と審査の組み方は [references/stage-rules.md](references/stage-rules.md) にあります。2a の3・2b の2で表を作るときに読む。

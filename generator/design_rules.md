@@ -24,7 +24,12 @@
     - `verdict`: true で、段に pass / fail と直す点を返させる
     - `command`：pipe-in が流す確認用のコマンド（例: テストのコマンド）。終了コード 0 で合格
     - `on_fail`：不合格のときに戻す段（自分か前の段の name）
-    - `max_retries`：戻す回数の上限（1〜3）
+    - `max_retries`：戻す回数の上限（1〜3 がおすすめ。検査は 0 以上を通す）
+    - `judge`：（任意）審査役に中身を見させる。`criteria`（点数をつける項目。検査が求めるのは1つ以上で、2つ以上が目安。`must` だけでは通らない）、`must`（1つでも違反なら即不合格の決まり）、`threshold`（0〜1、既定 0.7）。各項目は `name` と `description`。`description` は審査役が yes / no で答えられる文にし、1つの `must` に1つの決まりを書く
+- 検査と審査の組み方：
+  - 合否は検査（`command`）で決め、審査（`judge`）は中身の指摘に使う。審査の指摘による書き直しは決まりを崩すことがあり、それを拾えるのは検査だけ。
+  - 審査で差し戻すなら command と組む。組めないなら、`on_fail` は書かず指摘だけにする。
+  - `command` は、依頼文の「テストのコマンド」など、対象から分かるものだけを書く。推し量って書かない。
 - 図を描くなら Mermaid で書かせる。
 - Web・MCP は使わない設計にする（必要なら人があとで足す）。
 
@@ -33,4 +38,52 @@
 1. 目的と、対象プロジェクトの形（言語・テストのコマンド・ソースや文書の場所）を確かめる。必要なら少しだけファイルを読む。
 2. 段を 2〜6 個に分ける。調べる段 → 作る段 → 確かめる段、の形を基本にする。
 3. 作った物を確かめる段には `check`（`verdict` と、戻す先の `on_fail`）を付ける。
+   検査で拾えない中身の指摘は、`judge` の `must` で書かせる。
 4. 誤りを指摘されたら、その点を直した設計を、全体をもう一度返す。
+
+## 設計の例
+
+テストのコマンドが分かっている対象で、作った物を `command` と `judge` の両方で確かめる設計の例です。
+
+```json
+{
+  "label": "API 文書を作る",
+  "description": "ソースから API 文書を作り、テストと審査で確かめる",
+  "input": "optional",
+  "stages": [
+    {
+      "name": "write",
+      "label": "文書を書く",
+      "output": "01_write.md",
+      "access": "docs",
+      "docs_dir": "docs",
+      "review": true,
+      "prompt": "- ソースを読み、API の一覧と使い方を docs/api.md に書く\n- 事実と推測を分け、根拠のファイルを添える"
+    },
+    {
+      "name": "verify",
+      "label": "文書の確認",
+      "output": "02_verify.md",
+      "access": "read",
+      "bash": true,
+      "prompt": "- 書かれた文書をソースと突き合わせ、合わない所を problems に書く",
+      "check": {
+        "verdict": true,
+        "command": "pytest -q",
+        "on_fail": "write",
+        "max_retries": 2,
+        "judge": {
+          "threshold": 0.7,
+          "criteria": [
+            {"name": "網羅", "description": "公開されている API が過不足なく載っている"},
+            {"name": "使い方", "description": "使い方の例が、ソースの動きと合っている"}
+          ],
+          "must": [
+            {"name": "根拠のない記述がない", "description": "ソースに根拠のない API が書かれていますか（ある＝違反）"}
+          ]
+        }
+      }
+    }
+  ]
+}
+```

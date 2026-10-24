@@ -34,5 +34,24 @@ prompt_file = "prompts/03_verify.md"
 # 図とソースが合っていなければ、直す点を添えて「図を描く」段へ戻す（2回まで）
 [stages.check]
 verdict = true
+# 図の Mermaid ブロックが1つもなければ不合格。外側は "、中は ' で書くと、Windows の cmd.exe でも sh でも崩れない。
+# python が無い環境（python3 だけ等）では command を書き換える。審査だけで差し戻すと、直しで決まりが崩れても気づけない。
+command = "python -c \"import sys,pathlib as P;t=''.join(f.read_text(encoding='utf-8',errors='ignore') for f in P.Path('{{diagrams_dir}}').rglob('*.md'));sys.exit(0 if chr(96)*3+'mermaid' in t else 1)\""
 on_fail = "draw"
 max_retries = 2
+
+# 中身の指摘は審査役に任せる。must に当たると、平均に関わらず不合格になる
+[stages.check.judge]
+threshold = 0.7
+
+[[stages.check.judge.criteria]]
+name = "要素の過不足"
+description = "図の要素が、ソースにある重要な要素を過不足なく表している"
+
+[[stages.check.judge.criteria]]
+name = "矢印と順番"
+description = "矢印の向き・呼び出しの順番・状態の変わり方が、ソースと合っている"
+
+[[stages.check.judge.must]]
+name = "ソースにない要素がない"
+description = "図の中に、ソースに根拠のない要素・矢印がありますか（ある＝違反）"
