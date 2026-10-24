@@ -1414,7 +1414,7 @@ ARTIFACT_DESIGN_LAYERS = [
     ("基盤", "256 KiB"),
 ]
 DESIGN_PAGE_ROW = "| 画面の確認用のページ"
-DESIGN_PAGE_WORDS = ["run-panel-artifacts-light", "run-panel-artifacts-dark", "vscode/scripts/artifactSamples.ts"]
+DESIGN_PAGE_WORDS = ["vscode/scripts/artifactSamples.ts"]  # run-panel-artifacts-light・run-panel-artifacts-dark の 2 語は、D0039-AC-16 に置き換わった（個々のページ名は design.md の行に並べない）
 
 
 def artifact_part(md: str) -> str:
@@ -1631,8 +1631,9 @@ def test_D0025_AC_77_designのドメインの行の古い時刻の説明が直�
 
 @pytest.mark.parametrize("word", DESIGN_PAGE_WORDS)
 def test_D0025_AC_77_designの確認用ページの行に成果物のページと見本の文章がある(word):
-    """D0025-AC-77: docs/development/design.md の置き場所の表の「画面の確認用のページ」の行に、新しいページ run-panel-artifacts-light・run-panel-artifacts-dark と、
-    見本の文章 vscode/scripts/artifactSamples.ts がある（パスの実在は tests/test_rules.py が見る）。"""
+    """D0025-AC-77: docs/development/design.md の置き場所の表の「画面の確認用のページ」の行に、見本の文章 vscode/scripts/artifactSamples.ts がある
+    （パスの実在は tests/test_rules.py が見る）。新しいページ run-panel-artifacts-light・run-panel-artifacts-dark の 2 語は、D0039-AC-16
+    （個々のページ名を並べず docs/assets/README.md を指す）に置き換わった。"""
     row = row_starting(read_doc(DESIGN_DOC), DESIGN_PAGE_ROW)
     assert row is not None, f"design.md に「{DESIGN_PAGE_ROW}」で始まる行が無い"
     assert word in row, f"design.md の確認用ページの行に「{word}」が無い"
@@ -1664,22 +1665,9 @@ def test_D0025_AC_77_designの互換のD0025の行は記録の形を変えず写
 
 
 # ---- AC-78：確認用ページの名前を、CLAUDE.md・SKILL.md・assets の README・決定の記録の表に書く ----
-
-
-def test_D0025_AC_78_CLAUDEのnpm_run_previewの行に成果物のページがある():
-    """D0025-AC-78: CLAUDE.md の `npm run preview` の説明にあるページの一覧に、成果物のパネル run-panel-artifacts-light.html・run-panel-artifacts-dark.html がある。
-    CLAUDE.md は文書係が書けないので、メインが書く。"""
-    md = read_doc(CLAUDE_MD)
-    assert lines_with(md, "npm run preview"), "CLAUDE.md に「npm run preview」の行が無い"
-    assert sentences_lacking(md, [("preview", "npm run preview", "run-panel-artifacts")]) == [], "CLAUDE.md の npm run preview の行に run-panel-artifacts が無い"
-
-
-def test_D0025_AC_78_SKILLの確認用ページの列挙に成果物のページがある():
-    """D0025-AC-78: .claude/skills/pipe-in/SKILL.md の確認用ページの列挙（実行の一覧のパネル run-panel-runs-*.html などを並べた行）に、
-    run-panel-artifacts-* がある。.claude/ は文書係が書けないので、監査のあとでメインが書く（D0024 の前例）。"""
-    md = read_doc(PIPE_IN_SKILL)
-    assert lines_with(md, "run-panel-runs-light"), "SKILL.md に確認用ページの列挙の行が無い"
-    assert sentences_lacking(md, [("list", "run-panel-runs-light", "run-panel-artifacts")]) == [], "確認用ページの列挙に run-panel-artifacts が無い"
+#
+# D0039-AC-18：CLAUDE.md の npm run preview の行と SKILL.md の確認用ページの列挙に成果物のページの名前を並べる 2 つの検査は、
+# 個々のページ名を並べない形（D0039-AC-16・17。tests/test_skill_tidy_docs.py）に置き換わったので、削除した。一覧の持ち場は docs/assets/README.md。
 
 
 def test_D0025_AC_78_assetsのREADMEの確認用ページの段落に成果物のページと画像には撮らない一言がある():

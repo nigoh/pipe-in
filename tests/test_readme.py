@@ -368,7 +368,8 @@ def test_d0009_ac18_retake_doc():
 
 
 def test_d0009_ac19_docs_mention_panel_pages():
-    """D0009-AC-19: design.md の表に見本の記録と docs/assets/ があり、CLAUDE.md の npm run preview の行と /pipe-in の SKILL.md にパネルのページの名前がある。"""
+    """D0009-AC-19: design.md の表に見本の記録と docs/assets/ があり、CLAUDE.md の npm run preview の行にパネルのページの名前がある。
+    （/pipe-in の SKILL.md の部分は、D0039-AC-18 で、補助ファイル screen-check.md の検査 D0039-AC-17 に置き換わった。）"""
     design = (ROOT / "docs" / "development" / "design.md").read_text(encoding="utf-8")
     rows = [line for line in design.splitlines() if line.startswith("|")]
     assert any("`tests/fixtures/showcase/`" in r for r in rows), "design.md の表に tests/fixtures/showcase/ が無い"
@@ -376,5 +377,3 @@ def test_d0009_ac19_docs_mention_panel_pages():
     claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
     preview = [line for line in claude.splitlines() if "npm run preview" in line]
     assert preview and any("run-panel" in line for line in preview), "CLAUDE.md の npm run preview の行に run-panel が無い"
-    skill = (ROOT / ".claude" / "skills" / "pipe-in" / "SKILL.md").read_text(encoding="utf-8")
-    assert "run-panel-light.html" in skill and "run-panel-dark.html" in skill

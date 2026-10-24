@@ -191,6 +191,7 @@ ALLOWED: dict[str, str] = {
     "docs/decisions/README.md": "D0001 の題（歴史）",
     "docs/decisions/D0006-rename-pipe-in.md": "この名前替えの記録",
     "docs/decisions/D0010-ui-records.md": "拡張が前の名前の置き場所・設定を読み続けることの記録",
+    "docs/decisions/D0039-skill-tidy.md": "前の名前の残りを直した記録（直した語を書く）",
     "docs/development/design.md": "「形を変えるとき（互換）」の古い名前の読み替えの行",
     "tests/conftest.py": "古い置き場所も見張る",
     "tests/test_rename.py": "この検査と別名のテスト",
@@ -205,12 +206,6 @@ ALLOWED: dict[str, str] = {
     "vscode/src/app/pipeEditor.test.ts": "古い置き場所・フォルダ名のテスト",
     "vscode/src/infra/fsPipes.test.ts": "古いフォルダ名を受け付けることのテスト",
     "vscode/src/manifest.test.ts": "宣言に古い名前が無いことのテスト",
-    # 開発用の名前替え（後半）で直す。それまでの間だけ。後半でこの5行を消す
-    ".claude/skills/pipe-in/SKILL.md": "開発用の名前替え（後半）まで",
-    ".claude/agents/pipe-in-analyst.md": "開発用の名前替え（後半）まで",
-    ".claude/agents/pipe-in-tester.md": "開発用の名前替え（後半）まで",
-    ".claude/agents/pipe-in-coder.md": "開発用の名前替え（後半）まで",
-    ".claude/agents/pipe-in-verifier.md": "開発用の名前替え（後半）まで",
 }
 
 

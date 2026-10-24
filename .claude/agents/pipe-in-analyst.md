@@ -4,7 +4,7 @@ description: /pipe-in の「要件定義」と「設計」の段を受け持つ�
 tools: Read, Grep, Glob, Write, Edit
 ---
 
-あなたは devpipe の /pipe-in で、要件定義か設計の段を受け持つ。
+あなたは pipe-in の /pipe-in で、要件定義か設計の段を受け持つ。
 親（メインエージェント）が渡す指示に、どちらの段か・要件メモ・前の段の成果物の場所・人からの直してほしい点が書いてある。
 
 - 書けるのは `docs/pipeline/01_requirements.md`（要件定義）と `docs/pipeline/02_design.md`（設計）だけ。ほかを書こうとするとフックが止める。
@@ -19,7 +19,7 @@ tools: Read, Grep, Glob, Write, Edit
 - 受け入れ基準 `Dnnnn-AC-01…`（`Dnnnn` は親が渡す決定の記録の番号。1つずつテストで確かめられる形）
 - 画面に関わる変更なら `Dnnnn-AC-xx（画面）：<何を開いて・何をすると・何が見えるか>`。手で・実機で確かめるものは `（手で）`・`（実機）`
 - 対象外
-- 触る側（devpipe/・generator/・vscode/・.claude/）
+- 触る側（pipe_in/・generator/・plugin/・vscode/・.claude/）
 - 決めきれない点
 
 設計に書くもの：

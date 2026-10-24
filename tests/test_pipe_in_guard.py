@@ -2540,3 +2540,148 @@ def test_d0032_ac27_docstring_check_finds_problems_stays_green():
     new_main = "戻り値は 0（deny の JSON を出した・止めない）か 2（最後の砦）だけ。"
     assert docstring_problems(new_module, new_main) == []
     assert docstring_problems(new_module, None) == ["main() に説明が無い"]
+
+
+# ==== D0039-AC-28：allow に足す 5 つのコマンドを足しても、フックの判断は変わらない ==================================================
+#
+# .claude/settings.json の permissions.allow に、完全一致の 5 つのコマンド（npm --prefix vscode の test・run typecheck・run build・run preview と、
+# python -m http.server …）を足す。allow はフックの外にある確認の層で、フックの判断も止める表も変えない（フックは 1 字も変えない）。
+# だからこの総当たりは、今のフックのまま通る（守る）。止める範囲を狭める変更ではないことを、CLAUDE.md の決まりに合わせて、すり抜けの道まで示す。
+# 最後の結びつきの検査（allow から取った 5 つが、総当たりに使うコマンドと同じか）は、allow を足したあとで緑になる。
+# フックが見ない呼び出し元の検査は、allow の足しが確認の最後の層を外す相手（メイン・pipe-in-* 以外のサブエージェント）が、今までもフックの絞りを受けないことを、書いたとおりに固定する。
+# どれも main() に標準入力で渡す（decide 直接ではない）。書き方は D0032-AC-19・20 の形に合わせる。
+
+D0039_TEST = "npm --prefix vscode test"
+D0039_TYPECHECK = "npm --prefix vscode run typecheck"
+D0039_BUILD = "npm --prefix vscode run build"
+D0039_PREVIEW = "npm --prefix vscode run preview"
+D0039_SERVE = "python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview"
+D0039_COMMANDS = (D0039_TEST, D0039_TYPECHECK, D0039_BUILD, D0039_PREVIEW, D0039_SERVE)
+D0039_COMMAND_IDS = {D0039_TEST: "test", D0039_TYPECHECK: "typecheck", D0039_BUILD: "build", D0039_PREVIEW: "preview", D0039_SERVE: "serve"}
+# 手で書いた表：コマンド → 通る pipe-in-*（表に無い pipe-in-unknown を含む 9 つのうち、ここに無いものは止まる）。フックの AGENTS の表（TESTS・BUILD）と別に書く
+D0039_PASSES = {
+    D0039_TEST: {"pipe-in-tester", "pipe-in-coder", "pipe-in-verifier"},
+    D0039_TYPECHECK: {"pipe-in-coder", "pipe-in-verifier"},
+    D0039_BUILD: {"pipe-in-coder", "pipe-in-verifier"},
+    D0039_PREVIEW: set(),
+    D0039_SERVE: set(),
+}
+D0039_RECORD_COMMANDS = {
+    "start": "python -m pipe_in record start --input memo.md",
+    "begin": "python -m pipe_in record begin requirements --agent pipe-in-analyst",
+    "done": "python -m pipe_in record done requirements --summary ok",
+    "wait": "python -m pipe_in record wait requirements",
+    "review": "python -m pipe_in record review requirements approved",
+    "red": "python -m pipe_in record red red --summary ok --test D0039-AC-01=tests/t.py",
+    "verdict": "python -m pipe_in record verdict pass --attempt 1 --summary ok",
+    "finish": "python -m pipe_in record finish PASSED",
+}
+# すり抜けの道に載せる文：5 つのコマンドと、確認なしで流れてはいけない record の 2 つ
+D0039_SENTENCES = {
+    **{D0039_COMMAND_IDS[c]: c for c in D0039_COMMANDS},
+    "record-start": D0039_RECORD_COMMANDS["start"],
+    "record-approved": D0039_RECORD_COMMANDS["review"],
+}
+D0039_ROUTES = ["powershell", "mcp", "agent", "chain-semicolon", "chain-and", "output-flag"]
+D0039_UNGUARDED = [MISSING, "Explore", "pipe-in:pipe-builder"]  # フックが見ない呼び出し元（メイン・pipe-in- で始まらないサブエージェント）
+
+
+def d0039_route_call(route: str, sentence: str) -> tuple[str, dict]:
+    """同じ文を、道ごとの道具の呼び出しにする。"""
+    if route == "powershell":
+        return "PowerShell", {"command": sentence}
+    if route == "mcp":
+        return "mcp__claude_ai_Gmail__send_message", {"body": sentence}
+    if route == "agent":
+        return "Agent", {"prompt": sentence}  # 入れ子のサブエージェント
+    if route == "chain-semicolon":
+        return "Bash", {"command": f"{D0039_TEST}; {sentence}"}
+    if route == "chain-and":
+        return "Bash", {"command": f"{D0039_TEST} && {sentence}"}
+    assert route == "output-flag", route
+    return "Bash", {"command": f"{sentence} --output x"}
+
+
+def test_d0039_ac28_hand_table_has_7_passes_and_38_stops_stays_green():
+    """D0039-AC-28: 手で書いた表の確かめ。5 つのコマンド × 9 つの pipe-in-*（表に無い pipe-in-unknown を含む）45 件のうち、通るのは 7 件、止まるのは 38 件。
+    （今のまま通る。守る）"""
+    assert len(D0039_COMMANDS) * len(NINE_AGENTS) == 45
+    assert all(agents <= set(NINE_AGENTS) for agents in D0039_PASSES.values())
+    passes = sum(len(agents) for agents in D0039_PASSES.values())
+    assert (passes, 45 - passes) == (7, 38)
+
+
+def test_d0039_ac28_hand_table_matches_the_hooks_agents_table_stays_green(guard):
+    """D0039-AC-28: 手で書いた表が、フックの AGENTS の表（TESTS・BUILD）の正規表現と一致する（表に無い pipe-in-unknown は Bash を使えない）。
+    （今のまま通る。守る）"""
+    for command in D0039_COMMANDS:
+        for agent in NINE_AGENTS:
+            patterns = guard.AGENTS[agent][1] if agent in guard.AGENTS else []
+            hook_allows = any(re.fullmatch(p, command) for p in patterns)
+            assert hook_allows == (agent in D0039_PASSES[command]), f"{agent} `{command}`: フックの表では {hook_allows}"
+
+
+@pytest.mark.parametrize(
+    "agent,command,passes",
+    [pytest.param(agent, command, agent in D0039_PASSES[command], id=f"{short(agent)}-{D0039_COMMAND_IDS[command]}") for command in D0039_COMMANDS for agent in NINE_AGENTS],
+)
+def test_d0039_ac28_five_commands_are_judged_as_before_through_main_stays_green(guard, monkeypatch, proj, agent, command, passes):
+    """D0039-AC-28: allow に足す 5 つのコマンドを、サブエージェントの Bash として main() に標準入力で渡すと、フックは今までと同じに判断する。5 つ × 9 つの pipe-in-*
+    の全部を手で書いた表と照らす。通るのは npm --prefix vscode test（tester・coder・verifier）・run typecheck と run build（coder・verifier）。
+    run preview と python -m http.server … は 9 つとも止まる。（今のまま通る。守る）"""
+    code, out, _ = run_call(guard, monkeypatch, proj, agent, "Bash", {"command": command})
+    assert code == 0
+    reason = deny_reason(out)
+    assert (reason is None) == passes, f"{agent} `{command}`: {reason}"
+
+
+@pytest.mark.parametrize(
+    "agent,command",
+    [pytest.param(agent, command, id=f"{short(agent)}-{label}") for label, command in D0039_RECORD_COMMANDS.items() for agent in NINE_AGENTS],
+)
+def test_d0039_ac28_record_commands_stay_denied_for_all_nine_through_main_stays_green(guard, monkeypatch, proj, agent, command):
+    """D0039-AC-28: python -m pipe_in record start|begin|done|wait|review … approved|red|verdict|finish は、9 つの pipe-in-* のどれの Bash でも止まる
+    （allow に record の規則を足さないので、フックの判断も変わらない）。（今のまま通る。守る）"""
+    code, out, _ = run_call(guard, monkeypatch, proj, agent, "Bash", {"command": command})
+    assert code == 0
+    assert deny_reason(out) is not None, f"{agent} `{command}` が通っている"
+
+
+@pytest.mark.parametrize(
+    "agent,tool,tool_input",
+    [
+        pytest.param(agent, *d0039_route_call(route, sentence), id=f"{short(agent)}-{route}-{label}")
+        for label, sentence in D0039_SENTENCES.items()
+        for route in D0039_ROUTES
+        for agent in NINE_AGENTS
+    ],
+)
+def test_d0039_ac28_bypass_routes_stay_denied_for_all_nine_through_main_stays_green(guard, monkeypatch, proj, agent, tool, tool_input):
+    """D0039-AC-28: すり抜けの道が開かない。5 つのコマンドと record start・record review … approved の文を、PowerShell・MCP の道具・Agent（入れ子のサブエージェント）・
+    Bash につないだ形（npm --prefix vscode test; … と npm --prefix vscode test && …）・--output つきで渡しても、9 つの pipe-in-* のどれでも止まる
+    （tester・coder・verifier が通る npm --prefix vscode test も、つなぐ・--output つきでは止まる）。（今のまま通る。守る）"""
+    code, out, _ = run_call(guard, monkeypatch, proj, agent, tool, tool_input)
+    assert code == 0
+    assert deny_reason(out) is not None, f"{agent} {tool} {tool_input}: 止めるはずの呼び出しが通っている"
+
+
+@pytest.mark.parametrize(
+    "agent,command",
+    [pytest.param(agent, command, id=f"{short(agent)}-{D0039_COMMAND_IDS[command]}") for agent in D0039_UNGUARDED for command in D0039_COMMANDS],
+)
+def test_d0039_ac28_callers_the_hook_does_not_check_are_still_not_stopped_stays_green(guard, monkeypatch, proj, agent, command):
+    """D0039-AC-28: フックが見ない呼び出し元（agent_type が無いメイン・Explore・pipe-in:pipe-builder）が 5 つのコマンドを Bash で渡しても、今までどおり何も止めない
+    （何も出さず 0）。allow の足しが確認の最後の層を外す相手が、今までもフックの絞りを受けない相手であることを、受け入れたリスクの範囲として固定する。
+    （今のまま通る。守る）"""
+    code, out, _ = run_call(guard, monkeypatch, proj, agent, "Bash", {"command": command})
+    assert code == 0
+    assert out == b"", f"{short(agent)} `{command}`: 通すはずの呼び出しが止まっている：{out!r}"
+
+
+def test_d0039_ac28_the_five_commands_are_the_ones_in_settings_allow():
+    """D0039-AC-28: 結びつき。.claude/settings.json の permissions.allow から（完全一致の規則として）取った npm --prefix vscode … と python -m http.server … の 5 つが、
+    上の総当たりに使う 5 つのコマンドと同じ（食い違うと、総当たりが実物と別のコマンドを見てしまう）。"""
+    allow = real_settings()["permissions"]["allow"]
+    exact = {m.group(1) for rule in allow if (m := re.fullmatch(r"Bash\((.+)\)", rule)) and not m.group(1).endswith("*")}
+    taken = {c for c in exact if c.startswith(("npm --prefix vscode ", "python -m http.server"))}
+    assert taken == set(D0039_COMMANDS), f"allow から取った完全一致の規則：{sorted(taken)}（総当たりのコマンド：{sorted(D0039_COMMANDS)}）"
