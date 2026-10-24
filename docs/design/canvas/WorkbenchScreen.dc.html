@@ -18,7 +18,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
   <header style="display: flex; align-items: baseline; gap: 16px;">
     <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · SCREENS · S5</span>
     <h1 style="margin: 0; font-size: 28px; font-weight: 900;">パイプ作業台（VSCode）</h1>
-    <span style="font-size: 14px; color: #4f4741;">左にブロックの棚、まん中に図、右に選んだブロックの設定。05 作業台の部品だけで組んでいます。</span>
+    <span style="font-size: 14px; color: #4f4741;">左にブロックの棚、まん中に図、右に選んだブロックの設定。05 作業台の部品だけで組んでいます。つないだ所は、プラグ（コーラル）がコンセント（ティール）に差さった形。</span>
   </header>
   <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; flex-grow: 1;">
     <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
@@ -40,7 +40,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
             <span style="font-size: 11px; color: {{t.muted}}; text-align: center;">ブロック</span>
             <sc-for list="{{blocks}}" as="b">
               <div style="border-radius: 10px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; border: {{b.border}};">
-                <span style="width: 30px; height: 30px; border-radius: 8px; background: {{t.col}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{b.d}}"></path></svg></span>
+                <svg width="44" height="31" viewBox="0 0 40 28" aria-hidden="true"><path d="{{b.shape}}" fill="{{t.col}}" stroke="{{t.fg}}" stroke-width="1.6" stroke-linejoin="round"></path><g transform="translate(14 8) scale(.5)"><path d="{{b.d}}" fill="none" stroke="{{t.fg}}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></g></svg>
                 <span style="font-size: 10px;">{{b.name}}</span>
               </div>
             </sc-for>
@@ -48,20 +48,26 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
           <div style="flex-grow: 1; min-width: 0; position: relative; overflow: hidden; background-color: {{t.canvas}}; background-image: radial-gradient({{t.dot}} 1px, transparent 1.3px); background-size: 20px 20px;">
             <div style="position: absolute; left: 0; top: 0; width: 860px; height: 640px;">
               <svg width="860" height="640" viewBox="0 0 860 640" style="position: absolute; left: 0; top: 0;" aria-hidden="true">
-                <path d="M84 314 H130" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-                <path d="M280 306 H310 Q322 306 322 294 V292 Q322 280 334 280 H340" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
-                <path d="M280 322 H298 Q310 322 310 334 V484 Q310 496 322 496 H420" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
-                <path d="M530 278 H580" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-                <path d="M740 278 H750 Q762 278 762 290 V302 Q762 314 774 314 H786" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-                <path d="M580 496 H750 Q762 496 762 484 V326 Q762 314 774 314" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M84 314 H108" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
+                <path d="M240 314 H286 Q298 314 298 302 V292 Q298 280 308 280 H318" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
+                <path d="M240 314 H286 Q298 314 298 326 V484 Q298 496 308 496 H398" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="12 5 2 5"></path>
+                <circle cx="290" cy="314" r="5" fill="{{t.blue}}" stroke="{{t.canvas}}" stroke-width="2"></circle>
+                <path d="M530 278 H558" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
+                <path d="M740 278 H740 Q752 278 752 290 V302 Q752 314 764 314" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M580 496 H740 Q752 496 752 484 V326 Q752 314 764 314" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <circle cx="754" cy="314" r="5" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="2"></circle>
                 <path d="M660 252 V172 Q660 160 648 160 H447 Q435 160 435 172 V210" fill="none" stroke="{{t.coral}}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6"></path>
+                <path d="M130 314 L185 280 L240 314 L185 348 Z" fill="{{t.card}}" stroke="{{t.edge}}" stroke-width="1.8" stroke-linejoin="round"></path>
+                <g transform="translate(176 305) scale(.75)"><path d="{{branchIcon}}" fill="none" stroke="{{t.fg}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g>
+                <sc-for list="{{joints}}" as="j">
+                  <g transform="translate({{j.x}} {{j.y}})"><rect x="-22" y="-6" width="12" height="12" rx="3" fill="{{t.coral}}"></rect><circle cx="0" cy="0" r="8" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="1.5"></circle><rect x="-4" y="-4" width="8" height="2.5" rx="1" fill="{{t.canvas}}"></rect><rect x="-4" y="1.5" width="8" height="2.5" rx="1" fill="{{t.canvas}}"></rect></g>
+                </sc-for>
               </svg>
+              <span style="position: absolute; left: 125px; top: 352px; width: 120px; text-align: center; font-size: 11px; font-weight: 700;">依頼の仕分け</span>
               <span style="position: absolute; left: 20px; top: 301px; width: 64px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
               <div style="position: absolute; left: 340px; top: 180px; width: 190px; height: 200px; box-sizing: border-box; border: 2px dashed {{t.teal}}; border-radius: 14px; background: {{t.frameFill}};"><span style="position: absolute; left: 10px; top: -11px; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: {{t.teal}}; color: {{t.onTeal}};">並列 · 2</span></div>
               <sc-for list="{{t.nodes}}" as="n">
                 <div style="position: absolute; left: {{n.x}}; top: {{n.y}}; width: {{n.w}}; height: 52px; box-sizing: border-box; background: {{t.card}}; border: {{n.border}}; border-radius: 10px; box-shadow: {{n.shadow}}; padding: 0 10px; display: flex; align-items: center; gap: 8px;">
-                  <span style="position: absolute; left: -7px; top: 18px; width: 7px; height: 16px; border-radius: 4px 0 0 4px; background: {{t.edge}};" aria-hidden="true"></span>
-                  <span style="position: absolute; right: -9px; top: 21px; width: 9px; height: 10px; border-radius: 0 5px 5px 0; background: {{t.coral}};" aria-hidden="true"></span>
                   <span style="width: 28px; height: 28px; flex: none; border-radius: 8px; background: {{n.chipBg}}; color: {{n.chipFg}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg></span>
                   <div style="display: flex; flex-direction: column; min-width: 0;"><span style="font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{n.name}}</span><code style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: {{t.muted}};">{{n.id}}</code></div>
                 </div>
@@ -129,15 +135,22 @@ class Component extends DCLogic {
       const n = (name, id, d, x, y, w, o) => Object.assign({ name, id, d, x: x + "px", y: y + "px", w: w + "px",
         border: "1.5px solid " + t.edge, shadow: t.shadow, chipBg: t.col, chipFg: t.fg }, o || {});
       return [
-        n("依頼の仕分け", "triage · 仕分け", I.branch, 130, 288, 150),
         n("ソースの調査", "survey · 調べる", I.search, 360, 210, 150, { border: "2px solid " + t.teal, shadow: "0 0 0 4px " + t.tealSoft, chipBg: t.tealSoft, chipFg: t.tealText }),
         n("フロー図", "flow · 文書と図", I.doc, 360, 300, 150),
         n("図とソースの突き合わせ", "verify · 確かめる", I.check, 580, 252, 160),
         n("仕様の突き合わせ", "spec_check · 確かめる", I.check, 420, 470, 160),
       ];
     };
+    const S = {
+      rect: "M6 3 H34 Q38 3 38 7 V21 Q38 25 34 25 H6 Q2 25 2 21 V7 Q2 3 6 3 Z", process: "M2 3 H38 V25 H2 Z M7 3 V25 M33 3 V25",
+      doc: "M2 3 H38 V21 Q29 16 20 21 Q11 26 2 21 Z", square: "M2 3 H38 V25 H2 Z", hex: "M10 3 H30 L38 14 L30 25 H10 L2 14 Z",
+      diamond: "M20 1 L38 14 L20 27 L2 14 Z", para: "M9 3 H38 L31 25 H2 Z", frame: "M2 2 H38 V12 H2 Z M2 16 H38 V26 H2 Z",
+    };
+    const shapes = [S.rect, S.process, S.doc, S.square, S.square, S.hex, S.diamond, S.para, S.frame];
     return {
-      blocks: names.map(([name, d]) => ({ name, d, border: "1px solid transparent" })),
+      branchIcon: "M6 4v8a4 4 0 0 0 4 4h6M18 4v8M18 12a4 4 0 0 1-4 4",
+      joints: [{ x: 130, y: 314 }, { x: 340, y: 280 }, { x: 420, y: 496 }, { x: 580, y: 278 }, { x: 786, y: 314 }],
+      blocks: names.map(([name, d], i) => ({ name, d, shape: shapes[i], border: "1px solid transparent" })),
       themes: [Object.assign({}, L, { nodes: nodes(L) }), Object.assign({}, D, { nodes: nodes(D) })],
     };
   }
