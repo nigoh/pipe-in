@@ -85,12 +85,13 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
             <sc-for list="{{t.nodes}}" as="n">
               <div style="display: flex; flex-direction: column; gap: 6px;">
                 <div style="position: relative; margin: 0 30px 0 14px;">
-                  <div style="background: {{t.card}}; border: {{n.border}}; border-radius: 10px; box-shadow: {{n.ring}}; padding: 8px 10px; display: flex; gap: 8px; align-items: center;">
-                    <svg width="30" height="21" viewBox="0 0 40 28" aria-hidden="true" style="flex: none;"><path d="{{n.shape}}" fill="{{n.chipBg}}" stroke="{{n.chipFg}}" stroke-width="2" stroke-linejoin="round"></path></svg>
-                    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <div style="position: relative; min-height: 66px; box-sizing: border-box; padding: 9px 20px; display: flex; gap: 8px; align-items: center; filter: drop-shadow({{n.drop}});">
+                    <svg width="100%" height="100%" viewBox="0 0 200 64" preserveAspectRatio="none" style="position: absolute; left: 0; top: 0; overflow: visible;" aria-hidden="true"><path d="{{n.outline}}" fill="none" stroke="{{n.ringColor}}" stroke-width="{{n.ringW}}" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path><path d="{{n.outline}}" fill="{{t.card}}" stroke="{{n.stroke}}" stroke-width="{{n.sw}}" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path></svg>
+                    <span style="position: relative; width: 26px; height: 26px; flex: none; border-radius: 8px; background: {{n.chipBg}}; color: {{n.chipFg}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="{{n.icon}}"></path></svg></span>
+                    <div style="position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0;">
                       <span style="font-size: 12px; font-weight: 700;">{{n.title}}</span>
                       <code style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: {{t.muted}};">{{n.id}}</code>
-                      <span style="align-self: flex-start; font-size: 10px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: {{n.pillBg}}; color: {{n.pillFg}};">{{n.pill}}</span>
+                      <span style="align-self: flex-start; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: {{n.pillBg}}; color: {{n.pillFg}}; display: inline-flex; align-items: center; gap: 3px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="{{n.pillIcon}}"></path></svg>{{n.pill}}</span>
                     </div>
                   </div>
                   <svg width="20" height="20" viewBox="0 0 20 20" style="position: absolute; left: -11px; top: calc(50% - 10px);" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="1.5"></circle><rect x="5" y="5.5" width="10" height="3" rx="1" fill="{{t.canvas}}"></rect><rect x="5" y="11.5" width="10" height="3" rx="1" fill="{{t.canvas}}"></rect></svg>
@@ -100,7 +101,7 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
               </div>
             </sc-for>
           </div>
-          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">図の地はブロックより一段沈めた色。ブロックは面の色に濃いめの枠とうすい影で浮かせ、左にコンセント、右にプラグ。</p>
+          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">図の地はブロックより一段沈めた色。ブロックそのものをフロー図の形（四角・六角形・書類…）で描くので、中には形を入れずアイコンだけ。面の色に濃いめの枠とうすい影で浮かせ、左にコンセント、右にプラグ。</p>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -175,14 +176,14 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
                 <path d="M110 120 L152 92 L194 120 L152 148 Z" fill="{{t.card}}" stroke="{{t.edge}}" stroke-width="1.8" stroke-linejoin="round"></path>
                 <g transform="translate(144 112) scale(.67)"><path d="{{icons.branch}}" fill="none" stroke="{{t.fg}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g>
                 <sc-for list="{{joints}}" as="j">
-                  <g transform="translate({{j.x}} {{j.y}})"><rect x="-22" y="-6" width="12" height="12" rx="3" fill="{{t.coral}}"></rect><circle cx="0" cy="0" r="8" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="1.5"></circle><rect x="-4" y="-4" width="8" height="2.5" rx="1" fill="{{t.canvas}}"></rect><rect x="-4" y="1.5" width="8" height="2.5" rx="1" fill="{{t.canvas}}"></rect></g>
+                  <g transform="translate({{j.x}} {{j.y}})"><circle cx="0" cy="0" r="9" fill="{{t.teal}}" stroke="{{t.canvas}}" stroke-width="1.5"></circle><rect x="-22" y="-7" width="20" height="14" rx="4" fill="{{t.coral}}" stroke="{{t.canvas}}" stroke-width="1.5"></rect></g>
                 </sc-for>
               </svg>
               <span style="position: absolute; left: 10px; top: 107px; width: 60px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
               <span style="position: absolute; left: 100px; top: 152px; width: 104px; text-align: center; font-size: 11px; font-weight: 700;">依頼の仕分け</span>
-              <div style="position: absolute; left: 250px; top: 30px; width: 110px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 1.5px solid {{t.edge}}; border-radius: 10px; box-shadow: {{t.shadow}}; padding: 5px 8px;"><div style="font-size: 11px; font-weight: 700;">ソースの調査</div><span style="font-size: 10px; font-weight: 700; color: {{t.okText}};">✓ 完了 · 2分</span></div>
-              <div style="position: absolute; left: 410px; top: 30px; width: 100px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 2px solid {{t.teal}}; border-radius: 10px; box-shadow: 0 0 0 4px {{t.tealSoft}}; padding: 4px 7px;"><div style="font-size: 11px; font-weight: 700;">突き合わせ</div><span style="font-size: 10px; font-weight: 700; color: {{t.tealText}};">● 作業中 0:42</span></div>
-              <div style="position: absolute; left: 290px; top: 170px; width: 120px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 1.5px solid {{t.coral}}; border-radius: 10px; box-shadow: {{t.shadow}}; padding: 5px 8px;"><div style="font-size: 11px; font-weight: 700;">仕様の突き合わせ</div><span style="font-size: 10px; font-weight: 700; color: {{t.coralText}};">▲ あなた待ち</span></div>
+              <div style="position: absolute; left: 250px; top: 30px; width: 110px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 1.5px solid {{t.edge}}; border-radius: 10px; box-shadow: {{t.shadow}}; padding: 5px 8px;"><div style="font-size: 11px; font-weight: 700;">ソースの調査</div><span style="font-size: 10px; font-weight: 700; color: {{t.okText}};"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -1px; margin-right: 3px;"><path d="M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12"></path></svg>完了 · 2分</span></div>
+              <div style="position: absolute; left: 410px; top: 30px; width: 100px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 2px solid {{t.teal}}; border-radius: 10px; box-shadow: 0 0 0 4px {{t.tealSoft}}; padding: 4px 7px;"><div style="font-size: 11px; font-weight: 700;">突き合わせ</div><span style="font-size: 10px; font-weight: 700; color: {{t.tealText}};"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -1px; margin-right: 3px;"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"></path></svg>作業中 0:42</span></div>
+              <div style="position: absolute; left: 290px; top: 170px; width: 120px; height: 44px; box-sizing: border-box; background: {{t.card}}; border: 1.5px solid {{t.coral}}; border-radius: 10px; box-shadow: {{t.shadow}}; padding: 5px 8px;"><div style="font-size: 11px; font-weight: 700;">仕様の突き合わせ</div><span style="font-size: 10px; font-weight: 700; color: {{t.coralText}};"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -1px; margin-right: 3px;"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>あなた待ち</span></div>
               <span style="position: absolute; left: 556px; top: 107px; width: 48px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">終わり</span>
             </div>
           </div>
@@ -212,6 +213,8 @@ a{color:#167d6b}a:hover{color:#0f5a4d}
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2900}}'>
 class Component extends DCLogic {
   renderVals() {
+    const OUT = {"rect": "M10 1 H190 Q199 1 199 10 V54 Q199 63 190 63 H10 Q1 63 1 54 V10 Q1 1 10 1 Z", "hex": "M18 1 H182 L199 32 L182 63 H18 L1 32 Z", "square": "M1 1 H199 V63 H1 Z", "doc": "M1 1 H199 V54 Q150 44 100 54 Q50 64 1 54 Z"};
+    const PI = {"hand": "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15", "spin": "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5", "x": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M15 9l-6 6M9 9l6 6", "ok": "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12", "todo": "M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7"};
     const I = {
       search: "M21 21l-4.34-4.34M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0",
       people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.128a4 4 0 0 1 0 7.744M22 21v-2a4 4 0 0 0-3-3.87M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0",
@@ -249,7 +252,13 @@ class Component extends DCLogic {
       blue: "#8db4ee", bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab", okSoft: "#1e3a20", okText: "#a5d6a7",
       canvas: "#100f0e", dot: "#2a2724", edge: "#8a8079", shadow: "0 2px 6px rgba(0,0,0,.6)" };
     const build = (t) => {
-      const node = (o) => Object.assign({ border: "1.5px solid " + t.edge, ring: t.shadow, chipBg: t.col, chipFg: t.fg }, o);
+      const node = (o) => {
+        const v = Object.assign({ border: "1.5px solid " + t.edge, ring: t.shadow, chipBg: t.col, chipFg: t.fg }, o);
+        const parts = v.border.split(" ");
+        const glow = v.ring.indexOf("0 0 0 4px ") === 0;
+        return Object.assign(v, { outline: v.outline, sw: parts[0].replace("px", ""), stroke: parts.slice(2).join(" "),
+          ringColor: glow ? v.ring.slice(10) : "transparent", ringW: glow ? "8" : "0", drop: glow ? "0 0 0 transparent" : "0 1px 2px rgba(0,0,0,.22)" });
+      };
       return Object.assign({}, t, {
         steps: [
           { n: "1", title: "つまむ", note: "ブロックの右のプラグをつまんで引き出す。プラグが少し持ち上がる。",
@@ -262,12 +271,12 @@ class Component extends DCLogic {
             cable: "M24 48 H94", cableColor: t.teal, plug: "translate(94 48)", prong: "8", glowR: "10" },
         ],
         nodes: [
-          node({ caption: "まだ", title: "ソースの調査", id: "survey", shape: S.rect, pill: "まだ", pillBg: t.col, pillFg: t.muted }),
-          node({ caption: "選んでいる", title: "ソースの調査", id: "survey", shape: S.rect, border: "2px solid " + t.teal, ring: "0 0 0 4px " + t.tealSoft, chipBg: t.tealSoft, chipFg: t.tealText, pill: "まだ", pillBg: t.col, pillFg: t.muted }),
-          node({ caption: "作業中", title: "突き合わせ", id: "verify", shape: S.hex, border: "2px solid " + t.teal, ring: "0 0 0 4px " + t.tealSoft, pill: "● 作業中 0:42", pillBg: t.tealSoft, pillFg: t.tealText }),
-          node({ caption: "あなた待ち", title: "仕様の突き合わせ", id: "spec_check", shape: S.hex, border: "2px solid " + t.coral, pill: "▲ あなた待ち", pillBg: t.coralSoft, pillFg: t.coralText }),
-          node({ caption: "失敗", title: "テストを流す", id: "test", shape: S.square, border: "2px solid " + t.bad, pill: "✕ 失敗", pillBg: t.badSoft, pillFg: t.badText }),
-          node({ caption: "完了", title: "フロー図", id: "flow", shape: S.doc, pill: "✓ 完了 2分", pillBg: t.okSoft, pillFg: t.okText }),
+          node({ caption: "まだ", title: "ソースの調査", id: "survey", outline: OUT.rect, icon: I.search, pill: "まだ", pillIcon: PI.todo, pillBg: t.col, pillFg: t.muted }),
+          node({ caption: "選んでいる", title: "ソースの調査", id: "survey", outline: OUT.rect, icon: I.search, border: "2px solid " + t.teal, ring: "0 0 0 4px " + t.tealSoft, chipBg: t.tealSoft, chipFg: t.tealText, pill: "まだ", pillIcon: PI.todo, pillBg: t.col, pillFg: t.muted }),
+          node({ caption: "作業中", title: "突き合わせ", id: "verify", outline: OUT.hex, icon: I.check, border: "2px solid " + t.teal, ring: "0 0 0 4px " + t.tealSoft, pill: "作業中 0:42", pillIcon: PI.spin, pillBg: t.tealSoft, pillFg: t.tealText }),
+          node({ caption: "あなた待ち", title: "仕様の突き合わせ", id: "spec_check", outline: OUT.hex, icon: I.check, border: "2px solid " + t.coral, pill: "あなた待ち", pillIcon: PI.hand, pillBg: t.coralSoft, pillFg: t.coralText }),
+          node({ caption: "失敗", title: "テストを流す", id: "test", outline: OUT.square, icon: I.test, border: "2px solid " + t.bad, pill: "失敗", pillIcon: PI.x, pillBg: t.badSoft, pillFg: t.badText }),
+          node({ caption: "完了", title: "フロー図", id: "flow", outline: OUT.doc, icon: I.doc, pill: "完了 2分", pillIcon: PI.ok, pillBg: t.okSoft, pillFg: t.okText }),
         ],
       });
     };
