@@ -248,10 +248,10 @@ async def _design(
             run = await runner(spec, prompt, cfg, resume=resume, log_name=f"{round_:02d}_design")
             if run.is_error and run.subtype == BUFFER_OVERFLOW_SUBTYPE:
                 # やり直しても同じものを読んで同じように超えるので、すぐに止める。作業用フォルダは finally で消える
-                print("✗ 設計の段が SDK の受信バッファの上限を超えたため、やり直さずに止めます")
-                for e in run.errors:
-                    print(e)
-                print("パイプは作りませんでした")
+                print("  ✗ 設計の段が SDK の受信バッファの上限を超えたため、やり直さずに止めます:")
+                for e in run.errors or ["（案内の文がありません）"]:
+                    print(f"    - {e}")
+                print("  ✗ パイプは作りませんでした")
                 return 1
             errors = ["設計の段が失敗しました"] if run.is_error else _validate(name, purpose, run.structured, staging, project)
             if not errors:
