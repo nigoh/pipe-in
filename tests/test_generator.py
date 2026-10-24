@@ -459,7 +459,7 @@ def test_design_cli_needs_purpose(tmp_path, capsys):
     assert e.value.code == 2  # --purpose がない
 
 
-# ---- D0037: 警告の出力 -------------------------------------------------------------------
+# ---- D0038: 警告の出力 -------------------------------------------------------------------
 
 
 def write_warning_pipe(tmp_path: Path, *, with_error: bool = False) -> None:
@@ -477,7 +477,7 @@ def write_warning_pipe(tmp_path: Path, *, with_error: bool = False) -> None:
 
 
 def test_check_prints_warnings_and_passes(tmp_path, capsys):
-    """D0037-AC-06: 警告だけのとき check は終了コード 0 で、「⚠」つきで警告を1行ずつ出す。"""
+    """D0038-AC-06: 警告だけのとき check は終了コード 0 で、「⚠」つきで警告を1行ずつ出す。"""
     project = python_project(tmp_path)
     write_warning_pipe(tmp_path)
     assert gen(tmp_path, "check", "warny", "--project", str(project)) == 0
@@ -488,7 +488,7 @@ def test_check_prints_warnings_and_passes(tmp_path, capsys):
 
 
 def test_check_prints_errors_and_warnings(tmp_path, capsys):
-    """D0037-AC-06: 誤りと警告の両方があるとき、終了コードは 1 で、誤りも警告も出す。"""
+    """D0038-AC-06: 誤りと警告の両方があるとき、終了コードは 1 で、誤りも警告も出す。"""
     project = python_project(tmp_path)
     write_warning_pipe(tmp_path, with_error=True)
     assert gen(tmp_path, "check", "warny", "--project", str(project)) == 1
@@ -498,7 +498,7 @@ def test_check_prints_errors_and_warnings(tmp_path, capsys):
 
 
 def test_check_clean_pipe_prints_no_problem_line(tmp_path, capsys):
-    """D0037-AC-07: 警告も誤りも無いときは、今までどおり「問題ありません」の1行だけ（⚠ は出ない）。"""
+    """D0038-AC-07: 警告も誤りも無いときは、今までどおり「問題ありません」の1行だけ（⚠ は出ない）。"""
     project = python_project(tmp_path)
     assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
     capsys.readouterr()
@@ -508,7 +508,7 @@ def test_check_clean_pipe_prints_no_problem_line(tmp_path, capsys):
 
 
 def test_new_prints_warnings(tmp_path, capsys, monkeypatch):
-    """D0037-AC-08: new でも、警告があれば同じ形で出し、終了コードは 0。"""
+    """D0038-AC-08: new でも、警告があれば同じ形で出し、終了コードは 0。"""
     cli = gen_cli()
     monkeypatch.setattr(cli, "templates_dir", lambda: _warning_template(tmp_path))
     project = python_project(tmp_path)
@@ -532,7 +532,7 @@ def _warning_template(tmp_path: Path) -> Path:
 
 
 def test_legacy_named_pipe_gets_same_warnings(tmp_path, capsys):
-    """D0037-AC-11: 前の版の名前（.devpipe/pipes/devpipe-<名前>/）のパイプも、check で同じ警告を受け、終了コードは 0。"""
+    """D0038-AC-11: 前の版の名前（.devpipe/pipes/devpipe-<名前>/）のパイプも、check で同じ警告を受け、終了コードは 0。"""
     project = python_project(tmp_path)
     d = project / ".devpipe" / "pipes" / "devpipe-oldwarn"
     d.mkdir(parents=True)

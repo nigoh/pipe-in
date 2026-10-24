@@ -2313,10 +2313,10 @@ def test_D0034_AC_45_検査そのものは題だけの行を結果のある行�
     assert firstrun_result_ok(line, ac) is want
 
 
-# ---- D0037-AC-14: パイプの警告の説明 ----
+# ---- D0038-AC-14: パイプの警告の説明 ----
 
 # （pytest の id, 何を書くか, 探す言葉）。警告の3つと、出ても check は通ること
-D0037_WARNING_WORDS = [
+D0038_WARNING_WORDS = [
     ("w1-read-bash", "W1：read で bash = true の段（Bash でも成果物のほかは書けない）", 'access = "read"'),
     ("w1-docs", "W1：置き場所が要るなら docs と docs_dir にする", "docs_dir"),
     ("w3-tests", "W3：テストを書く段（tests）が bash なしで、あとの段に検査がある", 'access = "tests"'),
@@ -2327,9 +2327,9 @@ D0037_WARNING_WORDS = [
 ]
 
 
-@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0037_WARNING_WORDS], ids=[i for i, _, _ in D0037_WARNING_WORDS])
-def test_D0037_AC_14_パイプの文書に警告の3つが書いてある(label, word):
-    """D0037-AC-14: docs/guide/pipes.md の「警告」の節に、3つの警告（read で bash の段・tests で bash なしの段・on_fail が read の段）と、
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0038_WARNING_WORDS], ids=[i for i, _, _ in D0038_WARNING_WORDS])
+def test_D0038_AC_14_パイプの文書に警告の3つが書いてある(label, word):
+    """D0038-AC-14: docs/guide/pipes.md の「警告」の節に、3つの警告（read で bash の段・tests で bash なしの段・on_fail が read の段）と、
     警告が出ても check は通る（終了コード 0）ことが書いてある。"""
     part = heading_part(read_doc(GUIDE / "pipes.md"), "警告")
     assert part, "pipes.md に「警告」の節が無い"

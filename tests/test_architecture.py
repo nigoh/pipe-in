@@ -342,7 +342,7 @@ def test_d0036_ac26_bashwriteは標準ライブラリだけ():
 
 
 def test_pipe_lint_imports_only_definition():
-    """D0037-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition のほかを読まない（pipe_in_generator も engine も読まない）。"""
+    """D0038-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition のほかを読まない（pipe_in_generator も engine も読まない）。"""
     import sys
 
     path = ROOT / "pipe_in" / "pipe" / "lint.py"

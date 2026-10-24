@@ -1,4 +1,4 @@
-# D0037 パイプを流して分かったことを、pipe-build のスキルと pipe-in-gen check の警告に入れる
+# D0038 パイプを流して分かったことを、pipe-build のスキルと pipe-in-gen check の警告に入れる
 
 ## 目的
 
@@ -30,20 +30,20 @@
 
 ### 受け入れ基準
 
-- D0037-AC-01 W1：`access = "read"`・`bash = true` の段で、指示文に書き込みを思わせる言葉（「書き出」「保存」「取り出」「置き場所」「下書き」「試作」「出力先」「描」「mkdir」など。一覧は設計に書く）があると、警告が1件出て、段の名前と `access = "docs"` の案内を含む。
-- D0037-AC-02 W1 を出さない：同じ形でも指示文に上の言葉が無いとき。`bash = true` でない `read` の段。`access = "docs"`・`"tests"`・`"code"` で `bash = true` の段。
-- D0037-AC-03 W3：`access = "tests"`・`bash` なしの段のあとに `check.command` を持つ段があると、警告が1件出る。
-- D0037-AC-04 W3 を出さない：`tests` の段が `bash = true` のとき。あとの段に `check.command` が無いとき。`check.command` が前の段にあるとき。
-- D0037-AC-05 W5：`on_fail` が別の段を指し、その段が `access = "read"` なら、警告が1件出る。出さない：先が `docs`・`tests`・`code` の段、`on_fail` を省いたとき、自分を指すとき、`check` が無いとき。
-- D0037-AC-06 `pipe-in-gen check` は、警告だけのとき終了コード 0 で、「⚠」つきで警告を1行ずつ出す。誤りと警告の両方があるとき、終了コードは 1 で、誤りも警告も出す。
-- D0037-AC-07 警告が無いとき、出力は今までどおり「問題ありません」の1行（`tests/test_generator.py` の既存のテストが変更なしで通る）。
-- D0037-AC-08 `pipe-in-gen new` でも、警告があれば同じ形で出し、終了コードは 0。
-- D0037-AC-09 ひな形 `dev`・`diagrams`・`spec-qa` は警告 0 件。`examples/video` の見本も 0 件（`verify` 段は D0036 の PR で `access = "docs"` に直した）。直す前の形（`access = "read"` で Bash でこまを書く）は、手作りの定義で W1 が1件出る。
-- D0037-AC-10 `check_pipe` の返り値は変わらない。ひな形・見本・既存のパイプの定義は、誤りの有無が今までと同じ。`pipe-in`（本体の流し）は警告を出さず、止めない。
-- D0037-AC-11 （古い形）前の版の名前のフォルダ・置き場所（[前の名前から移る](../guide/migrate.md)）のパイプも、同じ警告の検査を受ける。`pipe.toml`・`pipeline.toml`・記録（`state.json`・`99_summary.md`）・終了コード・置き場所の形は変えない。
-- D0037-AC-12 新しい部品は、`pipe_in.pipe` の中にあり、`pipe_in_generator` を読まない（`tests/test_architecture.py`）。ガード（`guard.py`・`guard_hook.py`・`pipe_in_guard.py`）は変えない。
-- D0037-AC-13 スキル `pipe-build` の「段の決め方」と「流すとき」に、分かったこと 1〜6 の要点が入っている（言葉の目印で検査する：`tests/test_plugin.py`）。
-- D0037-AC-14 `docs/guide/pipes.md` に警告の3つが書かれている（`tests/test_guide.py` の言葉の目印）。
+- D0038-AC-01 W1：`access = "read"`・`bash = true` の段で、指示文に書き込みを思わせる言葉（「書き出」「保存」「取り出」「置き場所」「下書き」「試作」「出力先」「描」「mkdir」など。一覧は設計に書く）があると、警告が1件出て、段の名前と `access = "docs"` の案内を含む。
+- D0038-AC-02 W1 を出さない：同じ形でも指示文に上の言葉が無いとき。`bash = true` でない `read` の段。`access = "docs"`・`"tests"`・`"code"` で `bash = true` の段。
+- D0038-AC-03 W3：`access = "tests"`・`bash` なしの段のあとに `check.command` を持つ段があると、警告が1件出る。
+- D0038-AC-04 W3 を出さない：`tests` の段が `bash = true` のとき。あとの段に `check.command` が無いとき。`check.command` が前の段にあるとき。
+- D0038-AC-05 W5：`on_fail` が別の段を指し、その段が `access = "read"` なら、警告が1件出る。出さない：先が `docs`・`tests`・`code` の段、`on_fail` を省いたとき、自分を指すとき、`check` が無いとき。
+- D0038-AC-06 `pipe-in-gen check` は、警告だけのとき終了コード 0 で、「⚠」つきで警告を1行ずつ出す。誤りと警告の両方があるとき、終了コードは 1 で、誤りも警告も出す。
+- D0038-AC-07 警告が無いとき、出力は今までどおり「問題ありません」の1行（`tests/test_generator.py` の既存のテストが変更なしで通る）。
+- D0038-AC-08 `pipe-in-gen new` でも、警告があれば同じ形で出し、終了コードは 0。
+- D0038-AC-09 ひな形 `dev`・`diagrams`・`spec-qa` は警告 0 件。`examples/video` の見本も 0 件（`verify` 段は D0036 の PR で `access = "docs"` に直した）。直す前の形（`access = "read"` で Bash でこまを書く）は、手作りの定義で W1 が1件出る。
+- D0038-AC-10 `check_pipe` の返り値は変わらない。ひな形・見本・既存のパイプの定義は、誤りの有無が今までと同じ。`pipe-in`（本体の流し）は警告を出さず、止めない。
+- D0038-AC-11 （古い形）前の版の名前のフォルダ・置き場所（[前の名前から移る](../guide/migrate.md)）のパイプも、同じ警告の検査を受ける。`pipe.toml`・`pipeline.toml`・記録（`state.json`・`99_summary.md`）・終了コード・置き場所の形は変えない。
+- D0038-AC-12 新しい部品は、`pipe_in.pipe` の中にあり、`pipe_in_generator` を読まない（`tests/test_architecture.py`）。ガード（`guard.py`・`guard_hook.py`・`pipe_in_guard.py`）は変えない。
+- D0038-AC-13 スキル `pipe-build` の「段の決め方」と「流すとき」に、分かったこと 1〜6 の要点が入っている（言葉の目印で検査する：`tests/test_plugin.py`）。
+- D0038-AC-14 `docs/guide/pipes.md` に警告の3つが書かれている（`tests/test_guide.py` の言葉の目印）。
 
 ## 決めたことと理由
 
@@ -80,11 +80,11 @@
 
 ## 番号
 
-D0032〜D0036 は使われていたので、D0037 にした。D0036（段の Bash の書き込みの範囲）の上に積んでいる。
+D0032〜D0037 は使われていた（D0037 は main の build-judge）ので、D0038 にした。D0036（段の Bash の書き込みの範囲）の上に積んでいる。
 
 ## 確かめたこと
 
-- `tests/test_pipe_lint.py`（新）と `tests/test_generator.py`・`tests/test_architecture.py`・`tests/test_plugin.py`・`tests/test_guide.py` の D0037 のテスト、全体のテストが通った（main 由来で前から落ちている sdk-buffer の 4 件を除く）。
+- `tests/test_pipe_lint.py`（新）と `tests/test_generator.py`・`tests/test_architecture.py`・`tests/test_plugin.py`・`tests/test_guide.py` の D0038 のテスト、全体のテストが通った（main 由来で前から落ちている sdk-buffer の 4 件を除く）。
 
 ## 監査と助言
 

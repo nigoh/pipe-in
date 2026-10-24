@@ -434,7 +434,7 @@ def test_pipe_craft_is_gone():
     assert found == []
 
 
-# ---- D0037-AC-13: パイプを作るときの教訓 -------------------------------------------------------------
+# ---- D0038-AC-13: パイプを作るときの教訓 -------------------------------------------------------------
 
 
 def skill_section(heading_word: str) -> str:
@@ -453,7 +453,7 @@ def skill_section(heading_word: str) -> str:
 
 
 # （pytest の id, 何を書くか, 探す言葉）。分かったこと 1〜5 は「段の決め方」、6 は「流すとき」
-D0037_DECIDING_WORDS = [
+D0038_DECIDING_WORDS = [
     ("docs-for-scratch", "1：置き場所が要る段は access = \"docs\"（read で bash でも書けない）", 'access = "docs"'),
     ("docs-dir", "1：docs_dir を書く", "docs_dir"),
     ("agents-wait", "2：agents のある段は全部返ってから成果物を書く", "全部返"),
@@ -463,24 +463,24 @@ D0037_DECIDING_WORDS = [
     ("rewrite", "4：書き換えない", "書き換え"),
     ("on-fail", "5：on_fail は直せる段にする", "on_fail"),
 ]
-D0037_RUNNING_WORDS = [
+D0038_RUNNING_WORDS = [
     ("max-turns", "6：長い段は max_turns を足りるだけ", "max_turns"),
     ("setting-sources", "6：setting_sources を絞る", "setting_sources"),
 ]
 
 
-@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0037_DECIDING_WORDS], ids=[i for i, _, _ in D0037_DECIDING_WORDS])
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0038_DECIDING_WORDS], ids=[i for i, _, _ in D0038_DECIDING_WORDS])
 def test_pipe_build_skill_has_lessons(label, word):
-    """D0037-AC-13: スキル pipe-build の「段の決め方」に、分かったこと 1〜5 の要点（言葉の目印）が入っている。"""
+    """D0038-AC-13: スキル pipe-build の「段の決め方」に、分かったこと 1〜5 の要点（言葉の目印）が入っている。"""
     part = skill_section("段の決め方")
     assert part, "スキルに「段の決め方」の節が無い"
     found = word in part  # 節の本文を assert の失敗の表示に出さない
     assert found, f"「段の決め方」に、{label} が無い（探した言葉：{word}）"
 
 
-@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0037_RUNNING_WORDS], ids=[i for i, _, _ in D0037_RUNNING_WORDS])
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0038_RUNNING_WORDS], ids=[i for i, _, _ in D0038_RUNNING_WORDS])
 def test_pipe_build_skill_has_running_section(label, word):
-    """D0037-AC-13: スキル pipe-build の末尾に節「流すとき」があり、分かったこと 6 の要点（言葉の目印）が入っている。"""
+    """D0038-AC-13: スキル pipe-build の末尾に節「流すとき」があり、分かったこと 6 の要点（言葉の目印）が入っている。"""
     part = skill_section("流すとき")
     assert part, "スキルに「流すとき」の節が無い"
     found = word in part
