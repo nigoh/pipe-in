@@ -65,6 +65,21 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 
 共有したいものは、中身を確かめてから `generator/templates/` にひな形として足してください。
 
+### 検査の警告
+
+`pipe-in-gen check`（と `pipe-in-gen new`）は、誤りのほかに、流すと詰まりやすい段の形を `⚠` の行で知らせます。警告は誤りではないので、警告だけなら検査は通ります（終了コード 0。誤りがあれば 1）。警告が無ければ、出力は今までと同じ1行です。実際のパイプを流して分かったことから作った3つです。
+
+- `access = "read"` で `bash = true` の段で、指示文に書き出す・書き込む・保存する・取り出す・描く・試作・下書き・置き場所などの言葉があるとき。`read` の段は、Bash でも自分の成果物のほかは書けません（[安全の仕組み](safety.md)）。試作や図を置く場所が要るなら、`access = "docs"` と `docs_dir`（要るなら `writes`）にしてください。
+- `access = "tests"` の段が `bash = true` でなく、あとの段に `check.command` があるとき。テストを書く段が、あとで掛かる検査（lint や inspect など）を自分で流せず、実装の段で初めて落ちて差し戻しが回ります。テストを書く段にも `bash = true` を付け、同じ検査を流させてください。
+- 検査（`[stages.check]`）の `on_fail` の戻り先が、`access = "read"` の別の段のとき。読むだけの段に戻しても、指摘を直せません。直す段（`code`・`tests`・`docs`）に戻してください。
+
+警告が1件のときの出力の例です（`pipe-in-gen check mypipe`）。
+
+```text
+✓ パイプ「mypipe」: 誤りはありません（注意 1 件）
+⚠ 段 3（target）: access = "read" で bash = true の段は、Bash でも成果物のほかは書けません（D0036）。試作・図・下書きなどを置くなら、access = "docs" と docs_dir にしてください
+```
+
 ## ひな形
 
 | 名前 | 段 | 作るもの |

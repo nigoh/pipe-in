@@ -56,10 +56,11 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
 ## 4. 結果を伝える
 
 - 変えたファイルの一覧・段の差分の要約・`pipe-in-gen check` の結果・直せなかった点を見せる。
+- `⚠` の警告が返ったら、そのまま見せる。直すなら、2b と同じく「前 → 後」の表で確認を取ってから、もう一度 pipe-builder に任せる（`access` を `docs` にするなどの直しは「⚠ 権限が広がる」の印を付ける）。
 - 流すコマンドを示す：`pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`input` が required なら依頼メモは必須）。
   チャットから流すなら `--pause` を付け、確認の段で `--review approve` / `--review revise --feedback "…"` / `--review quit`（どれも `--pipe <名前>` と一緒に）で答える。
 - 記録は `<work_dir>/<名前>/`（既定は `docs/pipeline/<名前>/`）に残る。
   対象が公開リポジトリなら、`docs/pipeline/` を `.gitignore` に入れることと、`.pipe-in/pipes/` の指示文に社内の事情が入っていないかを見てからコミットすることを勧める。
 - **流すのは、人に言われてから。** pipe-in を流すと Claude の利用料がかかる。
 
-段ごとの決め方・検査と審査の組み方は [references/stage-rules.md](references/stage-rules.md) にあります。2a の3・2b の2で表を作るときに読む。
+段ごとの決め方・検査と審査の組み方・流すときの注意は [references/stage-rules.md](references/stage-rules.md) にあります。2a の3・2b の2で表を作るときに読む。

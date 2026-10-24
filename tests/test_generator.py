@@ -775,3 +775,91 @@ def test_d0037_ac27_old_diagrams_shape_still_loads(tmp_path):
     c = verify_stage(pipe).check
     assert c.verdict is True and c.command is None and c.judge is None
     assert definition().check_pipe(pipe, python_project(tmp_path)) == []
+
+
+# ---- D0038: 警告の出力 -------------------------------------------------------------------
+
+
+def write_warning_pipe(tmp_path: Path, *, with_error: bool = False) -> None:
+    """W1 が1件出る定義（read・bash・指示に「保存」）を pipes/ に置く。with_error なら docs_dir 抜けの誤りも足す。"""
+    d = tmp_path / "pipes" / "pipe-in-warny"
+    d.mkdir(parents=True)
+    text = (
+        '[pipe]\nkind = "linear"\nlabel = "x"\n\n'
+        '[[stages]]\nname = "probe"\nlabel = "probe"\noutput = "probe.md"\naccess = "read"\nbash = true\n'
+        'prompt = "結果を保存する"\n'
+    )
+    if with_error:
+        text += '\n[[stages]]\nname = "doc"\nlabel = "doc"\noutput = "doc.md"\naccess = "docs"\nprompt = "書く"\n'
+    (d / "pipe.toml").write_text(text, encoding="utf-8")
+
+
+def test_check_prints_warnings_and_passes(tmp_path, capsys):
+    """D0038-AC-06: 警告だけのとき check は終了コード 0 で、「⚠」つきで警告を1行ずつ出す。"""
+    project = python_project(tmp_path)
+    write_warning_pipe(tmp_path)
+    assert gen(tmp_path, "check", "warny", "--project", str(project)) == 0
+    out = capsys.readouterr().out
+    lines = [x for x in out.splitlines() if "⚠" in x]
+    assert len(lines) == 1 and "probe" in lines[0] and 'access = "docs"' in lines[0]
+    assert "問題ありません" not in out and "✗" not in out
+
+
+def test_check_prints_errors_and_warnings(tmp_path, capsys):
+    """D0038-AC-06: 誤りと警告の両方があるとき、終了コードは 1 で、誤りも警告も出す。"""
+    project = python_project(tmp_path)
+    write_warning_pipe(tmp_path, with_error=True)
+    assert gen(tmp_path, "check", "warny", "--project", str(project)) == 1
+    out = capsys.readouterr().out
+    assert "✗" in out and "docs_dir" in out
+    assert len([x for x in out.splitlines() if "⚠" in x]) == 1
+
+
+def test_check_clean_pipe_prints_no_problem_line(tmp_path, capsys):
+    """D0038-AC-07: 警告も誤りも無いときは、今までどおり「問題ありません」の1行だけ（⚠ は出ない）。"""
+    project = python_project(tmp_path)
+    assert gen(tmp_path, "new", "pics", "--from", "diagrams", "--project", str(project)) == 0
+    capsys.readouterr()
+    assert gen(tmp_path, "check", "pics", "--project", str(project)) == 0
+    out = capsys.readouterr().out
+    assert out.strip().splitlines() == ["✓ パイプ「pics」: 問題ありません"]
+
+
+def test_new_prints_warnings(tmp_path, capsys, monkeypatch):
+    """D0038-AC-08: new でも、警告があれば同じ形で出し、終了コードは 0。"""
+    cli = gen_cli()
+    monkeypatch.setattr(cli, "templates_dir", lambda: _warning_template(tmp_path))
+    project = python_project(tmp_path)
+    assert gen(tmp_path, "new", "warny", "--from", "warny", "--project", str(project)) == 0
+    out = capsys.readouterr().out
+    assert len([x for x in out.splitlines() if "⚠" in x]) == 1
+    assert "問題ありません" not in out
+
+
+def _warning_template(tmp_path: Path) -> Path:
+    t = tmp_path / "tpl" / "warny"
+    t.mkdir(parents=True)
+    (t / "pipe.toml").write_text(
+        '[pipe]\nkind = "linear"\nlabel = "x"\n\n'
+        '[[stages]]\nname = "probe"\nlabel = "probe"\noutput = "probe.md"\naccess = "read"\nbash = true\n'
+        'prompt = "結果を保存する"\n',
+        encoding="utf-8",
+    )
+    (t / "README.md").write_text("# warny\n", encoding="utf-8")
+    return tmp_path / "tpl"
+
+
+def test_legacy_named_pipe_gets_same_warnings(tmp_path, capsys):
+    """D0038-AC-11: 前の版の名前（.devpipe/pipes/devpipe-<名前>/）のパイプも、check で同じ警告を受け、終了コードは 0。"""
+    project = python_project(tmp_path)
+    d = project / ".devpipe" / "pipes" / "devpipe-oldwarn"
+    d.mkdir(parents=True)
+    (d / "pipe.toml").write_text(
+        '[pipe]\nkind = "linear"\nlabel = "x"\n\n'
+        '[[stages]]\nname = "probe"\nlabel = "probe"\noutput = "probe.md"\naccess = "read"\nbash = true\n'
+        'prompt = "結果を保存する"\n',
+        encoding="utf-8",
+    )
+    assert gen_cli().main(["check", "oldwarn", "--project", str(project)]) == 0
+    out = capsys.readouterr().out
+    assert len([x for x in out.splitlines() if "⚠" in x]) == 1 and "probe" in out
