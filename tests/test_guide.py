@@ -1756,3 +1756,20 @@ def test_D0025_AC_77_78_検査そのものは行の番号と表の順を取り�
     assert row_starting("| 画面の確認用のページ（開発用） | `a` | `b` |\n| 別 | x | y |\n", DESIGN_PAGE_ROW) == "| 画面の確認用のページ（開発用） | `a` | `b` |"
     assert row_starting("文中の | 画面の確認用のページ", DESIGN_PAGE_ROW) is None
     assert row_starting("", DESIGN_PAGE_ROW) is None
+
+
+# ---- D0032-AC-08: 古い版で上限を超えて落ちたときの説明 ----
+
+
+def test_D0032_AC_08_設定のガイドに古い版で落ちたときの入れ直しの説明がある():
+    """D0032-AC-08: docs/guide/config.md の max_buffer_mb の表の行より後ろ・「段の名前は」より前に、
+    maximum buffer size of 1048576 bytes で落ちたときは入れ直す、という説明（1048576 と「入れ直」の語）がある。"""
+    md = read_doc(GUIDE / "config.md")
+    lines = md.splitlines()
+    row = next((i for i, line in enumerate(lines) if line.startswith("| `max_buffer_mb`")), None)
+    assert row is not None, "config.md に max_buffer_mb の表の行が無い"
+    end = next((i for i in range(row + 1, len(lines)) if lines[i].startswith("段の名前は")), None)
+    assert end is not None, "config.md の max_buffer_mb の行のあとに「段の名前は」の段落が無い"
+    part = "\n".join(lines[row + 1:end])
+    assert "1048576" in part, f"max_buffer_mb の行と「段の名前は」のあいだに 1048576 が無い:\n{part}"
+    assert "入れ直" in part, f"max_buffer_mb の行と「段の名前は」のあいだに「入れ直」が無い:\n{part}"
