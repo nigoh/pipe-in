@@ -113,7 +113,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
 `vscode-usage-*.gif` は、上の「VSCode の中の画面を撮る」と同じ VS Code Server で、本物の `pipe-in` を流すところを録画して作ります。SDK は呼ばず、利用料はかかりません。
 
-1. 見本用の `HOME` を、ユーザー名の入らない一時の場所に作り、その中の `~/src/myapp` に見本のプロジェクトを作る（確認の画面とパネルには、記録の場所の絶対パスが出るため）。小さなファイルを置いて git の最初のコミットをし、`feat/csv-export` のブランチにする。`.gitignore` に `docs/pipeline/` と `.vscode/` を書く（未コミットの変更の注意が出ないように）。空の `docs/pipeline/` も作っておく（拡張は起動したときに `docs/pipeline/` を見張り始めるので、無いと最初の実行がパネルに出ません）。
+1. 見本用の `HOME` を、ユーザー名の入らない一時の場所に作り、その中の `~/src/myapp` に見本のプロジェクトを作る（確認の画面とパネルには、記録の場所の絶対パスが出るため）。小さなファイルを置いて git の最初のコミットをし、`feat/csv-export` のブランチにする。`.gitignore` に `docs/pipeline/` と `.vscode/` を書く（未コミットの変更の注意が出ないように）。空の `docs/pipeline/` も作っておく（以前は、無いと最初の実行がパネルに出なかったので、作っておく必要があった。いまは `docs/pipeline/` が無くても、できたらパネルとステータスバーが進む（D0034）。作っておいても害はない）。
 2. ターミナルで `pipe-in` と打つと、本物の CLI（`pipe_in.cli.main`）を、段の runner だけを差し替えて動かす包みが動くようにする（`PATH` の先に置く）。差し替える runner は `tests/showcase.py` の台本（要件定義で修正を 1 回依頼 → 承認・設計・テスト先行を承認・検証で 1 回差し戻し → 合格）の返事を、Prompt の行 → 発言 → 成果物 → 結果の順に、1 段あたり約 2.4 秒かけて少しずつ段のログに書く。かかった時間は本当の値にする（時系列の帯が重ならないように）。費用とターンの数は見本のまま。
 3. `.vscode/settings.json` に、上の手順3の設定のほか、ターミナルの設定を書く：`terminal.integrated.env.linux` で `HOME`（見本の場所）と `LANG`・`LC_ALL`（`C.UTF-8`。無いと日本語が崩れる）、`terminal.integrated.enablePersistentSessions: false`（前のターミナルが戻らないように）、`terminal.integrated.shellIntegration.enabled: false`。見本の `HOME` の `.bashrc` で、プロンプトを `~/src/myapp $` にする。
 4. Playwright で、幅 **1280×960**・言語 `en-US`・`recordVideo` で開き、上の手順5と同じ準備（信頼・欄を閉じる・キーボード配列を隠す）をしてから、「pipe-in: 実行を見る」と「View: Toggle Terminal」を開き、ターミナルを低くして、図を 80% にする。

@@ -1,4 +1,4 @@
-// 更新の決まり：監視の対象・まとめる時間・読み直しの間隔と、その間隔で動く小さなタイマー、古い読み込みの結果を捨てる世代の番号。
+// 更新の決まり：監視の対象・まとめる時間・読み直しの間隔・work_dir の有無を確かめる間隔と、その間隔で動く小さなタイマー、古い読み込みの結果を捨てる世代の番号。
 // 時計は引数で受ける（テストは偽のタイマーを渡す）。vscode を import しない。
 
 /** いまの work_dir の下で見るファイル。対象を狭めない（直下とパイプのフォルダの state.json・*.md・logs/*.jsonl） */
@@ -7,6 +7,8 @@ export const WATCH_GLOB = '{state.json,*.md,logs/*.jsonl,*/state.json,*/*.md,*/l
 export const DEBOUNCE_MS = 200;
 /** 別の worktree と archive の読み直しの間隔（別の worktree の行があるあいだと、パネルが見えている間） */
 export const POLL_MS = 5000;
+/** いまの work_dir があるかを確かめる間隔（stat を 1 回呼ぶだけ。無いあいだは見張りを張らず、これで見つける。約 5 秒の読み直しとは別） */
+export const PRESENCE_CHECK_MS = 3000;
 
 /**
  * 約 5 秒ごとの読み直しを続けるか。次のどちらかのとき続ける：
@@ -42,7 +44,7 @@ export function createGeneration(): Generation {
 
 export interface PollerOptions<Handle> {
   intervalMs: number;
-  /** 読み直し。失敗しても次を仕掛ける（例外は外へ出さない） */
+  /** くり返す仕事（読み直しや、work_dir の有無の確かめ）。失敗しても次を仕掛ける（例外は外へ出さない） */
   run: () => Promise<void>;
   setTimer: (fn: () => void, ms: number) => Handle;
   clearTimer: (handle: Handle) => void;
@@ -56,7 +58,7 @@ export interface Poller {
   readonly running: boolean;
 }
 
-/** setTimeout を連ねる形の読み直し。run が終わってから次を仕掛けるので、遅いときに重ならない。 */
+/** setTimeout を連ねる形のくり返し（読み直しや有無の確かめ）。run が終わってから次を仕掛けるので、遅いときに重ならない。 */
 export function createPoller<Handle>(options: PollerOptions<Handle>): Poller {
   const { intervalMs, run, setTimer, clearTimer } = options;
   let active = false;

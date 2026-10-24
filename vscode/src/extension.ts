@@ -1,5 +1,5 @@
 // 入口：vscode に触れる唯一のファイル。コマンド・ステータスバー・パネル・ファイルの監視・エディタで開く、を担い、判定は持たない。
-// いまの work_dir の監視は1つ（別の worktree の実行を選んでパネルを開いているときだけ、そのフォルダの監視を足す）。記録が変わったら一覧と図の状態を作り直し、ステータスバーには毎回、パネルには見えているときだけ配る。
+// いまの work_dir の見張りは、無いあいだは 0 個、有れば 1 個（無いあいだは決まった間隔で有無だけを確かめ、できたら張って読み直す。別の worktree の実行を選んでパネルを開いているときだけ、そのフォルダの見張りを足す）。記録が変わったら一覧と図の状態を作り直し、ステータスバーには毎回、パネルには見えているときだけ配る。
 // 実行の一覧（直下の開発フロー・<work_dir>/<パイプ名>/・archive/・同じ git リポジトリの別の worktree）から1つを選んで見る。
 // 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（書くのはそれだけ。work_dir・.git・別の worktree には書かない）。
 // 約5秒ごとの読み直しは、別の worktree の行があるあいだ、パネルが閉じていても隠れていても続ける（ステータスバーの件数を新しく保つため）。
@@ -33,11 +33,13 @@ import { HERE } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
 import { frontWaitingKey } from './domain/runList.ts';
 import type { RunListView } from './domain/runList.ts';
-import { DEBOUNCE_MS, POLL_MS, WATCH_GLOB, createGeneration, createPoller, shouldPoll } from './app/refreshPolicy.ts';
+import { DEBOUNCE_MS, POLL_MS, PRESENCE_CHECK_MS, WATCH_GLOB, createGeneration, createPoller, shouldPoll } from './app/refreshPolicy.ts';
 import { chooseEntry, findEntry, isPreviousRun, loadRunList, toListView } from './app/runList.ts';
 import type { RunList, RunsSource } from './app/runList.ts';
 import { rememberRun, restoreRun } from './app/selection.ts';
 import { staleAfterSeconds } from './app/staleness.ts';
+import { createWatchHolder, createWorkDirChecker } from './app/workDirWatch.ts';
+import { dirPresence } from './infra/fsPresence.ts';
 import { createFsRunsSource, createFsWorkDirSource } from './infra/fsWorkDirSource.ts';
 import { parseWebviewMessage } from './view/messages.ts';
 import type { ToPanelMessage } from './view/messages.ts';
@@ -60,9 +62,8 @@ interface WorkDirTarget {
 
 let panel: vscode.WebviewPanel | undefined;let statusItem: vscode.StatusBarItem | undefined;
 let target: WorkDirTarget | null = null;
-let watcher: vscode.FileSystemWatcher | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
-/** 別の worktree の run を選んでいるときだけ、そのフォルダを見る 2 つ目の監視 */
+/** 別の worktree の run を選んでいるときだけ、そのフォルダを見る監視（いまの work_dir の見張りは dirWatch が持つ） */
 let remoteWatcher: vscode.FileSystemWatcher | undefined;
 let remoteDir: string | null = null;
 /** 選んだ実行の目印。workspaceState に覚え、開き直しても戻す。一覧に無ければ使わない（既定の最新） */
@@ -80,10 +81,28 @@ let lastLive = false;
 let shown: { runAbs: string; artifacts: string[] } | null = null;
 /** 読み込みの世代。最後に始めた読み込みの結果だけを使い、古い結果は捨てる */
 const loads = createGeneration();
+/** work_dir の有無の確かめの世代。読み込みの世代とは別。見る先を決め直す・片付けるたびに進め、途中の確かめの結果を捨てる */
+const checks = createGeneration();
 /** 約5秒ごとに一覧を読み直す（動かすかどうかは updatePolling が決める） */
 const poller = createPoller({
   intervalMs: POLL_MS,
   run: () => render(),
+  setTimer: (fn, ms) => setTimeout(fn, ms),
+  clearTimer: (handle) => clearTimeout(handle),
+});
+/** いまの work_dir の見張り（0 個か 1 個）を持つ部品。3 つの知らせは schedule に流す */
+const dirWatch = createWatchHolder({ create: createWorkDirWatcher, onEvent: schedule });
+/** work_dir の有無を確かめ、できたら見張りを張って読み直し、消えたら外す手順。判断はこの部品が持ち、ここは口を渡すだけ */
+const workDirChecker = createWorkDirChecker({
+  generation: checks,
+  holder: dirWatch,
+  probe: dirPresence,
+  reload: () => render(),
+});
+/** 有無の確かめを約3秒ごとに続ける（約5秒の読み直しとは別のタイマー。始めるのは retarget、止めるのは見る先が無いときと deactivate） */
+const presencePoller = createPoller({
+  intervalMs: PRESENCE_CHECK_MS,
+  run: () => checkWorkDir(),
   setTimer: (fn, ms) => setTimeout(fn, ms),
   clearTimer: (handle) => clearTimeout(handle),
 });
@@ -139,7 +158,7 @@ export function activate(context: vscode.ExtensionContext): void {
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_STALE_AFTER}`)) void render();
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => retarget()),
-    { dispose: () => stopWatching() },
+    { dispose: () => { checks.next(); stopWatching(); } },
   );
   retarget();
 }
@@ -153,6 +172,7 @@ function readSetting(key: 'workDir' | 'pipesDir', fallback: string): string {
 
 export function deactivate(): void {
   poller.stop();
+  presencePoller.stop();
   panel?.dispose();
   panel = undefined;
   for (const p of editors.values()) p.dispose();
@@ -160,6 +180,8 @@ export function deactivate(): void {
   stopWatching();
   // パネルを閉じて起きた読み直しや、途中の読み込みの結果を捨てる（終えたあとに読み直しを始め直さない）
   loads.next();
+  // 途中の有無の確かめの結果も捨てる（終えたあとに見張りを張らない）
+  checks.next();
 }
 
 function currentWorkDir(): WorkDirTarget | null {
@@ -173,9 +195,21 @@ function currentWorkDir(): WorkDirTarget | null {
 function stopWatching(): void {
   if (timer !== undefined) clearTimeout(timer);
   timer = undefined;
-  watcher?.dispose();
-  watcher = undefined;
+  workDirChecker.reset();
   watchRemote(null);
+}
+
+/** いまの work_dir の見張りを 1 つ作る。基準は渡された dir だけから作る（見る先の状態は読まない） */
+function createWorkDirWatcher(dir: string): vscode.FileSystemWatcher {
+  const workDirUri = vscode.Uri.file(dir);
+  return vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workDirUri, WATCH_GLOB));
+}
+
+/** いまの work_dir の有無を確かめる。確かめる場所は currentWorkDir() が決めた絶対パスただ 1 つ。張る・外す・読み直すは workDirChecker が決める */
+async function checkWorkDir(): Promise<void> {
+  const t = target;
+  if (!t) return;
+  await workDirChecker.check(t.abs);
 }
 
 /** 選んだ run が別の worktree にあるときだけ、そのフォルダにも監視を張る。無ければ（変わったら）捨てる。 */
@@ -207,11 +241,13 @@ function updatePolling(live: boolean): void {
 }
 
 /**
- * 見る work_dir を決め直し、監視を張り直して描き直す。覚えた選びは消さない（新しい候補にあれば使う）。
- * 切り替え前の途中の読み込みの結果は捨てる。フォルダを開いていなければ、読み直す先が無いので読み直しを止めてボタンを隠す。
+ * 見る work_dir を決め直し、いまの見張りを外して、有無の確かめを始め直す（張る・読み直すのは workDirChecker。最初の確かめは間隔を待たずその場で 1 回）。
+ * 覚えた選びは消さない（新しい候補にあれば使う）。切り替え前の途中の読み込みと確かめの結果は捨てる。
+ * フォルダを開いていなければ、確かめも読み直しも止めてボタンを隠す。
  */
 function retarget(): void {
   loads.next();
+  checks.next();
   stopWatching();
   shown = null;
   lastList = null;
@@ -221,17 +257,15 @@ function retarget(): void {
   if (!target) {
     runsSource = null;
     poller.stop();
+    presencePoller.stop();
     statusItem?.hide();
     return;
   }
   runsSource = createFsRunsSource(target.root, target.abs, target.setting);
-  const workDirUri = vscode.Uri.file(target.abs);
-  watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workDirUri, WATCH_GLOB));
-  watcher.onDidCreate(schedule);
-  watcher.onDidChange(schedule);
-  watcher.onDidDelete(schedule);
   statusItem?.show();
-  void render();
+  presencePoller.stop();
+  presencePoller.start();
+  void checkWorkDir();
 }
 
 function schedule(): void {
