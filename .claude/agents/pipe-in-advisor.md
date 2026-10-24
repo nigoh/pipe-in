@@ -2,6 +2,7 @@
 name: pipe-in-advisor
 description: Claude Code と Agent SDK の公式の文書と照らして、このリポジトリの使いかたを助言する。/pipe-advise と /pipe-in の検証のあとから呼ばれるときだけ使う。
 tools: Read, Grep, Glob, WebFetch, WebSearch
+maxTurns: 80
 color: cyan
 ---
 
