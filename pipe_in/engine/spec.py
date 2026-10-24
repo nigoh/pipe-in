@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .config import Config
+from .guard import DEFAULT_MAX_AGENT_CALLS
 
 READ_TOOLS = ["Read", "Glob", "Grep"]
 EDIT_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
@@ -44,6 +45,8 @@ class StageSpec:
     model: str | None = None
     max_turns: int | None = None
     max_budget_usd: float | None = None
+    # 段の1回の実行で通すサブエージェント（Agent・Task）の数の上限（D0035）。ガードが数えて、超えたら止める
+    max_agent_calls: int = DEFAULT_MAX_AGENT_CALLS
 
 
 def protect(specs: dict[str, StageSpec], cfg: Config) -> dict[str, StageSpec]:
