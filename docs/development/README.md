@@ -23,6 +23,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 依存の向き（本体・ジェネレーター） | `tests/test_architecture.py` |
 | 前の名前が、決まったファイル（読み替え・移行の案内・歴史）にしか残っていない | `tests/test_rename.py` |
 | プラグインの pipe-builder が書ける場所と Bash、pipe-judge が読む道具だけであること、/pipe-in のサブエージェント（監査と助言を含む）が書ける場所と Bash・助言の Web の行き先 | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
+| パイプの段の Bash の書き込みが、段の書き込み範囲に収まること（決まった形で先が読めるもの） | `tests/test_bash_write_guard.py` |
 | 審査の総合点・合否・ばらつきの計算 | `tests/test_judge_score.py` |
 | 段の検証の審査（`[stages.check.judge]`）の合否の計算と、プラグインの計算との一致・差し戻し | `tests/test_judge_calc.py`・`tests/test_check_judge.py` |
 | 拡張の層ごとに使ってよい部品・`vscode` を import するのは入口だけ | `vscode/src/architecture.test.ts` |

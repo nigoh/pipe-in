@@ -13,6 +13,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
+from .bashwrite import BashState, check_bash_writes
+
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 # どの段でも使ってよい、読むだけ・手元の整理だけの道具。
@@ -113,8 +115,11 @@ def check_tool(
     write_scope_hint: str,
     allowed_tools: Collection[str] | None = None,
     fetch_domains: Collection[str] | None = None,
+    bash_state: BashState | None = None,
 ) -> str | None:
     """拒否する場合はその理由を返す。許可なら None。
+
+    bash_state を渡すと、Bash の書き込み先の判定が作業フォルダなどを呼び出しをまたいで覚える（渡さなければ覚えない）。
 
     allowed_tools を渡すと、そこと ALWAYS_ALLOWED にないツール（PowerShell・MCP・サブエージェントなど）は
     すべて止める。書き込みの範囲や危ない操作の判定は Bash と書き込み系のツールにしか掛けていないため、
@@ -151,7 +156,13 @@ def check_tool(
         for pattern, reason in DANGEROUS_BASH:
             if re.search(pattern, cmd):
                 return reason
-        return None
+        raw_cmd = tool_input.get("command", "")
+        if "command" in tool_input and not isinstance(raw_cmd, str):
+            return "Bash のコマンドを読み取れなかったため止めました"
+        # 書き込みの形があれば、Write・Edit と同じ範囲で止める（D0033）
+        return check_bash_writes(
+            raw_cmd, project_dir=project_dir, can_write=can_write, write_scope_hint=write_scope_hint, state=bash_state
+        )
 
     if tool_name in WRITE_TOOLS:
         raw = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
@@ -188,6 +199,7 @@ def make_guard_hook(
     if not isinstance(max_agent_calls, int) or isinstance(max_agent_calls, bool) or max_agent_calls < 1:
         raise ValueError(f"max_agent_calls は 1 以上の整数で渡してください（{max_agent_calls!r}）")
     used = 0
+    bash_state = BashState.new(project_dir)  # 作る単位 ＝ 覚える単位
 
     async def guard(input_data: dict[str, Any], tool_use_id: str | None, context: Any) -> dict[str, Any]:
         nonlocal used
@@ -204,6 +216,7 @@ def make_guard_hook(
             write_scope_hint=write_scope_hint,
             allowed_tools=allowed_tools,
             fetch_domains=fetch_domains,
+            bash_state=bash_state,
         )
         # 確かめてから数えるまでのあいだに await を置かない。1つの応答で並べて呼ばれても、
         # 割り込まれずに数えるので、上限を超えて通ることは無い。数えるのは通した呼び出しだけ。
