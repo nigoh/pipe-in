@@ -4,10 +4,10 @@
 
 | 文書 | 中身 |
 | --- | --- |
-| [使い方](usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・Claude のアーティファクトで見る（`pipe-in live`、`--artifact`）・注意 |
+| [使い方](usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・Claude のアーティファクトで見る（`pipe-in live`、`--artifact`、ターミナルの実行を見る `pipe-in live watch` と `/pipe-in:pipe-live`）・注意 |
 | [VSCode の拡張](vscode.md) | 入れ方・実行を見る・パイプ作業台 |
 | [パイプ](pipes.md) | 作り方・ひな形・見本のパイプ・`pipe.toml`・検証と差し戻し・分岐・Agent SDK の設定 |
-| [Claude Code のプラグイン](plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査のスキル・フック） |
+| [Claude Code のプラグイン](plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査と進み具合を見る `/pipe-in:pipe-live` のスキル・フック） |
 | [安全のしくみ](safety.md) | 段ごとの書き込める範囲・どの段でも止める操作 |
 | [記録と使用量](records.md) | 作られるファイル・アーティファクトに出す写し・まとめに出る使用量・終了コード |
 | [設定](config.md) | `pipeline.toml` |

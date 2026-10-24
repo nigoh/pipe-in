@@ -40,6 +40,8 @@
 
 `pipe-in live snapshot`（[使い方](usage.md#進み具合を-claude-のアーティファクトで見るpipe-in-live)）が、記録から作る小さな JSON です。リポジトリにも `docs/pipeline/` にも残らず、Claude の会話のアーティファクトのデータに入ります。ページ（`pipe-in live page`）がそれを読んで描きます。
 
+`pipe-in live watch`（[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch)）は、同じ記録を読むだけで書き換えず、この写しが変わったときだけ `--out` に書きます。標準出力の行は `event`・`seq`・`final`・`empty` の4つだけで、写しに入らないもの（結果の本文・エラー・直してほしい点・`session_id`・パス）は行にも入りません。
+
 最上位のキー（この順。記録が無いときも同じキーで、`empty` が `true`・`name` と `final` が `null`・`stages` が空になります）：
 
 | キー | 中身 |

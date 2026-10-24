@@ -1,6 +1,6 @@
 ---
 name: pipe-help
-description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・/pipe-plan・プラグインの /pipe-in:pipe-build・/pipe-in:pipe-eval・/pipe-in:pipe-judge）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
+description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・/pipe-plan・プラグインの /pipe-in:pipe-build・/pipe-in:pipe-eval・/pipe-in:pipe-judge・/pipe-in:pipe-live）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
 argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
@@ -33,6 +33,7 @@ disable-model-invocation: true
 | `/pipe-in:pipe-build <目的か直したい点>` | パイプ（段の並び）を会話で作る・直す。プラグイン（`/plugin marketplace add ./` → `/plugin install pipe-in@pipe-in`）を入れて使う。どのプロジェクトでも使える |
 | `/pipe-in:pipe-eval <パイプ名>` | パイプの成果物を、検査のコマンド（`pipe.toml` の `[stages.check]` の `command`、または渡したコマンド）で確かめる。流す前に一覧を見せて返事を待つ。成果物は直さない。プラグインを入れて使う |
 | `/pipe-in:pipe-judge <成果物> [--rubric …] [--runs 1〜5]` | 成果物を依頼とルーブリックに照らして 0.0〜1.0 で審査する。must の違反は即不合格。総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算し、JSON で返す。直さない。開発用の `/pipe-judge`（助言の報告の採点）とは別物 |
+| `/pipe-in:pipe-live [--work-dir 記録のフォルダ]` | ターミナルで流している pipe-in の進み具合を、Claude のアーティファクトでも見る。ページを1回だけ公開し、Monitor で `pipe-in live watch` を動かして、行のたびに写しを書く。見るだけで、止める・進める・承認はできない。Artifact・ArtifactData・Monitor がある、claude.ai にログインした Claude Code で使う |
 | `/pipe-help [知りたいこと]` | この一覧。知りたいことを付けると、そこだけ詳しく |
 
 ### 会話を開かずに流す（`claude -p`）
@@ -64,6 +65,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | 途中から再開する | `pipe-in --project <対象> --from design`（パイプでは段の名前） |
 | 記録だけを書く（段は流さない。/pipe-in が使う） | `pipe-in record start --text "…" --name "…"`（`--session-id` も付けられる）→ `begin <段> --agent <受け持ち>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`pipe-in record --help`） |
 | 進み具合の写し・ページを出す（Claude のアーティファクト用。記録は読むだけ。/pipe-in --artifact が使う） | `pipe-in live snapshot [--project DIR] [--config FILE] [--work-dir DIR] [--out FILE]` ／ `pipe-in live page [--out FILE]` |
+| ターミナルの実行を見張る（写しが変わったときだけ `--out` に書いて JSON の1行を出す。final で 0、上限で 124。/pipe-in:pipe-live が使う） | `pipe-in live watch --out FILE [--project DIR] [--config FILE] [--work-dir DIR] [--interval 秒] [--timeout 秒]` |
 | パイプを流す | `pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける） |
 
 ### pipe-in-gen（パイプを作る）

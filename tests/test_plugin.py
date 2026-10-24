@@ -37,9 +37,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03: プラグインの版は 0.3.0（採点のスキルを足したので 0.2.0 から上げた）。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56: プラグインの版は 0.4.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.3.0"
+    assert manifest["version"] == "0.4.0"
 
 
 PLUGIN_TEXTS = [
@@ -51,6 +51,7 @@ PLUGIN_TEXTS = [
     "plugin/skills/pipe-eval/SKILL.md",
     "plugin/skills/pipe-judge/SKILL.md",
     "plugin/agents/pipe-judge.md",
+    "plugin/skills/pipe-live/SKILL.md",
 ]
 
 
@@ -275,6 +276,144 @@ def test_design_table_mentions_new_skills():
     assert any(line.startswith("|") and "generator/judge_score.py" in line for line in lines)
     hook_row = next(line for line in lines if line.startswith("|") and "generator/guard_hook.py" in line and "プラグインのフック" in line)
     assert "pipe-judge" in hook_row
+
+
+# ---- D0031: 進み具合を見るスキル（pipe-live）--------------------------------------------------------------------------------
+
+
+def _live_skill() -> tuple[dict[str, str], str]:
+    return _skill("pipe-live")
+
+
+def _commands(body: str) -> list[str]:
+    """本文の中の、pipe-in を呼ぶ形のコマンド（バッククォートで囲んだもの・コードブロックの行）。"""
+    spans = re.findall(r"`([^`\n]+)`", body)
+    for block in re.findall(r"```[^\n]*\n(.*?)```", body, re.S):
+        spans += [ln.strip() for ln in block.splitlines()]
+    out = []
+    for text in spans:
+        t = text.strip().lstrip("$ ").strip()
+        if re.match(r"(pipe-in|python -m pipe_in)\s+\S", t):  # 引数のない `pipe-in` は名前の言及で、コマンドではない
+            out.append(t)
+    return out
+
+
+def test_d0031_ac56_pipe_live_skill_frontmatter_and_steps():
+    """D0031-AC-56: pipe-live のスキルに、name（フォルダ名と同じ）・description・argument-hint があり、disable-model-invocation: true。見る手順の語がそろっている。"""
+    fields, body = _live_skill()
+    assert fields["name"] == "pipe-live"
+    assert fields["description"] and fields["argument-hint"]
+    assert fields["disable-model-invocation"] == "true"
+    for word in ("pipe-in live watch", "見るだけ"):
+        assert word in fields["description"], word
+    assert _missing(body, ["pipe-in live page", "pipe-in live watch", "Artifact", "ArtifactData", "Monitor", "runs", "current", "if_version", "version"]) == []
+    assert _missing(body, ["snapshot", "final", "timeout", "event", "seq", "empty"]) == []
+    assert _missing(body, ["1回だけ", "公開し直さ", "人が呼んだとき"]) == []
+    assert body.index("pipe-in live page") < body.index("pipe-in live watch"), "ページを公開してから見張りを起こす"
+    assert body.index("pipe-in live watch") < body.index("if_version"), "見張りの行を受けてから ArtifactData に書く"
+
+
+def test_d0031_ac56_pipe_live_skill_stops_without_tools_or_the_command():
+    """D0031-AC-56: 始め（## 1. の前）に、Artifact・ArtifactData・Monitor が無い会話では伝えて何もせず止まること、claude.ai にログインした Claude Code だけで使えること、pipe-in live page --help を確かめ、無ければ入れ方（pip install -e .）を案内して止まることがある。"""
+    _, body = _live_skill()
+    first = body.split("## 1.")[0]
+    assert "## 1." in body
+    assert _missing(first, ["Artifact", "ArtifactData", "Monitor", "止まる", "何もせず", "claude.ai", "pipe-in live page --help", "pip install -e ."]) == []
+
+
+def test_d0031_ac56_pipe_live_skill_stop_and_no_control_text():
+    """D0031-AC-56: final・timeout の行での終わり方（124・Monitor の終わりを待つ）、見るだけでできないこと（止められない・承認や直してほしい点の送信はできない）、書くのは一時フォルダのファイルと ArtifactData だけ。"""
+    _, body = _live_skill()
+    assert _missing(body, ["124", "終わり", "止め", "承認", "直してほしい点", "一時", "書き換え"]) == []
+    assert "リポジトリ" in body and "docs/pipeline/" in body, "一時フォルダはリポジトリや docs/pipeline/ の中に置かない旨"
+
+
+FORBIDDEN_IN_SKILL = [
+    (r"/home/", "手元のパス"), (r"/Users/", "手元のパス"), (r"[A-Za-z]:\\Users", "手元のパス"), (r"[A-Za-z]:/Users", "手元のパス"),
+    (r"sk-[A-Za-z0-9_-]{8,}", "鍵"), (r"ANTHROPIC_API_KEY", "鍵の名前"), (r"ghp_[A-Za-z0-9]{10,}", "トークン"),
+    (r"BEGIN [A-Z ]*PRIVATE KEY", "秘密鍵"), (r"[\w.+-]+@[\w-]+\.[\w.]+", "メールアドレス"),
+]
+
+
+def test_d0031_ac57_pipe_live_skill_has_no_paths_secrets_or_writing_commands():
+    """D0031-AC-57: スキルに手元のパス・秘密を書かない。スキルが呼ぶ pipe-in は live page・live watch・live snapshot だけ（record・--review・--pause・--yes・段を流す形は呼ばない）。"""
+    path = PLUGIN / "skills/pipe-live/SKILL.md"
+    text = path.read_text(encoding="utf-8")
+    for pattern, what in FORBIDDEN_IN_SKILL:
+        assert not re.search(pattern, text), (what, pattern)
+    commands = _commands(text)
+    assert commands, "pipe-in を呼ぶ形のコマンドが1つも書かれていない"
+    flags_ok = {"--out", "--interval", "--timeout", "--work-dir", "--project", "--config", "--help"}
+    for cmd in commands:
+        words = re.sub(r"^(python -m pipe_in|pipe-in)\s*", "", cmd).split()
+        assert words[:1] == ["live"] and words[1:2] and words[1] in ("page", "watch", "snapshot"), cmd
+        assert set(re.findall(r"--[a-z-]+", cmd)) <= flags_ok, cmd
+    assert not re.search(r"(pipe-in|pipe_in)\s+record", text) and "pipe-in-gen" not in text
+    kinds = {re.sub(r"^(python -m pipe_in|pipe-in)\s*live\s+", "", c).split()[0] for c in commands}
+    assert {"page", "watch"} <= kinds
+
+
+def test_d0031_ac57_pipe_live_skill_is_listed_with_the_other_plugin_texts():
+    """D0031-AC-57: スキルは PLUGIN_TEXTS（devpipe の名前が残っていないかを見る一覧）に入っている。ほかのスキルと同じく disable-model-invocation: true。"""
+    assert "plugin/skills/pipe-live/SKILL.md" in PLUGIN_TEXTS
+    assert (ROOT / "plugin/skills/pipe-live/SKILL.md").is_file()
+    for name in ["pipe-build", "pipe-eval", "pipe-judge", "pipe-live"]:
+        assert _skill(name)[0]["disable-model-invocation"] == "true", name
+
+
+def test_d0031_ac58_pipe_live_skill_flags_match_watch_parser():
+    """D0031-AC-58: スキルの pipe-in live watch / page の引数（--out・--interval・--timeout・--work-dir）が、live_cmd の本当の引数と一致する。watch には --out が付き、値は範囲の中。"""
+    import argparse
+
+    from pipe_in.engine import live_cmd
+
+    parser = live_cmd._parser()
+    sub = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+    watch_opts = set(sub.choices["watch"]._option_string_actions) - {"-h", "--help"}
+    page_opts = set(sub.choices["page"]._option_string_actions) - {"-h", "--help"}
+    assert {"--out", "--interval", "--timeout", "--work-dir", "--project", "--config"} <= watch_opts
+    _, body = _live_skill()
+    seen_watch = False
+    for cmd in _commands(body):
+        words = re.sub(r"^(python -m pipe_in|pipe-in)\s*live\s+", "", cmd).split()
+        flags = set(re.findall(r"--[a-z-]+", cmd)) - {"--help"}
+        if words[0] == "watch":
+            seen_watch = True
+            assert flags <= watch_opts and "--out" in flags, cmd
+            for name, lo, hi in (("--interval", 0.5, 60.0), ("--timeout", 1.0, 86400.0)):
+                m = re.search(re.escape(name) + r"\s+([0-9.]+)", cmd)
+                if m:
+                    assert lo <= float(m.group(1)) <= hi, cmd
+        elif words[0] == "page":
+            assert flags <= page_opts, cmd
+    assert seen_watch
+    assert "--interval 2" in body and "--timeout 21600" in body, "既定と同じ値（2 秒・6 時間）を示す"
+
+
+def test_d0031_ac58_pipe_live_skill_uses_the_documented_line_keys():
+    """D0031-AC-58: スキルが読む行のキー（event・seq・final・empty）と event の値（snapshot・final・timeout）が、live_watch の行の形と同じ。"""
+    _, body = _live_skill()
+    for key in ("event", "seq", "final", "empty"):
+        assert f"`{key}`" in body or f"{key}:" in body or key in body, key
+    assert _missing(body, ["`snapshot`", "`final`", "`timeout`"]) == []
+
+
+def test_d0031_ac59_guides_mention_watch_lines_and_exit_codes():
+    """D0031-AC-59: ガイドと README に、pipe-in live watch の使い方・行の形・終了コード（0・124・130・143・1・2）・止まる条件・できないことが書かれ、新しいスキルの名前がある。内容は手で読む。"""
+    usage = _read("docs/guide/usage.md")
+    assert _missing(usage, ["pipe-in live watch", "--out", "--interval", "--timeout", "event", "seq", "snapshot", "final", "timeout", "124", "130", "143"]) == []
+    plugin = _read("docs/guide/plugin.md")
+    assert _missing(plugin, ["/pipe-in:pipe-live", "0.4.0", "Monitor", "ArtifactData", "人が呼んだとき"]) == []
+    records = _read("docs/guide/records.md")
+    assert _missing(records, ["live watch"]) == []
+    safety = _read("docs/guide/safety.md")
+    assert _missing(safety, ["live watch"]) == []
+    assert "pipe-live" in _read("docs/guide/README.md") or "live watch" in _read("docs/guide/README.md")
+    assert "pipe-live" in _read("README.md") or "live watch" in _read("README.md")
+    design = _read("docs/development/design.md")
+    row = next(line for line in design.splitlines() if line.startswith("|") and "`plugin/`" in line)
+    assert "pipe-live" in row
+    assert any(line.startswith("|") and "live_watch.py" in line for line in design.splitlines())
 
 
 # ---- D0001-AC-05: /pipe-craft は残っていない -------------------------------------------------
