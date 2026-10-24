@@ -35,6 +35,20 @@ pipe-in の画面（計画ボード・実行パネル・進み具合のページ
 - **ボタンの文字**：高さは決めず、最小の高さ（36px など）と上下の余白で作る。文字が折り返したらボタンが縦に伸び、文字は必ずボタンの中に収まる。
 - **作業台の図の地**：ブロックより一段沈めた色（明るい `#eceae6`・暗い `#100f0e`）に薄い点。ブロックは面の色に濃いめの枠（`#8f857e`・`#8a8079`）とうすい影で浮かせる。
 
+## アイコン
+
+アイコンは [Lucide](https://lucide.dev/)（ISC ライセンス、`lucide-static` 1.61.0）の SVG を、線 1 本の形に直して板の中に書いています。ライセンスの全文は [LICENSE-lucide.txt](LICENSE-lucide.txt) です。外から読み込まず、使うものだけを写します（拡張に入れるときも同じ）。
+
+| 使う所 | Lucide の名前 |
+| --- | --- |
+| あなた待ち・作業中・見てほしい・失敗・一区切り | `hand`・`refresh-cw`・`eye`・`circle-x`・`circle-check` |
+| アイデア・やる予定・進行中・手で確かめる・完了 | `lightbulb`・`circle`・`circle-play`・`clipboard-check`・`circle-check` |
+| 知らせ（案内・注意・失敗） | `info`・`triangle-alert`・`circle-x` |
+| ブロック（調べる・任せる・文書と図・テスト・コード・確かめる・仕分け・外を見る・並列の枠） | `search`・`users`・`file-text`・`flask-conical`・`code`・`shield-check`・`git-branch`・`globe`・`rows-2` |
+| 閉じる | `x` |
+
+コンセントとプラグ、フロー図の形のブロックの外形は pipe-in だけの形なので、自作のままです。
+
 ## ページと板
 
 | ページ | 板 | 中身 |
