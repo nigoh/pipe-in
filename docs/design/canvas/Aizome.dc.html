@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案4 藍染</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDGothic:wght@400&display=swap">
+<style>
+body{margin:0}
+a{color:#24467a}a:hover{color:#16305a}
+</style>
+</helmet>
+<div style="width: 1280px; height: 900px; box-sizing: border-box; padding: 48px; background: #f3f5f9; color: #14213d; font-family: 'BIZ UDPGothic', sans-serif; display: flex; flex-direction: column; gap: 28px;">
+  <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-family: 'BIZ UDGothic', monospace; font-size: 13px; color: #56627a;">案4 · AIZOME</span>
+      <h1 style="margin: 0; font-size: 52px; font-weight: 900; font-family: 'Zen Maru Gothic', sans-serif;">藍染</h1>
+      <p style="margin: 0; font-size: 16px; color: #3b4760; max-width: 720px;">藍（あい）と黄蘗（きはだ）の2色。見出しは丸みのある Zen Maru Gothic、本文は読みやすさを優先した BIZ UDP ゴシック。日本の道具らしく落ち着いていて、段階4「一般の人へ」にもなじみます。</p>
+    </div>
+    <div style="display: flex; gap: 0; border-radius: 16px; overflow: hidden;" aria-hidden="true">
+      <span style="width: 44px; height: 64px; background: #e6ecf6;"></span>
+      <span style="width: 44px; height: 64px; background: #8fb0e8;"></span>
+      <span style="width: 44px; height: 64px; background: #24467a;"></span>
+      <span style="width: 44px; height: 64px; background: #14213d;"></span>
+      <span style="width: 44px; height: 64px; background: #e8c547;"></span>
+    </div>
+  </header>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px;">
+    <section style="background: #ffffff; border: 1px solid #d3dae6; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 15px; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700;">色（明るい / 暗い）</h2>
+      <sc-for list="{{tokens}}" as="t" hint-placeholder-count="9">
+        <div style="display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px;">
+          <span style="color: #56627a;">{{t.name}}</span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 50%; border: 1px solid #d3dae6; background: {{t.l}};"></span><code style="font-family: 'BIZ UDGothic', monospace; font-size: 12px;">{{t.l}}</code></span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 50%; border: 1px solid #d3dae6; background: {{t.d}};"></span><code style="font-family: 'BIZ UDGothic', monospace; font-size: 12px;">{{t.d}}</code></span>
+        </div>
+      </sc-for>
+    </section>
+    <section style="background: #ffffff; border: 1px solid #d3dae6; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 15px; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700;">文字</h2>
+      <p style="margin: 0; font-size: 32px; font-weight: 900; line-height: 1.25; font-family: 'Zen Maru Gothic', sans-serif;">図で組んで、図で見る。</p>
+      <p style="margin: 0; font-size: 12px; color: #56627a;">見出し：Zen Maru Gothic 900 ／ 本文：BIZ UDPゴシック 400</p>
+      <p style="margin: 0; font-size: 15px; line-height: 1.85;">要件定義から検証まで、段ごとに止まって確認を取ります。どこで止まり、なぜ戻ったかが図で分かります。</p>
+      <p style="margin: 0; font-family: 'BIZ UDGothic', monospace; font-size: 14px;">#14 · D0029 · $1.82 · 12:40</p>
+      <p style="margin: 0; font-size: 12px; color: #56627a;">番号・費用・時刻：BIZ UDゴシック（等幅）</p>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <div style="background: #f3f5f9; border: 1px solid #d3dae6; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px; font-family: 'Zen Maru Gothic', sans-serif;">いま動いているセッション</strong>
+        <span style="padding: 2px 10px; border-radius: 999px; background: #fbf1cc; color: #6b5200; font-weight: 700;">待ち 1</span>
+        <span style="padding: 2px 10px; border-radius: 999px; background: #dfe7f5; color: #24467a; font-weight: 700;">作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #e6ebf3; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #3b4760;">やる予定 · 5</span>
+          <div style="background: #ffffff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">確認待ちになったら通知する</span>
+            <span style="align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #f3f5f9; color: #56627a;">#14 · 段階1</span>
+          </div>
+        </div>
+        <div style="background: #e6ebf3; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #3b4760;">進行中 · 1</span>
+          <div style="background: #24467a; color: #ffffff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">計画ボード /pipe-plan</span>
+            <span style="align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #e8c547; color: #14213d; font-weight: 700;">作業中</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #56627a; margin-top: auto;">明るい画面</span>
+    </div>
+    <div style="background: #0f1626; border: 1px solid #2c3a5c; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; color: #e6ebf5;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px; font-family: 'Zen Maru Gothic', sans-serif;">いま動いているセッション</strong>
+        <span style="padding: 2px 10px; border-radius: 999px; background: #3d3412; color: #f2d77a; font-weight: 700;">待ち 1</span>
+        <span style="padding: 2px 10px; border-radius: 999px; background: #1f2f52; color: #b5cbf2; font-weight: 700;">作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #141d33; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #9ba7c0;">やる予定 · 5</span>
+          <div style="background: #1c2742; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">確認待ちになったら通知する</span>
+            <span style="align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #0f1626; color: #9ba7c0;">#14 · 段階1</span>
+          </div>
+        </div>
+        <div style="background: #141d33; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #9ba7c0;">進行中 · 1</span>
+          <div style="background: #8fb0e8; color: #0f1626; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700;">計画ボード /pipe-plan</span>
+            <span style="align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #e8c547; color: #14213d; font-weight: 700;">作業中</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #9ba7c0; margin-top: auto;">暗い画面</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      tokens: [
+        { name: "地（藍白）", l: "#f3f5f9", d: "#0f1626" },
+        { name: "面", l: "#ffffff", d: "#18213a" },
+        { name: "線", l: "#d3dae6", d: "#2c3a5c" },
+        { name: "文字（褐返）", l: "#14213d", d: "#e6ebf5" },
+        { name: "控えめな文字", l: "#56627a", d: "#9ba7c0" },
+        { name: "藍", l: "#24467a", d: "#8fb0e8" },
+        { name: "黄蘗", l: "#6b5200", d: "#e8c547" },
+        { name: "失敗（紅）", l: "#a8323a", d: "#f08a90" },
+        { name: "完了（若竹）", l: "#2f7a4f", d: "#86d0a4" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

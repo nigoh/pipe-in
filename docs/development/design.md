@@ -24,7 +24,7 @@
 | プラグインの採点の計算（総合点・合否・`--runs` のばらつき。標準ライブラリだけ） | `generator/judge_score.py` |
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
-| このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/` |
+| このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/`・計画ボード `.claude/skills/pipe-plan/`（ページのひな形 `board.html`） |
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` は読むだけにする） |
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
@@ -32,6 +32,7 @@
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
+| 画面のデザインの土台（ブランド「プラグ」の色の決まり・部品と画面の見本。Claude のデザインのキャンバスの写し） | `docs/design/`・`docs/design/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
 | 画面の確認用のページ（開発用。`npm run preview`）。実行の一覧の見本は上の4つの見本の記録から、一時フォルダの中に「主の checkout＋別の worktree＋前の実行の置き場所」の木を組み立てて作る（`tests/fixtures/` には足さない）。更新なしの見本（`run-panel-stale-light`・`run-panel-stale-dark`・目安の手前の `run-panel-stale-soon-dark`）も同じ作りで、動いている・確認待ちの見本とあわせて、見本の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」からの相対にそろえて読む（`tests/fixtures/` の更新時刻に左右されない）。成果物のタブの見本（`run-panel-artifacts-light`・`run-panel-artifacts-dark`）も同じ作りで、動いている開発フローと12個のパイプの2つの実行を持ち、成果物の更新時刻を固定の値にそろえる（見本の文章は長い Markdown・外から来た文字・上限を超える日本語） | `vscode/scripts/preview.ts`・ページを作る関数と木を組み立てる関数 `vscode/scripts/previewPages.ts`・見本の成果物の文章 `vscode/scripts/artifactSamples.ts` |

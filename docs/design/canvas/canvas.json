@@ -1,0 +1,180 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Aizome.dc.html": {
+      "h": 900,
+      "title": "案4 藍染",
+      "w": 1280,
+      "x": 4080,
+      "y": 1020
+    },
+    "Blueprint.dc.html": {
+      "h": 900,
+      "title": "案2 配管図",
+      "w": 1280,
+      "x": 1360,
+      "y": 1020
+    },
+    "Cards.dc.html": {
+      "h": 1700,
+      "page": "components",
+      "title": "04 組み合わせ",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "Controls.dc.html": {
+      "h": 1400,
+      "page": "components",
+      "title": "02 操作",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Foundations.dc.html": {
+      "h": 1400,
+      "page": "components",
+      "title": "01 基礎",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 900,
+      "title": "5案の比較",
+      "w": 1400,
+      "x": -61,
+      "y": -71
+    },
+    "Plug.dc.html": {
+      "h": 900,
+      "title": "案1 プラグ",
+      "w": 1280,
+      "x": -61,
+      "y": 1020
+    },
+    "Signal.dc.html": {
+      "h": 900,
+      "title": "案3 信号",
+      "w": 1280,
+      "x": 2720,
+      "y": 1020
+    },
+    "Status.dc.html": {
+      "h": 1400,
+      "page": "components",
+      "title": "03 状態",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Terminal.dc.html": {
+      "h": 900,
+      "title": "案5 端子台",
+      "w": 1280,
+      "x": 5440,
+      "y": 1020
+    },
+    "Workbench.dc.html": {
+      "h": 2900,
+      "page": "components",
+      "title": "05 作業台",
+      "w": 1440,
+      "x": 6080,
+      "y": 0
+    },
+    "RunPanel.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 2720,
+      "h": 1000,
+      "title": "S1 実行パネル（図と出力）",
+      "page": "screens"
+    },
+    "RunArtifacts.dc.html": {
+      "x": 0,
+      "y": 1120,
+      "w": 2720,
+      "h": 1000,
+      "title": "S2 実行パネル（成果物）",
+      "page": "screens"
+    },
+    "LiveProgress.dc.html": {
+      "x": 0,
+      "y": 2240,
+      "w": 2720,
+      "h": 1100,
+      "title": "S3 進み具合のページ",
+      "page": "screens"
+    },
+    "PlanBoard.dc.html": {
+      "x": 0,
+      "y": 3460,
+      "w": 2720,
+      "h": 1150,
+      "title": "S4 計画ボード",
+      "page": "screens"
+    },
+    "WorkbenchScreen.dc.html": {
+      "x": 0,
+      "y": 4730,
+      "w": 2720,
+      "h": 1000,
+      "title": "S5 パイプ作業台",
+      "page": "screens"
+    },
+    "VSCodeBits.dc.html": {
+      "x": 0,
+      "y": 5850,
+      "w": 2720,
+      "h": 640,
+      "title": "S6 VSCode の小さな部品",
+      "page": "screens"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-23T23:40:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas",
+    "page": "screens"
+  },
+  "notes": {},
+  "order": [
+    "Foundations.dc.html",
+    "Controls.dc.html",
+    "Status.dc.html",
+    "Cards.dc.html",
+    "Workbench.dc.html",
+    "Main.dc.html",
+    "Plug.dc.html",
+    "Blueprint.dc.html",
+    "Signal.dc.html",
+    "Aizome.dc.html",
+    "Terminal.dc.html",
+    "RunPanel.dc.html",
+    "RunArtifacts.dc.html",
+    "LiveProgress.dc.html",
+    "PlanBoard.dc.html",
+    "WorkbenchScreen.dc.html",
+    "VSCodeBits.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "brand",
+      "name": "ブランド候補"
+    },
+    {
+      "id": "components",
+      "name": "コンポーネント"
+    },
+    {
+      "id": "screens",
+      "name": "画面"
+    }
+  ],
+  "title": "pipe-in デザイン"
+}

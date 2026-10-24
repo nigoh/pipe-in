@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案3 信号</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;500;700;800&family=Martian+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#ffb020}a:hover{color:#ffc95c}
+</style>
+</helmet>
+<div style="width: 1280px; height: 900px; box-sizing: border-box; padding: 48px; background: #141414; color: #ededE8; font-family: 'M PLUS 1p', sans-serif; display: flex; flex-direction: column; gap: 28px;">
+  <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-family: 'Martian Mono', monospace; font-size: 12px; color: #a3a39c;">案3 · SIGNAL</span>
+      <h1 style="margin: 0; font-size: 52px; font-weight: 800;">信号</h1>
+      <p style="margin: 0; font-size: 16px; color: #c8c8c2; max-width: 720px;">地は無彩の墨色にして、色は状態を伝えるためだけに使います。目印の色は琥珀1色。作業中・待ち・失敗・完了が、遠くからでも色と形で分かる「見張りの画面」です。</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;" aria-hidden="true">
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #6fa3ff;"></span>
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #ffb020; box-shadow: 0 0 0 6px rgba(255,176,32,.2);"></span>
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #ff6b5e;"></span>
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #5fd38d;"></span>
+    </div>
+  </header>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px;">
+    <section style="background: #1e1e1d; border: 1px solid #34342f; border-radius: 6px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700;">色（暗い / 明るい）</h2>
+      <sc-for list="{{tokens}}" as="t" hint-placeholder-count="10">
+        <div style="display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px;">
+          <span style="color: #a3a39c;">{{t.name}}</span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 4px; border: 1px solid #34342f; background: {{t.d}};"></span><code style="font-family: 'Martian Mono', monospace; font-size: 11px;">{{t.d}}</code></span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 4px; border: 1px solid #34342f; background: {{t.l}};"></span><code style="font-family: 'Martian Mono', monospace; font-size: 11px;">{{t.l}}</code></span>
+        </div>
+      </sc-for>
+    </section>
+    <section style="background: #1e1e1d; border: 1px solid #34342f; border-radius: 6px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700;">文字</h2>
+      <p style="margin: 0; font-size: 32px; font-weight: 800; line-height: 1.2;">止まったら、すぐ分かる。</p>
+      <p style="margin: 0; font-size: 12px; color: #a3a39c;">見出し・本文：M PLUS 1p 800 / 400</p>
+      <p style="margin: 0; font-size: 15px; line-height: 1.8; color: #d4d4ce;">要件定義から検証まで、段ごとに止まって確認を取ります。どこで止まり、なぜ戻ったかが図で分かります。</p>
+      <p style="margin: 0; font-family: 'Martian Mono', monospace; font-size: 13px;">#14 · D0029 · $1.82 · 12:40</p>
+      <p style="margin: 0; font-size: 12px; color: #a3a39c;">番号・費用・時刻：Martian Mono（計器の数字のように幅広）</p>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <div style="background: #0f0f0f; border: 1px solid #34342f; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px;">いま動いているセッション</strong>
+        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ 待ち 1</span>
+        <span style="padding: 1px 9px; border-radius: 4px; border: 1px solid #6fa3ff; color: #9cc0ff; font-weight: 700;">● 作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #1a1a19; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #a3a39c;">やる予定 · 5</span>
+          <div style="background: #232322; border: 1px solid #34342f; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 500;">確認待ちになったら通知する</span>
+            <span style="font-size: 11px; color: #a3a39c; font-family: 'Martian Mono', monospace;">#14 · 段階1</span>
+          </div>
+        </div>
+        <div style="background: #1a1a19; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #a3a39c;">進行中 · 1</span>
+          <div style="background: #232322; border: 1px solid #ffb020; box-shadow: 0 0 0 3px rgba(255,176,32,.18); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 500;">計画ボード /pipe-plan</span>
+            <span style="font-size: 11px; color: #ffb020; font-weight: 700;">▲ 待ち：PR を見てください</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #a3a39c; margin-top: auto;">暗い画面（本来の姿）</span>
+    </div>
+    <div style="background: #f4f4f2; border: 1px solid #dadad6; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; color: #1c1c1a;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px;">いま動いているセッション</strong>
+        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ 待ち 1</span>
+        <span style="padding: 1px 9px; border-radius: 4px; border: 1px solid #2f6fd6; color: #2458b0; font-weight: 700;">● 作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="background: #e9e9e6; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #62625e;">やる予定 · 5</span>
+          <div style="background: #ffffff; border: 1px solid #dadad6; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 500;">確認待ちになったら通知する</span>
+            <span style="font-size: 11px; color: #62625e; font-family: 'Martian Mono', monospace;">#14 · 段階1</span>
+          </div>
+        </div>
+        <div style="background: #e9e9e6; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #62625e;">進行中 · 1</span>
+          <div style="background: #ffffff; border: 1px solid #c98600; box-shadow: 0 0 0 3px rgba(255,176,32,.25); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 500;">計画ボード /pipe-plan</span>
+            <span style="font-size: 11px; color: #8a5200; font-weight: 700;">▲ 待ち：PR を見てください</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #62625e; margin-top: auto;">明るい画面</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      tokens: [
+        { name: "地", d: "#141414", l: "#f4f4f2" },
+        { name: "面", d: "#1e1e1d", l: "#ffffff" },
+        { name: "線", d: "#34342f", l: "#dadad6" },
+        { name: "文字", d: "#ededE8", l: "#1c1c1a" },
+        { name: "控えめな文字", d: "#a3a39c", l: "#62625e" },
+        { name: "待ち（琥珀）", d: "#ffb020", l: "#8a5200" },
+        { name: "作業中", d: "#6fa3ff", l: "#2458b0" },
+        { name: "失敗", d: "#ff6b5e", l: "#b3261e" },
+        { name: "完了", d: "#5fd38d", l: "#1d7a46" },
+        { name: "一区切り", d: "#7a7a74", l: "#8a8a84" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
