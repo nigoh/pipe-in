@@ -178,7 +178,9 @@ OLD_SUMMARIES = [
     "節ごとの中身",
 ]
 
-# 移す前の README のコードブロックの中の、空でない行（前後の空白を除く）
+# 移す前の README のコードブロックの中の、空でない行（前後の空白を除く）。
+# ただし「Claude Code で開発するとき」の呼び方の2行は、D0041 で変えたあとの新しい行にしてある
+
 OLD_CODE_LINES = [
     # すぐ試す › 入れる
     "# リポジトリを手元に写す",
@@ -226,11 +228,11 @@ OLD_CODE_LINES = [
     'pipe-in record red red --summary "…"              # テスト先行の結果',
     'pipe-in record verdict pass --attempt 1 --summary "…"   # 検証の判定',
     "pipe-in record finish PASSED                      # 記録を閉じる",
-    # Claude Code で開発するとき
+    # Claude Code で開発するとき（D0041 で --disallowedTools "mcp__*" を足した）
     'claude -p "/pipe-audit <範囲>" --max-budget-usd 5 --permission-mode dontAsk '
-    '--tools "Agent,Read,Grep,Glob" --allowedTools "Agent(pipe-in-auditor)" Read Grep Glob',
+    '--tools "Agent,Read,Grep,Glob" --disallowedTools "mcp__*" --allowedTools "Agent(pipe-in-auditor)" Read Grep Glob',
     'claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAsk '
-    '--tools "Agent,Read,Grep,Glob,WebFetch,WebSearch" --allowedTools "Agent(pipe-in-advisor)" Read Grep Glob WebSearch '
+    '--tools "Agent,Read,Grep,Glob,WebFetch,WebSearch" --disallowedTools "mcp__*" --allowedTools "Agent(pipe-in-advisor)" Read Grep Glob WebSearch '
     '"WebFetch(domain:code.claude.com)" "WebFetch(domain:docs.claude.com)" "WebFetch(domain:docs.anthropic.com)" '
     '"WebFetch(domain:platform.claude.com)" "WebFetch(domain:github.com)" "WebFetch(domain:raw.githubusercontent.com)"',
     # VSCode の拡張
