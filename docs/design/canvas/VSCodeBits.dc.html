@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>S6 VSCode の小さな部品</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 2720px; height: 640px; box-sizing: border-box; padding: 40px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 20px;">
+  <header style="display: flex; align-items: baseline; gap: 16px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · SCREENS · S6</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 900;">VSCode の小さな部品</h1>
+    <span style="font-size: 14px; color: #4f4741;">VSCode が描く部分（ステータスバー・知らせ・コマンドの一覧）は VSCode の色に従い、pipe-in が決めるのは言葉と印だけ。</span>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <div style="background: {{t.editor}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; position: relative;">
+        <div style="padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; flex-grow: 1;">
+          <span style="font-size: 12px; color: {{t.muted}};">{{t.name}}（VSCode の既定のテーマ）</span>
+          <div style="display: flex; gap: 22px; align-items: flex-start;">
+            <div style="width: 520px; background: {{t.widget}}; border: 1px solid {{t.widgetLine}}; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); overflow: hidden;">
+              <div style="padding: 8px 10px; border-bottom: 1px solid {{t.widgetLine}}; font-size: 13px;">&gt; pipe-in</div>
+              <sc-for list="{{cmds}}" as="c">
+                <div style="padding: 6px 12px; font-size: 13px; display: flex; gap: 8px; background: {{c.bg}};"><span style="color: {{t.muted}};">pipe-in:</span><span>{{c.label}}</span><span style="margin-left: auto; font-size: 11px; color: {{t.muted}};">{{c.hint}}</span></div>
+              </sc-for>
+            </div>
+            <div style="width: 440px; background: {{t.widget}}; border: 1px solid {{t.widgetLine}}; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; gap: 10px;"><span style="color: {{t.coral}}; font-weight: 700;" aria-hidden="true">▲</span><span style="font-size: 13px; line-height: 1.6;">pipe-in：「CSV 出力を足す」が要件定義の確認を待っています</span></div>
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button type="button" style="font: inherit; font-size: 12px; height: 26px; padding: 0 12px; border-radius: 4px; border: none; background: {{t.vsBtn}}; color: #ffffff;">実行を見る</button>
+                <button type="button" style="font: inherit; font-size: 12px; height: 26px; padding: 0 12px; border-radius: 4px; border: none; background: {{t.vsBtn2}}; color: {{t.fg}};">あとで</button>
+              </div>
+            </div>
+          </div>
+          <p style="margin: 0; font-size: 12px; color: {{t.muted}}; max-width: 980px;">知らせとコマンドの見た目は VSCode のもの。言葉は「誰の・何が・どうなっている」を一文で。待ちには ▲ を付け、ボタンは「実行を見る」を先に置く。</p>
+        </div>
+        <div style="height: 24px; flex: none; background: {{t.status}}; color: {{t.statusFg}}; display: flex; align-items: center; gap: 14px; padding: 0 10px; font-size: 12px;">
+          <span>⎇ main</span><span>⟳ 0 ↓ 0 ↑</span>
+          <span style="flex-grow: 1;"></span>
+          <span style="display: inline-flex; gap: 6px; align-items: center; padding: 0 8px; height: 24px; background: {{t.statusHi}};">pipe-in ● 2 動いている · ▲ 1 確認待ち</span>
+          <span>UTF-8</span><span>Python</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2720,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      cmds: [
+        { label: "実行を見る", hint: "実行パネル", bg: "rgba(22,125,107,.22)" },
+        { label: "パイプ作業台を開く", hint: "パイプを組む", bg: "transparent" },
+      ],
+      themes: [
+        { name: "明るい画面", editor: "#ffffff", fg: "#1f1f1f", muted: "#616161", line: "#e4ded8", widget: "#f8f8f8", widgetLine: "#e5e5e5",
+          coral: "#c2471f", vsBtn: "#005fb8", vsBtn2: "#e5e5e5", status: "#f8f8f8", statusFg: "#3b3b3b", statusHi: "#fde6dd" },
+        { name: "暗い画面", editor: "#1f1f1f", fg: "#cccccc", muted: "#9d9d9d", line: "#36322f", widget: "#252526", widgetLine: "#454545",
+          coral: "#ff8a65", vsBtn: "#0078d4", vsBtn2: "#313131", status: "#181818", statusFg: "#cccccc", statusHi: "#4a2316" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

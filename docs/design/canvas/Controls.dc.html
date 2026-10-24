@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>02 操作</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1400px; box-sizing: border-box; padding: 48px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 24px;">
+  <header style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · COMPONENTS · 02</span>
+    <h1 style="margin: 0; font-size: 36px; font-weight: 900;">操作：ボタン・チップ・入力</h1>
+    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 900px;">人が押すものはコーラル（差す）、流れや選ばれた状態はティール（流れる）。押せるものは高さ 36px 以上、キーで選んだときはティールの輪が出ます。</p>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <section style="background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 26px; min-width: 0;">
+        <span style="font-size: 12px; font-weight: 700; color: {{t.muted}}; letter-spacing: .06em;">{{t.name}}画面</span>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">ボタン</h2>
+          <div style="display: grid; grid-template-columns: 90px repeat(4, minmax(0, 1fr)); gap: 10px; align-items: center; font-size: 12px;">
+            <span></span><span style="color: {{t.muted}};">ふだん</span><span style="color: {{t.muted}};">上に乗せる</span><span style="color: {{t.muted}};">キーで選ぶ</span><span style="color: {{t.muted}};">押せない</span>
+            <span style="color: {{t.muted}};">主（保存）</span>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.coral}}; color: {{t.onCoral}};">保存</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.coralHover}}; color: {{t.onCoral}};">保存</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.coral}}; color: {{t.onCoral}}; box-shadow: 0 0 0 2px {{t.bg}}, 0 0 0 4px {{t.teal}};">保存</button>
+            <button type="button" disabled style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.disabledBg}}; color: {{t.disabledFg}};">保存</button>
+            <span style="color: {{t.muted}};">ふつう</span>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">閉じる</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.teal}}; background: {{t.panel}}; color: {{t.fg}};">閉じる</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}}; box-shadow: 0 0 0 2px {{t.bg}}, 0 0 0 4px {{t.teal}};">閉じる</button>
+            <button type="button" disabled style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.disabledBg}}; color: {{t.disabledFg}};">閉じる</button>
+            <span style="color: {{t.muted}};">文字だけ</span>
+            <button type="button" style="font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: none; background: transparent; color: {{t.teal}}; text-decoration: underline;">ボードに足す</button>
+            <button type="button" style="font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: none; border-radius: 8px; background: {{t.tealSoft}}; color: {{t.tealText}}; text-decoration: underline;">ボードに足す</button>
+            <button type="button" style="font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: none; border-radius: 8px; background: transparent; color: {{t.teal}}; text-decoration: underline; box-shadow: 0 0 0 2px {{t.teal}};">ボードに足す</button>
+            <button type="button" disabled style="font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: none; background: transparent; color: {{t.disabledFg}};">ボードに足す</button>
+            <span style="color: {{t.muted}};">消す</span>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.bad}}; background: transparent; color: {{t.bad}};">消す</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.bad}}; background: {{t.badSoft}}; color: {{t.badText}};">消す</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.bad}}; color: {{t.onBad}};">もう一度で消える</button>
+            <button type="button" disabled style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.line}}; background: transparent; color: {{t.disabledFg}};">消す</button>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: {{t.muted}};">
+            <span>大きさ</span>
+            <button type="button" style="font: inherit; font-size: 12px; font-weight: 500; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">小 28</button>
+            <button type="button" style="font: inherit; font-size: 14px; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">中 36</button>
+            <button type="button" style="font: inherit; font-size: 15px; font-weight: 700; height: 44px; padding: 0 20px; border-radius: 10px; border: none; background: {{t.coral}}; color: {{t.onCoral}};">＋ 足す 44</button>
+            <button type="button" aria-label="閉じる" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}}; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"></path></svg></button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">チップ（しぼり込み・切り替え）</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button type="button" aria-pressed="true" style="font: inherit; font-size: 13px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.fg}}; background: {{t.fg}}; color: {{t.bg}}; font-weight: 700;">すべて</button>
+            <button type="button" aria-pressed="false" style="font: inherit; font-size: 13px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.muted}};">機能</button>
+            <button type="button" aria-pressed="false" style="font: inherit; font-size: 13px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.muted}};">直す</button>
+            <button type="button" aria-pressed="false" style="font: inherit; font-size: 13px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.muted}};">確かめる</button>
+          </div>
+          <div style="display: inline-flex; align-self: flex-start; padding: 3px; border-radius: 10px; background: {{t.col}}; gap: 2px;" role="group" aria-label="範囲">
+            <button type="button" aria-pressed="true" style="font: inherit; font-size: 13px; height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: {{t.panel}}; color: {{t.fg}}; font-weight: 700; box-shadow: {{t.shadow}};">pipe-in だけ</button>
+            <button type="button" aria-pressed="false" style="font: inherit; font-size: 13px; height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: transparent; color: {{t.muted}};">すべて</button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">入力</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label for="c-q-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">さがす</label>
+              <input id="c-q-{{t.key}}" type="search" placeholder="名前・#番号・D番号" style="font: inherit; font-size: 14px; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label for="c-f-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">名前（選んでいるとき）</label>
+              <input id="c-f-{{t.key}}" type="text" value="確認待ちを通知する" style="font: inherit; font-size: 14px; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{t.teal}}; box-shadow: 0 0 0 3px {{t.tealSoft}}; background: {{t.panel}}; color: {{t.fg}};">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label for="c-s-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">状態</label>
+              <select id="c-s-{{t.key}}" style="font: inherit; font-size: 14px; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};"><option>やる予定</option><option>進行中</option></select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label for="c-e-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">名前（入れ忘れ）</label>
+              <input id="c-e-{{t.key}}" type="text" value="" style="font: inherit; font-size: 14px; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{t.bad}}; background: {{t.panel}}; color: {{t.fg}};">
+              <span style="font-size: 12px; color: {{t.bad}};">名前を入れてください</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label for="c-n-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">メモ</label>
+            <textarea id="c-n-{{t.key}}" style="font: inherit; font-size: 14px; min-height: 64px; padding: 8px 12px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}}; resize: vertical;">AC-22：実機の VSCode がまだ</textarea>
+          </div>
+          <div style="display: flex; gap: 14px; align-items: center; font-size: 13px; color: {{t.muted}};">
+            <span>キーの札</span>
+            <kbd style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 0 6px; border: 1px solid {{t.line}}; border-bottom-width: 2px; border-radius: 4px; background: {{t.panel}}; color: {{t.fg}};">N</kbd>足す
+            <kbd style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 0 6px; border: 1px solid {{t.line}}; border-bottom-width: 2px; border-radius: 4px; background: {{t.panel}}; color: {{t.fg}};">/</kbd>さがす
+          </div>
+        </div>
+      </section>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      themes: [
+        { key: "l", name: "明るい", bg: "#f6f6f4", panel: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
+          coral: "#c2471f", coralHover: "#a83a17", onCoral: "#ffffff", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d",
+          bad: "#b3261e", badSoft: "#fbe2df", badText: "#9a1f18", onBad: "#ffffff",
+          disabledBg: "#ecebe7", disabledFg: "#8f857e", shadow: "0 1px 2px rgba(35,32,30,.1)" },
+        { key: "d", name: "暗い", bg: "#161514", panel: "#211f1d", col: "#2a2724", line: "#36322f", fg: "#f2ece6", muted: "#ada39b",
+          coral: "#ff8a65", coralHover: "#ffa483", onCoral: "#2a140b", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6",
+          bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab", onBad: "#2a0a07",
+          disabledBg: "#2c2926", disabledFg: "#7d746d", shadow: "0 1px 2px rgba(0,0,0,.5)" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

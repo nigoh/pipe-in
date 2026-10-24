@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>S2 実行パネル（成果物）</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 2720px; height: 1000px; box-sizing: border-box; padding: 40px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 20px;">
+  <header style="display: flex; align-items: baseline; gap: 16px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · SCREENS · S2</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 900;">実行パネル：成果物のタブ（更新が止まっているとき）</h1>
+    <span style="font-size: 14px; color: #4f4741;">左に成果物の一覧、右に選んだものの中身。まだない成果物は薄く、押せません。</span>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <div style="background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; padding: 22px 26px; gap: 12px;">
+        <span style="font-size: 12px; color: {{t.muted}};">fix/login › 開発フロー</span>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <h2 style="margin: 0; font-size: 24px; font-weight: 900;">ログインの不具合を直す</h2>
+          <span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: {{t.tealSoft}}; color: {{t.tealText}};">● 動いている</span>
+          <span style="font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; border: 1px solid {{t.coral}}; color: {{t.coralText}};">⚠ 更新なし 12分</span>
+        </div>
+        <div style="display: flex; gap: 18px; font-size: 12px; color: {{t.muted}}; flex-wrap: wrap;">
+          <span>今の段 <strong style="color: {{t.fg}};">実装</strong></span><span>経過 <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">15:21</strong></span><span>費用 <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">$1.240</strong></span><span>最後に動いた <strong style="color: {{t.fg}}; font-family: 'JetBrains Mono', monospace;">10/17 15:09</strong></span>
+        </div>
+        <div style="display: flex; border-bottom: 1px solid {{t.line}};" role="tablist" aria-label="表示">
+          <button type="button" role="tab" aria-selected="false" style="font: inherit; height: 38px; padding: 0 16px; border: none; background: transparent; color: {{t.muted}}; font-size: 13px;">図と出力</button>
+          <button type="button" role="tab" aria-selected="true" style="font: inherit; height: 38px; padding: 0 16px; border: none; border-bottom: 3px solid {{t.teal}}; background: transparent; color: {{t.fg}}; font-weight: 700; font-size: 13px;">成果物</button>
+          <button type="button" role="tab" aria-selected="false" style="font: inherit; height: 38px; padding: 0 16px; border: none; background: transparent; color: {{t.muted}}; font-size: 13px;">使用量</button>
+        </div>
+        <div style="flex-grow: 1; display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; min-height: 0;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <sc-for list="{{t.arts}}" as="a">
+              <button type="button" disabled="{{a.off}}" style="font: inherit; text-align: left; border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; background: {{a.bg}}; border: {{a.border}}; color: {{a.fg}};">
+                <div style="display: flex; gap: 8px; align-items: baseline;"><span style="flex-grow: 1; font-size: 13px; font-weight: 700;">{{a.name}}</span><span style="font-size: 11px; color: {{a.sub}}; font-family: 'JetBrains Mono', monospace;">{{a.time}}</span></div>
+                <span style="font-size: 11px; color: {{a.sub}}; font-family: 'JetBrains Mono', monospace;">{{a.file}} · {{a.stage}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <article style="border: 1px solid {{t.line}}; border-radius: 12px; background: {{t.panel}}; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+            <div style="display: flex; gap: 10px; align-items: baseline; border-bottom: 1px solid {{t.line}}; padding-bottom: 8px;"><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}}; flex-grow: 1;">docs/pipeline/02_design.md</code><span style="font-size: 11px; color: {{t.muted}};">設計 · 10/17 14:58</span></div>
+            <h3 style="margin: 0; font-size: 20px; font-weight: 900;">設計：ログインの不具合を直す</h3>
+            <p style="margin: 0; font-size: 14px; line-height: 1.8;">セッションの期限切れのあと、ログインの画面に戻らずに白い画面になる。期限の判定を <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 0 4px; border-radius: 4px; background: {{t.col}};">auth/session.py</code> の1か所に寄せる。</p>
+            <h4 style="margin: 4px 0 0; font-size: 15px; font-weight: 700;">受け入れ基準と、確かめるテスト</h4>
+            <div style="border: 1px solid {{t.line}}; border-radius: 8px; overflow: hidden; font-size: 13px;">
+              <div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 200px; background: {{t.col}}; font-weight: 700;"><span style="padding: 6px 10px;">AC</span><span style="padding: 6px 10px;">期待する結果</span><span style="padding: 6px 10px;">テスト</span></div>
+              <div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 200px; border-top: 1px solid {{t.line}};"><span style="padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">AC-01</span><span style="padding: 6px 10px;">期限切れのあと、ログインの画面に戻る</span><span style="padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}};">test_expired_redirects</span></div>
+              <div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 200px; border-top: 1px solid {{t.line}};"><span style="padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">AC-02</span><span style="padding: 6px 10px;">戻ったあと、元の画面の場所を覚えている</span><span style="padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}};">test_return_to_next</span></div>
+            </div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;"><li>判定は1か所に寄せ、ほかの画面は呼ぶだけにする</li><li>期限の長さは設定から読む（今の値を変えない）</li></ul>
+          </article>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2720,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const L = { key: "l", bg: "#f6f6f4", panel: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c", faint: "#a39a93",
+      coral: "#c2471f", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d" };
+    const D = { key: "d", bg: "#161514", panel: "#211f1d", col: "#2a2724", line: "#36322f", fg: "#f2ece6", muted: "#ada39b", faint: "#6f6760",
+      coral: "#ff8a65", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6" };
+    const arts = (t) => {
+      const on = (o) => Object.assign({ off: false, bg: t.panel, border: "1px solid " + t.line, fg: t.fg, sub: t.muted }, o);
+      const off = (o) => Object.assign({ off: true, bg: "transparent", border: "1px dashed " + t.line, fg: t.faint, sub: t.faint, time: "まだない" }, o);
+      return [
+        on({ name: "要件定義", file: "01_requirements.md", stage: "要件定義", time: "14:41" }),
+        on({ name: "設計", file: "02_design.md", stage: "設計", time: "14:58", bg: t.tealSoft, border: "2px solid " + t.teal }),
+        on({ name: "赤のテスト", file: "03_red_tests.md", stage: "テスト先行", time: "15:03" }),
+        off({ name: "実装の記録", file: "04_implementation.md", stage: "実装" }),
+        off({ name: "検証の報告", file: "05_test_report.md", stage: "検証" }),
+      ];
+    };
+    return { themes: [Object.assign({}, L, { arts: arts(L) }), Object.assign({}, D, { arts: arts(D) })] };
+  }
+}
+</script>
+</body>
+</html>

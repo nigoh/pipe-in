@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>03 状態</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1400px; box-sizing: border-box; padding: 48px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 24px;">
+  <header style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · COMPONENTS · 03</span>
+    <h1 style="margin: 0; font-size: 36px; font-weight: 900;">状態：札・進み具合・知らせ</h1>
+    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 900px;">状態は色だけでなく、印（● ▲ ✕ ✓）と言葉でも伝えます。あなた待ちはコーラル、動いているものはティール。色の見分けがつかなくても読めます。</p>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <section style="background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 26px; min-width: 0;">
+        <span style="font-size: 12px; font-weight: 700; color: {{t.muted}}; letter-spacing: .06em;">{{t.name}}画面</span>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">セッションの状態</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <sc-for list="{{t.sessions}}" as="s">
+              <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; background: {{s.bg}}; color: {{s.fg}}; font-size: 12px; font-weight: 700;"><span aria-hidden="true">{{s.mark}}</span>{{s.label}}</span>
+            </sc-for>
+          </div>
+          <p style="margin: 0; font-size: 12px; color: {{t.muted}};">作業中の ● はゆっくり明滅（動きを減らす設定では止める）。</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">項目の状態（列の見出しの点）</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <sc-for list="{{t.items}}" as="s">
+              <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{s.dot}};"></span>{{s.label}}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">小さな札</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}};">段階1</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">#14</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">D0029</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.tealSoft}}; color: {{t.tealText}}; font-weight: 700;">機能</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.badSoft}}; color: {{t.badText}}; font-weight: 700;">直す</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.coralSoft}}; color: {{t.coralText}}; font-weight: 700;">確かめる</span>
+              <span style="font-size: 11px; height: 20px; display: inline-flex; align-items: center; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}};">思いつき</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">優先</h2>
+            <div style="display: flex; gap: 14px; font-size: 13px; align-items: center;">
+              <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-flex; gap: 2px;" aria-hidden="true"><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.coral}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.coral}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.coral}};"></span></span>高</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-flex; gap: 2px;" aria-hidden="true"><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.fg}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.fg}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.line}};"></span></span>中</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-flex; gap: 2px;" aria-hidden="true"><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.muted}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.line}};"></span><span style="width: 4px; height: 12px; border-radius: 1px; background: {{t.line}};"></span></span>低</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">段階の進み具合</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+            <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 700;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; margin-right: 6px;">1</span>見る</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}};">6/11</span></div>
+              <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: {{t.col}};"><span style="width: 36%; background: {{t.ok}};"></span><span style="width: 18%; background: {{t.coral}};"></span><span style="width: 10%; background: {{t.teal}};"></span></div>
+              <span style="font-size: 12px; color: {{t.muted}};">ふだん</span>
+            </div>
+            <div style="background: {{t.tealSoft}}; border: 2px solid {{t.teal}}; border-radius: 14px; padding: 11px 13px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 700;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; margin-right: 6px;">0</span>足場</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}};">3/9</span></div>
+              <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: {{t.col}};"><span style="width: 33%; background: {{t.ok}};"></span><span style="width: 11%; background: {{t.coral}};"></span></div>
+              <span style="font-size: 12px; color: {{t.tealText}}; font-weight: 700;">しぼり込み中</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">知らせ</h2>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <div role="status" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; background: {{t.tealSoft}}; color: {{t.tealText}};"><span aria-hidden="true">●</span>セッションの様子を Claude Code Remote から読んで出せます。<button type="button" style="margin-left: auto; font: inherit; font-size: 12px; font-weight: 700; height: 28px; padding: 0 10px; border-radius: 6px; border: none; background: {{t.teal}}; color: {{t.onTeal}};">表示する</button></div>
+            <div role="status" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; background: {{t.coralSoft}}; color: {{t.coralText}};"><span aria-hidden="true">▲</span>読み直しに失敗しました。前の一覧のままです。</div>
+            <div role="alert" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; background: {{t.badSoft}}; color: {{t.badText}};"><span aria-hidden="true">✕</span>保存できませんでした。少し待ってからもう一度。</div>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div role="status" style="display: inline-flex; gap: 14px; align-items: center; padding: 9px 14px; border-radius: 10px; background: {{t.toastBg}}; color: {{t.toastFg}}; font-size: 13px; box-shadow: {{t.shadowLift}};">「確認待ちを通知する」を進行中へ移しました<button type="button" style="font: inherit; font-size: 13px; border: none; background: transparent; color: inherit; text-decoration: underline;">戻す</button></div>
+            <span style="font-size: 12px; color: {{t.muted}};">下に出る短い知らせ（6秒）</span>
+          </div>
+          <div style="border: 1px dashed {{t.line}}; border-radius: 10px; padding: 14px; text-align: center; font-size: 12px; color: {{t.muted}};">ここへ引いて移せます</div>
+        </div>
+      </section>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const L = { name: "明るい", bg: "#f6f6f4", panel: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
+      coral: "#c2471f", coralSoft: "#fde6dd", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d", onTeal: "#ffffff",
+      blueSoft: "#e1eaf7", blueText: "#2c5590", bad: "#b3261e", badSoft: "#fbe2df", badText: "#9a1f18", ok: "#2e7d32", okSoft: "#e3f1e3", okText: "#22652a",
+      quiet: "#ecebe7", quietText: "#5b534d", toastBg: "#23201e", toastFg: "#f6f6f4", shadowLift: "0 8px 24px rgba(35,32,30,.18)", idea: "#8f857e" };
+    const D = { name: "暗い", bg: "#161514", panel: "#211f1d", col: "#2a2724", line: "#36322f", fg: "#f2ece6", muted: "#ada39b",
+      coral: "#ff8a65", coralSoft: "#4a2316", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6", onTeal: "#0b2620",
+      blueSoft: "#1c2b45", blueText: "#b3cdf5", bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab", ok: "#81c784", okSoft: "#1e3a20", okText: "#a5d6a7",
+      quiet: "#2c2926", quietText: "#c4bab2", toastBg: "#f2ece6", toastFg: "#161514", shadowLift: "0 8px 24px rgba(0,0,0,.55)", idea: "#8a8079" };
+    const add = (t) => Object.assign({}, t, {
+      sessions: [
+        { label: "あなた待ち", mark: "▲", bg: t.coralSoft, fg: t.coralText },
+        { label: "作業中", mark: "●", bg: t.tealSoft, fg: t.tealText },
+        { label: "見てほしい", mark: "◆", bg: t.blueSoft, fg: t.blueText },
+        { label: "失敗", mark: "✕", bg: t.badSoft, fg: t.badText },
+        { label: "一区切り", mark: "—", bg: t.quiet, fg: t.quietText },
+      ],
+      items: [
+        { label: "アイデア", dot: t.idea }, { label: "やる予定", dot: t.fg }, { label: "進行中", dot: t.teal },
+        { label: "手で確かめる", dot: t.coral }, { label: "完了", dot: t.ok },
+      ],
+    });
+    return { themes: [add(L), add(D)] };
+  }
+}
+</script>
+</body>
+</html>

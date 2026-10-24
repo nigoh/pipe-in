@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案2 配管図</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#4fc3f7}a:hover{color:#8fdcff}
+</style>
+</helmet>
+<div style="width: 1280px; height: 900px; box-sizing: border-box; padding: 48px; background-color: #0d1b2a; background-image: linear-gradient(rgba(79,195,247,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(79,195,247,.07) 1px, transparent 1px); background-size: 24px 24px; color: #e3eef8; font-family: 'IBM Plex Sans JP', sans-serif; display: flex; flex-direction: column; gap: 28px;">
+  <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; border-bottom: 1px dashed #2a4a6b; padding-bottom: 20px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #8faac4;">案2 · BLUEPRINT · 図番 PI-001</span>
+      <h1 style="margin: 0; font-size: 52px; font-weight: 700;">配管図</h1>
+      <p style="margin: 0; font-size: 16px; color: #b8cde0; max-width: 720px;">パイプの設計図をそのまま画面にします。紺の地に水色の線、方眼の下敷き。段は配管の部品、矢印は管。暗い画面が本来の姿で、明るい画面は青焼きの紙に刷った版です。</p>
+    </div>
+    <svg width="180" height="56" viewBox="0 0 180 56" aria-hidden="true" style="flex: none;"><path d="M4 28 H60 M60 28 a10 10 0 0 1 10 -10 H110 a10 10 0 0 1 10 10 H176" fill="none" stroke="#4fc3f7" stroke-width="2"></path><circle cx="60" cy="28" r="5" fill="#0d1b2a" stroke="#4fc3f7" stroke-width="2"></circle><circle cx="120" cy="28" r="5" fill="#0d1b2a" stroke="#ffd166" stroke-width="2"></circle></svg>
+  </header>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px;">
+    <section style="background: #12263a; border: 1px solid #2a4a6b; border-radius: 4px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 500;">色（暗い / 明るい）</h2>
+      <sc-for list="{{tokens}}" as="t" hint-placeholder-count="9">
+        <div style="display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px;">
+          <span style="color: #8faac4;">{{t.name}}</span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 2px; border: 1px solid #2a4a6b; background: {{t.d}};"></span><code style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{t.d}}</code></span>
+          <span style="display: flex; gap: 8px; align-items: center;"><span style="width: 22px; height: 22px; border-radius: 2px; border: 1px solid #2a4a6b; background: {{t.l}};"></span><code style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{t.l}}</code></span>
+        </div>
+      </sc-for>
+    </section>
+    <section style="background: #12263a; border: 1px solid #2a4a6b; border-radius: 4px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 500;">文字</h2>
+      <p style="margin: 0; font-size: 32px; font-weight: 700; line-height: 1.2;">流れを、図面で読む。</p>
+      <p style="margin: 0; font-size: 12px; color: #8faac4;">見出し・本文：IBM Plex Sans JP 700 / 400</p>
+      <p style="margin: 0; font-size: 15px; line-height: 1.8; color: #cfdeec;">要件定義から検証まで、段ごとに止まって確認を取ります。どこで止まり、なぜ戻ったかが図で分かります。</p>
+      <p style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #4fc3f7;">#14 · D0029 · $1.82 · 12:40</p>
+      <p style="margin: 0; font-size: 12px; color: #8faac4;">番号・費用・時刻：IBM Plex Mono（図番のように）</p>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <div style="background: #0a1622; border: 1px solid #2a4a6b; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px; font-weight: 500;">いま動いているセッション</strong>
+        <span style="padding: 0 8px; border: 1px solid #ffd166; color: #ffd166; font-family: 'IBM Plex Mono', monospace;">待ち 1</span>
+        <span style="padding: 0 8px; border: 1px solid #4fc3f7; color: #4fc3f7; font-family: 'IBM Plex Mono', monospace;">作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="border: 1px dashed #2a4a6b; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 11px; color: #8faac4; font-family: 'IBM Plex Mono', monospace; letter-spacing: .08em;">TODO / やる予定 · 5</span>
+          <div style="background: #12263a; border: 1px solid #2a4a6b; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">確認待ちになったら通知する</span>
+            <span style="font-size: 11px; color: #8faac4; font-family: 'IBM Plex Mono', monospace;">#14 ─ 段階1</span>
+          </div>
+        </div>
+        <div style="border: 1px dashed #2a4a6b; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 11px; color: #8faac4; font-family: 'IBM Plex Mono', monospace; letter-spacing: .08em;">DOING / 進行中 · 1</span>
+          <div style="background: #12263a; border: 1px solid #4fc3f7; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">計画ボード /pipe-plan</span>
+            <span style="font-size: 11px; color: #4fc3f7; font-family: 'IBM Plex Mono', monospace;">▶ 作業中 ─ 12分</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #8faac4; margin-top: auto;">暗い画面（本来の姿）</span>
+    </div>
+    <div style="background-color: #f2f6fa; background-image: linear-gradient(rgba(11,107,168,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(11,107,168,.08) 1px, transparent 1px); background-size: 24px 24px; border: 1px solid #c9d7e6; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 10px; color: #0d1b2a;">
+      <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
+        <strong style="font-size: 14px; font-weight: 500;">いま動いているセッション</strong>
+        <span style="padding: 0 8px; border: 1px solid #9a6a00; color: #7a5300; font-family: 'IBM Plex Mono', monospace;">待ち 1</span>
+        <span style="padding: 0 8px; border: 1px solid #0b6ba8; color: #0b6ba8; font-family: 'IBM Plex Mono', monospace;">作業中 2</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <div style="border: 1px dashed #9db6cf; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 11px; color: #4e6683; font-family: 'IBM Plex Mono', monospace; letter-spacing: .08em;">TODO / やる予定 · 5</span>
+          <div style="background: #ffffff; border: 1px solid #c9d7e6; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">確認待ちになったら通知する</span>
+            <span style="font-size: 11px; color: #4e6683; font-family: 'IBM Plex Mono', monospace;">#14 ─ 段階1</span>
+          </div>
+        </div>
+        <div style="border: 1px dashed #9db6cf; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 11px; color: #4e6683; font-family: 'IBM Plex Mono', monospace; letter-spacing: .08em;">DOING / 進行中 · 1</span>
+          <div style="background: #ffffff; border: 1px solid #0b6ba8; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px;">計画ボード /pipe-plan</span>
+            <span style="font-size: 11px; color: #0b6ba8; font-family: 'IBM Plex Mono', monospace;">▶ 作業中 ─ 12分</span>
+          </div>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #4e6683; margin-top: auto;">明るい画面（青焼き）</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      tokens: [
+        { name: "地", d: "#0d1b2a", l: "#f2f6fa" },
+        { name: "面", d: "#12263a", l: "#ffffff" },
+        { name: "線", d: "#2a4a6b", l: "#c9d7e6" },
+        { name: "文字", d: "#e3eef8", l: "#0d1b2a" },
+        { name: "控えめな文字", d: "#8faac4", l: "#4e6683" },
+        { name: "管（水色）", d: "#4fc3f7", l: "#0b6ba8" },
+        { name: "札（黄）", d: "#ffd166", l: "#7a5300" },
+        { name: "失敗", d: "#ff7b7b", l: "#b3261e" },
+        { name: "完了", d: "#7fe0a8", l: "#1d7a46" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

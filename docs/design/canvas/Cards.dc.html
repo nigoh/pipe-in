@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>04 組み合わせ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1700px; box-sizing: border-box; padding: 48px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 24px;">
+  <header style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · COMPONENTS · 04</span>
+    <h1 style="margin: 0; font-size: 36px; font-weight: 900;">組み合わせ：カード・列・セッション・編集の窓</h1>
+    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 900px;">01〜03 の部品を組んだ、ボードの大きな部品です。カードは列の上に白く浮かせ、選ぶとティールの輪、引いている間は持ち上げの影になります。</p>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <section style="background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 26px; min-width: 0;">
+        <span style="font-size: 12px; font-weight: 700; color: {{t.muted}}; letter-spacing: .06em;">{{t.name}}画面</span>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">項目のカード</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+            <sc-for list="{{t.cards}}" as="c">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <article style="background: {{t.card}}; border-radius: 10px; padding: 11px 12px; display: flex; flex-direction: column; gap: 7px; box-shadow: {{c.shadow}}; outline: {{c.outline}}; transform: {{c.tilt}}; opacity: {{c.opacity}};">
+                  <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <span style="flex-grow: 1; font-size: 13px; font-weight: 500;">{{c.title}}</span>
+                    <sc-if value="{{c.high}}" hint-placeholder-val="{{false}}"><span aria-label="優先 高" style="display: inline-flex; gap: 2px; padding-top: 3px;"><span style="width: 3px; height: 10px; border-radius: 1px; background: {{t.coral}};"></span><span style="width: 3px; height: 10px; border-radius: 1px; background: {{t.coral}};"></span><span style="width: 3px; height: 10px; border-radius: 1px; background: {{t.coral}};"></span></span></sc-if>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    <span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}};">{{c.stage}}</span>
+                    <span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{c.kindBg}}; color: {{c.kindFg}}; font-weight: 700;">{{c.kind}}</span>
+                    <span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">{{c.ref}}</span>
+                    <sc-if value="{{c.session}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; padding: 0 7px; border-radius: 999px; background: {{t.tealSoft}}; color: {{t.tealText}}; font-weight: 700;">● セッション作業中</span></sc-if>
+                  </div>
+                  <sc-if value="{{c.note}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: {{t.muted}};">{{c.note}}</span></sc-if>
+                  <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                    <button type="button" style="font: inherit; font-size: 11px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid {{t.line}}; background: transparent; color: {{t.muted}};">← やる予定</button>
+                    <button type="button" style="font: inherit; font-size: 11px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid {{t.line}}; background: transparent; color: {{t.muted}};">手で確かめる →</button>
+                  </div>
+                </article>
+                <span style="font-size: 11px; color: {{t.muted}};">{{c.caption}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">列</h2>
+            <div style="background: {{t.col}}; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;"><span style="width: 9px; height: 9px; border-radius: 50%; background: {{t.teal}};"></span>進行中<span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}}; font-weight: 400;">1</span></div>
+              <span style="font-size: 12px; color: {{t.muted}}; margin-top: -4px;">ブランチ・PR で作っている</span>
+              <article style="background: {{t.card}}; border-radius: 10px; padding: 10px 12px; box-shadow: {{t.shadow}}; font-size: 13px; font-weight: 500;">計画ボード /pipe-plan</article>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">列（落とせるとき）</h2>
+            <div style="background: {{t.tealSoft}}; border: 2px dashed {{t.teal}}; border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;"><span style="width: 9px; height: 9px; border-radius: 50%; background: {{t.coral}};"></span>手で確かめる<span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}}; font-weight: 400;">14</span></div>
+              <div style="height: 44px; border-radius: 10px; border: 2px dashed {{t.teal}}; display: flex; align-items: center; justify-content: center; font-size: 12px; color: {{t.tealText}}; font-weight: 700;">ここに落とす</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">セッションのカード</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+            <article style="background: {{t.coralSoft}}; border: 1px solid {{t.coral}}; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; gap: 8px; align-items: baseline;"><span style="flex-grow: 1; font-size: 13px; font-weight: 700;">CSV 出力を足す</span><span style="font-size: 11px; padding: 1px 9px; border-radius: 999px; background: {{t.card}}; color: {{t.coralText}}; font-weight: 700;">▲ あなた待ち</span></div>
+              <span style="font-size: 12px; color: {{t.coralText}}; font-weight: 500;">要ること：要件定義を読んで承認か修正の依頼を</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;"><span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.card}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">feat/export-csv</span><span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.card}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">$34.73</span></div>
+              <div style="display: flex; gap: 12px; font-size: 12px; align-items: center;"><span style="flex-grow: 1; color: {{t.muted}};">更新 12分前</span><a href="#" style="color: {{t.teal}};">ボードに足す</a><a href="#" style="color: {{t.teal}};">開く</a></div>
+            </article>
+            <article style="background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; gap: 8px; align-items: baseline;"><span style="flex-grow: 1; font-size: 13px; font-weight: 700;">ログインの不具合を直す</span><span style="font-size: 11px; padding: 1px 9px; border-radius: 999px; background: {{t.tealSoft}}; color: {{t.tealText}}; font-weight: 700;">● 作業中</span></div>
+              <span style="font-size: 12px; color: {{t.muted}};">実装の段を進めている</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;"><span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">fix/login</span><span style="font-size: 11px; padding: 0 7px; border-radius: 6px; background: {{t.col}}; color: {{t.muted}}; font-family: 'JetBrains Mono', monospace;">$2.50</span></div>
+              <div style="display: flex; gap: 12px; font-size: 12px; align-items: center;"><span style="flex-grow: 1; color: {{t.muted}};">更新 たった今</span><a href="#" style="color: {{t.teal}};">ボードに足す</a><a href="#" style="color: {{t.teal}};">開く</a></div>
+            </article>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">編集の窓</h2>
+          <div style="background: {{t.scrim}}; border-radius: 14px; padding: 22px; display: flex; justify-content: center;">
+            <div role="dialog" aria-label="項目を変える" style="width: 100%; max-width: 460px; background: {{t.panel}}; border-radius: 14px; box-shadow: {{t.shadowLift}}; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700;">項目を変える</h3>
+              <div style="display: flex; flex-direction: column; gap: 4px;"><label for="w-t-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">名前</label><input id="w-t-{{t.key}}" type="text" value="確認待ちになったら通知する" style="font: inherit; font-size: 14px; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};"></div>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;"><label for="w-s-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">状態</label><select id="w-s-{{t.key}}" style="font: inherit; font-size: 13px; height: 36px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};"><option>やる予定</option></select></div>
+                <div style="display: flex; flex-direction: column; gap: 4px;"><label for="w-g-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">段階</label><select id="w-g-{{t.key}}" style="font: inherit; font-size: 13px; height: 36px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};"><option>1. 見る</option></select></div>
+                <div style="display: flex; flex-direction: column; gap: 4px;"><label for="w-p-{{t.key}}" style="font-size: 12px; color: {{t.muted}};">優先</label><select id="w-p-{{t.key}}" style="font: inherit; font-size: 13px; height: 36px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};"><option>高</option></select></div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" style="font: inherit; font-size: 14px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid {{t.bad}}; background: transparent; color: {{t.bad}};">消す</button>
+                <span style="flex-grow: 1;"></span>
+                <button type="button" style="font: inherit; font-size: 14px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">閉じる</button>
+                <button type="button" style="font: inherit; font-size: 14px; font-weight: 700; height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: {{t.coral}}; color: {{t.onCoral}};">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const L = { key: "l", name: "明るい", bg: "#f6f6f4", panel: "#ffffff", card: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
+      coral: "#c2471f", onCoral: "#ffffff", coralSoft: "#fde6dd", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d",
+      bad: "#b3261e", badSoft: "#fbe2df", badText: "#9a1f18",
+      shadow: "0 1px 2px rgba(35,32,30,.08)", shadowLift: "0 10px 28px rgba(35,32,30,.2)", scrim: "rgba(35,32,30,.35)" };
+    const D = { key: "d", name: "暗い", bg: "#161514", panel: "#211f1d", card: "#26231f", col: "#1d1b19", line: "#36322f", fg: "#f2ece6", muted: "#ada39b",
+      coral: "#ff8a65", onCoral: "#2a140b", coralSoft: "#4a2316", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6",
+      bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab",
+      shadow: "0 1px 2px rgba(0,0,0,.45)", shadowLift: "0 10px 28px rgba(0,0,0,.6)", scrim: "rgba(0,0,0,.55)" };
+    const cards = (t) => [
+      { caption: "ふだん", title: "確認待ちになったら通知する", stage: "段階1", kind: "機能", kindBg: t.tealSoft, kindFg: t.tealText, ref: "#14",
+        high: false, session: false, note: "", shadow: t.shadow, outline: "none", tilt: "none", opacity: "1" },
+      { caption: "優先 高・メモあり", title: "guard が例外で落ちたとき止める側に倒す", stage: "段階0", kind: "直す", kindBg: t.badSoft, kindFg: t.badText, ref: "#52",
+        high: true, session: false, note: "守りの穴。安全側に倒す原則に関わる", shadow: t.shadow, outline: "none", tilt: "none", opacity: "1" },
+      { caption: "セッションとつないだ・キーで選んだ", title: "計画ボード /pipe-plan", stage: "段階外", kind: "機能", kindBg: t.tealSoft, kindFg: t.tealText, ref: "D0029",
+        high: false, session: true, note: "", shadow: t.shadow, outline: "2px solid " + t.teal, tilt: "none", opacity: "1" },
+      { caption: "引いている間", title: "並列の枠を実行の図に出す", stage: "段階1", kind: "機能", kindBg: t.tealSoft, kindFg: t.tealText, ref: "#13",
+        high: false, session: false, note: "", shadow: t.shadowLift, outline: "none", tilt: "rotate(-1.5deg)", opacity: ".95" },
+    ];
+    return { themes: [Object.assign({}, L, { cards: cards(L) }), Object.assign({}, D, { cards: cards(D) })] };
+  }
+}
+</script>
+</body>
+</html>

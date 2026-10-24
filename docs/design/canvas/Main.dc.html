@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>5案の比較</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=IBM+Plex+Sans+JP:wght@400;600&family=M+PLUS+1p:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&family=Dela+Gothic+One&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#0b6e86}a:hover{color:#084f60}
+</style>
+</helmet>
+<div style="width: 1400px; height: 900px; box-sizing: border-box; padding: 56px 56px 48px; background: #f4f5f7; color: #18202b; font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif; display: flex; flex-direction: column; gap: 28px;">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <p style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: .08em; color: #5a6677;">PIPE-IN · BRAND</p>
+    <h1 style="margin: 0; font-size: 40px; font-weight: 700;">ブランドの色とスタイル：5案</h1>
+    <p style="margin: 0; font-size: 16px; color: #4a5566; max-width: 900px;">どの案も、明るい画面と暗い画面の両方で読めるように、色を対で決めています。下の行に、それぞれの案の色・文字・ボードの見本があります。</p>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; flex-grow: 1;">
+    <sc-for list="{{cands}}" as="c" hint-placeholder-count="5">
+      <article style="background: #ffffff; border: 1px solid #d8dde5; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5a6677;">{{c.num}}</span>
+          <h2 style="margin: 0; font-size: 24px; font-family: {{c.font}};">{{c.name}}</h2>
+          <p style="margin: 0; font-size: 13px; color: #4a5566; line-height: 1.6; min-height: 84px;">{{c.idea}}</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 11px; color: #5a6677; letter-spacing: .06em;">明るい画面</span>
+          <div style="display: flex; height: 28px; border-radius: 6px; overflow: hidden; border: 1px solid #d8dde5;">
+            <sc-for list="{{c.light}}" as="h"><span style="flex: 1; background: {{h}};"></span></sc-for>
+          </div>
+          <span style="font-size: 11px; color: #5a6677; letter-spacing: .06em;">暗い画面</span>
+          <div style="display: flex; height: 28px; border-radius: 6px; overflow: hidden; border: 1px solid #d8dde5;">
+            <sc-for list="{{c.dark}}" as="h"><span style="flex: 1; background: {{h}};"></span></sc-for>
+          </div>
+        </div>
+        <div style="background: {{c.cardBg}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="background: {{c.cardPanel}}; color: {{c.cardFg}}; border: 1px solid {{c.cardLine}}; border-radius: {{c.radius}}; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700;">確認待ちを通知する</span>
+            <span style="align-self: flex-start; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid {{c.cardAccent}}; color: {{c.cardAccent}}; font-family: 'JetBrains Mono', monospace;">#14 · 段階1</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: auto;">
+          <span style="font-size: 12px; color: #5a6677;">向いている気分</span>
+          <span style="font-size: 13px;">{{c.mood}}</span>
+        </div>
+      </article>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      cands: [
+        { num: "案1", name: "プラグ", font: "'Zen Kaku Gothic New', sans-serif",
+          idea: "今のロゴ（差し込むプラグ）のコーラルとティールをそのまま主役にする。いちばん地続き。",
+          light: ["#f6f6f4", "#ffffff", "#23201e", "#c2471f", "#167d6b"],
+          dark: ["#161514", "#211f1d", "#f2ece6", "#ff8a65", "#5fc4ab"],
+          cardBg: "#f6f6f4", cardPanel: "#ffffff", cardFg: "#23201e", cardLine: "#e4ded8", cardAccent: "#167d6b", radius: "10px",
+          mood: "親しみ・今のロゴと合う" },
+        { num: "案2", name: "配管図", font: "'IBM Plex Sans JP', sans-serif",
+          idea: "パイプの設計図。紺の地に水色の線と方眼。暗い画面が本来の姿で、明るい画面は青焼きの紙。",
+          light: ["#f2f6fa", "#ffffff", "#0d1b2a", "#0b6ba8", "#9a6a00"],
+          dark: ["#0d1b2a", "#12263a", "#e3eef8", "#4fc3f7", "#ffd166"],
+          cardBg: "#0d1b2a", cardPanel: "#12263a", cardFg: "#e3eef8", cardLine: "#2a4a6b", cardAccent: "#4fc3f7", radius: "4px",
+          mood: "技術的・流れの図が主役" },
+        { num: "案3", name: "信号", font: "'M PLUS 1p', sans-serif",
+          idea: "色は状態のためだけに使う。地は無彩の墨、目印は琥珀1色。作業中・待ち・失敗がひと目で分かる。",
+          light: ["#f4f4f2", "#ffffff", "#1c1c1a", "#b86e00", "#2f6fd6"],
+          dark: ["#141414", "#1e1e1d", "#ededE8", "#ffb020", "#6fa3ff"],
+          cardBg: "#141414", cardPanel: "#1e1e1d", cardFg: "#ededE8", cardLine: "#34342f", cardAccent: "#ffb020", radius: "6px",
+          mood: "見張り・監視の画面向き" },
+        { num: "案4", name: "藍染", font: "'Zen Maru Gothic', sans-serif",
+          idea: "藍と黄蘗（きはだ）。日本の道具らしい落ち着きと、丸みのある文字でやわらかく。",
+          light: ["#f3f5f9", "#ffffff", "#14213d", "#24467a", "#a07c00"],
+          dark: ["#0f1626", "#18213a", "#e6ebf5", "#8fb0e8", "#e8c547"],
+          cardBg: "#f3f5f9", cardPanel: "#ffffff", cardFg: "#14213d", cardLine: "#d3dae6", cardAccent: "#24467a", radius: "12px",
+          mood: "落ち着き・一般の人にもやさしい" },
+        { num: "案5", name: "端子台", font: "'Dela Gothic One', sans-serif",
+          idea: "配電盤の端子台とラベルテープ。太い線、角ばった枠、黄色い札。工具らしい硬さ。",
+          light: ["#edeeea", "#ffffff", "#111111", "#00875a", "#ffe14d"],
+          dark: ["#121311", "#1c1d1a", "#f0f1ec", "#3ddc97", "#ffe14d"],
+          cardBg: "#edeeea", cardPanel: "#ffffff", cardFg: "#111111", cardLine: "#111111", cardAccent: "#00875a", radius: "0px",
+          mood: "道具感・はっきり" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

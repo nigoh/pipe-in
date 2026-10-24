@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>05 作業台</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#167d6b}a:hover{color:#0f5a4d}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1900px; box-sizing: border-box; padding: 48px; background: #e9e8e4; color: #23201e; font-family: 'Zen Kaku Gothic New', sans-serif; display: flex; flex-direction: column; gap: 24px;">
+  <header style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em; color: #6b625c;">PIPE-IN · COMPONENTS · 05</span>
+    <h1 style="margin: 0; font-size: 36px; font-weight: 900;">作業台：ブロック・ケーブル・差し込み口</h1>
+    <p style="margin: 0; font-size: 15px; color: #4f4741; max-width: 960px;">VSCode のパイプ作業台を、ボードと同じ部品でそろえます。ブロックの右のプラグ（コーラル）を引き、ほかのブロックの左の差し込み口に差します。ケーブルは役ごとに色と線の形を変え、色が見分けにくくても線の形で分かるようにします。</p>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; flex-grow: 1;">
+    <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+      <section style="background: {{t.bg}}; color: {{t.fg}}; border: 1px solid {{t.line}}; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 26px; min-width: 0;">
+        <span style="font-size: 12px; font-weight: 700; color: {{t.muted}}; letter-spacing: .06em;">{{t.name}}画面</span>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">上の帯</h2>
+          <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 12px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="width: 18px; height: 18px; border-radius: 6px; background: {{t.coral}};" aria-hidden="true"></span>
+            <strong style="font-size: 14px;">パイプ作業台</strong>
+            <code style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}};">pipes/pipe-in-design-review/</code>
+            <span style="flex-grow: 1;"></span>
+            <div style="display: inline-flex; align-items: center; border: 1px solid {{t.line}}; border-radius: 8px; overflow: hidden;">
+              <button type="button" aria-label="縮める" style="font: inherit; width: 30px; height: 30px; border: none; background: {{t.panel}}; color: {{t.fg}};">−</button>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 0 8px; color: {{t.muted}};">38%</span>
+              <button type="button" aria-label="広げる" style="font: inherit; width: 30px; height: 30px; border: none; background: {{t.panel}}; color: {{t.fg}};">＋</button>
+            </div>
+            <button type="button" style="font: inherit; font-size: 12px; height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">全体を見る</button>
+            <button type="button" style="font: inherit; font-size: 12px; height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid {{t.line}}; background: {{t.panel}}; color: {{t.fg}};">自動で並べる</button>
+            <button type="button" style="font: inherit; font-size: 12px; font-weight: 700; height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: {{t.coral}}; color: {{t.onCoral}};">保存</button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">ブロックの棚</h2>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+            <sc-for list="{{blocks}}" as="b">
+              <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 8px 10px; display: flex; align-items: center; gap: 10px;">
+                <span style="width: 32px; height: 32px; border-radius: 8px; background: {{t.col}}; display: flex; align-items: center; justify-content: center; color: {{t.fg}};"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{b.d}}"></path></svg></span>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                  <span style="font-size: 13px; font-weight: 700;">{{b.name}}</span>
+                  <span style="font-size: 11px; color: {{t.muted}};">{{b.hint}}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">ブロック（図の上）と状態</h2>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 22px;">
+            <sc-for list="{{t.nodes}}" as="n">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; align-items: center;">
+                  <span style="width: 10px; height: 16px; border-radius: 3px 0 0 3px; background: {{t.col}}; border: 1px solid {{t.line}}; border-right: none;" aria-hidden="true"></span>
+                  <div style="flex-grow: 1; background: {{t.card}}; border: {{n.border}}; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; box-shadow: {{n.ring}};">
+                    <div style="display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg><span style="font-size: 12px; font-weight: 700;">{{n.title}}</span></div>
+                    <code style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: {{t.muted}};">{{n.id}}</code>
+                    <span style="align-self: flex-start; font-size: 10px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: {{n.pillBg}}; color: {{n.pillFg}};">{{n.pill}}</span>
+                  </div>
+                  <span style="width: 12px; height: 10px; border-radius: 0 5px 5px 0; background: {{t.coral}};" aria-hidden="true"></span>
+                </div>
+                <span style="font-size: 11px; color: {{t.muted}};">{{n.caption}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">ケーブル</h2>
+            <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><svg width="56" height="10" aria-hidden="true"><line x1="2" y1="5" x2="54" y2="5" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></line></svg>次の段</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><svg width="56" height="10" aria-hidden="true"><line x1="2" y1="5" x2="54" y2="5" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-dasharray="12 4 2 4"></line></svg>分岐</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><svg width="56" height="10" aria-hidden="true"><line x1="2" y1="5" x2="54" y2="5" stroke="{{t.coral}}" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 5"></line></svg>差し戻し</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 52px; height: 18px; margin: 0 2px; border-radius: 6px; border: 2px dashed {{t.teal}}; background: {{t.tealSoft}};" aria-hidden="true"></span>並列の枠</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700;">差し込み口とプラグ</h2>
+            <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 14px; height: 22px; border-radius: 4px; background: {{t.col}}; border: 1px solid {{t.line}}; display: flex; align-items: center; justify-content: center;" aria-hidden="true"><span style="width: 4px; height: 8px; border-radius: 2px; background: {{t.muted}};"></span></span>差し込み口（左・空き）</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 14px; height: 22px; border-radius: 4px; background: {{t.tealSoft}}; border: 2px solid {{t.teal}};" aria-hidden="true"></span>差せるところ（引いている間に光る）</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 18px; height: 12px; border-radius: 0 6px 6px 0; background: {{t.coral}};" aria-hidden="true"></span>プラグ（右・引いて差す）</div>
+              <div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span><span style="font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">終わり</span>入口と出口</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">組んだ図の見本</h2>
+          <div style="position: relative; height: 230px; border-radius: 12px; border: 1px solid {{t.line}}; background-color: {{t.canvas}}; background-image: radial-gradient({{t.dot}} 1px, transparent 1.2px); background-size: 16px 16px; overflow: hidden;">
+            <svg width="100%" height="230" viewBox="0 0 620 230" preserveAspectRatio="none" style="position: absolute; inset: 0;" aria-hidden="true">
+              <path d="M78 60 C 110 60, 110 60, 140 60" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
+              <path d="M262 60 C 300 60, 300 60, 336 60" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
+              <path d="M458 60 C 500 60, 500 60, 540 60" fill="none" stroke="{{t.teal}}" stroke-width="4" stroke-linecap="round"></path>
+              <path d="M262 64 C 300 64, 290 170, 336 170" fill="none" stroke="{{t.blue}}" stroke-width="4" stroke-linecap="round" stroke-dasharray="12 4 2 4"></path>
+              <path d="M400 34 C 400 6, 200 6, 200 34" fill="none" stroke="{{t.coral}}" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 5"></path>
+            </svg>
+            <span style="position: absolute; left: 14px; top: 49px; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">始まり</span>
+            <div style="position: absolute; left: 140px; top: 34px; width: 122px; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 10px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; box-shadow: {{t.shadow}};"><span style="font-size: 12px; font-weight: 700;">ソースの調査</span><span style="font-size: 10px; font-weight: 700; color: {{t.okText}};">✓ 完了 · 2分</span></div>
+            <div style="position: absolute; left: 336px; top: 34px; width: 122px; background: {{t.card}}; border: 2px solid {{t.teal}}; border-radius: 10px; padding: 5px 7px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 0 0 4px {{t.tealSoft}};"><span style="font-size: 12px; font-weight: 700;">突き合わせ</span><span style="font-size: 10px; font-weight: 700; color: {{t.tealText}};">● 作業中 · 0:42</span></div>
+            <div style="position: absolute; left: 336px; top: 146px; width: 122px; background: {{t.card}}; border: 1px solid {{t.coral}}; border-radius: 10px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 12px; font-weight: 700;">仕様の突き合わせ</span><span style="font-size: 10px; font-weight: 700; color: {{t.coralText}};">▲ あなた待ち</span></div>
+            <span style="position: absolute; left: 540px; top: 49px; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: {{t.fg}}; color: {{t.bg}};">終わり</span>
+            <span style="position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: {{t.muted}}; background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 6px; padding: 2px 8px;">プラグを引いて、差し込み口に差します</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700;">右の帯（ブロックの設定）</h2>
+          <div style="background: {{t.panel}}; border: 1px solid {{t.line}}; border-radius: 12px; overflow: hidden;">
+            <div style="display: flex; border-bottom: 1px solid {{t.line}};" role="tablist" aria-label="設定の種類">
+              <button type="button" role="tab" aria-selected="true" style="font: inherit; flex: 1; height: 40px; border: none; border-bottom: 3px solid {{t.teal}}; background: transparent; color: {{t.fg}}; font-weight: 700; font-size: 13px;">ブロック</button>
+              <button type="button" role="tab" aria-selected="false" style="font: inherit; flex: 1; height: 40px; border: none; background: transparent; color: {{t.muted}}; font-size: 13px;">検査 <span style="font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: {{t.okSoft}}; color: {{t.okText}};">OK</span></button>
+              <button type="button" role="tab" aria-selected="false" style="font: inherit; flex: 1; height: 40px; border: none; background: transparent; color: {{t.muted}}; font-size: 13px;">書き出し</button>
+              <button type="button" role="tab" aria-selected="false" style="font: inherit; flex: 1; height: 40px; border: none; background: transparent; color: {{t.muted}}; font-size: 13px;">履歴</button>
+            </div>
+            <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; gap: 8px; align-items: center;"><strong style="font-size: 15px; flex-grow: 1;">ソースの調査</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}};">survey</code></div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; align-items: center;"><span style="color: {{t.muted}};">渡すもの</span><span style="padding: 1px 8px; border-radius: 6px; background: {{t.col}};">@依頼メモ</span><span style="padding: 1px 8px; border-radius: 6px; background: {{t.col}}; font-family: 'JetBrains Mono', monospace;">@01_triage.md</span></div>
+              <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; align-self: flex-start; padding: 4px 12px; border-radius: 999px; background: {{t.tealSoft}}; color: {{t.tealText}}; font-weight: 700;"><input type="checkbox" checked style="accent-color: {{t.teal}};">このあと人が確認</label>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const I = {
+      search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4",
+      people: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c0-3 3-5 6-5s6 2 6 5M17 11a2.5 2.5 0 1 0 0-5M17 14c2 0 4 1.5 4 4",
+      doc: "M6 3h9l4 4v14H6zM15 3v4h4M9 12h7M9 16h7",
+      test: "M4 4h16v16H4zM8 12l3 3 5-6",
+      code: "M9 7l-5 5 5 5M15 7l5 5-5 5",
+      check: "M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5",
+      branch: "M6 4v8a4 4 0 0 0 4 4h6M18 4v8M18 12a4 4 0 0 1-4 4M6 4h0M18 4h0M16 16h2v4h-4v-4",
+      globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18",
+      frame: "M3 5h18v6H3zM3 13h18v6H3z",
+    };
+    const blocks = [
+      { name: "調べる", hint: "読むだけ", d: I.search }, { name: "任せる", hint: "サブエージェント", d: I.people },
+      { name: "文書と図", hint: "書く", d: I.doc }, { name: "テスト", hint: "先に書く", d: I.test },
+      { name: "コード", hint: "実装", d: I.code }, { name: "確かめる", hint: "判定する", d: I.check },
+      { name: "仕分け", hint: "分岐", d: I.branch }, { name: "外を見る", hint: "Web", d: I.globe },
+      { name: "並列の枠", hint: "同時に流す", d: I.frame },
+    ];
+    const L = { key: "l", name: "明るい", bg: "#f6f6f4", panel: "#ffffff", card: "#ffffff", col: "#ecebe7", line: "#e4ded8", fg: "#23201e", muted: "#6b625c",
+      coral: "#c2471f", onCoral: "#ffffff", coralSoft: "#fde6dd", coralText: "#a83a17", teal: "#167d6b", tealSoft: "#dcefe9", tealText: "#0f5a4d",
+      blue: "#3f6fb0", bad: "#b3261e", badSoft: "#fbe2df", badText: "#9a1f18", okSoft: "#e3f1e3", okText: "#22652a",
+      canvas: "#fbfaf8", dot: "#d6cfc8", shadow: "0 1px 2px rgba(35,32,30,.1)" };
+    const D = { key: "d", name: "暗い", bg: "#161514", panel: "#211f1d", card: "#26231f", col: "#2a2724", line: "#36322f", fg: "#f2ece6", muted: "#ada39b",
+      coral: "#ff8a65", onCoral: "#2a140b", coralSoft: "#4a2316", coralText: "#ffb59c", teal: "#5fc4ab", tealSoft: "#15392f", tealText: "#8fe0c6",
+      blue: "#8db4ee", bad: "#ff8a80", badSoft: "#4a1f1c", badText: "#ffb4ab", okSoft: "#1e3a20", okText: "#a5d6a7",
+      canvas: "#1a1917", dot: "#3a3632", shadow: "0 1px 2px rgba(0,0,0,.5)" };
+    const nodes = (t) => [
+      { caption: "まだ", title: "ソースの調査", id: "survey", d: I.search, border: "1px solid " + t.line, ring: "none", pill: "まだ", pillBg: t.col, pillFg: t.muted },
+      { caption: "選んでいる", title: "ソースの調査", id: "survey", d: I.search, border: "2px solid " + t.teal, ring: "none", pill: "まだ", pillBg: t.col, pillFg: t.muted },
+      { caption: "作業中", title: "突き合わせ", id: "verify", d: I.check, border: "2px solid " + t.teal, ring: "0 0 0 4px " + t.tealSoft, pill: "● 作業中 0:42", pillBg: t.tealSoft, pillFg: t.tealText },
+      { caption: "あなた待ち", title: "仕様の突き合わせ", id: "spec_check", d: I.doc, border: "1px solid " + t.coral, ring: "none", pill: "▲ あなた待ち", pillBg: t.coralSoft, pillFg: t.coralText },
+      { caption: "失敗", title: "テストを流す", id: "test", d: I.test, border: "1px solid " + t.bad, ring: "none", pill: "✕ 失敗", pillBg: t.badSoft, pillFg: t.badText },
+      { caption: "完了", title: "ソースの調査", id: "survey", d: I.search, border: "1px solid " + t.line, ring: "none", pill: "✓ 完了 2分", pillBg: t.okSoft, pillFg: t.okText },
+    ];
+    return { blocks, themes: [Object.assign({}, L, { nodes: nodes(L) }), Object.assign({}, D, { nodes: nodes(D) })] };
+  }
+}
+</script>
+</body>
+</html>
