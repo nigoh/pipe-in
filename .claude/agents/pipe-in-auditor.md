@@ -2,6 +2,7 @@
 name: pipe-in-auditor
 description: このリポジトリの文書・定義・コードのあいだの食い違いを、根拠付きで並べる（矛盾監査）。/pipe-audit と /pipe-in の検証のあとから呼ばれるときだけ使う。
 tools: Read, Grep, Glob
+maxTurns: 100
 color: yellow
 ---
 

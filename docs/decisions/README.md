@@ -43,10 +43,12 @@
 | [D0037](D0037-build-judge.md) | プラグインの pipe-build と `pipe-in-gen design` で、検査と審査の段を組めるようにする（`references/stage-rules.md`・ひな形 diagrams の例） |
 | [D0038](D0038-pipe-lessons.md) | パイプを流して分かったこと（置き場所が要る段は docs、テストを書く段もあとの検査を流す、差し戻しは直せる段へ など）を、pipe-build のスキルと `pipe-in-gen check` の警告（`⚠`。誤りにはしない）に入れる |
 | [D0039](D0039-skill-tidy.md) | /pipe-in のスキルを、長い会話でも決まりが残る形に整える（冒頭の決まり・補助ファイル 3 つ・許可の規則・前の名前の残り） |
+| [D0040](D0040-live-watch-windows-pipe.md) | Windows でも、標準出力が閉じた `pipe-in live watch` が静かに終了コード 1 で止まる（標準出力の書き込みの `OSError` を errno を問わず受け、閉じたのか書けないのかで文を分ける。付け替えられないときは `sys.stdout` を外す） |
+| [D0041](D0041-agent-limits.md) | 監査・助言・審査のサブエージェントの定義に回数の上限（`maxTurns` 100・80・50）を付け、会話を開かずに流す監査・助言の呼び方に `--disallowedTools "mcp__*"` を足して MCP の道具も見せない（D0012 の呼び方の2行を置き換える） |
 
 ## ひな形
 
-ファイルの名前は `Dnnnn-<英小文字・数字・->.md`。番号は上の表の次。足したら上の表にも1行足す。
+ファイルの名前は `Dnnnn-<英小文字・数字・->.md`。番号は上の表の次（ほかのブランチで使っている番号は飛ばす）。足したら上の表にも1行足す。
 
 ```markdown
 # Dnnnn <何ができるようになったか>

@@ -2,6 +2,7 @@
 name: pipe-in-judge
 description: 調べもの型の報告（助言の報告など）を、ルーブリックの5項目（事実の正確さ・引用の正確さ・網羅性・情報源の質・ツール効率）で 0.0〜1.0 に採点し、総合と合否を JSON 1つで返す。/pipe-judge と /pipe-in の監査と助言から呼ばれるときだけ使う。
 tools: Read, Grep, Glob, WebFetch
+maxTurns: 50
 color: purple
 effort: high
 ---

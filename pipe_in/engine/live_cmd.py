@@ -108,15 +108,25 @@ def _emit(data: bytes, out: Path | None) -> int:
 
 
 def _detach_stdout() -> None:
-    """標準出力の受け側が閉じたあと、終了時の flush でまた落ちないよう、記述子を os.devnull に付け替える。"""
+    """標準出力の受け側が閉じたあと、終了時の flush でまた落ちないよう、記述子を os.devnull に付け替える。
+
+    付け替えられないときは sys.stdout を None にして、終了時の flush を止める。例外は出さない。
+    os.devnull を開いた番号が標準出力の番号と同じなら（標準出力の記述子がもう閉じていた）、
+    すでに捨て先を指しているので、付け替えも閉じもしない。
+    """
     try:
-        fd = os.open(os.devnull, os.O_WRONLY)
-        try:
-            os.dup2(fd, sys.stdout.fileno())
-        finally:
-            os.close(fd)
+        target = sys.stdout.fileno()
+        sink = os.open(os.devnull, os.O_WRONLY)
+        if sink != target:
+            try:
+                os.dup2(sink, target)
+            finally:
+                os.close(sink)
     except Exception:  # noqa: BLE001 - 付け替えられなくても止まり方は変えない
-        pass
+        try:
+            sys.stdout = None  # type: ignore[assignment]
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _watch(parser: argparse.ArgumentParser, args: argparse.Namespace, deps: dict[str, Any] | None) -> int:

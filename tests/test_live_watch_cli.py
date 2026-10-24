@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import errno
 import inspect
 import io
 import json
@@ -582,7 +583,8 @@ def test_d0031_ac49_snapshot_page_outputs_and_schema_unchanged(tmp_path, capfdbi
 
 
 def child_env():
-    return {**os.environ, "PYTHONPATH": str(ROOT)}
+    # D0040-AC-08: 子の標準エラーを UTF-8 で書かせる（Windows は UTF-8 モードでないと手元の文字コードで書き、日本語の文が読めない）
+    return {**os.environ, "PYTHONPATH": str(ROOT), "PYTHONIOENCODING": "utf-8"}
 
 
 def popen(argv, tmp_path):
@@ -639,7 +641,7 @@ def test_d0031_ac50_module_and_cli_main_give_timeout_124(tmp_path, monkeypatch):
 
 
 def test_d0031_ac45_closed_stdout_in_a_real_process_exits1_quietly(tmp_path, monkeypatch):
-    """D0031-AC-45: 標準出力の受け側が閉じている実際の子プロセスでも、落ちずに一時ファイルを残さず終了コード 1。標準エラーは短い1文だけ（トレースバックも、終了時の「Exception ignored」も出ない）。"""
+    """D0031-AC-45・D0040-AC-08: 標準出力の受け側が閉じている実際の子プロセスでも、落ちずに一時ファイルを残さず終了コード 1。標準エラーは短い1文だけ（トレースバックも、終了時の「Exception ignored」も出ない）。Windows（閉じたパイプへの書き込みが EINVAL になる）でも同じ。"""
     monkeypatch.setattr(time, "sleep", REAL_SLEEP)
     work, out = midway(tmp_path), out_path(tmp_path)
     proc = popen(["-m", "pipe_in", "live", "watch", "--work-dir", str(work), "--out", str(out), "--interval", "0.5", "--timeout", "3"], tmp_path)
@@ -658,3 +660,133 @@ def test_d0031_ac45_closed_stdout_in_a_real_process_exits1_quietly(tmp_path, mon
     assert proc.returncode == 1, err
     assert err == "pipe-in live watch: 標準出力が閉じられました\n"
     assert listing(out.parent) == [out.name]
+
+
+# ---- D0040 標準出力の付け替え（_detach_stdout）と、呼ぶ条件 ----------------------------------------------------------------------
+#
+# 本物の記述子と pytest の出力の取り込みには触らない。os モジュールそのものは差し替えず（pytest も os.dup2 を使うため）、
+# live_cmd が見る名前 os だけを、呼ばれた引数を覚える偽物に替える。sys.stdout は FakeFdOut に替える（どちらも monkeypatch が戻す）。
+
+
+class FakeFdOut:
+    """fileno() が決まった番号を返すか、渡した例外を出す偽の標準出力。"""
+
+    def __init__(self, fd: int = 1001, error: BaseException | None = None) -> None:
+        self.fd = fd
+        self.error = error
+
+    def fileno(self) -> int:
+        if self.error is not None:
+            raise self.error
+        return self.fd
+
+    def write(self, s: str) -> int:
+        return len(s)
+
+    def flush(self) -> None:
+        pass
+
+
+class FakeOs:
+    """_detach_stdout が使う os の口（open・dup2・close・devnull・O_WRONLY）の偽物。本物の記述子は開かない。"""
+
+    devnull = os.devnull
+    O_WRONLY = os.O_WRONLY
+
+    def __init__(self, *, sink: int = 1002, open_error: BaseException | None = None, dup2_error: BaseException | None = None) -> None:
+        self.sink = sink
+        self.open_error = open_error
+        self.dup2_error = dup2_error
+        self.opened: list[tuple[str, int]] = []
+        self.dup2s: list[tuple[int, int]] = []
+        self.closed: list[int] = []
+
+    def open(self, path, flags, *a, **k) -> int:
+        self.opened.append((path, flags))
+        if self.open_error is not None:
+            raise self.open_error
+        return self.sink
+
+    def dup2(self, fd: int, fd2: int, *a, **k) -> int:
+        self.dup2s.append((fd, fd2))
+        if self.dup2_error is not None:
+            raise self.dup2_error
+        return fd2
+
+    def close(self, fd: int) -> None:
+        self.closed.append(fd)
+
+
+def test_d0040_ac09_detach_stdout_redirects_to_devnull(monkeypatch):
+    """D0040-AC-09: 付け替えられるときは、os.devnull を開いた番号から sys.stdout.fileno() へ1回付け替え、開いた番号を閉じる。sys.stdout は替えず、例外も出さない（今のままで通る。守り続ける検査）。"""
+    fake_os = FakeOs(sink=1002)
+    stdout = FakeFdOut(1001)
+    monkeypatch.setattr(live_cmd, "os", fake_os)
+    monkeypatch.setattr(sys, "stdout", stdout)
+    live_cmd._detach_stdout()
+    seen = sys.stdout
+    assert seen is stdout
+    assert [p for p, _f in fake_os.opened] == [os.devnull]
+    assert fake_os.dup2s == [(1002, 1001)]
+    assert fake_os.closed == [1002]
+
+
+DETACH_FAILURES = ["dup2_fails", "open_fails", "fileno_fails", "stdout_is_none", "same_number"]
+
+
+@pytest.mark.parametrize("case", DETACH_FAILURES)
+def test_d0040_ac09_detach_stdout_falls_back_to_none(monkeypatch, case):
+    """D0040-AC-09: 付け替えられない（dup2・open・fileno が失敗する、sys.stdout が None）ときは、例外を出さず sys.stdout を None にする。open が付け替え先と同じ番号を返したときは、dup2 も close もせず sys.stdout はそのまま。"""
+    stdout = FakeFdOut(1001)
+    if case == "dup2_fails":
+        fake_os = FakeOs(sink=1002, dup2_error=OSError(errno.EBADF, "x"))
+    elif case == "open_fails":
+        fake_os = FakeOs(open_error=OSError(errno.ENOENT, "x"))
+    elif case == "fileno_fails":
+        fake_os = FakeOs(sink=1002)
+        stdout = FakeFdOut(error=ValueError("I/O operation on closed file."))
+    elif case == "same_number":
+        fake_os = FakeOs(sink=1001)
+    else:
+        fake_os = FakeOs(sink=1002)
+        stdout = None
+    monkeypatch.setattr(live_cmd, "os", fake_os)
+    monkeypatch.setattr(sys, "stdout", stdout)
+    live_cmd._detach_stdout()  # 例外を出さない
+    seen = sys.stdout
+    if case == "same_number":
+        assert seen is stdout, "同じ番号なら、もう捨て先を指しているので sys.stdout は替えない"
+        assert fake_os.dup2s == [] and fake_os.closed == [], "同じ番号なら dup2 も close もしない（close すると標準出力の記述子を閉じてしまう）"
+        return
+    assert seen is None, "付け替えられないときは sys.stdout を None にして、終了時の flush を止める"
+    if case == "dup2_fails":
+        assert fake_os.dup2s == [(1002, 1001)] and fake_os.closed == [1002], "捨て先は閉じる"
+    elif case == "open_fails":
+        assert fake_os.dup2s == []
+    elif case == "fileno_fails":
+        assert fake_os.opened == [] and fake_os.dup2s == []
+
+
+def test_d0040_ac10_injected_stdout_skips_detach(tmp_path, monkeypatch, capfd):
+    """D0040-AC-10: watch_deps で stdout を差し替えたときは、終了コード 1 でも _detach_stdout を呼ばない（今のままで通る。守り続ける検査）。"""
+    calls = []
+    monkeypatch.setattr(live_cmd, "_detach_stdout", lambda: calls.append(1))
+    deps, ft, so, se = make_deps()
+    fake = FakeOut(write_error=lambda n: BrokenPipeError(32, "x"))
+    fake.ft = ft
+    deps["stdout"] = fake
+    code, _o, _e = run(watch_argv(midway(tmp_path), out_path(tmp_path)), capfd, deps)
+    assert code == 1
+    assert se.getvalue() == "pipe-in live watch: 標準出力が閉じられました\n"
+    assert calls == []
+
+
+@pytest.mark.parametrize("watch_code,detached", [(1, 1), (0, 0), (124, 0)])
+def test_d0040_ac10_real_stdout_detaches_once_on_exit1(tmp_path, monkeypatch, capfd, watch_code, detached):
+    """D0040-AC-10: stdout を差し替えないときは、watch が 1 を返したときだけ _detach_stdout を1回呼ぶ（0・124 では呼ばない。呼ぶ条件を変えないことの対の検査。今のままで通る）。"""
+    calls = []
+    monkeypatch.setattr(live_cmd, "_detach_stdout", lambda: calls.append(1))
+    monkeypatch.setattr(live_watch, "watch", lambda *a, **k: watch_code)
+    code, _o, _e = run(watch_argv(midway(tmp_path), out_path(tmp_path)), capfd)
+    assert code == watch_code
+    assert len(calls) == detached
