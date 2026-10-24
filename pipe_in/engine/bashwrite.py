@@ -668,6 +668,22 @@ def _py_open_writes(args: list[str] | None) -> bool:
     return mode is None or any(c in mode for c in "wax+")
 
 
+_MODE_SHAPE = re.compile(r"^[rwaxbtU+]{1,4}$")
+
+
+def _first_is_filename(args: list[str] | None) -> bool:
+    """.open の最初の引数が、モードの形でない文字（＝ファイル名）か。
+
+    Path(…).open は最初の引数がモードだが、Image.open('a.png') などはファイル名を取る。ファイル名なら、
+    組み込みの open と同じく 2 つ目の引数か mode= がモードで、それは _py_open（\bopen\( が .open( にも当たる）が判定する。
+    最初の引数が文字でないとき・モードの形のときは False（今までどおり Path の open として見る）。"""
+    if not args:
+        return False
+    pos, _ = _split_kw(args)
+    first = _lit(pos[0]) if pos else None
+    return first is not None and not _MODE_SHAPE.match(first)
+
+
 def _py_path_methods(code: str) -> list[str | None]:
     out: list[str | None] = []
     for m in _PY_PATH_METHOD.finditer(code):
@@ -680,6 +696,8 @@ def _py_path_methods(code: str) -> list[str | None]:
             continue  # 文字の replace
         recv = _PY_PATH_RECEIVER.search(before)
         if name == "open":
+            if not recv and _first_is_filename(args):
+                continue  # Image.open('a.png', …) など。組み込みの open と同じ形として _py_open が見る
             if _py_open_writes(args) and not (recv or _OPEN_MODULES.search(before)):
                 out.append(None)
             elif _py_open_writes(args) and recv:
