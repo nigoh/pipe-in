@@ -34,7 +34,7 @@ DANGEROUS_BASH: list[tuple[str, str]] = [
     (r"\bchmod\s+-R\b|\bchown\b", "権限の一括変更は禁止です"),
 ]
 
-# サブエージェントを任せる道具（D0034）。段の1回の実行で通すのは、合わせて max_agent_calls 回まで。
+# サブエージェントを任せる道具（D0035）。段の1回の実行で通すのは、合わせて max_agent_calls 回まで。
 AGENT_TOOLS = frozenset({"Agent", "Task"})
 DEFAULT_MAX_AGENT_CALLS = 20
 # 裏で動かす形の印。段は応答が終わると裏の作業の結果を待てないので、Agent・Task・Bash では止める。
@@ -159,7 +159,7 @@ def check_tool(
         raw_cmd = tool_input.get("command", "")
         if "command" in tool_input and not isinstance(raw_cmd, str):
             return "Bash のコマンドを読み取れなかったため止めました"
-        # 書き込みの形があれば、Write・Edit と同じ範囲で止める（D0035）
+        # 書き込みの形があれば、Write・Edit と同じ範囲で止める（D0036）
         return check_bash_writes(
             raw_cmd, project_dir=project_dir, can_write=can_write, write_scope_hint=write_scope_hint, state=bash_state
         )

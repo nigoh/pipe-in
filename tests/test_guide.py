@@ -1758,18 +1758,18 @@ def test_D0025_AC_77_78_検査そのものは行の番号と表の順を取り�
     assert row_starting("", DESIGN_PAGE_ROW) is None
 
 
-# ---- D0034: 段の中のサブエージェントの呼び方を守る ------------------------------------------------
+# ---- D0035: 段の中のサブエージェントの呼び方を守る ------------------------------------------------
 
-D0034_EXAMPLE_LINE = "max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）"
-
-
-def test_D0034_AC_16_パイプの書き方の例にmax_agent_callsの行がある():
-    """D0034-AC-16: docs/guide/pipes.md の「Agent SDK の設定」の書き方の例（コードブロック）に、max_agent_calls の行がある。"""
-    assert D0034_EXAMPLE_LINE in all_code_lines(read_doc(GUIDE / "pipes.md"))
+D0035_EXAMPLE_LINE = "max_agent_calls = 8               # 1回の実行で呼べるサブエージェントの数（既定 20）"
 
 
-def test_D0034_AC_01_05_08_安全の文書に裏で動かす形と上限と入れ子がある():
-    """D0034-AC-01・05・08: docs/guide/safety.md に、裏で動かす形（run_in_background）・上限（max_agent_calls）・サブエージェントの中からの呼び出しを止めることが書いてある。"""
+def test_D0035_AC_16_パイプの書き方の例にmax_agent_callsの行がある():
+    """D0035-AC-16: docs/guide/pipes.md の「Agent SDK の設定」の書き方の例（コードブロック）に、max_agent_calls の行がある。"""
+    assert D0035_EXAMPLE_LINE in all_code_lines(read_doc(GUIDE / "pipes.md"))
+
+
+def test_D0035_AC_01_05_08_安全の文書に裏で動かす形と上限と入れ子がある():
+    """D0035-AC-01・05・08: docs/guide/safety.md に、裏で動かす形（run_in_background）・上限（max_agent_calls）・サブエージェントの中からの呼び出しを止めることが書いてある。"""
     text = read_doc(GUIDE / "safety.md")
     assert "run_in_background" in text
     assert "max_agent_calls" in text
@@ -1927,6 +1927,390 @@ def test_D0033_AC_08_設定のガイドに古い版で落ちたときの入れ�
     part = "\n".join(lines[row + 1:end])
     assert "1048576" in part, f"max_buffer_mb の行と「段の名前は」のあいだに 1048576 が無い:\n{part}"
     assert "入れ直" in part, f"max_buffer_mb の行と「段の名前は」のあいだに「入れ直」が無い:\n{part}"
+
+
+# ---------------------------------------------------------------------------------------------
+# D0034：work_dir がまだ無いプロジェクトでも、最初の実行でパネルとステータスバーが進む（文書）
+#
+# 文書がそろっているかを、探す言葉で見張る（言葉の細かい書き方は文書を書く人が決める。探すのは事柄）。
+# 探す形は、今の節・今の行に合わないことを確かめてから決めた（今のまま通る言葉を 1 項目にすると、書き忘れても緑になる）。
+# 文書は読むだけで、書かない。検査そのもの（節の取り出し・言葉の探し方・同じ文の判断・表の並びの判断）は、偽の文書で確かめる。
+# そちらは今のまま通る（赤ではなく、守り続けるために置く。名前の末尾に「守る」と書いた）。
+# ---------------------------------------------------------------------------------------------
+
+FIRSTRUN_LIST_TITLE = "実行の一覧"
+# 確かめの間隔より短い間に消して作り直したときの限界の文にある言葉（AC-29）。「確かめていない」は「です・ます」の「確かめていません」も数える
+SHORT_GAP_WORDS = (r"短い間", r"作り直", r"確かめて(?:いない|いません)")
+FIRSTRUN_README_LEAD = "別の worktree の行があるあいだは、パネルが閉じていても"
+FIRSTRUN_ASSETS_LEAD = "空の `docs/pipeline/`"
+FIRSTRUN_NEW_ID = "D0034"
+D0034_RECORDS = sorted((ROOT / "docs" / "decisions").glob("D0034-*.md"))
+
+# （pytest の id, 何の説明か, 節の中を探す正規表現。すべてに合うこと）。[^。\n]* は同じ文の中。
+# stat は state.json に当たらないよう、英数字と _ に挟まれない語として探す。「3 秒」は 13 秒に当たらない。
+FIRSTRUN_GUIDE_WORDS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("late", "work_dir がまだ無くても、できたらパネルとステータスバーが進む（最大で確かめの間隔 3 秒ほど遅れる）", (r"work_dir[^。\n]*まだ無[^。\n]*できたら", r"(?<!\d)3 ?秒")),
+    (
+        "no-watch",
+        "無いあいだは見張りを張らず、決まった間隔で有無だけを確かめる（stat 1 回。読むだけで作らない）",
+        (r"張らず|張りません|張らない", r"(?<![A-Za-z0-9_])stat(?![A-Za-z0-9_])", r"作らない|作りません"),
+    ),
+    ("keeps-checking", "有るあいだも、消えたのを見つけるために軽い確かめを続ける（pipe-in を使わないプロジェクトでも続く）", (r"有るあいだも", r"使わない")),
+    ("attach-detach", "できたら見張りを張って読み直し、消えたら外してまた待つ", (r"消え[^。\n]*外", r"張って読み直")),
+    ("outside-deep", "ワークスペースの外の work_dir や、親が何段も無い場合も、同じ手順で見張りを張る", (r"ワークスペースの外[^。\n]*何段も|何段も[^。\n]*ワークスペースの外",)),
+    ("limit-outside", "外の work_dir で、張った見張りが深い場所の変化を届けるかの限界", (r"ワークスペースの外[^。\n]*(?:届|深い)|(?:届|深い)[^。\n]*ワークスペースの外",)),
+]
+
+# 拡張の README の対象の行（lines_with で見つけた行）に、いまの work_dir に結びつけた形がある。（id, 何の説明か, 正規表現）
+FIRSTRUN_README_WORDS = [
+    ("checking", "いまの work_dir が無いあいだは有無を確かめる", r"work_dir[^。\n]*無いあいだ[^。\n]*確かめ"),
+    ("watch-when-made", "できたら見張る", r"できたら[^。\n]*(?:見張|監視)"),
+]
+
+# 設計の拡張の層の表。（層の名前, その行にある言葉）。層の表のバッククォートの中にスラッシュを含むパスは書かない（test_rules.py が実在を見るため）
+FIRSTRUN_DESIGN_LAYERS = [
+    ("アプリケーション", "workDirWatch.ts"),
+    ("アプリケーション", "有無の判断"),
+    ("アプリケーション", "見張り"),
+    ("基盤", "fsPresence.ts"),
+    ("基盤", "有無の確かめ"),
+    ("入口", "確かめ"),
+    ("入口", "タイマー"),
+]
+
+
+def firstrun_list_part(md: str) -> str:
+    """「実行を見る」の中の、見出しに「実行の一覧」を含む小見出しの節の本文（見出しの行から、次の同じか浅い見出しの前まで）。無ければ空。"""
+    return heading_part(section(md, "実行を見る"), FIRSTRUN_LIST_TITLE)
+
+
+def sentences_of(part: str) -> list[str]:
+    """節の本文を、文（「。」か改行まで）に分ける。空の文は除く。"""
+    return [s for s in re.split(r"[。\n]", part) if s.strip()]
+
+
+def sentence_has(part: str, *patterns: str) -> bool:
+    """1 つの文の中に、すべての言葉がそろっているか。"""
+    return any(all(re.search(p, s) for p in patterns) for s in sentences_of(part))
+
+
+def decision_table_problems(ids: list[str], new: str = FIRSTRUN_NEW_ID) -> list[str]:
+    """決定の記録の表の番号の並び（上から）の、直っていない点：昇順でない・new の行が無い・new の前の行が new より小さい番号のうち最大でない。"""
+    problems: list[str] = []
+    if ids != sorted(ids):
+        problems.append(f"表の番号が昇順でない：{ids[-6:]}")
+    if new not in ids:
+        problems.append(f"{new} の行が無い（今の行：{ids[-6:]}）")
+        return problems
+    at = ids.index(new)
+    smaller = [i for i in ids if i < new]
+    want = max(smaller) if smaller else None
+    before = ids[at - 1] if at > 0 else None
+    if before != want:
+        problems.append(f"{new} の前の行は {want} にする（今は {before}）")
+    return problems
+
+
+def assets_firstrun_problems(md: str) -> list[str]:
+    """docs/assets/README.md の「空の docs/pipeline/」の文の、直っていない点：「以前は」「無くても」「害はない」が無い・古い言い方が残っている。"""
+    lines = [line for line in md.splitlines() if FIRSTRUN_ASSETS_LEAD in line]
+    if not lines:
+        return [f"{FIRSTRUN_ASSETS_LEAD} の文が無い"]
+    problems = [f"「{word}」が無い" for word in ("以前は", "無くても", "害はない") if not any(word in line for line in lines)]
+    if "無いと最初の実行がパネルに出ません" in md:
+        problems.append("古い言い方「無いと最初の実行がパネルに出ません」が残っている")
+    return problems
+
+
+def d0034_record_text() -> str:
+    if len(D0034_RECORDS) != 1:
+        pytest.fail(f"docs/decisions/D0034-*.md がちょうど 1 つ要る（今：{[p.name for p in D0034_RECORDS]}）")
+    return D0034_RECORDS[0].read_text(encoding="utf-8")
+
+
+# 「確かめたこと」の AC の行に、題のほかに中身（結果）がある、と見る言葉（D0034 の「確かめたこと」の書き方：「AC-nn（題）：中身」）。
+#   AC-49（原因の切り分け）：<(a)(b)(c) と環境>        … (a)(b)(c) のどれか、か「分からなかった」
+#   AC-53（外の work_dir の届き方）：<state.json・logs の別、届かないものの有無、…>  … state.json・logs・届・確かめていない のどれか
+# 題の「（外の work_dir の届き方）」にも「届」があるので、題と「：」を除いた中身で探す（題だけの行を、結果のある行にしない）。
+FIRSTRUN_RESULT_WORDS: dict[int, tuple[str, str]] = {
+    49: (r"\(a\)|\(b\)|\(c\)|（a）|（b）|（c）|分からなかった", "原因の切り分けの結果（(a)(b)(c) のどれか、か「分からなかった」）"),
+    53: (r"state\.json|logs|届|確かめていない", "外の work_dir の届き方（state.json・logs の別、届かないもの、確かめていないこと）"),
+}
+
+
+def firstrun_result_body(line: str, ac: int) -> str:
+    """「確かめたこと」の AC-nn の行から、行頭から AC-nn と題の（…）と「：」までを除いた、中身。題だけの行は空になる。"""
+    return re.sub(rf"^.*?AC-{ac}(?!\d)(?:（[^）]*）)?\s*[：:]?", "", line, count=1).strip()
+
+
+def firstrun_result_ok(line: str, ac: int) -> bool:
+    """AC-49・53 の行に、中身（結果）があるか。ほかの AC は、行があればよい（AC-55・56 は呼び出し側が別に見る）。"""
+    if ac not in FIRSTRUN_RESULT_WORDS:
+        return True
+    return re.search(FIRSTRUN_RESULT_WORDS[ac][0], firstrun_result_body(line, ac)) is not None
+
+
+# ---- AC-29・40：ガイド（docs/guide/vscode.md の「実行を見る」の「実行の一覧」の節） ----
+
+
+def test_D0034_AC_40_ガイドの実行を見るの中に実行の一覧の節がある_守る():
+    """D0034-AC-40: 前提。docs/guide/vscode.md の「実行を見る」の中に、見出しが「実行の一覧」の節がある。（今のまま通る。守る）"""
+    part = firstrun_list_part(read_doc(GUIDE / "vscode.md"))
+    assert part.startswith("### 実行の一覧"), f"「実行を見る」の中の「{FIRSTRUN_LIST_TITLE}」の節が取れない"
+
+
+@pytest.mark.parametrize("sid,label,patterns", FIRSTRUN_GUIDE_WORDS, ids=[i for i, _, _ in FIRSTRUN_GUIDE_WORDS])
+def test_D0034_AC_40_ガイドの実行の一覧の節にwork_dirがまだ無いときの説明がある(sid, label, patterns):
+    """D0034-AC-40: 「実行の一覧」の節に、work_dir がまだ無くてもできたら進むこと（最大で確かめの間隔 3 秒ほど遅れる）・無いあいだは見張りを張らず
+    決まった間隔で有無だけを確かめること（stat 1 回。読むだけで作らない）・有るあいだも確かめ続けること・できたら張って読み直し消えたら外してまた待つこと・
+    ワークスペースの外や親が何段も無い場合も同じ手順であること・外の work_dir で張った見張りが深い場所の変化を届けるかの限界、が書いてある。"""
+    part = firstrun_list_part(read_doc(GUIDE / "vscode.md"))
+    assert part, f"docs/guide/vscode.md に「{FIRSTRUN_LIST_TITLE}」の節が無い"
+    assert words_missing(part, [(sid, label, patterns)]) == [], f"「{FIRSTRUN_LIST_TITLE}」の節に、{label} の説明が無い（探した形：{patterns}）"
+
+
+def test_D0034_AC_29_ガイドに短い間に消して作り直したときの限界が確かめていないと添えて書いてある():
+    """D0034-AC-29: 「実行の一覧」の節に、確かめの間隔より短い間に work_dir を消して作り直したときは変わり目として見えない、という文があり、
+    その同じ文に「作り直」と「確かめていない」（古い見張りが生きているかは確かめていない、と添える。ガイドは「です・ます」なので「確かめていません」も同じに数える）がある。"""
+    part = firstrun_list_part(read_doc(GUIDE / "vscode.md"))
+    assert part, f"docs/guide/vscode.md に「{FIRSTRUN_LIST_TITLE}」の節が無い"
+    assert sentence_has(part, *SHORT_GAP_WORDS), "「短い間」「作り直」「確かめていない」が同じ文にある文が無い"
+
+
+def test_D0034_AC_31_ガイドの別のworktreeに行がまだ1つも無いあいだの限界の文が残っている_守る():
+    """D0034-AC-31: 別の worktree での最初の実行に、パネルを閉じたステータスバーが気づかない、は今のまま（D0024 の受け入れたリスク）。
+    ガイドの「別の worktree に行がまだ 1 つも無いあいだは」で始まる文が残っている。（今のまま通る。守る）"""
+    md = read_doc(GUIDE / "vscode.md")
+    lead = "別の worktree に行がまだ 1 つも無いあいだは"
+    assert any(re.sub(r"^\s*[-*]\s*", "", line).startswith(lead) for line in lines_with(md, lead)), f"「{lead}」で始まる文が無い"
+
+
+# ---- AC-41：拡張の README ----
+
+
+@pytest.mark.parametrize("sid,label,pattern", FIRSTRUN_README_WORDS, ids=[i for i, _, _ in FIRSTRUN_README_WORDS])
+def test_D0034_AC_41_拡張のREADMEの読み直しの行にwork_dirが無いあいだの確かめとできたら見張ることがある(sid, label, pattern):
+    """D0034-AC-41: vscode/README.md の「別の worktree の行があるあいだは、パネルが閉じていても」で始まる行（実行の一覧の読み直しの文）に、
+    いまの work_dir が無いあいだは有無を確かめること、できたら見張ることが書いてある。直す前の行は「work_dir」と「無いあいだ」が別の文にあり、「できたら」が無いので合わなかった。"""
+    md = read_doc(VSCODE_README)
+    found = lines_with(md, FIRSTRUN_README_LEAD)
+    assert found, f"vscode/README.md に「{FIRSTRUN_README_LEAD}」を含む行が無い"
+    assert any(re.search(pattern, line) for line in found), f"「{FIRSTRUN_README_LEAD}」の行に、{label} の説明が無い（探した形：{pattern}）"
+
+
+def test_D0034_AC_41_拡張のREADMEに古い言い方いまのwork_dirは今までの監視が残っていない():
+    """D0034-AC-41: vscode/README.md から、古い言い方「いまの work_dir は今までの監視」が消えている（無いあいだは確かめる・できたら見張る、に直る）。"""
+    assert "いまの work_dir は今までの監視" not in read_doc(VSCODE_README)
+
+
+# ---- AC-42：設計の拡張の層の表 ----
+
+
+@pytest.mark.parametrize("layer,word", FIRSTRUN_DESIGN_LAYERS, ids=[f"{layer}-{word}" for layer, word in FIRSTRUN_DESIGN_LAYERS])
+def test_D0034_AC_42_designの拡張の層の表に有無の判断と確かめの部品が書いてある(layer, word):
+    """D0034-AC-42: docs/development/design.md の拡張の層の表の、アプリケーションの行に workDirWatch.ts と有無の判断・見張り、基盤の行に fsPresence.ts と有無の確かめ、
+    入口の行に確かめのタイマーの配線、が書いてある。層の表のバッククォートの中に、スラッシュを含む新しいパスは書かない（ファイル名だけ書く）。"""
+    row = table_row(read_doc(DESIGN_DOC), layer)
+    assert row is not None, f"design.md の拡張の層の表に「| {layer} |」で始まる行が無い"
+    assert word in row, f"design.md の「{layer}」の行に「{word}」が無い"
+
+
+# ---- AC-44：docs/assets/README.md ----
+
+
+@pytest.mark.parametrize("word", ["以前は", "無くても", "害はない"])
+def test_D0034_AC_44_assetsのREADMEの空のdocs_pipelineの文がいまの動きに合っている(word):
+    """D0034-AC-44: docs/assets/README.md の「空の `docs/pipeline/`」の文に、以前は必要だったこと・いまは無くても進むこと・作っておいても害はないことが書いてある
+    （撮り方の手順そのものは変えない）。"""
+    lines = [line for line in read_doc(ASSETS_README).splitlines() if FIRSTRUN_ASSETS_LEAD in line]
+    assert lines, f"docs/assets/README.md に「{FIRSTRUN_ASSETS_LEAD}」の文が無い"
+    assert any(word in line for line in lines), f"「{FIRSTRUN_ASSETS_LEAD}」の文に「{word}」が無い"
+
+
+def test_D0034_AC_44_assetsのREADMEに古い言い方が残っていない():
+    """D0034-AC-44: docs/assets/README.md から、古い言い方「無いと最初の実行がパネルに出ません」が消えている。"""
+    assert "無いと最初の実行がパネルに出ません" not in read_doc(ASSETS_README)
+
+
+# ---- AC-45・46・47：決定の記録 ----
+
+
+def test_D0034_AC_45_決定の記録D0034がちょうど1つある_守る():
+    """D0034-AC-45: docs/decisions/D0034-*.md がちょうど 1 つある。（テスト先行の前に骨組みを置いたので、そのときから通っていた。守る）"""
+    assert len(D0034_RECORDS) == 1, [p.name for p in D0034_RECORDS]
+
+
+def test_D0034_AC_45_目的か決めたことの節にD0023と残った課題が同じ文に書いてある():
+    """D0034-AC-45: 決定の記録 D0034 の「目的」か「決めたことと理由」の節に、D0023 を名指しして、その「残った課題」（拡張の不具合）をこの記録で扱ったと書いてある
+    （D0023 と「残った課題」が同じ文にある）。検証の段でメインが書き、緑になった。"""
+    md = d0034_record_text()
+    part = section(md, "目的") + "\n" + section(md, "決めたことと理由")
+    assert sentence_has(part, r"D0023", r"残った課題"), "「目的」「決めたことと理由」の節に、D0023 と「残った課題」が同じ文にある文が無い"
+
+
+@pytest.mark.parametrize("ac", [49, 53, 55, 56])
+def test_D0034_AC_45_確かめたことの節にACの結果の行がある(ac):
+    """D0034-AC-45: 決定の記録 D0034 の「確かめたこと」の節に、AC-49（原因の切り分け）・AC-53（外の work_dir の届き方）・AC-55・AC-56 の行がある。
+    AC-55・AC-56 の行には、流したか（流さなかったら「まだ」）が分かる言葉（「まだ」「結果」「流した」）がある。
+    AC-49 の行には原因の切り分けの結果（(a)(b)(c) のどれか、か「分からなかった」）、AC-53 の行には外の work_dir の届き方（state.json・logs・届・確かめていない のどれか）が、
+    題のあとの中身にある（題だけの行では通らない）。検証の段でメインが書き、緑になった。"""
+    part = section(d0034_record_text(), "確かめたこと")
+    found = [line for line in part.splitlines() if re.search(rf"AC-{ac}(?!\d)", line)]
+    assert found, f"「確かめたこと」の節に AC-{ac} の行が無い"
+    if ac in (55, 56):
+        assert any(re.search(r"まだ|結果|流した", line) for line in found), f"AC-{ac} の行に「まだ」「結果」「流した」のどれも無い：{found}"
+    if ac in FIRSTRUN_RESULT_WORDS:
+        assert any(firstrun_result_ok(line, ac) for line in found), f"AC-{ac} の行の題のあとに {FIRSTRUN_RESULT_WORDS[ac][1]} が無い：{found}"
+
+
+def test_D0034_AC_46_決定の記録の表にD0034の行が昇順の位置にある():
+    """D0034-AC-46: docs/decisions/README.md の表の番号が昇順で、D0034 の行があり、その前の行は D0034 より小さい番号のうちいちばん大きい番号である。
+    docs/decisions/ は文書係が書けないので、メインが決定の記録と一緒に足す（検証の段で緑になった）。"""
+    ids = table_decision_ids(read_doc(DECISIONS_README))
+    assert decision_table_problems(ids) == []
+
+
+def test_D0034_AC_46_D0034の行の題にwork_dirがまだ無いと最初の実行がある():
+    """D0034-AC-46: docs/decisions/README.md の D0034 の行の題に、「work_dir がまだ無い」と「最初の実行」が入っている。"""
+    md = read_doc(DECISIONS_README)
+    row = next((line for line in md.splitlines() if line.startswith(f"| [{FIRSTRUN_NEW_ID}]")), None)
+    assert row is not None, f"決定の記録の表に {FIRSTRUN_NEW_ID} の行が無い"
+    assert "work_dir がまだ無い" in row and "最初の実行" in row, f"{FIRSTRUN_NEW_ID} の行の題に「work_dir がまだ無い」「最初の実行」が無い：{row}"
+
+
+def test_D0034_AC_47_D0023は書き換えず残った課題の行が残っている_守る():
+    """D0034-AC-47: docs/decisions/D0023-readme-media.md は書き換えない：「残った課題」の拡張の不具合の行（「直すのは拡張のコードなので、別のイシューで扱う」）が残っている。
+    （今のまま通る。守る）"""
+    md = read_doc(ROOT / "docs" / "decisions" / "D0023-readme-media.md")
+    assert "直すのは拡張のコードなので、別のイシューで扱う" in md
+
+
+# ---- 検査そのもの（今のまま通る。守る） ----
+
+FIRSTRUN_GOOD_LINES = {
+    "late": "work_dir がまだ無くても、できたらパネルが進みます。遅れは最大で 3 秒ほどです。",
+    "no-watch": "無いあいだは見張りを張らず、stat を 1 回呼ぶだけで、work_dir は作りません。",
+    "keeps-checking": "有るあいだも確かめ続けます。pipe-in を使わないプロジェクトでも続きます。",
+    "attach-detach": "できたら見張りを張って読み直し、消えたら外してまた待ちます。",
+    "outside-deep": "ワークスペースの外にあっても、親が何段も無くても、同じ手順です。",
+    "limit-outside": "ワークスペースの外では、深い場所の変化が届くかは確かめていません。",
+}
+
+
+def firstrun_guide_sample(skip: str | None = None, heading: str = f"### {FIRSTRUN_LIST_TITLE}", after: str = "") -> str:
+    """vscode.md に見立てた偽の文書。「実行を見る」の中の「実行の一覧」の節に、探す言葉の文を並べる（skip の項目の文は書かない）。"""
+    body = "\n".join(line for sid, line in FIRSTRUN_GOOD_LINES.items() if sid != skip)
+    return f"## 実行を見る\n\n{heading}\n\n{body}\n{after}"
+
+
+def test_D0034_AC_40_検査そのものは見本の文がそろえば欠けなしにする_守る():
+    """D0034-AC-40: 検査そのもの。探す言葉がそろった偽の文書は、欠けなしにする。（今のまま通る。守る）"""
+    assert words_missing(firstrun_list_part(firstrun_guide_sample()), FIRSTRUN_GUIDE_WORDS) == []
+
+
+@pytest.mark.parametrize("sid", [sid for sid, _, _ in FIRSTRUN_GUIDE_WORDS])
+def test_D0034_AC_40_検査そのものは文が無い見本の欠けをその項目だけ見つける_守る(sid):
+    """D0034-AC-40: 検査そのもの。1 つの項目の文を消した偽の文書は、その項目だけを欠けとして見つける（ほかの項目の文で満たしたことにしない）。（今のまま通る。守る）"""
+    part = firstrun_list_part(firstrun_guide_sample(skip=sid))
+    assert words_missing(part, FIRSTRUN_GUIDE_WORDS) == [sid]
+
+
+def test_D0034_AC_40_検査そのものは節が無い見本の全項目を欠けとして見つけ_節の外の文を拾わない_守る():
+    """D0034-AC-40: 検査そのもの。「実行の一覧」の節が無い文書は空の節になり全項目が欠け。節の外（次の同じ深さの見出しのあと）に書いた文は拾わない。（今のまま通る。守る）"""
+    no_section = "## 実行を見る\n\n### 詳細\n\n" + "\n".join(FIRSTRUN_GOOD_LINES.values())
+    assert firstrun_list_part(no_section) == ""
+    assert words_missing(firstrun_list_part(no_section), FIRSTRUN_GUIDE_WORDS) == [sid for sid, _, _ in FIRSTRUN_GUIDE_WORDS]
+    outside = firstrun_guide_sample(skip="late", after="\n### 詳細\n\n" + FIRSTRUN_GOOD_LINES["late"])
+    assert words_missing(firstrun_list_part(outside), FIRSTRUN_GUIDE_WORDS) == ["late"]
+    other_section = "## パイプ作業台\n\n### 実行の一覧\n\n" + "\n".join(FIRSTRUN_GOOD_LINES.values())
+    assert firstrun_list_part(other_section) == "", "「実行を見る」の外の同じ名前の節は拾わない"
+
+
+@pytest.mark.parametrize(
+    "sid,sentence",
+    [
+        ("late", "work_dir を見ます。まだ無いときがあります。できたら進みます。3 秒です。"),
+        ("late", "work_dir がまだ無くても、できたらパネルが進みます。遅れは 13 秒ほどです。"),
+        ("no-watch", "無いあいだは見張りを張らず、state.json を読みます。work_dir は作りません。"),
+        ("outside-deep", "ワークスペースの外はこうです。親が何段も無い場合は別です。"),
+        ("limit-outside", "ワークスペースの外はこうです。深い場所の変化は届きます。"),
+        ("attach-detach", "消えたら止まります。外のことは別です。できたら張って読み直します。"),
+    ],
+)
+def test_D0034_AC_40_検査そのものは言葉が別の文に散らばった見本や名前の一部の語を満たしたことにしない_守る(sid, sentence):
+    """D0034-AC-40: 検査そのもの。同じ文の中に要る言葉が別の文に散らばっている・stat が state.json の一部・3 秒が 13 秒の一部、は満たしたことにしない。（今のまま通る。守る）"""
+    words = [w for w in FIRSTRUN_GUIDE_WORDS if w[0] == sid]
+    assert words_missing(sentence, words) == [sid]
+
+
+@pytest.mark.parametrize(
+    "md,want",
+    [
+        ("短い間に消して作り直したときは、変わり目として見えません。古い見張りが生きているかは確かめていません。", False),
+        ("短い間に消して作り直したときは、変わり目として見えません。古い見張りが生きているかは確かめていない。", False),
+        ("確かめの間隔より短い間に消して作り直したときは変わり目として見えず、古い見張りが生きているかは確かめていません。", True),
+        ("確かめの間隔より短い間に消して作り直したときは変わり目として見えず、古い見張りが生きているかは確かめていない。", True),
+        ("短い間に消して作り直したことは、確かめていません。", True),
+        ("短い間に消したことは、確かめていません。", False),
+        ("", False),
+    ],
+)
+def test_D0034_AC_29_検査そのものは同じ文に3つの言葉があるかを判断する_守る(md, want):
+    """D0034-AC-29: 検査そのもの。「短い間」「作り直」「確かめていない」（「確かめていません」も同じに数える）が同じ文にあるかを判断する
+    （別の文に分かれていれば満たさない。「作り直」が無ければ満たさない）。（今のまま通る。守る）"""
+    assert sentence_has(md, *SHORT_GAP_WORDS) is want
+
+
+@pytest.mark.parametrize(
+    "ids,problems",
+    [
+        (["D0030", "D0031", "D0034"], []),
+        (["D0030", "D0031", "D0032", "D0034", "D0035"], []),
+        (["D0030", "D0031"], ["D0034 の行が無い（今の行：['D0030', 'D0031']）"]),
+        (["D0030", "D0034", "D0031"], ["表の番号が昇順でない：['D0030', 'D0034', 'D0031']", "D0034 の前の行は D0031 にする（今は D0030）"]),
+        (["D0034", "D0030", "D0031"], ["表の番号が昇順でない：['D0034', 'D0030', 'D0031']", "D0034 の前の行は D0031 にする（今は None）"]),
+        (["D0030", "D0031", "D0032", "D0035", "D0034"], ["表の番号が昇順でない：['D0030', 'D0031', 'D0032', 'D0035', 'D0034']", "D0034 の前の行は D0032 にする（今は D0035）"]),
+    ],
+)
+def test_D0034_AC_46_検査そのものは表の並びの誤りを見つけ_正しい並びは見逃す_守る(ids, problems):
+    """D0034-AC-46: 検査そのもの。表の番号が昇順でない・D0034 の行が無い・前の行が D0034 より小さい番号の最大でない、を見つける。
+    D0032 が間にある並びも、無い並びも、正しければ通す。（今のまま通る。守る）"""
+    assert decision_table_problems(ids) == problems
+
+
+def test_D0034_AC_44_検査そのものは空のdocs_pipelineの文の直っていない点を見つける_守る():
+    """D0034-AC-44: 検査そのもの。古い言い方が残る・「以前は」「無くても」「害はない」が無い・文そのものが無い、を見つけ、直った文は見逃す。（今のまま通る。守る）"""
+    old = "- 空の `docs/pipeline/` も作っておく（拡張は起動したときに `docs/pipeline/` を見張り始めるので、無いと最初の実行がパネルに出ません）。"
+    new = "- 以前は、無いと最初の実行がパネルに出なかったので、空の `docs/pipeline/` も作っておいた。いまは無くても進む（作っておいても害はない）。"
+    assert assets_firstrun_problems(old) == ["「以前は」が無い", "「無くても」が無い", "「害はない」が無い", "古い言い方「無いと最初の実行がパネルに出ません」が残っている"]
+    assert assets_firstrun_problems(new) == []
+    assert assets_firstrun_problems(new + "\n" + old) == ["古い言い方「無いと最初の実行がパネルに出ません」が残っている"]
+    assert assets_firstrun_problems("撮り方の手順だけ") == ["空の `docs/pipeline/` の文が無い"]
+    assert assets_firstrun_problems("- 以前は必要だった。空の `docs/pipeline/` を作っておいた。") == ["「無くても」が無い", "「害はない」が無い"]
+
+
+@pytest.mark.parametrize(
+    "line,ac,want",
+    [
+        ("- AC-49（原因の切り分け）：(c) 再現しなかった。VSCode 1.9x・Linux・ローカル・デスクトップ版・別の worktree の行は無し", 49, True),
+        ("- AC-49（原因の切り分け）：（a）最初の変化だけ逃した", 49, True),
+        ("- AC-49（原因の切り分け）：分からなかった", 49, True),
+        ("- AC-49（原因の切り分け）：", 49, False),
+        ("- AC-49（原因の切り分け）", 49, False),
+        ("- AC-49（原因の切り分け）：再現した", 49, False),
+        ("- AC-53（外の work_dir の届き方）：state.json は 2 秒で届いた。logs だけの変化は届かなかった。パイプのフォルダは確かめていない", 53, True),
+        ("- AC-53（外の work_dir の届き方）：パイプのフォルダは確かめていない", 53, True),
+        ("- AC-53（外の work_dir の届き方）：logs は 5 秒かかった", 53, True),
+        ("- AC-53（外の work_dir の届き方）：", 53, False),
+        ("- AC-53（外の work_dir の届き方）", 53, False),
+        ("- AC-53（外の work_dir の届き方）：まだ", 53, False),
+        ("- AC-55：まだ", 55, True),
+    ],
+)
+def test_D0034_AC_45_検査そのものは題だけの行を結果のある行にしない_守る(line, ac, want):
+    """D0034-AC-45: 検査そのもの。「確かめたこと」の AC-49・53 の行は、題（「（外の work_dir の届き方）」の「届」も含む）のあとの中身に結果の言葉があるときだけ、
+    結果のある行にする。題だけの行・「：」のあとが空の行・結果の言葉が無い行は満たさない。（今のまま通る。守る）"""
+    assert firstrun_result_ok(line, ac) is want
 
 
 # ---- D0037-AC-14: パイプの警告の説明 ----

@@ -6,6 +6,7 @@ import type { Place } from '../app/runList.ts';
 import { MAIN } from '../domain/runs.ts';
 import { acceptWorktree, headLabel, isRegistryName, parseGitdirLine, samePath, workDirIn } from '../domain/worktrees.ts';
 import type { WorktreeFacts } from '../domain/worktrees.ts';
+import { dirPresence } from './fsPresence.ts';
 import { nodeReadOnlyFs } from './readOnlyFs.ts';
 import type { ReadOnlyFs } from './readOnlyFs.ts';
 
@@ -39,12 +40,9 @@ async function readSmall(fs: ReadOnlyFs, file: string): Promise<string | null> {
   }
 }
 
+/** フォルダとして実在するときだけ true。「分からない」（権限・EIO など）も、ここでは「無い」と同じに扱う（判定は fsPresence.ts の 1 か所） */
 async function isDirectory(fs: ReadOnlyFs, dir: string): Promise<boolean> {
-  try {
-    return (await fs.stat(dir)).isDirectory();
-  } catch {
-    return false;
-  }
+  return (await dirPresence(dir, { fs })) === 'present';
 }
 
 async function realOr(fs: ReadOnlyFs, p: string): Promise<string> {

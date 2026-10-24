@@ -1,4 +1,4 @@
-"""段の Bash による書き込みを、段の書き込み範囲で止める（D0035）。
+"""段の Bash による書き込みを、段の書き込み範囲で止める（D0036）。
 
 Write・Edit に掛けている can_write・write_scope_hint を、コマンドの文字列から読み取れる Bash の書き込み先にも掛ける。
 段の範囲は tmp_path に作ったパイプの段（pipe_in.pipe.specs.build_pipe_specs）と開発フローの実装の段（pipe_in.dev.specs.build_specs）で作り、
@@ -374,50 +374,50 @@ def _rows(ids):
 
 
 @_rows(["S01", "S02", "S03", "S04", "E13", "E14", "E15", "E16", "E17", "E43", "E46", "E47", "E48", "E49", "E50", "E96"])
-def test_d0035_ac01_リダイレクトの範囲外は止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-01: code の段のリダイレクト（> >> &> >| N> N>> >&ファイル <> &>>）の先が範囲外なら止まり、理由は「この段で書き込めるのは … だけです（… は対象外）」の形。"""
+def test_d0036_ac01_リダイレクトの範囲外は止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-01: code の段のリダイレクト（> >> &> >| N> N>> >&ファイル <> &>>）の先が範囲外なら止まり、理由は「この段で書き込めるのは … だけです（… は対象外）」の形。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["P09", "P10", "P11", "E74", "E95"])
-def test_d0035_ac02_範囲の中の書き込みは通る(tmp_path, kind, command, expect, via):
-    """D0035-AC-02: 範囲の中への書き込み（code の src・tests の段の tests・実装の段の 04_implementation.md）は通る。"""
+def test_d0036_ac02_範囲の中の書き込みは通る(tmp_path, kind, command, expect, via):
+    """D0036-AC-02: 範囲の中への書き込み（code の src・tests の段の tests・実装の段の 04_implementation.md）は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["P05", "P06", "P07", "P08", "E19", "E89", "E90", "E91", "E92"])
-def test_d0035_ac03_devnullとfdの付け替えは通る(tmp_path, kind, command, expect, via):
-    """D0035-AC-03: /dev/null への書き込みと fd の付け替え（2>&1・>&2・>&-）は、どの段でも通る。"""
+def test_d0036_ac03_devnullとfdの付け替えは通る(tmp_path, kind, command, expect, via):
+    """D0036-AC-03: /dev/null への書き込みと fd の付け替え（2>&1・>&2・>&-）は、どの段でも通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S06", "S07", "S08", "S09", "S10", "S11", "S12", "P29", "P30", "E08", "E09", "E20", "E21"])
-def test_d0035_ac04_tee_sed_perlの先を見る(tmp_path, kind, command, expect, via):
-    """D0035-AC-04: tee（-a）・sed -i（-i.bak・-ni・--in-place・-e）・perl -pi の先が範囲外なら止まる。-i なしの sed と範囲内は通る。"""
+def test_d0036_ac04_tee_sed_perlの先を見る(tmp_path, kind, command, expect, via):
+    """D0036-AC-04: tee（-a）・sed -i（-i.bak・-ni・--in-place・-e）・perl -pi の先が範囲外なら止まる。-i なしの sed と範囲内は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S13", "S14", "S15", "S16", "S17", "S18", "P32", "P33", "E05", "E06", "E07", "E10", "E12", "E97", "E98", "E99"])
-def test_d0035_ac05_cp_mv_ln_installの宛先を見る(tmp_path, kind, command, expect, via):
-    """D0035-AC-05: cp・mv・ln・install は宛先（-t・末尾 /・複数の元）が範囲外なら止まり、mv は元が範囲外でも止まる。一時の場所への cp と範囲内は通る。"""
+def test_d0036_ac05_cp_mv_ln_installの宛先を見る(tmp_path, kind, command, expect, via):
+    """D0036-AC-05: cp・mv・ln・install は宛先（-t・末尾 /・複数の元）が範囲外なら止まり、mv は元が範囲外でも止まる。一時の場所への cp と範囲内は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S19", "S20", "S21", "S22", "S23", "P12", "E01", "E02", "E03", "E04"])
-def test_d0035_ac06_touch_rm_truncate_dd_gitの先を見る(tmp_path, kind, command, expect, via):
-    """D0035-AC-06: touch・rm・unlink・rmdir・truncate・dd of=・git restore・git rm・git mv の先が範囲外なら止まる。実装の段の rm build/tmp.txt は通る。"""
+def test_d0036_ac06_touch_rm_truncate_dd_gitの先を見る(tmp_path, kind, command, expect, via):
+    """D0036-AC-06: touch・rm・unlink・rmdir・truncate・dd of=・git restore・git rm・git mv の先が範囲外なら止まる。実装の段の rm build/tmp.txt は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S24", "S25", "S26", "P42", "E11", "E67", "E68", "E69"])
-def test_d0035_ac07_find_xargsは先が読めないので止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-07: find 範囲外 -delete は止まり、find -exec 書き込みの形 {} と xargs rm は先が読めないので止まる。書き込みの形でない find -exec grep は通る。"""
+def test_d0036_ac07_find_xargsは先が読めないので止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-07: find 範囲外 -delete は止まり、find -exec 書き込みの形 {} と xargs rm は先が読めないので止まる。書き込みの形でない find -exec grep は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["P17", "P18", "E34", "E35", "E36", "E37", "E86"])
-def test_d0035_ac08_mkdirは中なら通り外と読めない先は止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-08: mkdir は、プロジェクトの外（一時の場所を除く）・読めない先のときだけ止め、中は通す（can_write は見ない）。"""
+def test_d0036_ac08_mkdirは中なら通り外と読めない先は止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-08: mkdir は、プロジェクトの外（一時の場所を除く）・読めない先のときだけ止め、中は通す（can_write は見ない）。"""
     _check(tmp_path, kind, command, expect, via)
 
 
@@ -425,14 +425,14 @@ def test_d0035_ac08_mkdirは中なら通り外と読めない先は止まる(tmp
 
 
 @_rows(["S27", "S28", "S29", "S30", "S32", "P26", "P27", "E22", "E23", "E24", "E25", "E26", "E27", "E28", "E32", "E33"])
-def test_d0035_ac09_python_node_のコードの書き込み(tmp_path, kind, command, expect, via):
-    """D0035-AC-09: python -c・node -e の中の書き込みの形（open の w・Path.write_text・os.remove・shutil.copy・fs.writeFileSync など）の先が範囲外なら止まる。範囲内と読み取りは通る。"""
+def test_d0036_ac09_python_node_のコードの書き込み(tmp_path, kind, command, expect, via):
+    """D0036-AC-09: python -c・node -e の中の書き込みの形（open の w・Path.write_text・os.remove・shutil.copy・fs.writeFileSync など）の先が範囲外なら止まる。範囲内と読み取りは通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S31", "P28", "E31"])
-def test_d0035_ac10_標準入力のコードもcと同じに見る(tmp_path, kind, command, expect, via):
-    """D0035-AC-10: python - <<'EOF' … EOF と python <<< '…' の標準入力のコードも -c と同じに見る。書き込みの形が無いコードは通る。"""
+def test_d0036_ac10_標準入力のコードもcと同じに見る(tmp_path, kind, command, expect, via):
+    """D0036-AC-10: python - <<'EOF' … EOF と python <<< '…' の標準入力のコードも -c と同じに見る。書き込みの形が無いコードは通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
@@ -440,14 +440,14 @@ def test_d0035_ac10_標準入力のコードもcと同じに見る(tmp_path, kin
 
 
 @_rows(["S34", "S35", "S36", "S37", "E18", "E39"])
-def test_d0035_ac11_プロジェクトの外は止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-11: プロジェクトの外（/etc・.. の先・~・/tmp/.. で一時の場所から出る先・tee /etc/x）は止まり、理由は「プロジェクトの外には書き込めません」。"""
+def test_d0036_ac11_プロジェクトの外は止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-11: プロジェクトの外（/etc・.. の先・~・/tmp/.. で一時の場所から出る先・tee /etc/x）は止まり、理由は「プロジェクトの外には書き込めません」。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac11_symlinkでプロジェクトの外を指す先は止まる(tmp_path, via):
-    """D0035-AC-11: プロジェクトの中の symlink が外（/etc）を指すとき、その下への書き込みは外として止まる。"""
+def test_d0036_ac11_symlinkでプロジェクトの外を指す先は止まる(tmp_path, via):
+    """D0036-AC-11: プロジェクトの中の symlink が外（/etc）を指すとき、その下への書き込みは外として止まる。"""
     cfg, spec = make_env(tmp_path, "code")
     (cfg.project_dir / "src" / "etclink").symlink_to("/etc")
     command = "echo x > src/etclink/hosts"
@@ -456,20 +456,20 @@ def test_d0035_ac11_symlinkでプロジェクトの外を指す先は止まる(t
 
 
 @_rows(["P14", "P15", "P16", "P17", "E37", "E38"])
-def test_d0035_ac12_一時の場所は通る(tmp_path, kind, command, expect, via):
-    """D0035-AC-12: 一時の場所（/tmp・$TMPDIR/…・${TMPDIR}/…）への書き込みは通る。"""
+def test_d0036_ac12_一時の場所は通る(tmp_path, kind, command, expect, via):
+    """D0036-AC-12: 一時の場所（/tmp・$TMPDIR/…・${TMPDIR}/…）への書き込みは通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S43", "E40", "E41"])
-def test_d0035_ac12_TMPDIRの書き換えは止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-12: 同じコマンドの中で TMPDIR・HOME に代入があるとき、$TMPDIR/…・~/… は読めない先として止まる。"""
+def test_d0036_ac12_TMPDIRの書き換えは止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-12: 同じコマンドの中で TMPDIR・HOME に代入があるとき、$TMPDIR/…・~/… は読めない先として止まる。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac12_前の呼び出しでTMPDIRを書き換えたら止まる(tmp_path, via):
-    """D0035-AC-12: 前の呼び出しで TMPDIR に代入があったら、あとの呼び出しの $TMPDIR/… は読めない先として止まる（覚えは BashState。ガードの経路）。"""
+def test_d0036_ac12_前の呼び出しでTMPDIRを書き換えたら止まる(tmp_path, via):
+    """D0036-AC-12: 前の呼び出しで TMPDIR に代入があったら、あとの呼び出しの $TMPDIR/… は読めない先として止まる（覚えは BashState。ガードの経路）。"""
     cfg, spec = make_env(tmp_path, "code")
     if via == "check_tool":
         from pipe_in.engine.bashwrite import BashState
@@ -493,8 +493,8 @@ def test_d0035_ac12_前の呼び出しでTMPDIRを書き換えたら止まる(tm
 
 
 @_rows(["S33", "S38", "S39", "S40", "S41", "S42", "E29", "E30"])
-def test_d0035_ac13_先が読めない書き込みは止まる(tmp_path, kind, command, expect, via):
-    """D0035-AC-13: 先が読み取れない書き込みの形（変数・$(…)・バッククォート・open(変数,'w')）は止まり、理由に「先を文字で書いてください」が入る。"""
+def test_d0036_ac13_先が読めない書き込みは止まる(tmp_path, kind, command, expect, via):
+    """D0036-AC-13: 先が読み取れない書き込みの形（変数・$(…)・バッククォート・open(変数,'w')）は止まり、理由に「先を文字で書いてください」が入る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
@@ -503,26 +503,26 @@ def test_d0035_ac13_先が読めない書き込みは止まる(tmp_path, kind, c
 
 @_rows(["S44", "S45", "S46", "S47", "S48", "S49", "S50", "P34", "P40", "E51", "E52", "E53", "E54", "E55", "E56", "E57", "E58",
         "E59", "E60", "E61", "E62", "E63", "E64", "E65", "E75", "E76", "E77", "E73"])
-def test_d0035_ac14_続くコマンドと入れ子を調べる(tmp_path, kind, command, expect, via):
-    """D0035-AC-14: ; && || | & 改行・( )・{ }・$(…)・バッククォート・<(…)・>(…)・bash -c・eval・env/timeout/nohup/time/nice/command/exec と VAR=値の接頭は、どこかに範囲外の書き込みがあれば止まる。範囲内だけなら通る。"""
+def test_d0036_ac14_続くコマンドと入れ子を調べる(tmp_path, kind, command, expect, via):
+    """D0036-AC-14: ; && || | & 改行・( )・{ }・$(…)・バッククォート・<(…)・>(…)・bash -c・eval・env/timeout/nohup/time/nice/command/exec と VAR=値の接頭は、どこかに範囲外の書き込みがあれば止まる。範囲内だけなら通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S05", "S58", "P19", "P20", "P21", "E70", "E71", "E72"])
-def test_d0035_ac15_引用符とヒアドキュメント(tmp_path, kind, command, expect, via):
-    """D0035-AC-15: 引用符の中の > とヒアドキュメントの本文は書き込みでない。cat > f <<EOF の f は数える。引用符なしの区切りの本文の $(…) は調べる。"""
+def test_d0036_ac15_引用符とヒアドキュメント(tmp_path, kind, command, expect, via):
+    """D0036-AC-15: 引用符の中の > とヒアドキュメントの本文は書き込みでない。cat > f <<EOF の f は数える。引用符なしの区切りの本文の $(…) は調べる。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S51", "S53", "P31", "E78", "E79", "E80", "E81", "E82"])
-def test_d0035_ac16_cdを追う(tmp_path, kind, command, expect, via):
-    """D0035-AC-16: cd tests && touch a.py は止まり、cd src && touch a.py は通る。cd $X・cd だけ・cd -・実在しない先・popd のあとの相対パスは止まる。"""
+def test_d0036_ac16_cdを追う(tmp_path, kind, command, expect, via):
+    """D0036-AC-16: cd tests && touch a.py は止まり、cd src && touch a.py は通る。cd $X・cd だけ・cd -・実在しない先・popd のあとの相対パスは止まる。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac16_呼び出しをまたぐcd(tmp_path, via):
-    """D0035-AC-16: cd tests を通したあとの別の呼び出しの touch a.py も止まる（作業フォルダが変わった可能性を残す）。cd src のあとの touch a.py は通る。"""
+def test_d0036_ac16_呼び出しをまたぐcd(tmp_path, via):
+    """D0036-AC-16: cd tests を通したあとの別の呼び出しの touch a.py も止まる（作業フォルダが変わった可能性を残す）。cd src のあとの touch a.py は通る。"""
     cfg, spec = make_env(tmp_path, "code")
     if via == "check_tool":
         from pipe_in.engine.bashwrite import BashState
@@ -545,8 +545,8 @@ def test_d0035_ac16_呼び出しをまたぐcd(tmp_path, via):
     assert reason is not None and SCOPE in reason, reason
 
 
-def test_d0035_ac16_cd_srcのあとの呼び出しは通る(tmp_path):
-    """D0035-AC-16: cd src を通したあとの touch a.py は、プロジェクトの直下でも src でも範囲内なので通る（止めすぎない）。"""
+def test_d0036_ac16_cd_srcのあとの呼び出しは通る(tmp_path):
+    """D0036-AC-16: cd src を通したあとの touch a.py は、プロジェクトの直下でも src でも範囲内なので通る（止めすぎない）。"""
     cfg, spec = make_env(tmp_path, "code")
     guard = make_guard(cfg, spec)
     assert hook_reason(guard, {"command": "cd src"}) is None
@@ -557,14 +557,14 @@ def test_d0035_ac16_cd_srcのあとの呼び出しは通る(tmp_path):
 
 
 @_rows(["S54", "S55", "E83", "E84"])
-def test_d0035_ac17_readの段は成果物だけ(tmp_path, kind, command, expect, via):
-    """D0035-AC-17: access = "read" の段は、自分の成果物への書き込みだけ通り、src への書き込み・cp・sed -i は止まる。"""
+def test_d0036_ac17_readの段は成果物だけ(tmp_path, kind, command, expect, via):
+    """D0036-AC-17: access = "read" の段は、自分の成果物への書き込みだけ通り、src への書き込み・cp・sed -i は止まる。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S56", "S57", "E85", "E87"])
-def test_d0035_ac18_writesとprotected_paths(tmp_path, kind, command, expect, via):
-    """D0035-AC-18: writes で絞った段は絞りの外を止め、protected_paths に当たる先は止める。絞りの中は通る。"""
+def test_d0036_ac18_writesとprotected_paths(tmp_path, kind, command, expect, via):
+    """D0036-AC-18: writes で絞った段は絞りの外を止め、protected_paths に当たる先は止める。絞りの中は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
@@ -572,26 +572,26 @@ def test_d0035_ac18_writesとprotected_paths(tmp_path, kind, command, expect, vi
 
 
 @_rows(["P01", "P02", "P03a", "P03b", "P04", "P13a", "P13b", "P36", "P37", "E93", "E94"])
-def test_d0035_ac19_今までのコマンドは止まらない(tmp_path, kind, command, expect, via):
-    """D0035-AC-19: 今までのコマンド（pytest・npm test・sh check.sh・git status・pip install・--junitxml・ls・> /dev/null 2>&1）は止まらない。今も通る（守り続けるための検査）。"""
+def test_d0036_ac19_今までのコマンドは止まらない(tmp_path, kind, command, expect, via):
+    """D0036-AC-19: 今までのコマンド（pytest・npm test・sh check.sh・git status・pip install・--junitxml・ls・> /dev/null 2>&1）は止まらない。今も通る（守り続けるための検査）。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["P22", "P23", "P24", "P25", "P35", "P38", "P39a", "P39b", "E66"])
-def test_d0035_ac20_見分けられない形は通る(tmp_path, kind, command, expect, via):
-    """D0035-AC-20: 見分けられない形（python build.py・make・./gen.sh・パイプで渡すコード・git apply・tar xf・eval "$x"）は止めない。今も通る（すり抜けの道として残す検査）。"""
+def test_d0036_ac20_見分けられない形は通る(tmp_path, kind, command, expect, via):
+    """D0036-AC-20: 見分けられない形（python build.py・make・./gen.sh・パイプで渡すコード・git apply・tar xf・eval "$x"）は止めない。今も通る（すり抜けの道として残す検査）。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["S60", "E88"])
-def test_d0035_ac21_危ないコマンドの判定が先に効く(tmp_path, kind, command, expect, via):
-    """D0035-AC-21: git push > /dev/null・rm -rf tests > /dev/null は、書き込み先が範囲内でも今までの理由で止まる。今も止まる（順番を守る検査）。"""
+def test_d0036_ac21_危ないコマンドの判定が先に効く(tmp_path, kind, command, expect, via):
+    """D0036-AC-21: git push > /dev/null・rm -rf tests > /dev/null は、書き込み先が範囲内でも今までの理由で止まる。今も止まる（順番を守る検査）。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac21_allow_bashがfalseの段はBashを使えない(tmp_path, via):
-    """D0035-AC-21: allow_bash = false の段の Bash は「この段では Bash を使えません」のまま。今も止まる。"""
+def test_d0036_ac21_allow_bashがfalseの段はBashを使えない(tmp_path, via):
+    """D0036-AC-21: allow_bash = false の段の Bash は「この段では Bash を使えません」のまま。今も止まる。"""
     reason = reason_of(tmp_path, "nobash", {"command": "echo x > src/a.py"}, via)
     assert reason is not None and NOBASH in reason, reason
 
@@ -620,15 +620,15 @@ def _deep(n: int) -> str:
     ],
     ids=["引用符1", "引用符2", "dollar-paren", "backtick", "深さ6", "深さ7", "None", "空の配列", "辞書", "数"],
 )
-def test_d0035_ac22_読めない入力は落ちずに止まる(tmp_path, command, via):
-    """D0035-AC-22: 引用符・$( が閉じない・入れ子が 5 段を超える・command が文字でない（None・[]・辞書・数）は、落ちずに理由を返して止まる。"""
+def test_d0036_ac22_読めない入力は落ちずに止まる(tmp_path, command, via):
+    """D0036-AC-22: 引用符・$( が閉じない・入れ子が 5 段を超える・command が文字でない（None・[]・辞書・数）は、落ちずに理由を返して止まる。"""
     reason = reason_of(tmp_path, "code", {"command": command}, via)
     assert isinstance(reason, str) and reason, f"止まるはずが通った: {reason!r}"
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac22_入れ子が5段なら読める(tmp_path, via):
-    """D0035-AC-22: 入れ子が 5 段までなら読んで判定する（範囲内だけなので通る）。今も通る（上限の境目を守る検査）。"""
+def test_d0036_ac22_入れ子が5段なら読める(tmp_path, via):
+    """D0036-AC-22: 入れ子が 5 段までなら読んで判定する（範囲内だけなので通る）。今も通る（上限の境目を守る検査）。"""
     command = "echo x > src/a.py"
     for _ in range(5):
         command = "bash -c " + shlex.quote(command)
@@ -636,16 +636,16 @@ def test_d0035_ac22_入れ子が5段なら読める(tmp_path, via):
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac22_空のコマンドは今までどおり通る(tmp_path, via):
-    """D0035-AC-22: 空のコマンド（""）は今までどおり通る。今も通る。"""
+def test_d0036_ac22_空のコマンドは今までどおり通る(tmp_path, via):
+    """D0036-AC-22: 空のコマンド（""）は今までどおり通る。今も通る。"""
     assert reason_of(tmp_path, "code", {"command": ""}, via) is None
 
 
 # ---- AC-23・AC-24 ----------------------------------------------------------------
 
 
-def test_d0035_ac23_denialsに残る(tmp_path):
-    """D0035-AC-23: 止めた Bash は、ほかの止めた操作と同じく on_deny に（runner が StageRun.denials に "Bash: <理由>" と残す形で）渡り、通したものは渡らない。"""
+def test_d0036_ac23_denialsに残る(tmp_path):
+    """D0036-AC-23: 止めた Bash は、ほかの止めた操作と同じく on_deny に（runner が StageRun.denials に "Bash: <理由>" と残す形で）渡り、通したものは渡らない。"""
     cfg, spec = make_env(tmp_path, "code")
     denied: list[str] = []
     guard = make_guard(cfg, spec, denied)
@@ -660,8 +660,8 @@ def test_d0035_ac23_denialsに残る(tmp_path):
 @pytest.mark.parametrize(
     "rid", ["S01", "S11", "S34", "S35", "S36", "S37", "S38", "S44", "S51"]
 )
-def test_d0035_ac24_本物のガードの経路(tmp_path, rid):
-    """D0035-AC-24: make_guard_hook が作るガードを通る本物の経路でも、AC-01・AC-11・AC-16 の止める例が止まり、理由の文は check_tool と同じ。"""
+def test_d0036_ac24_本物のガードの経路(tmp_path, rid):
+    """D0036-AC-24: make_guard_hook が作るガードを通る本物の経路でも、AC-01・AC-11・AC-16 の止める例が止まり、理由の文は check_tool と同じ。"""
     kinds, command, expect = ROWS[rid]
     for kind in kinds:
         cfg, spec = make_env(tmp_path / kind, kind)
@@ -675,8 +675,8 @@ def test_d0035_ac24_本物のガードの経路(tmp_path, rid):
         assert denied == [f"Bash: {via_hook}"]
 
 
-def test_d0035_ac24_ガードごとに覚えを分ける(tmp_path):
-    """D0035-AC-24: 2つのガードは作業フォルダの覚えを分け合わない。片方で cd tests を通しても、もう片方の touch a.py は（直下で）通る。"""
+def test_d0036_ac24_ガードごとに覚えを分ける(tmp_path):
+    """D0036-AC-24: 2つのガードは作業フォルダの覚えを分け合わない。片方で cd tests を通しても、もう片方の touch a.py は（直下で）通る。"""
     cfg, spec = make_env(tmp_path, "code")
     a = make_guard(cfg, spec)
     b = make_guard(cfg, spec)
@@ -686,8 +686,8 @@ def test_d0035_ac24_ガードごとに覚えを分ける(tmp_path):
     assert reason is not None and SCOPE in reason, "a は自分の cd を覚えている"
 
 
-def test_d0035_ac24_bash_stateなしのcheck_toolは覚えない(tmp_path):
-    """D0035-AC-24: check_tool を bash_state なしで呼ぶときは、cd を覚えない（毎回プロジェクトの直下から判定する）。cd tests のあとの touch a.py も通る。"""
+def test_d0036_ac24_bash_stateなしのcheck_toolは覚えない(tmp_path):
+    """D0036-AC-24: check_tool を bash_state なしで呼ぶときは、cd を覚えない（毎回プロジェクトの直下から判定する）。cd tests のあとの touch a.py も通る。"""
     cfg, spec = make_env(tmp_path, "code")
     assert tool_reason(cfg, spec, {"command": "cd tests"}) is None
     assert tool_reason(cfg, spec, {"command": "touch a.py"}) is None
@@ -704,8 +704,8 @@ def test_d0035_ac24_bash_stateなしのcheck_toolは覚えない(tmp_path):
     )
 
 
-def test_d0035_ac24_Bash以外のツールは今までどおり(tmp_path):
-    """D0035-AC-24: Write・Edit の判定は変わらない（範囲内は通り、範囲外は止まる）。今も同じ。"""
+def test_d0036_ac24_Bash以外のツールは今までどおり(tmp_path):
+    """D0036-AC-24: Write・Edit の判定は変わらない（範囲内は通り、範囲外は止まる）。今も同じ。"""
     cfg, spec = make_env(tmp_path, "code")
     ok = check_tool("Write", {"file_path": "src/a.py"}, project_dir=cfg.project_dir, can_write=spec.can_write, allow_bash=True,
                     write_scope_hint=spec.write_scope_hint, allowed_tools=spec.allowed_tools)
@@ -718,26 +718,26 @@ def test_d0035_ac24_Bash以外のツールは今までどおり(tmp_path):
 
 
 @_rows(["F01", "F02"])
-def test_d0035_ac28_tee_output_errorは等号つきのときだけ値を持つ(tmp_path, kind, command, expect, via):
-    """D0035-AC-28: tee --output-error tests/a.py は、--output-error が値を取らないので tests/a.py を先として止める。--output-error=warn tests/a.py も止まる。"""
+def test_d0036_ac28_tee_output_errorは等号つきのときだけ値を持つ(tmp_path, kind, command, expect, via):
+    """D0036-AC-28: tee --output-error tests/a.py は、--output-error が値を取らないので tests/a.py を先として止める。--output-error=warn tests/a.py も止まる。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["F03", "F04", "F05", "F06"])
-def test_d0035_ac29_フォルダの元と先は下の両方で判定する(tmp_path, kind, command, expect, via):
-    """D0035-AC-29: mv tests x・mv tests/ /tmp/x・rmdir tests は、フォルダそのものとその下の両方を調べて止まる。mv src/a.py src/b.py は通る。"""
+def test_d0036_ac29_フォルダの元と先は下の両方で判定する(tmp_path, kind, command, expect, via):
+    """D0036-AC-29: mv tests x・mv tests/ /tmp/x・rmdir tests は、フォルダそのものとその下の両方を調べて止まる。mv src/a.py src/b.py は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["G01", "G02", "G03", "G04", "G05", "G06", "G07"])
-def test_d0035_ac30_globと_pathspecは読めない先として止める(tmp_path, kind, command, expect, via):
-    """D0035-AC-30: 最後の部品に glob（* ? [）を含む先と、git の : で始まる pathspec は読めない先として止まる。tmp の下の glob と rm src/a.py は通る。"""
+def test_d0036_ac30_globと_pathspecは読めない先として止める(tmp_path, kind, command, expect, via):
+    """D0036-AC-30: 最後の部品に glob（* ? [）を含む先と、git の : で始まる pathspec は読めない先として止まる。tmp の下の glob と rm src/a.py は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
 @_rows(["H01", "H02", "H03", "H04"])
-def test_d0035_ac31_node_evalとPath_openの形(tmp_path, kind, command, expect, via):
-    """D0035-AC-31: node --eval=… と Path(…).open('w') の範囲外は止まる。open() と open('r') は通る。"""
+def test_d0036_ac31_node_evalとPath_openの形(tmp_path, kind, command, expect, via):
+    """D0036-AC-31: node --eval=… と Path(…).open('w') の範囲外は止まる。open() と open('r') は通る。"""
     _check(tmp_path, kind, command, expect, via)
 
 
@@ -778,8 +778,8 @@ def _reason_in(cfg, spec, command: str, via: str):
 
 @pytest.mark.parametrize("via", VIAS)
 @pytest.mark.parametrize("command", ROOT_COMMANDS)
-def test_d0035_ac32_根を指すフォルダ操作は範囲外のファイルがあれば止まる_code(tmp_path, command, via):
-    """D0035-AC-32: 根を指すフォルダ操作は、下に tests/test_a.py がある code の段では止まる。"""
+def test_d0036_ac32_根を指すフォルダ操作は範囲外のファイルがあれば止まる_code(tmp_path, command, via):
+    """D0036-AC-32: 根を指すフォルダ操作は、下に tests/test_a.py がある code の段では止まる。"""
     cfg, spec = _env_with_files(tmp_path, "code", ["src/a.py", "tests/test_a.py"])
     reason = _reason_in(cfg, spec, command, via)
     assert reason is not None and SCOPE in reason, f"`{command}` は止まるはずが通った: {reason}"
@@ -787,16 +787,16 @@ def test_d0035_ac32_根を指すフォルダ操作は範囲外のファイルが
 
 @pytest.mark.parametrize("via", VIAS)
 @pytest.mark.parametrize("command", ROOT_COMMANDS)
-def test_d0035_ac32_根を指すフォルダ操作は範囲外のファイルが無ければ通る(tmp_path, command, via):
-    """D0035-AC-32: 根を指すフォルダ操作は、tests フォルダにファイルが無い（src の中だけ）code の段では通る。今も通る（止めすぎない検査）。"""
+def test_d0036_ac32_根を指すフォルダ操作は範囲外のファイルが無ければ通る(tmp_path, command, via):
+    """D0036-AC-32: 根を指すフォルダ操作は、tests フォルダにファイルが無い（src の中だけ）code の段では通る。今も通る（止めすぎない検査）。"""
     cfg, spec = _env_clean(tmp_path, "code", ["src/a.py"])
     reason = _reason_in(cfg, spec, command, via)
     assert reason is None, f"`{command}` は通るはずが止まった: {reason}"
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac32_パイプのフォルダがあればcodeの段のfind_deleteは止まる(tmp_path, via):
-    """D0035-AC-32: pipes/…/pipe.toml（code の段では書けないパイプのフォルダ）が下にあれば、find . -delete は止まる。"""
+def test_d0036_ac32_パイプのフォルダがあればcodeの段のfind_deleteは止まる(tmp_path, via):
+    """D0036-AC-32: pipes/…/pipe.toml（code の段では書けないパイプのフォルダ）が下にあれば、find . -delete は止まる。"""
     cfg, spec = _env_with_files(tmp_path, "code", ["src/a.py"])
     assert (cfg.project_dir / "pipes" / "pipe-in-p" / "pipe.toml").exists()
     reason = _reason_in(cfg, spec, "find . -delete", via)
@@ -805,32 +805,32 @@ def test_d0035_ac32_パイプのフォルダがあればcodeの段のfind_delete
 
 @pytest.mark.parametrize("via", VIAS)
 @pytest.mark.parametrize("command", ROOT_COMMANDS)
-def test_d0035_ac32_testsの段ではsrcがあるので止まる(tmp_path, command, via):
-    """D0035-AC-32: 根を指すフォルダ操作は、tests の段（テストだけ書ける）では src/a.py があるので止まる。"""
+def test_d0036_ac32_testsの段ではsrcがあるので止まる(tmp_path, command, via):
+    """D0036-AC-32: 根を指すフォルダ操作は、tests の段（テストだけ書ける）では src/a.py があるので止まる。"""
     cfg, spec = _env_with_files(tmp_path, "tests", ["src/a.py", "tests/test_a.py"])
     reason = _reason_in(cfg, spec, command, via)
     assert reason is not None and SCOPE in reason, f"`{command}` は止まるはずが通った: {reason}"
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac32_git_rm_rは今までの理由で止まる(tmp_path, via):
-    """D0035-AC-32: git rm -r . は再帰的な削除として今までの理由で止まる（今も止まる。順番を守る検査）。"""
+def test_d0036_ac32_git_rm_rは今までの理由で止まる(tmp_path, via):
+    """D0036-AC-32: git rm -r . は再帰的な削除として今までの理由で止まる（今も止まる。順番を守る検査）。"""
     cfg, spec = _env_with_files(tmp_path, "code", ["src/a.py"])
     reason = _reason_in(cfg, spec, "git rm -r .", via)
     assert reason is not None and "再帰的な削除は禁止です" in reason, reason
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac32_gitの中は見ない(tmp_path, via):
-    """D0035-AC-32: .git の中のファイルは見ない。tests にファイルが無く .git の中だけにあるなら通る。"""
+def test_d0036_ac32_gitの中は見ない(tmp_path, via):
+    """D0036-AC-32: .git の中のファイルは見ない。tests にファイルが無く .git の中だけにあるなら通る。"""
     cfg, spec = _env_clean(tmp_path, "code", ["src/a.py", ".git/objects/tests/x"])
     reason = _reason_in(cfg, spec, "find . -delete", via)
     assert reason is None, reason
 
 
 @pytest.mark.parametrize("via", VIAS)
-def test_d0035_ac32_見るファイルが上限を超えたら止める(tmp_path, via):
-    """D0035-AC-32: 見るファイルの数が上限（5000）を超えたら、全部が範囲内でも安全側に倒して止める。"""
+def test_d0036_ac32_見るファイルが上限を超えたら止める(tmp_path, via):
+    """D0036-AC-32: 見るファイルの数が上限（5000）を超えたら、全部が範囲内でも安全側に倒して止める。"""
     cfg, spec = _env_with_files(tmp_path, "code", [f"src/f{i}.txt" for i in range(5001)])
     reason = _reason_in(cfg, spec, "find . -delete", via)
     assert reason is not None, "上限を超えたのに通った"
@@ -839,8 +839,8 @@ def test_d0035_ac32_見るファイルが上限を超えたら止める(tmp_path
 # ---- AC-27 ----------------------------------------------------------------------
 
 
-def test_d0035_ac27_記録と設定は変わらない():
-    """D0035-AC-27: StageSpec と Config に新しい項目を足さない（記録・pipeline.toml・pipe.toml の形が変わらない）。今も同じ（守り続けるための検査）。"""
+def test_d0036_ac27_記録と設定は変わらない():
+    """D0036-AC-27: StageSpec と Config に新しい項目を足さない（記録・pipeline.toml・pipe.toml の形が変わらない）。今も同じ（守り続けるための検査）。"""
     from pipe_in.engine.config import Config
     from pipe_in.engine.spec import StageSpec
 
