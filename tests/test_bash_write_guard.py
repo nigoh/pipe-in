@@ -343,6 +343,16 @@ ROWS: dict[str, tuple] = {
     "H02": (CODE, """python3 -c "from pathlib import Path; Path('tests/a.py').open('w')\"""", (SCOPE,)),
     "H03": (CODE, """python3 -c "from pathlib import Path; Path('src/a.py').open()\"""", None),
     "H04": (CODE, """python3 -c "from pathlib import Path; Path('tests/a.py').open('r')\"""", None),
+    # D0036-AC-33：Path でない受け手の .open(ファイル名) は、最初の引数がモードの形でなければファイル名として読む
+    "J01": (CODE, """python3 -c "from PIL import Image; Image.open('out/a.png')\"""", None),
+    "J02": (CODE, """python3 -c "from PIL import Image; Image.open('tests/a.png').size\"""", None),
+    "J03": (CODE, """python3 -c "import tarfile; t = tarfile.TarFile; t.open('a.tar')\"""", None),
+    "J04": (CODE, """python3 -c "x.open('tests/a.py', 'w')\"""", (SCOPE, "（tests/a.py は対象外）")),
+    "J05": (CODE, """python3 -c "x.open('tests/a.py', mode='a')\"""", (SCOPE, "（tests/a.py は対象外）")),
+    "J06": (CODE, """python3 -c "p.open('w')\"""", (UNREAD,)),
+    "J07": (CODE, """python3 -c "p.open('wb')\"""", (UNREAD,)),
+    "J08": (CODE, """python3 -c "p.open(m)\"""", (UNREAD,)),
+    "J09": (CODE, """python3 -c "x.open('a.png', m)\"""", (UNREAD,)),
 }
 
 
@@ -853,3 +863,15 @@ def test_d0036_ac27_記録と設定は変わらない():
         "project_dir", "work_dir", "max_retries", "test_command", "test_timeout_sec", "auto_approve", "pause_for_review",
         "extra_test_globs", "stages", "domain_dir", "setting_sources", "protected_paths", "pipe", "max_buffer_mb",
     ]
+
+
+# ---- AC-33（直し：読むだけの .open を止めない） ------------------------------------
+
+
+@_rows(["J01", "J02", "J03", "J04", "J05", "J06", "J07", "J08", "J09"])
+def test_d0036_ac33_Pathでないopenの最初の引数がファイル名なら読み取り(tmp_path, kind, command, expect, via):
+    """D0036-AC-33: `Image.open('a.png')` のように、Path でない受け手の .open の最初の引数がモードの形（r・w・a・x・b・t・+ だけ）で
+    なければファイル名とみなし、モードは 2 つ目の引数か mode= で読む（組み込みの open と同じ）。書き込みのモードなら先を判定し、
+    最初の引数がモードの形（'w'・'wb'）か、モードが読めないときは、今までどおり止める。"""
+    _check(tmp_path, kind, command, expect, via)
+
