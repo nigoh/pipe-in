@@ -1892,3 +1892,20 @@ def test_D0032_AC_29_決定の記録に残す言葉がある(label, word):
     text = records[0].read_text(encoding="utf-8")
     found = word in text  # 記録の本文を assert の失敗の表示に出さない
     assert found, f"{records[0].name} に、{label} が無い（探した言葉：{word}）"
+
+
+# ---- D0033-AC-08: 古い版で上限を超えて落ちたときの説明 ----
+
+
+def test_D0033_AC_08_設定のガイドに古い版で落ちたときの入れ直しの説明がある():
+    """D0033-AC-08: docs/guide/config.md の max_buffer_mb の表の行より後ろ・「段の名前は」より前に、
+    maximum buffer size of 1048576 bytes で落ちたときは入れ直す、という説明（1048576 と「入れ直」の語）がある。"""
+    md = read_doc(GUIDE / "config.md")
+    lines = md.splitlines()
+    row = next((i for i, line in enumerate(lines) if line.startswith("| `max_buffer_mb`")), None)
+    assert row is not None, "config.md に max_buffer_mb の表の行が無い"
+    end = next((i for i in range(row + 1, len(lines)) if lines[i].startswith("段の名前は")), None)
+    assert end is not None, "config.md の max_buffer_mb の行のあとに「段の名前は」の段落が無い"
+    part = "\n".join(lines[row + 1:end])
+    assert "1048576" in part, f"max_buffer_mb の行と「段の名前は」のあいだに 1048576 が無い:\n{part}"
+    assert "入れ直" in part, f"max_buffer_mb の行と「段の名前は」のあいだに「入れ直」が無い:\n{part}"
