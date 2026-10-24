@@ -32,7 +32,7 @@ DANGEROUS_BASH: list[tuple[str, str]] = [
     (r"\bchmod\s+-R\b|\bchown\b", "権限の一括変更は禁止です"),
 ]
 
-# サブエージェントを任せる道具（D0034）。段の1回の実行で通すのは、合わせて max_agent_calls 回まで。
+# サブエージェントを任せる道具（D0035）。段の1回の実行で通すのは、合わせて max_agent_calls 回まで。
 AGENT_TOOLS = frozenset({"Agent", "Task"})
 DEFAULT_MAX_AGENT_CALLS = 20
 # 裏で動かす形の印。段は応答が終わると裏の作業の結果を待てないので、Agent・Task・Bash では止める。
