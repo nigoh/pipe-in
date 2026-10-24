@@ -19,7 +19,7 @@ a{color:#ffb020}a:hover{color:#ffc95c}
     <div style="display: flex; flex-direction: column; gap: 6px;">
       <span style="font-family: 'Martian Mono', monospace; font-size: 12px; color: #a3a39c;">案3 · SIGNAL</span>
       <h1 style="margin: 0; font-size: 52px; font-weight: 800;">信号</h1>
-      <p style="margin: 0; font-size: 16px; color: #c8c8c2; max-width: 720px;">地は無彩の墨色にして、色は状態を伝えるためだけに使います。目印の色は琥珀1色。作業中・あなた待ち・失敗・完了が、遠くからでも色と形で分かる「見張りの画面」です。</p>
+      <p style="margin: 0; font-size: 16px; color: #c8c8c2; max-width: 720px;">地は無彩の墨色にして、色は状態を伝えるためだけに使います。目印の色は琥珀1色。作業中・待ち・失敗・完了が、遠くからでも色と形で分かる「見張りの画面」です。</p>
     </div>
     <div style="display: flex; gap: 10px; align-items: center;" aria-hidden="true">
       <span style="width: 22px; height: 22px; border-radius: 50%; background: #6fa3ff;"></span>
@@ -54,7 +54,7 @@ a{color:#ffb020}a:hover{color:#ffc95c}
     <div style="background: #0f0f0f; border: 1px solid #34342f; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
       <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
         <strong style="font-size: 14px;">いま動いているセッション</strong>
-        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ あなた待ち 1</span>
+        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ 待ち 1</span>
         <span style="padding: 1px 9px; border-radius: 4px; border: 1px solid #6fa3ff; color: #9cc0ff; font-weight: 700;">● 作業中 2</span>
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
@@ -69,7 +69,7 @@ a{color:#ffb020}a:hover{color:#ffc95c}
           <span style="font-size: 12px; font-weight: 700; color: #a3a39c;">進行中 · 1</span>
           <div style="background: #232322; border: 1px solid #ffb020; box-shadow: 0 0 0 3px rgba(255,176,32,.18); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
             <span style="font-size: 13px; font-weight: 500;">計画ボード /pipe-plan</span>
-            <span style="font-size: 11px; color: #ffb020; font-weight: 700;">▲ あなた待ち：PR を見てください</span>
+            <span style="font-size: 11px; color: #ffb020; font-weight: 700;">▲ 待ち：PR を見てください</span>
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ a{color:#ffb020}a:hover{color:#ffc95c}
     <div style="background: #f4f4f2; border: 1px solid #dadad6; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px; color: #1c1c1a;">
       <div style="display: flex; gap: 8px; align-items: center; font-size: 12px;">
         <strong style="font-size: 14px;">いま動いているセッション</strong>
-        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ あなた待ち 1</span>
+        <span style="padding: 1px 9px; border-radius: 4px; background: #ffb020; color: #1a1300; font-weight: 800;">▲ 待ち 1</span>
         <span style="padding: 1px 9px; border-radius: 4px; border: 1px solid #2f6fd6; color: #2458b0; font-weight: 700;">● 作業中 2</span>
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
@@ -93,7 +93,7 @@ a{color:#ffb020}a:hover{color:#ffc95c}
           <span style="font-size: 12px; font-weight: 700; color: #62625e;">進行中 · 1</span>
           <div style="background: #ffffff; border: 1px solid #c98600; box-shadow: 0 0 0 3px rgba(255,176,32,.25); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
             <span style="font-size: 13px; font-weight: 500;">計画ボード /pipe-plan</span>
-            <span style="font-size: 11px; color: #8a5200; font-weight: 700;">▲ あなた待ち：PR を見てください</span>
+            <span style="font-size: 11px; color: #8a5200; font-weight: 700;">▲ 待ち：PR を見てください</span>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@ class Component extends DCLogic {
         { name: "線", d: "#34342f", l: "#dadad6" },
         { name: "文字", d: "#ededE8", l: "#1c1c1a" },
         { name: "控えめな文字", d: "#a3a39c", l: "#62625e" },
-        { name: "あなた待ち（琥珀）", d: "#ffb020", l: "#8a5200" },
+        { name: "待ち（琥珀）", d: "#ffb020", l: "#8a5200" },
         { name: "作業中", d: "#6fa3ff", l: "#2458b0" },
         { name: "失敗", d: "#ff6b5e", l: "#b3261e" },
         { name: "完了", d: "#5fd38d", l: "#1d7a46" },

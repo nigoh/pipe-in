@@ -310,7 +310,7 @@ dialog input[type="text"], dialog select { width: 100%; }
   const PRIOS = [{ id: "", name: "—" }, { id: "high", name: "高" }, { id: "mid", name: "中" }, { id: "low", name: "低" }];
   // セッションの状態（status_bucket）を、見る人の言葉に直す。並びは気にしてほしい順。
   const BUCKETS = {
-    BLOCKED: { cls: "b-blocked", name: "あなた待ち", rank: 0 },
+    BLOCKED: { cls: "b-blocked", name: "待ち", rank: 0 },
     WORKING: { cls: "b-working", name: "作業中", rank: 1 },
     REVIEW_READY: { cls: "b-review", name: "見てほしい", rank: 2 },
     FAILED: { cls: "b-failed", name: "失敗", rank: 3 },
