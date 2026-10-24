@@ -339,3 +339,16 @@ def test_d0035_ac26_bashwriteは標準ライブラリだけ():
     path = ROOT / "pipe_in" / "engine" / "bashwrite.py"
     assert path.is_file(), "pipe_in/engine/bashwrite.py がまだ無い"
     assert _outside_stdlib(path, "pipe_in.engine.bashwrite") == []
+
+
+def test_pipe_lint_imports_only_definition():
+    """D0037-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition のほかを読まない（pipe_in_generator も engine も読まない）。"""
+    import sys
+
+    path = ROOT / "pipe_in" / "pipe" / "lint.py"
+    assert path.is_file(), "pipe_in/pipe/lint.py がありません（新しい部品をまだ作っていない）"
+    targets = {t for t in _imports(path, "pipe_in.pipe.lint") if t}
+    outside = sorted(
+        t for t in targets if t.split(".")[0] not in sys.stdlib_module_names and t.split(".")[0] != "__future__" and not (t == "pipe_in.pipe.definition" or t.startswith("pipe_in.pipe.definition."))
+    )
+    assert outside == []

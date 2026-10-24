@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugin"
 
@@ -430,3 +432,58 @@ def test_pipe_craft_is_gone():
             if "/pipe-craft" in p.read_text(encoding="utf-8", errors="ignore"):
                 found.append(p.relative_to(ROOT).as_posix())
     assert found == []
+
+
+# ---- D0037-AC-13: パイプを作るときの教訓 -------------------------------------------------------------
+
+
+def skill_section(heading_word: str) -> str:
+    """pipe-build のスキルの「## …」の節（見出しに heading_word を含むもの）の本文。無ければ空。"""
+    _, body = frontmatter(PLUGIN / "skills/pipe-build/SKILL.md")
+    out: list[str] = []
+    inside = False
+    for line in body.splitlines():
+        if line.startswith("## "):
+            if inside:
+                break
+            inside = heading_word in line
+        if inside:
+            out.append(line)
+    return "\n".join(out)
+
+
+# （pytest の id, 何を書くか, 探す言葉）。分かったこと 1〜5 は「段の決め方」、6 は「流すとき」
+D0037_DECIDING_WORDS = [
+    ("docs-for-scratch", "1：置き場所が要る段は access = \"docs\"（read で bash でも書けない）", 'access = "docs"'),
+    ("docs-dir", "1：docs_dir を書く", "docs_dir"),
+    ("agents-wait", "2：agents のある段は全部返ってから成果物を書く", "全部返"),
+    ("tests-bash", "3：access = \"tests\" の段は bash = true であとの段と同じ検査を流す", 'access = "tests"'),
+    ("check-command", "3：あとの段の check.command", "check.command"),
+    ("code-no-rewrite", "4：access = \"code\" の段の指示文にテストを Bash でも書き換えないと書く", 'access = "code"'),
+    ("rewrite", "4：書き換えない", "書き換え"),
+    ("on-fail", "5：on_fail は直せる段にする", "on_fail"),
+]
+D0037_RUNNING_WORDS = [
+    ("max-turns", "6：長い段は max_turns を足りるだけ", "max_turns"),
+    ("setting-sources", "6：setting_sources を絞る", "setting_sources"),
+]
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0037_DECIDING_WORDS], ids=[i for i, _, _ in D0037_DECIDING_WORDS])
+def test_pipe_build_skill_has_lessons(label, word):
+    """D0037-AC-13: スキル pipe-build の「段の決め方」に、分かったこと 1〜5 の要点（言葉の目印）が入っている。"""
+    part = skill_section("段の決め方")
+    assert part, "スキルに「段の決め方」の節が無い"
+    found = word in part  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"「段の決め方」に、{label} が無い（探した言葉：{word}）"
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0037_RUNNING_WORDS], ids=[i for i, _, _ in D0037_RUNNING_WORDS])
+def test_pipe_build_skill_has_running_section(label, word):
+    """D0037-AC-13: スキル pipe-build の末尾に節「流すとき」があり、分かったこと 6 の要点（言葉の目印）が入っている。"""
+    part = skill_section("流すとき")
+    assert part, "スキルに「流すとき」の節が無い"
+    found = word in part
+    assert found, f"「流すとき」に、{label} が無い（探した言葉：{word}）"
+    _, body = frontmatter(PLUGIN / "skills/pipe-build/SKILL.md")
+    assert [l for l in body.splitlines() if l.startswith("## ")][-1].find("流すとき") >= 0, "「流すとき」は末尾の節にする"

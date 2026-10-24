@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from pipe_in.pipe import definition as pd
+from pipe_in.pipe.lint import lint_pipe
 
 from .detect import detect
 from .render import render_template, template_values
@@ -115,12 +116,20 @@ def refuse_clash(name: str, dest: Path, project: Path) -> bool:
     return bool(others)
 
 
-def _report(pipe: pd.PipeDef, errors: list[str]) -> int:
+def _report(pipe: pd.PipeDef, errors: list[str], warnings: list[str] | None = None) -> int:
+    warnings = warnings or []
     if errors:
         print(f"✗ パイプ「{pipe.name}」に誤りがあります:")
         for e in errors:
             print(f"  - {e}")
+        for w in warnings:
+            print(f"⚠ {w}")
         return 1
+    if warnings:
+        print(f"✓ パイプ「{pipe.name}」: 誤りはありません（注意 {len(warnings)} 件）")
+        for w in warnings:
+            print(f"⚠ {w}")
+        return 0
     print(f"✓ パイプ「{pipe.name}」: 問題ありません")
     return 0
 
@@ -135,7 +144,7 @@ def cmd_check(pipes_dir: Path | None, project: Path, name: str) -> int:
     except pd.PipeError as e:
         print(f"✗ {e}")
         return 1
-    return _report(pipe, pd.check_pipe(pipe, project))
+    return _report(pipe, pd.check_pipe(pipe, project), lint_pipe(pipe))
 
 
 def _write_from_template(template: Path, dest: Path, values: dict[str, str | None]) -> None:
@@ -184,7 +193,7 @@ def cmd_new(pipes_dir: Path, project: Path, name: str, template_name: str, force
     except pd.PipeError as e:
         print(f"✗ {e}")
         return 1
-    result = _report(pipe, pd.check_pipe(pipe, project))
+    result = _report(pipe, pd.check_pipe(pipe, project), lint_pipe(pipe))
     if result == 0:
         print("\n中身は自由に直せます（段の並び・権限・確認は pipe.toml、指示は prompts/）。直したら pipe-in-gen check で確かめてください。")
         need = {"required": ' --text "依頼メモ"', "optional": ' [--text "依頼メモ"]'}.get(pipe.input, "")
