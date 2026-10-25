@@ -358,7 +358,7 @@ def good_design() -> dict:
         "input": "optional",
         "stages": [
             {"name": "survey", "label": "API の洗い出し", "output": "01_survey.md", "access": "read",
-             "review": True, "prompt": '`src/` を読み、API を洗い出してください。\n"""三重の引用符""" や \ も書ける'},
+             "review": True, "prompt": '`src/` を読み、API を洗い出してください。\n"""三重の引用符""" や \\ も書ける'},
             {"name": "write", "label": "API の文書", "output": "02_api.md", "access": "docs", "docs_dir": "docs/api",
              "writes": ["docs/api/*.md"], "prompt": "API の文書を書いてください。"},
             {"name": "check", "label": "突き合わせ", "output": "03_check.md", "access": "read",

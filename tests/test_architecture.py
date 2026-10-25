@@ -479,3 +479,20 @@ def test_d0044_ac29_live_answer_is_in_an_installed_package():
     cfg = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["setuptools"]
     assert "pipe_in.engine" in cfg["packages"]
     assert (ROOT / "pipe_in" / "engine" / "live_answer.py").is_file()
+
+
+def test_python_files_have_no_invalid_escape_sequences():
+    """リポジトリの .py に、無効なエスケープ（`"\\("`・`'\\ '` など）が無い。今は SyntaxWarning だが、新しい Python では誤りになる。"""
+    import warnings
+
+    bad: list[str] = []
+    for path in sorted(ROOT.rglob("*.py")):
+        if {".venv", "node_modules", ".git", "out"} & set(path.relative_to(ROOT).parts):
+            continue
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", SyntaxWarning)
+            try:
+                compile(path.read_text(encoding="utf-8"), str(path), "exec")
+            except SyntaxError as e:
+                bad.append(f"{path.relative_to(ROOT).as_posix()}:{e.lineno}: {e.msg}")
+    assert bad == []
