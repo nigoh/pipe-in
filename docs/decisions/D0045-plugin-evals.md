@@ -1,4 +1,4 @@
-# D0044 プラグイン自身の eval を足す
+# D0045 プラグイン自身の eval を足す
 
 ## 目的
 
@@ -15,27 +15,27 @@
 - FR-07 流し方（`--scaffold`・`--trust-plugin`・`--allow-tools`・`--model sonnet`・`--judge-model haiku`・`--threshold 0.8`・`--ablation none`・`--output-dir`・`--no-publish`・`--case`・`--tag`・`--max-cost-usd`）、利用料、人に言われたときだけ流すこと、フックがサンドボックスの外で動くこと、Windows は WSL2 で流すことを `docs/guide/plugin.md` に書く。
 - FR-08 `pytest` はケースのファイルの形だけを確かめる（SDK・`claude`・子プロセスを呼ばない）。新しい依存は足さない（frontmatter の読み手はテストのファイルの中に置く）。
 - FR-09 スキル・エージェント・フック・`pipe_in/`・`generator/`・`vscode/` は変えない。プラグインの版は 0.5.0 のまま。
-- D0044-AC-01 9 本のフォルダがあり、どれにも `prompt.md` と `graders/` の中のグレーダーがある。スキルごとに 3 本（`tags` にスキル名）。`tags` には `cheap` か `agent` と、要るものに `needs-*` がある（`tests/test_plugin_evals.py`）。
-- D0044-AC-02 `prompt.md` のキーは公式の既知のものだけ。`name` はフォルダ名、`description`・`expected_outcome` が空でない。`model`・`env`・`runs`・`plugins` は書かない（流し方か既定で決める）。`max_turns` は 1〜200、`timeout_seconds` は 1〜3600（同上）。
-- D0044-AC-03 グレーダーの型と、型ごとのキー・必須のキー・`weight`・`arm` が公式どおり。`llm` の基準は本文でもよい（同上）。
-- D0044-AC-04 `regex` の `pattern` は JavaScript と Python で意味が同じ範囲で、コンパイルできる。`flags` は `i` だけ、`match`・`target` は既知の値（`target` は名前か `{source: file, path: ワークスペースの中の相対パス}`）。ファイルの中身を見る採点は `target: files` を使わない。`judge-score` と `command` の語の採点は、関係ない呼び出しや文に当たらない（同上）。
-- D0044-AC-05 `llm` は全体で 2 つ以下・1 ケースに 1 つまで・`last_message` だけ。どのケースにも、費用のかからない型が 3 つ以上ある。`max: 0` のときは `min: 0` も書く（同上）。
-- D0044-AC-06 どの本文も、そのケースのスキルの `/pipe-in:<スキル名>` で始まる（同上）。
-- D0044-AC-07 `allowed_tools` は読む道具・`Skill`・`Agent`・`TodoWrite` などの中だけ。`tool_used` が `Bash`・`Write`・`Edit` を `min` 1 以上で見るケースは、`needs-bash`・`needs-write` の tags を持つ。`tool_used: Skill` は使わない（同上）。
-- D0044-AC-08 `case.yaml` は `schema_version: "1.1"`・`name` がフォルダ名・`scaffold_script` がケースの中に実在する。`scaffold.sh` は `scaffold.py` を呼ぶだけ。`scaffold.py` は空の一時フォルダの中にだけ書き、実物に似た木や空でない木は断る。`file_exists` の `path` は相対パス（同上）。
-- D0044-AC-09 `plugin/evals/` の下のどのファイルにも、手元のパス・鍵・メールアドレスが無い（同上）。
-- D0044-AC-10 `.gitignore` に `/plugin/evals/results/` がある（同上）。
-- D0044-AC-11 壊した入力（古い `schema_version`・知らないキーや型・グレーダー無し・範囲外の書き方など）を検査が落とす（同上）。
-- D0044-AC-12 ケースのテストは、子プロセス・`claude`・SDK を使わない（同上）。
-- D0044-AC-13 スキル・エージェント・フック・`pipe_in/`・`generator/`・`vscode/` に差が出ない（既存の `tests/test_plugin.py`・`tests/test_architecture.py`）。
-- D0044-AC-14 版は 0.5.0 のままで、スキルとフックは `evals/` に頼らず、ガイドの更新の節も 0.5.0 のまま（`tests/test_plugin_evals.py`）。
-- D0044-AC-15 `docs/guide/plugin.md` に節「プラグインの eval」があり、流し方のフラグ・注意・9 本のケース名が書かれている（同上）。
-- D0044-AC-16 `docs/development/design.md` の `plugin/` の行に `evals/` が出て、`testing.md` に、`pytest` は形だけ・流すのは人に言われたときだけと書かれている（同上）。
-- D0044-AC-17（実機）`--case` 1 本・`--runs 1` で流し、9 本が読み込みエラーなしに読めること、スラッシュ呼びが展開されること、`file_exists` の `path` の基準、ファイルが作られなかったときの `not_contains`、サブエージェントの道具の呼び出しが `tool_used` に数えられるかを確かめる。
-- D0044-AC-18（実機）`eval-lists-and-waits` を `--runs 1` で流し、一覧が出て、結果が `--output-dir` の先にでき、`git status` に差が出ない。1 ケースの費用を測る。
-- D0044-AC-19（実機）9 本を `--runs 3 --threshold 0.8 --ablation none --max-cost-usd <18 から決めた上限>` で流し、終了コード・各ケースの合否・費用をここに書く。落ちたケースは、スキルの不具合かケースの不具合かを切り分ける。
-- D0044-AC-20（実機）`build-*` のケースで、フックが pipe-builder の正しい書き込みを止めず、範囲外は止める。
-- D0044-AC-21（手で）作業コピーでスキルの 1 行（pipe-eval の「返事を待つ」）を消すと、そのケースの採点が落ちる。作業コピーは戻す。
+- D0045-AC-01 9 本のフォルダがあり、どれにも `prompt.md` と `graders/` の中のグレーダーがある。スキルごとに 3 本（`tags` にスキル名）。`tags` には `cheap` か `agent` と、要るものに `needs-*` がある（`tests/test_plugin_evals.py`）。
+- D0045-AC-02 `prompt.md` のキーは公式の既知のものだけ。`name` はフォルダ名、`description`・`expected_outcome` が空でない。`model`・`env`・`runs`・`plugins` は書かない（流し方か既定で決める）。`max_turns` は 1〜200、`timeout_seconds` は 1〜3600（同上）。
+- D0045-AC-03 グレーダーの型と、型ごとのキー・必須のキー・`weight`・`arm` が公式どおり。`llm` の基準は本文でもよい（同上）。
+- D0045-AC-04 `regex` の `pattern` は JavaScript と Python で意味が同じ範囲で、コンパイルできる。`flags` は `i` だけ、`match`・`target` は既知の値（`target` は名前か `{source: file, path: ワークスペースの中の相対パス}`）。ファイルの中身を見る採点は `target: files` を使わない。`judge-score` と `command` の語の採点は、関係ない呼び出しや文に当たらない（同上）。
+- D0045-AC-05 `llm` は全体で 2 つ以下・1 ケースに 1 つまで・`last_message` だけ。どのケースにも、費用のかからない型が 3 つ以上ある。`max: 0` のときは `min: 0` も書く（同上）。
+- D0045-AC-06 どの本文も、そのケースのスキルの `/pipe-in:<スキル名>` で始まる（同上）。
+- D0045-AC-07 `allowed_tools` は読む道具・`Skill`・`Agent`・`TodoWrite` などの中だけ。`tool_used` が `Bash`・`Write`・`Edit` を `min` 1 以上で見るケースは、`needs-bash`・`needs-write` の tags を持つ。`tool_used: Skill` は使わない（同上）。
+- D0045-AC-08 `case.yaml` は `schema_version: "1.1"`・`name` がフォルダ名・`scaffold_script` がケースの中に実在する。`scaffold.sh` は `scaffold.py` を呼ぶだけ。`scaffold.py` は空の一時フォルダの中にだけ書き、実物に似た木や空でない木は断る。`file_exists` の `path` は相対パス（同上）。
+- D0045-AC-09 `plugin/evals/` の下のどのファイルにも、手元のパス・鍵・メールアドレスが無い（同上）。
+- D0045-AC-10 `.gitignore` に `/plugin/evals/results/` がある（同上）。
+- D0045-AC-11 壊した入力（古い `schema_version`・知らないキーや型・グレーダー無し・範囲外の書き方など）を検査が落とす（同上）。
+- D0045-AC-12 ケースのテストは、子プロセス・`claude`・SDK を使わない（同上）。
+- D0045-AC-13 スキル・エージェント・フック・`pipe_in/`・`generator/`・`vscode/` に差が出ない（既存の `tests/test_plugin.py`・`tests/test_architecture.py`）。
+- D0045-AC-14 版は 0.5.0 のままで、スキルとフックは `evals/` に頼らず、ガイドの更新の節も 0.5.0 のまま（`tests/test_plugin_evals.py`）。
+- D0045-AC-15 `docs/guide/plugin.md` に節「プラグインの eval」があり、流し方のフラグ・注意・9 本のケース名が書かれている（同上）。
+- D0045-AC-16 `docs/development/design.md` の `plugin/` の行に `evals/` が出て、`testing.md` に、`pytest` は形だけ・流すのは人に言われたときだけと書かれている（同上）。
+- D0045-AC-17（実機）`--case` 1 本・`--runs 1` で流し、9 本が読み込みエラーなしに読めること、スラッシュ呼びが展開されること、`file_exists` の `path` の基準、ファイルが作られなかったときの `not_contains`、サブエージェントの道具の呼び出しが `tool_used` に数えられるかを確かめる。
+- D0045-AC-18（実機）`eval-lists-and-waits` を `--runs 1` で流し、一覧が出て、結果が `--output-dir` の先にでき、`git status` に差が出ない。1 ケースの費用を測る。
+- D0045-AC-19（実機）9 本を `--runs 3 --threshold 0.8 --ablation none --max-cost-usd <18 から決めた上限>` で流し、終了コード・各ケースの合否・費用をここに書く。落ちたケースは、スキルの不具合かケースの不具合かを切り分ける。
+- D0045-AC-20（実機）`build-*` のケースで、フックが pipe-builder の正しい書き込みを止めず、範囲外は止める。
+- D0045-AC-21（手で）作業コピーでスキルの 1 行（pipe-eval の「返事を待つ」）を消すと、そのケースの採点が落ちる。作業コピーは戻す。
 
 ## 要件の段から変えた点
 

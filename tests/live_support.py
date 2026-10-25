@@ -138,7 +138,7 @@ def utc_text(t: datetime) -> str:
     return t.astimezone(UTC).isoformat(timespec="seconds")
 
 
-# ---- D0039：確認待ちの答え（テストの補助。本体の関数ではなく、設計 4 節の式をそのまま書く） ----------------------------------------
+# ---- D0044：確認待ちの答え（テストの補助。本体の関数ではなく、設計 4 節の式をそのまま書く） ----------------------------------------
 
 
 def expected_review_id(stage: str, since: str) -> str:

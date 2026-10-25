@@ -1,4 +1,4 @@
-"""プラグイン自身の eval のケース（plugin/evals/）：claude plugin eval 用のファイルの形をファイルだけで確かめる（D0044）。
+"""プラグイン自身の eval のケース（plugin/evals/）：claude plugin eval 用のファイルの形をファイルだけで確かめる（D0045）。
 
 ケースを流す（claude plugin eval）のは実機で、利用料がかかる。ここでは流さず、ファイルを読むだけ。
 frontmatter の読み手と検査関数（check_case・check_suite）は、このテストのファイルの中に置く（PyYAML は使わない）。
@@ -403,21 +403,21 @@ def _graders(name: str) -> list[tuple[Path, dict, str]]:
 # ---- AC-01：9 本のケース -----------------------------------------------------------------------------
 
 
-def test_D0044_AC_01_suite_has_nine_cases():
-    """D0044-AC-01: plugin/evals/ に 9 本のケース（スキルごとに 3 本）があり、results 以外の子はすべてケースで、どれにも prompt.md と graders/ の採点がある。"""
+def test_D0045_AC_01_suite_has_nine_cases():
+    """D0045-AC-01: plugin/evals/ に 9 本のケース（スキルごとに 3 本）があり、results 以外の子はすべてケースで、どれにも prompt.md と graders/ の採点がある。"""
     assert suite_errors("AC-01") == []
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_01_case_exists_with_prompt_and_graders(name):
-    """D0044-AC-01: 設計の表のケース名ごとに、prompt.md と graders/*.md（1 つ以上）がある。"""
+def test_D0045_AC_01_case_exists_with_prompt_and_graders(name):
+    """D0045-AC-01: 設計の表のケース名ごとに、prompt.md と graders/*.md（1 つ以上）がある。"""
     case = _case_dir(name)
     assert (case / "prompt.md").is_file()
     assert list((case / "graders").glob("*.md"))
 
 
-def test_D0044_AC_01_tags_have_skill_and_cost_and_known_needs():
-    """D0044-AC-01: tags はスキル名 1 つ＋ cheap か agent ＋ 知っている needs-* だけ。スキル名はケース名の表と同じ。"""
+def test_D0045_AC_01_tags_have_skill_and_cost_and_known_needs():
+    """D0045-AC-01: tags はスキル名 1 つ＋ cheap か agent ＋ 知っている needs-* だけ。スキル名はケース名の表と同じ。"""
     for skill, names in CASES.items():
         for name in names:
             tags = read_front((_case_dir(name) / "prompt.md").read_text(encoding="utf-8"))[0]["tags"]
@@ -428,22 +428,22 @@ def test_D0044_AC_01_tags_have_skill_and_cost_and_known_needs():
 # ---- AC-02〜AC-08：各ファイルの形 ---------------------------------------------------------------------
 
 
-def test_D0044_AC_02_prompt_frontmatter_keys_and_values():
-    """D0044-AC-02: prompt.md のキーは公式の既知のものだけ。name はフォルダ名、model・env・runs・plugins は書かず、max_turns・timeout_seconds は上限の内。"""
+def test_D0045_AC_02_prompt_frontmatter_keys_and_values():
+    """D0045-AC-02: prompt.md のキーは公式の既知のものだけ。name はフォルダ名、model・env・runs・plugins は書かず、max_turns・timeout_seconds は上限の内。"""
     for name in CASE_NAMES:
         _case_dir(name)
     assert suite_errors("AC-02", "AC-11") == []
 
 
-def test_D0044_AC_03_grader_types_and_required_keys():
-    """D0044-AC-03: グレーダーの type・型ごとのキー・必須のキー・weight（正）・arm が正しい。llm は criteria か本文を持つ。"""
+def test_D0045_AC_03_grader_types_and_required_keys():
+    """D0045-AC-03: グレーダーの type・型ごとのキー・必須のキー・weight（正）・arm が正しい。llm は criteria か本文を持つ。"""
     for name in CASE_NAMES:
         _graders(name)
     assert suite_errors("AC-03", "AC-11") == []
 
 
-def test_D0044_AC_04_regex_patterns_compile_and_known_values():
-    """D0044-AC-04: regex の pattern は flags つきでコンパイルでき、JavaScript と Python で意味が同じ範囲。match・target は既知の値。input_match も読める。"""
+def test_D0045_AC_04_regex_patterns_compile_and_known_values():
+    """D0045-AC-04: regex の pattern は flags つきでコンパイルでき、JavaScript と Python で意味が同じ範囲。match・target は既知の値。input_match も読める。"""
     for name in CASE_NAMES:
         _graders(name)
     assert suite_errors("AC-04", "AC-11") == []
@@ -460,8 +460,8 @@ BAD_BAD_SHAPE = (
 BAD_AFTER_GOOD = '[[stages]]\nname = "a"\n\n[stages.check]\ncommand = "true"\n\n' + BAD_BAD_SHAPE
 
 
-def test_D0044_AC_04_bad_shape_regex_matches_only_the_bad_example():
-    """D0044-AC-04: build-refuses-judge-only の「command が無いのに on_fail と judge」を探す正規表現は、悪い例の文字に当たり、良い例の文字には当たらない。"""
+def test_D0045_AC_04_bad_shape_regex_matches_only_the_bad_example():
+    """D0045-AC-04: build-refuses-judge-only の「command が無いのに on_fail と judge」を探す正規表現は、悪い例の文字に当たり、良い例の文字には当たらない。"""
     fm = next(fm for _, fm, _ in _graders("build-refuses-judge-only") if fm.get("type") == "regex" and fm.get("match") == "not_contains")
     pattern = re.compile(fm["pattern"])
     assert pattern.search(BAD_BAD_SHAPE)
@@ -470,8 +470,8 @@ def test_D0044_AC_04_bad_shape_regex_matches_only_the_bad_example():
     assert not pattern.search("[[stages]]\nname = \"a\"\n\n[stages.check]\nverdict = true\non_fail = \"a\"\n")
 
 
-def test_D0044_AC_04_content_regex_reads_the_pipe_file_not_the_path_list():
-    """D0044-AC-04: 書かれたパイプの中身を見る regex は target: files（作られたパスの一覧）ではなく、そのパイプの pipe.toml を読む。"""
+def test_D0045_AC_04_content_regex_reads_the_pipe_file_not_the_path_list():
+    """D0045-AC-04: 書かれたパイプの中身を見る regex は target: files（作られたパスの一覧）ではなく、そのパイプの pipe.toml を読む。"""
     for name, pipe in [("build-passes-check", "notes-summary"), ("build-refuses-judge-only", "notes-review")]:
         content = [fm for _, fm, _ in _graders(name) if fm.get("type") == "regex" and "stages" in fm.get("pattern", "")]
         assert content, name
@@ -481,8 +481,8 @@ def test_D0044_AC_04_content_regex_reads_the_pipe_file_not_the_path_list():
     assert files_regex == []
 
 
-def test_D0044_AC_04_narrow_words_for_judge_score_and_command_hint():
-    """D0044-AC-04: 「judge-score を呼ばない」は pipe-in-gen --help の確かめに当たらない。「command と組む案内」は、関係ない「差し戻」に当たらない。"""
+def test_D0045_AC_04_narrow_words_for_judge_score_and_command_hint():
+    """D0045-AC-04: 「judge-score を呼ばない」は pipe-in-gen --help の確かめに当たらない。「command と組む案内」は、関係ない「差し戻」に当たらない。"""
     no_score = next(fm for g, fm, _ in _graders("judge-rejects-bad-runs") if g.name == "02-no-score.md")
     assert not re.search(no_score["input_match"], '{"command": "pipe-in-gen --help | grep judge-score"}')
     assert re.search(no_score["input_match"], '{"command": "pipe-in-gen judge-score < runs.json"}')
@@ -491,8 +491,8 @@ def test_D0044_AC_04_narrow_words_for_judge_score_and_command_hint():
     assert re.search(says["pattern"], "審査だけの check は作れないので、command と組んでください。")
 
 
-def test_D0044_AC_05_llm_budget_and_cheap_graders():
-    """D0044-AC-05: llm は全体で 2 つ以下・1 ケースに 1 つまで・focus は last_message。費用のかからない型が各ケースに 3 つ以上ある。"""
+def test_D0045_AC_05_llm_budget_and_cheap_graders():
+    """D0045-AC-05: llm は全体で 2 つ以下・1 ケースに 1 つまで・focus は last_message。費用のかからない型が各ケースに 3 つ以上ある。"""
     for name in CASE_NAMES:
         _graders(name)
     assert suite_errors("AC-05") == []
@@ -500,8 +500,8 @@ def test_D0044_AC_05_llm_budget_and_cheap_graders():
     assert llms == [("judge-must-violation-fails", "04-quote.md")]
 
 
-def test_D0044_AC_05_no_negative_tool_used_without_min_and_max():
-    """D0044-AC-05: 「呼ばない」採点は max: 0 と min: 0 の両方を書く（min の既定は 1 なので、max だけだと必ず落ちる）。"""
+def test_D0045_AC_05_no_negative_tool_used_without_min_and_max():
+    """D0045-AC-05: 「呼ばない」採点は max: 0 と min: 0 の両方を書く（min の既定は 1 なので、max だけだと必ず落ちる）。"""
     zero_max = 0
     for name in CASE_NAMES:
         for g, fm, _ in _graders(name):
@@ -511,8 +511,8 @@ def test_D0044_AC_05_no_negative_tool_used_without_min_and_max():
     assert zero_max > 0, "呼ばないことを測る採点が 1 つも無い"
 
 
-def test_D0044_AC_06_prompt_starts_with_own_skill():
-    """D0044-AC-06: どの prompt.md の本文も /pipe-in:<tags のスキル名> で始まる。"""
+def test_D0045_AC_06_prompt_starts_with_own_skill():
+    """D0045-AC-06: どの prompt.md の本文も /pipe-in:<tags のスキル名> で始まる。"""
     for skill, names in CASES.items():
         for name in names:
             _, body = read_front((_case_dir(name) / "prompt.md").read_text(encoding="utf-8"))
@@ -520,8 +520,8 @@ def test_D0044_AC_06_prompt_starts_with_own_skill():
     assert suite_errors("AC-06") == []
 
 
-def test_D0044_AC_07_allowed_tools_are_read_only_and_needs_tags_match():
-    """D0044-AC-07: allowed_tools は公式がケースで許す道具だけ（Bash・Write・Edit・WebFetch・WebSearch・mcp__ は無い）。Bash・Write・Edit を min 1 以上で採点するケースは needs-* の tags を持ち、Agent を採点するなら Agent を許す。tool_used: Skill は無い。"""
+def test_D0045_AC_07_allowed_tools_are_read_only_and_needs_tags_match():
+    """D0045-AC-07: allowed_tools は公式がケースで許す道具だけ（Bash・Write・Edit・WebFetch・WebSearch・mcp__ は無い）。Bash・Write・Edit を min 1 以上で採点するケースは needs-* の tags を持ち、Agent を採点するなら Agent を許す。tool_used: Skill は無い。"""
     for name in CASE_NAMES:
         _graders(name)
         allowed = read_front((_case_dir(name) / "prompt.md").read_text(encoding="utf-8"))[0]["allowed_tools"]
@@ -531,8 +531,8 @@ def test_D0044_AC_07_allowed_tools_are_read_only_and_needs_tags_match():
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_08_case_yaml_and_scaffold_paths(name):
-    """D0044-AC-08: case.yaml は schema_version "1.1"・name がフォルダ名・scaffold_script が scaffold.sh（ケースの中に実在）。scaffold.py もある。"""
+def test_D0045_AC_08_case_yaml_and_scaffold_paths(name):
+    """D0045-AC-08: case.yaml は schema_version "1.1"・name がフォルダ名・scaffold_script が scaffold.sh（ケースの中に実在）。scaffold.py もある。"""
     case = _case_dir(name)
     cy = read_case_yaml((case / "case.yaml").read_text(encoding="utf-8"))
     assert cy["schema_version"] == SCHEMA_VERSION
@@ -543,8 +543,8 @@ def test_D0044_AC_08_case_yaml_and_scaffold_paths(name):
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_08_scaffold_sh_is_thin_bash(name):
-    """D0044-AC-08: scaffold.sh は set -eu で scaffold.py を呼ぶだけの薄い Bash。pipe-in-gen を作る文（ここには pipe-in-gen の名前自体）を書かない。"""
+def test_D0045_AC_08_scaffold_sh_is_thin_bash(name):
+    """D0045-AC-08: scaffold.sh は set -eu で scaffold.py を呼ぶだけの薄い Bash。pipe-in-gen を作る文（ここには pipe-in-gen の名前自体）を書かない。"""
     text = (_case_dir(name) / "scaffold.sh").read_text(encoding="utf-8")
     assert "set -eu" in text
     assert "scaffold.py" in text
@@ -593,8 +593,8 @@ EXPECTED_SCAFFOLD_FILES = {
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_08_scaffolds_build_in_tmp(name, tmp_path):
-    """D0044-AC-08: scaffold.py の build(target) は、空の tmp_path に見本だけを書く（target の外に書かない・コマンドを起こさない）。state.json は JSON として読める。"""
+def test_D0045_AC_08_scaffolds_build_in_tmp(name, tmp_path):
+    """D0045-AC-08: scaffold.py の build(target) は、空の tmp_path に見本だけを書く（target の外に書かない・コマンドを起こさない）。state.json は JSON として読める。"""
     mod = _load_scaffold(name)
     target = tmp_path / "ws"
     target.mkdir()
@@ -614,8 +614,8 @@ def test_D0044_AC_08_scaffolds_build_in_tmp(name, tmp_path):
         assert word not in source, word
 
 
-def test_D0044_AC_08_judge_must_report_has_forbidden_term_once(tmp_path):
-    """D0044-AC-08: judge-must-violation-fails の見本は、report.md に禁止語 FORBIDDEN-TERM-7 を 1 回だけ含み、rubric.md に must の行がある。"""
+def test_D0045_AC_08_judge_must_report_has_forbidden_term_once(tmp_path):
+    """D0045-AC-08: judge-must-violation-fails の見本は、report.md に禁止語 FORBIDDEN-TERM-7 を 1 回だけ含み、rubric.md に must の行がある。"""
     mod = _load_scaffold("judge-must-violation-fails")
     mod.build(tmp_path)
     assert (tmp_path / "report.md").read_text(encoding="utf-8").count("FORBIDDEN-TERM-7") == 1
@@ -635,8 +635,8 @@ REAL_TREE_SHAPES = {
 
 @pytest.mark.parametrize("shape", sorted(REAL_TREE_SHAPES))
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_08_scaffold_refuses_real_looking_tree(name, shape, tmp_path, monkeypatch):
-    """D0044-AC-08: 空でない作業フォルダ・実物に似た形（.git・plugin/・docs/pipeline/・pipes/・.pipe-in/）には何も書かず、終了コード 1 で断る。"""
+def test_D0045_AC_08_scaffold_refuses_real_looking_tree(name, shape, tmp_path, monkeypatch):
+    """D0045-AC-08: 空でない作業フォルダ・実物に似た形（.git・plugin/・docs/pipeline/・pipes/・.pipe-in/）には何も書かず、終了コード 1 で断る。"""
     mod = _load_scaffold(name)
     monkeypatch.setattr(shutil, "which", lambda cmd, *a, **k: "/usr/local/bin/" + cmd)
     target = tmp_path / "ws"
@@ -649,8 +649,8 @@ def test_D0044_AC_08_scaffold_refuses_real_looking_tree(name, shape, tmp_path, m
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_D0044_AC_08_scaffold_main_needs_pipe_in_gen_and_builds_in_empty_dir(name, tmp_path, monkeypatch):
-    """D0044-AC-08: main は pipe-in-gen が PATH に無ければ書かずに終了コード 1。あれば空の作業フォルダに見本を作って 0。"""
+def test_D0045_AC_08_scaffold_main_needs_pipe_in_gen_and_builds_in_empty_dir(name, tmp_path, monkeypatch):
+    """D0045-AC-08: main は pipe-in-gen が PATH に無ければ書かずに終了コード 1。あれば空の作業フォルダに見本を作って 0。"""
     mod = _load_scaffold(name)
     target = tmp_path / "ws"
     target.mkdir()
@@ -662,8 +662,8 @@ def test_D0044_AC_08_scaffold_main_needs_pipe_in_gen_and_builds_in_empty_dir(nam
     assert _files(target) == EXPECTED_SCAFFOLD_FILES[name]
 
 
-def test_D0044_AC_08_scaffold_common_block_is_identical():
-    """D0044-AC-08: 各 scaffold.py の「# --- common ---」から「# --- /common ---」までの共通の囲みが、9 本で同じ。"""
+def test_D0045_AC_08_scaffold_common_block_is_identical():
+    """D0045-AC-08: 各 scaffold.py の「# --- common ---」から「# --- /common ---」までの共通の囲みが、9 本で同じ。"""
     blocks = set()
     for name in CASE_NAMES:
         text = (_case_dir(name) / "scaffold.py").read_text(encoding="utf-8")
@@ -673,8 +673,8 @@ def test_D0044_AC_08_scaffold_common_block_is_identical():
     assert len(blocks) == 1
 
 
-def test_D0044_AC_08_file_exists_paths_are_relative():
-    """D0044-AC-08: file_exists の path は相対パスで、.. や手元のパスを含まない（glob は * を使える）。"""
+def test_D0045_AC_08_file_exists_paths_are_relative():
+    """D0045-AC-08: file_exists の path は相対パスで、.. や手元のパスを含まない（glob は * を使える）。"""
     found = 0
     for name in CASE_NAMES:
         for g, fm, _ in _graders(name):
@@ -689,8 +689,8 @@ def test_D0044_AC_08_file_exists_paths_are_relative():
 # ---- AC-09・10：公開してよいか・結果は追跡しない ---------------------------------------------------------
 
 
-def test_D0044_AC_09_no_local_paths_or_secrets_in_evals():
-    """D0044-AC-09: plugin/evals/ の下のすべてのファイルに、手元のパス・鍵・メールアドレスが無い。"""
+def test_D0045_AC_09_no_local_paths_or_secrets_in_evals():
+    """D0045-AC-09: plugin/evals/ の下のすべてのファイルに、手元のパス・鍵・メールアドレスが無い。"""
     assert EVALS.is_dir(), "plugin/evals/ がない"
     files = [p for p in EVALS.rglob("*") if p.is_file()]
     assert files, "plugin/evals/ にファイルが 1 つもない"
@@ -700,8 +700,8 @@ def test_D0044_AC_09_no_local_paths_or_secrets_in_evals():
             assert not re.search(pattern, text), (path.relative_to(ROOT).as_posix(), what, pattern)
 
 
-def test_D0044_AC_10_gitignore_has_results():
-    """D0044-AC-10: .gitignore の行に /plugin/evals/results/ がある（結果は追跡しない）。"""
+def test_D0045_AC_10_gitignore_has_results():
+    """D0045-AC-10: .gitignore の行に /plugin/evals/results/ がある（結果は追跡しない）。"""
     lines = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "/plugin/evals/results/" in [line.strip() for line in lines]
 
@@ -792,14 +792,14 @@ BROKEN = {
 }
 
 
-def test_D0044_AC_11_good_minimal_case_passes_check(tmp_path):
-    """D0044-AC-11: 検査の土台。壊す前の最小のケースは検査を通る（今の作りのままで緑。壊したものだけが落ちることを示す）。"""
+def test_D0045_AC_11_good_minimal_case_passes_check(tmp_path):
+    """D0045-AC-11: 検査の土台。壊す前の最小のケースは検査を通る（今の作りのままで緑。壊したものだけが落ちることを示す）。"""
     assert check_case(make_good_case(tmp_path)) == []
 
 
 @pytest.mark.parametrize("label", sorted(BROKEN))
-def test_D0044_AC_11_broken_inputs_are_rejected(label, tmp_path):
-    """D0044-AC-11: 古い形・知らない形・壊れた形（schema 1.0・知らないキー・知らない型・採点無し・必須のキー欠け・Bash を許す・flags: s・(?s) など）を検査が落とす。"""
+def test_D0045_AC_11_broken_inputs_are_rejected(label, tmp_path):
+    """D0045-AC-11: 古い形・知らない形・壊れた形（schema 1.0・知らないキー・知らない型・採点無し・必須のキー欠け・Bash を許す・flags: s・(?s) など）を検査が落とす。"""
     case = make_good_case(tmp_path)
     BROKEN[label](case)
     assert check_case(case), f"壊したのに検査が通った: {label}"
@@ -819,14 +819,14 @@ def test_D0044_AC_11_broken_inputs_are_rejected(label, tmp_path):
     "---\nname: {a: 1, a: 2}\n---\nbody",
     "name: a\nbody",
 ])
-def test_D0044_AC_11_reader_subset_rejects_unsupported_syntax(text):
-    """D0044-AC-11: 読み手は範囲外の書き方（複数行・重複キー・タブ・入れ子・ダブルクォート内の \\・閉じない引用符やリスト・アンカー・frontmatter なし）を黙って読み飛ばさず ValueError にする。"""
+def test_D0045_AC_11_reader_subset_rejects_unsupported_syntax(text):
+    """D0045-AC-11: 読み手は範囲外の書き方（複数行・重複キー・タブ・入れ子・ダブルクォート内の \\・閉じない引用符やリスト・アンカー・frontmatter なし）を黙って読み飛ばさず ValueError にする。"""
     with pytest.raises(ValueError):
         read_front(text)
 
 
-def test_D0044_AC_11_reader_subset_reads_supported_syntax():
-    """D0044-AC-11: 読み手は範囲内の書き方（文字・数・真偽・1 行のリスト・シングルクォートの '' ・case.yaml の context 1 段）を正しく読む。"""
+def test_D0045_AC_11_reader_subset_reads_supported_syntax():
+    """D0045-AC-11: 読み手は範囲内の書き方（文字・数・真偽・1 行のリスト・シングルクォートの '' ・case.yaml の context 1 段）を正しく読む。"""
     fm, body = read_front("---\nname: a\nruns: 3\nok: true\ntags: [x, y]\npattern: 'it''s \\d+'\nq: \"1.1\"\n---\n本文\n")
     assert fm == {"name": "a", "runs": 3, "ok": True, "tags": ["x", "y"], "pattern": "it's \\d+", "q": "1.1"}
     assert body == "本文\n"
@@ -847,13 +847,13 @@ def test_D0044_AC_11_reader_subset_reads_supported_syntax():
     (r"(?<=a)b", False),
     (r"\Aabc", False),
 ])
-def test_D0044_AC_04_js_python_safe(pattern, safe):
-    """D0044-AC-04: js_python_safe は、JavaScript と Python で意味が変わる書き方（インラインの記号・名前つきグループ・後読み・\\A）を見つける。"""
+def test_D0045_AC_04_js_python_safe(pattern, safe):
+    """D0045-AC-04: js_python_safe は、JavaScript と Python で意味が変わる書き方（インラインの記号・名前つきグループ・後読み・\\A）を見つける。"""
     assert js_python_safe(pattern) is safe
 
 
-def test_D0044_AC_11_check_suite_rejects_stray_folder_and_wrong_count(tmp_path):
-    """D0044-AC-11: check_suite は、prompt.md の無いフォルダ（results 以外）・9 本に足りない・名前違いを落とし、results/ は許す。"""
+def test_D0045_AC_11_check_suite_rejects_stray_folder_and_wrong_count(tmp_path):
+    """D0045-AC-11: check_suite は、prompt.md の無いフォルダ（results 以外）・9 本に足りない・名前違いを落とし、results/ は許す。"""
     make_good_case(tmp_path)
     (tmp_path / "results/2026").mkdir(parents=True)
     errors = check_suite(tmp_path)
@@ -867,8 +867,8 @@ def test_D0044_AC_11_check_suite_rejects_stray_folder_and_wrong_count(tmp_path):
 # ---- AC-12：流さない・AC-13/14：動きと版を変えない ---------------------------------------------------------
 
 
-def test_D0044_AC_12_eval_tests_do_not_run_claude():
-    """D0044-AC-12: このテストのファイルは、子プロセス・SDK・ネットワークを使わない（ファイルを読むだけ。検査する語はつなげて作る）。"""
+def test_D0045_AC_12_eval_tests_do_not_run_claude():
+    """D0045-AC-12: このテストのファイルは、子プロセス・SDK・ネットワークを使わない（ファイルを読むだけ。検査する語はつなげて作る）。"""
     text = Path(__file__).read_text(encoding="utf-8")
     words = ["sub" + "process", "claude_agent" + "_sdk", "anthro" + "pic", "os." + "system", "Pop" + "en", "url" + "lib.request", "soc" + "ket"]
     imports = re.findall(r"^\s*(?:import|from)\s+([\w.]+)", text, re.M)
@@ -877,8 +877,8 @@ def test_D0044_AC_12_eval_tests_do_not_run_claude():
     assert ("Pop" + "en(") not in text and ("os." + "system(") not in text
 
 
-def test_D0044_AC_14_skills_and_hooks_do_not_depend_on_evals():
-    """D0044-AC-14: スキル・エージェント・フックの文は evals/ を読まない（evals/ を持たない 0.5.0 までのプラグインもそのまま動く）。"""
+def test_D0045_AC_14_skills_and_hooks_do_not_depend_on_evals():
+    """D0045-AC-14: スキル・エージェント・フックの文は evals/ を読まない（evals/ を持たない 0.5.0 までのプラグインもそのまま動く）。"""
     texts = [
         PLUGIN / "skills/pipe-build/SKILL.md", PLUGIN / "skills/pipe-build/references/stage-rules.md",
         PLUGIN / "skills/pipe-eval/SKILL.md", PLUGIN / "skills/pipe-judge/SKILL.md", PLUGIN / "skills/pipe-live/SKILL.md",
@@ -888,14 +888,14 @@ def test_D0044_AC_14_skills_and_hooks_do_not_depend_on_evals():
         assert "evals" not in path.read_text(encoding="utf-8"), path.name
 
 
-def test_D0044_AC_14_plugin_version_stays_0_5_0():
-    """D0044-AC-14: プラグインの版は 0.5.0 のまま（evals/ を足しても動きは変わらない）。"""
+def test_D0045_AC_14_plugin_version_stays_0_5_0():
+    """D0045-AC-14: プラグインの版は 0.5.0 のまま（evals/ を足しても動きは変わらない）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
     assert manifest["version"] == "0.5.0"
 
 
-def test_D0044_AC_14_guide_update_notes_still_say_0_5_0():
-    """D0044-AC-14: ガイドの「0.4.0 以前から更新するとき」の節は 0.5.0 のまま。"""
+def test_D0045_AC_14_guide_update_notes_still_say_0_5_0():
+    """D0045-AC-14: ガイドの「0.4.0 以前から更新するとき」の節は 0.5.0 のまま。"""
     guide = (ROOT / "docs/guide/plugin.md").read_text(encoding="utf-8")
     section = guide.split("## 0.4.0 以前から更新するとき")[1].split("\n## ")[0]
     assert "0.5.0" in section
@@ -911,8 +911,8 @@ GUIDE_WORDS = [
 ]
 
 
-def test_D0044_AC_15_guide_has_eval_section():
-    """D0044-AC-15: docs/guide/plugin.md に節「プラグインの eval」があり（検査と審査の節と 0.4.0 以前の節の間）、流し方・注意・9 本のケース名が書かれている。"""
+def test_D0045_AC_15_guide_has_eval_section():
+    """D0045-AC-15: docs/guide/plugin.md に節「プラグインの eval」があり（検査と審査の節と 0.4.0 以前の節の間）、流し方・注意・9 本のケース名が書かれている。"""
     guide = (ROOT / "docs/guide/plugin.md").read_text(encoding="utf-8")
     assert "\n## プラグインの eval\n" in guide
     start = guide.index("## プラグインの eval")
@@ -922,8 +922,8 @@ def test_D0044_AC_15_guide_has_eval_section():
     assert missing == []
 
 
-def test_D0044_AC_16_dev_docs_mention_evals():
-    """D0044-AC-16: design.md の置き場所の表の plugin/ の行に evals/ が出て、testing.md に pytest はケースの形だけ・流すのは人に言われたときだけと書かれている。"""
+def test_D0045_AC_16_dev_docs_mention_evals():
+    """D0045-AC-16: design.md の置き場所の表の plugin/ の行に evals/ が出て、testing.md に pytest はケースの形だけ・流すのは人に言われたときだけと書かれている。"""
     design = (ROOT / "docs/development/design.md").read_text(encoding="utf-8")
     row = next(line for line in design.splitlines() if "`plugin/`" in line and line.startswith("|"))
     assert "evals/" in row
