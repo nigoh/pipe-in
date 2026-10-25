@@ -606,7 +606,7 @@ def test_d0047_ac15_knowledge_prompt(tmp_path):
     )
 
 
-# ---- D0051: knowledge の指示文の kind の値と振り分け ----------------------------------------------
+# ---- D0052: knowledge の指示文の kind の値と振り分け ----------------------------------------------
 
 KINDS = ["spec", "customer", "law", "standard", "public_spec", "past_case"]
 
@@ -624,8 +624,8 @@ def schema_kind_enum() -> list[str]:
     return schema["$defs"]["source"]["properties"]["kind"]["enum"]
 
 
-def test_d0051_helper_listed_kinds_reads_only_bullets_under_heading():
-    """D0051-AC-01: 今の作りのままで通る。listed_kinds は、見出しの下の箇条書きの最初の値だけを順に取り出す。見出しが無ければ空。"""
+def test_d0052_helper_listed_kinds_reads_only_bullets_under_heading():
+    """D0052-AC-01: 今の作りのままで通る。listed_kinds は、見出しの下の箇条書きの最初の値だけを順に取り出す。見出しが無ければ空。"""
     text = (
         "# 題\n\n上の `x` は拾わない。\n\n- `above`：見出しの上\n\n"
         f"## {KIND_SECTION}\n\n本文の `y` も拾わない。\n\n"
@@ -636,15 +636,15 @@ def test_d0051_helper_listed_kinds_reads_only_bullets_under_heading():
     assert listed_kinds("# 題\n\n- `a`：見出しなし\n") == []
 
 
-def test_d0051_ac01_prompt_lists_all_six_kinds(tmp_path):
-    """D0051-AC-01: knowledge の指示文の「kind に使える値」の節に、6つの値が全部入り、重ならない。"""
+def test_d0052_ac01_prompt_lists_all_six_kinds(tmp_path):
+    """D0052-AC-01: knowledge の指示文の「kind に使える値」の節に、6つの値が全部入り、重ならない。"""
     kinds = listed_kinds(knowledge_prompt_text(tmp_path))
     assert len(kinds) == 6, f"値の一覧が6つではありません: {kinds}"
     assert sorted(kinds) == sorted(KINDS)
 
 
-def test_d0051_ac02_prompt_has_routing_examples(tmp_path):
-    """D0051-AC-02: 振り分けの例が、語と値の組（語のあとの同じ文の中で、ほかの値より先にその値が来る）で入っている。"""
+def test_d0052_ac02_prompt_has_routing_examples(tmp_path):
+    """D0052-AC-02: 振り分けの例が、語と値の組（語のあとの同じ文の中で、ほかの値より先にその値が来る）で入っている。"""
     section = section_of(knowledge_prompt_text(tmp_path), KIND_SECTION)
     assert section, f"指示文に「## {KIND_SECTION}」の節がありません"
     pairs = [
@@ -663,8 +663,8 @@ def test_d0051_ac02_prompt_has_routing_examples(tmp_path):
     assert "`issues.md` の論点" in section
 
 
-def test_d0051_ac03_listed_kinds_match_source_kinds(tmp_path):
-    """D0051-AC-03: 指示文の一覧の集合が SOURCE_KINDS と同じ。"""
+def test_d0052_ac03_listed_kinds_match_source_kinds(tmp_path):
+    """D0052-AC-03: 指示文の一覧の集合が SOURCE_KINDS と同じ。"""
     from pipe_in_generator import findings_check
 
     listed = listed_kinds(knowledge_prompt_text(tmp_path))
@@ -672,8 +672,8 @@ def test_d0051_ac03_listed_kinds_match_source_kinds(tmp_path):
     assert kinds_differences(listed, findings_check.SOURCE_KINDS) == []
 
 
-def test_d0051_ac03_listed_kinds_test_fails_when_source_kinds_changes(monkeypatch):
-    """D0051-AC-03: 今の作りのままで通る。SOURCE_KINDS に仮の値を足しても、1つ消しても、比べる関数が差を返す（検査が効いている）。"""
+def test_d0052_ac03_listed_kinds_test_fails_when_source_kinds_changes(monkeypatch):
+    """D0052-AC-03: 今の作りのままで通る。SOURCE_KINDS に仮の値を足しても、1つ消しても、比べる関数が差を返す（検査が効いている）。"""
     from pipe_in_generator import findings_check
 
     listed = list(findings_check.SOURCE_KINDS)
@@ -684,8 +684,8 @@ def test_d0051_ac03_listed_kinds_test_fails_when_source_kinds_changes(monkeypatc
     assert kinds_differences(listed, findings_check.SOURCE_KINDS) == [listed[0]]
 
 
-def test_d0051_ac04_listed_kinds_match_schema_enum(tmp_path):
-    """D0051-AC-04: schema の kind の enum は SOURCE_KINDS と同じで、指示文の一覧もその集合と同じ（三者がそろう）。"""
+def test_d0052_ac04_listed_kinds_match_schema_enum(tmp_path):
+    """D0052-AC-04: schema の kind の enum は SOURCE_KINDS と同じで、指示文の一覧もその集合と同じ（三者がそろう）。"""
     from pipe_in_generator import findings_check
 
     enum = schema_kind_enum()
@@ -695,8 +695,8 @@ def test_d0051_ac04_listed_kinds_match_schema_enum(tmp_path):
     assert set(listed) == set(enum)
 
 
-def test_d0051_ac05_guideline_and_plan_are_not_listed_values(tmp_path):
-    """D0051-AC-05: guideline・plan は使える値の一覧に入らない。指示文のどこかに出るなら、「作らない」と同じ行にある。"""
+def test_d0052_ac05_guideline_and_plan_are_not_listed_values(tmp_path):
+    """D0052-AC-05: guideline・plan は使える値の一覧に入らない。指示文のどこかに出るなら、「作らない」と同じ行にある。"""
     text = knowledge_prompt_text(tmp_path)
     assert listed_kinds(text), f"指示文に「## {KIND_SECTION}」の一覧がありません"
     assert not {"guideline", "plan"} & set(listed_kinds(text))
@@ -705,8 +705,8 @@ def test_d0051_ac05_guideline_and_plan_are_not_listed_values(tmp_path):
             assert "作らない" in line, f"使える値のように読める行: {line}"
 
 
-def test_d0051_ac06_other_prompts_and_files_unchanged(tmp_path):
-    """D0051-AC-06: 今の作りのままで通る。01・03〜09 と README・pipe.toml は、kind の節も値の一覧も持たない（足す先を間違えていない）。"""
+def test_d0052_ac06_other_prompts_and_files_unchanged(tmp_path):
+    """D0052-AC-06: 今の作りのままで通る。01・03〜09 と README・pipe.toml は、kind の節も値の一覧も持たない（足す先を間違えていない）。"""
     _, folder, _ = new_pipe(tmp_path)
     others = [folder / "prompts" / PROMPT_FILES[n] for n in STAGES if n not in ("knowledge", "report")]
     others += [folder / "README.md", folder / "pipe.toml"]
@@ -716,8 +716,8 @@ def test_d0051_ac06_other_prompts_and_files_unchanged(tmp_path):
         assert "`spec`：" not in text and "`public_spec`：" not in text, p.name
 
 
-def test_d0051_ac07_copied_prompt_is_not_rewritten(tmp_path, capsys):
-    """D0051-AC-07: 今の作りのままで通る。写した先の指示文を書き換えると、check のあとも書き換えた文が残る（写した後は読み直さない）。"""
+def test_d0052_ac07_copied_prompt_is_not_rewritten(tmp_path, capsys):
+    """D0052-AC-07: 今の作りのままで通る。写した先の指示文を書き換えると、check のあとも書き換えた文が残る（写した後は読み直さない）。"""
     project, folder, _ = new_pipe(tmp_path)
     path = folder / "prompts" / PROMPT_FILES["knowledge"]
     mine = "自分で書き換えた指示文です。\n"

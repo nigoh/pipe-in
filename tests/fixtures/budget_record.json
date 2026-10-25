@@ -1,0 +1,19 @@
+{
+  "keys": ["max_budget_usd", "resumed"],
+  "cases": [
+    { "memo": "上限だけ", "limit": 0.6, "resume": false,
+      "written": { "max_budget_usd": 0.6 }, "read": { "maxBudgetUsd": 0.6, "resumed": false } },
+    { "memo": "上限つきの続きの会話", "limit": 1, "resume": true,
+      "written": { "max_budget_usd": 1.0, "resumed": true }, "read": { "maxBudgetUsd": 1.0, "resumed": true } },
+    { "memo": "上限なしには鍵が付かない", "limit": null, "resume": false,
+      "written": {}, "read": { "maxBudgetUsd": null, "resumed": false } },
+    { "memo": "上限なしの続きの会話にも印は付かない", "limit": null, "resume": true,
+      "written": {}, "read": { "maxBudgetUsd": null, "resumed": false } },
+    { "memo": "pipeline.toml の 0 は未設定", "limit": 0, "resume": true,
+      "written": {}, "read": { "maxBudgetUsd": null, "resumed": false } },
+    { "memo": "本体は書くが拡張の範囲（10000 以下）の上の外", "limit": 20000, "resume": false,
+      "written": { "max_budget_usd": 20000.0 }, "read": { "maxBudgetUsd": null, "resumed": false } },
+    { "memo": "本体は書くが拡張の範囲（0.001 以上）の下の外", "limit": 0.0005, "resume": false,
+      "written": { "max_budget_usd": 0.0005 }, "read": { "maxBudgetUsd": null, "resumed": false } }
+  ]
+}

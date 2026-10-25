@@ -6,6 +6,7 @@ import { NODE_STATUS_LABELS } from '../domain/pipelineView.ts';
 import type { NodeId, PipelineNode } from '../domain/pipelineView.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
+import { formatMilli } from './money.ts';
 import { STALE_WORD, staleAttrs, staleTime } from './staleMark.ts';
 
 type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final';
@@ -21,6 +22,80 @@ function shapeOf(id: NodeId): Shape {
 }
 
 const HEIGHTS: Readonly<Record<Shape, number>> = { doc: 30, stage: 50, review: 30, verdict: 46, final: 32 };
+
+// 段の節の上限の表示（D0051）。2 行目（y+38）の下に、金額の対・棒・言葉と「N 回目」の順に足す。
+const BAR_W = 152; // 棒の枠の幅（節の幅 176 から左右の余白を引いた値）
+const BAR_H = 6;
+const BUDGET_WORDS: Readonly<Record<'near' | 'over' | 'stopped', string>> = {
+  near: '上限に近い',
+  over: '上限を超えた',
+  stopped: '上限で止まった',
+};
+// 節の高さ：表示なし 50／金額の対と棒だけ 74／金額の対と棒と言葉（か「N 回目」）の行 88／言葉だけ（割合の無い「止まった」）64
+const STAGE_H = { plain: 50, pair: 74, pairWord: 88, wordOnly: 64 } as const;
+
+/** 節に出す言葉。余裕・状態なしには無い。 */
+function budgetWord(node: PipelineNode): string | null {
+  const b = node.budget;
+  return b == null || b.state === 'ok' ? null : BUDGET_WORDS[b.state];
+}
+
+/** 「N 回目」の文字。1 回だけの段・状態なしには無い。 */
+function nthText(node: PipelineNode): string | null {
+  const b = node.budget;
+  return b != null && b.runCount >= 2 ? `${b.nth} 回目` : null;
+}
+
+/** 金額の対（$0.42 / $1.00）。割合の無い「止まった」には無い。 */
+function budgetPair(node: PipelineNode): string | null {
+  const b = node.budget;
+  return b != null && b.ratio !== null && b.costMilli !== null && b.limitMilli !== null
+    ? `${formatMilli(b.costMilli)} / ${formatMilli(b.limitMilli)}`
+    : null;
+}
+
+function heightOf(node: PipelineNode): number {
+  if (shapeOf(node.id) !== 'stage' || node.budget == null) return HEIGHTS.stage;
+  if (budgetPair(node) === null) return STAGE_H.wordOnly;
+  return budgetWord(node) !== null || nthText(node) !== null ? STAGE_H.pairWord : STAGE_H.pair;
+}
+
+/** 上限の表示の SVG 部品（金額の対・棒・言葉・「N 回目」）。外から来た文字は出さない（数字と固定の言葉だけ）。 */
+function renderBudget(node: PipelineNode, y: number): string[] {
+  const parts: string[] = [];
+  const b = node.budget;
+  if (b == null) return parts;
+  const pair = budgetPair(node);
+  const x = LEFT + 12;
+  let wordY = y + 54;
+  if (pair !== null && b.ratio !== null) {
+    const fill = Number((BAR_W * Math.min(Math.max(b.ratio, 0), 1)).toFixed(2));
+    parts.push(`<text class="node-detail" x="${x}" y="${y + 53}">${escapeHtml(pair)}</text>`);
+    parts.push(`<rect class="budget-track" x="${x}" y="${y + 59}" width="${BAR_W}" height="${BAR_H}" rx="2"/>`);
+    parts.push(`<rect class="budget-fill" x="${x}" y="${y + 59}" width="${fill}" height="${BAR_H}" rx="2"/>`);
+    wordY = y + 80;
+  }
+  const word = budgetWord(node);
+  if (word !== null) parts.push(`<text class="budget-word" x="${x}" y="${wordY}">${escapeHtml(word)}</text>`);
+  const nth = nthText(node);
+  if (nth !== null) parts.push(`<text class="node-detail" x="${RIGHT - 10}" y="${wordY}" text-anchor="end">${escapeHtml(nth)}</text>`);
+  return parts;
+}
+
+/** 節の <title> の足し書き：（費用 $0.90 / 上限 $1.00・上限に近い・1 回目）。出るものが無ければ空。 */
+function budgetTitle(node: PipelineNode): string {
+  const b = node.budget;
+  if (b == null) return '';
+  const items: string[] = [];
+  if (b.ratio !== null && b.costMilli !== null && b.limitMilli !== null) {
+    items.push(`費用 ${formatMilli(b.costMilli)} / 上限 ${formatMilli(b.limitMilli)}`);
+  }
+  const word = budgetWord(node);
+  if (word !== null) items.push(word);
+  const nth = nthText(node);
+  if (nth !== null) items.push(nth);
+  return items.length === 0 ? '' : `（${items.join('・')}）`;
+}
 
 const WIDTH = 320;
 const CX = 150; // 本線の x
@@ -45,7 +120,7 @@ function place(nodes: PipelineNode[]): Placed[] {
   let y = TOP;
   return nodes.map((node) => {
     const shape = shapeOf(node.id);
-    const h = HEIGHTS[shape];
+    const h = shape === 'stage' ? heightOf(node) : HEIGHTS[shape];
     const placed = { node, shape, y, h };
     y += h + GAP;
     return placed;
@@ -116,6 +191,7 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: num
     if (stale !== '') {
       parts.push(`<text class="node-stale" x="${LEFT + 12}" y="${y + 38}">${STALE_WORD} ${staleTime(node.quietSec, 'tspan')}</text>`);
     }
+    parts.push(...renderBudget(node, y));
   } else if (shape === 'verdict') {
     parts.push(`<text class="node-label" x="${CX}" y="${mid(p) + 4}" text-anchor="middle">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${CX + VERDICT_HALF_W + 8}" y="${mid(p) + 4}">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
@@ -136,7 +212,9 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: num
   }
   const pick = pickable.has(node.id) ? pickAttrs(node.id) : '';
   const waitingMark = node.waitingSec != null ? ' is-waiting' : '';
-  return `<g class="node is-${node.status}${waitingMark}" data-node="${escapeHtml(node.id)}"${stale}${pick}><title>${escapeHtml(`${node.label}：${status}`)}</title>${parts.join('')}</g>`;
+  const budgetMark = shape === 'stage' && node.budget != null ? ` is-budget-${node.budget.state}` : '';
+  const title = `${node.label}：${status}${shape === 'stage' ? budgetTitle(node) : ''}`;
+  return `<g class="node is-${node.status}${waitingMark}${budgetMark}" data-node="${escapeHtml(node.id)}"${stale}${pick}><title>${escapeHtml(title)}</title>${parts.join('')}</g>`;
 }
 
 function renderEdges(placed: Placed[], staleAfterSec: number | null): string {
@@ -211,6 +289,12 @@ export function renderFlowSvg(nodes: PipelineNode[], pickable: ReadonlySet<NodeI
   const role = placed.some((p) => pickable.has(p.node.id)) ? 'group' : 'img';
   const last = placed.at(-1);
   const height = last ? last.y + last.h + TOP : TOP * 2;
-  const summary = nodes.map((n) => `${n.label} ${NODE_STATUS_LABELS[n.status]}`).join('、');
+  // 近い・超えた・止まった節だけ、言葉を足す（余裕と状態なしは今のまま）
+  const summary = nodes
+    .map((n) => {
+      const word = shapeOf(n.id) === 'stage' ? budgetWord(n) : null;
+      return `${n.label} ${NODE_STATUS_LABELS[n.status]}${word === null ? '' : `（${word}）`}`;
+    })
+    .join('、');
   return `<svg class="flow" viewBox="0 0 ${WIDTH} ${height}" role="${role}" aria-label="${escapeHtml(`パイプラインの図：${summary}`)}">${DEFS}${renderEdges(placed, staleAfterSec)}${renderLoops(placed)}${placed.map((p) => renderNode(p, pickable, staleAfterSec)).join('')}</svg>`;
 }

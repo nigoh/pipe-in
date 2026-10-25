@@ -22,6 +22,7 @@ import {
   WAITING_DIR,
   WAITING_SEC,
   artifactsPageHtml,
+  budgetPageHtml,
   buildOmittedTree,
   buildRunsTree,
   panelKind,
@@ -219,6 +220,11 @@ for (const [page, theme] of PANEL_PAGES) {
   // 「エージェント・スキル」タブの見本（D0050）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
   if (kind === 'tools') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('tools', (dest) => toolsPageHtml(dest, theme)), 'utf8');
+    continue;
+  }
+  // 上限と費用の表の見本（D0051）：10 段のパイプの記録を一時フォルダの中に書いて読む
+  if (kind === 'budget') {
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('budget', (dest) => budgetPageHtml(dest, theme)), 'utf8');
     continue;
   }
   writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined, STALE_AFTER_SEC), 'utf8');

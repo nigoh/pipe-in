@@ -152,8 +152,10 @@ test('D0050-AC-46: PANEL_PAGES の先頭 14 件は今のまま（既存 12 件�
   assert.deepEqual(PANEL_PAGES.slice(0, 14).map(([name, theme]) => [name, theme]), EXISTING_14.map(([name, theme]) => [name, theme]));
 });
 
-test('D0050-AC-46: PANEL_PAGES は先頭 14 件のあとに run-panel-tools-light（明るい）・run-panel-tools-dark（暗い）の 2 件だけが足される', () => {
-  assert.deepEqual(PANEL_PAGES.slice(14).map(([name, theme]) => [name, theme]), [
+// D0051 で直した：あとの機能（上限と費用の表のページ）が PANEL_PAGES の末尾にページを足すので、「だけが足される」と slice(14) をやめ、
+// 先頭 14 件のすぐあとの 2 件（15・16 件目）を見る形にした。意味（先頭 14 件のあとに tools の 2 件が続く）は変わらない。
+test('D0050-AC-46: PANEL_PAGES は先頭 14 件のあと（15・16 件目）に run-panel-tools-light（明るい）・run-panel-tools-dark（暗い）の 2 件が続く（17 件目以降はあとの機能のページが足されてよい）', () => {
+  assert.deepEqual(PANEL_PAGES.slice(14, 16).map(([name, theme]) => [name, theme]), [
     ['run-panel-tools-light', 'light'],
     ['run-panel-tools-dark', 'dark'],
   ]);

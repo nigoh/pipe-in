@@ -18,6 +18,12 @@ export interface StageRun {
   costUsd: number;
   durationSec: number;
   isError: boolean;
+  /** 効いた費用の上限（ドル。runs[].max_budget_usd）。範囲外・読めない・項目なしは null＝上限なし */
+  maxBudgetUsd: number | null;
+  /** 続きの会話の回か（runs[].resumed が true のときだけ true） */
+  resumed: boolean;
+  /** SDK の結果の種類（runs[].subtype）。文字でなければ null */
+  subtype: string | null;
   /** 受け持ちの名前（record begin --agent）。無い・読めない記録では null */
   agent: string | null;
   /** SDK の会話の ID（runs[].session_id）。無い・読めない記録では null */
@@ -177,6 +183,12 @@ function str(value: unknown): string {
 function strOrNull(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
+/** 費用の上限として読む範囲（ドル）。この外の値は「上限なし」として読む */
+export const BUDGET_USD_MIN = 0.001;
+export const BUDGET_USD_MAX = 10000;
+function budgetLimitOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= BUDGET_USD_MIN && value <= BUDGET_USD_MAX ? value : null;
+}
 const NAME_MAX = 200;
 /** セッション名：1〜200 文字の文字。合わなければ null。 */
 function nameOrNull(value: unknown): string | null {
@@ -243,9 +255,12 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (val
       attempt: numOrNull(entry.attempt),
       note: str(entry.note),
       numTurns: num(entry.num_turns),
-      costUsd: num(entry.cost_usd),
+      costUsd: Math.max(0, num(entry.cost_usd)),
       durationSec: num(entry.duration_sec),
       isError: entry.is_error === true,
+      maxBudgetUsd: budgetLimitOrNull(entry.max_budget_usd),
+      resumed: entry.resumed === true,
+      subtype: strOrNull(entry.subtype),
       agent: tokenOrNull(entry.agent),
       sessionId: tokenOrNull(entry.session_id),
       review: null,

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from .config import Config
+from .config import Config, positive_budget
 from .guard import DEFAULT_MAX_AGENT_CALLS
 
 READ_TOOLS = ["Read", "Glob", "Grep"]
@@ -47,6 +47,13 @@ class StageSpec:
     max_budget_usd: float | None = None
     # 段の1回の実行で通すサブエージェント（Agent・Task）の数の上限（D0035）。ガードが数えて、超えたら止める
     max_agent_calls: int = DEFAULT_MAX_AGENT_CALLS
+
+
+def stage_budget_usd(spec: StageSpec, cfg: Config) -> float | None:
+    """段の費用の上限（ドル）。pipeline.toml の値が優先、無ければ段の定義（pipe.toml など）の値。
+    戻りは「0 より大きい有限な数か None」だけ。
+    SDK に渡す値（runner.sdk_options）と、runs[] に残す値（BasePipeline._run）は、必ずこの関数から取る（D0051）。"""
+    return positive_budget(cfg.stage(spec.name).max_budget_usd or spec.max_budget_usd)
 
 
 def protect(specs: dict[str, StageSpec], cfg: Config) -> dict[str, StageSpec]:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -65,9 +66,39 @@ class Config:
         return replace(self, pipe=name, work_dir=self.work_dir / name if own_work_dir else self.work_dir)
 
 
-def _stage_config(raw: Any) -> StageConfig:
+def positive_budget(value: Any) -> float | None:
+    """max_budget_usd として使える値（数で、有限で、0 より大きい）なら float で返す。ほかは None（D0051）。
+    真偽は数として扱わない。10 の 400 乗のように float にできない整数も None（例外にしない）。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        v = float(value)
+    except OverflowError:
+        return None
+    return v if math.isfinite(v) and v > 0 else None
+
+
+def budget_error(where: str, value: Any) -> str:
+    """max_budget_usd が正しくないときの文。pipeline.toml 側と pipe.toml 側で共有する（D0051）。"""
+    return f"{where} max_budget_usd は 0 より大きい数で書いてください（単位はドル。例: max_budget_usd = 1.0）。今の値: {value!r}"
+
+
+def _max_budget_usd(stage_name: str, table: dict[str, Any]) -> float | None:
+    """[stages.<段>] の max_budget_usd。無い・0 は未設定（None）。0 より大きい有限な数ならそれ。ほかは止める。"""
+    if "max_budget_usd" not in table:
+        return None
+    v = table["max_budget_usd"]
+    if not isinstance(v, bool) and isinstance(v, (int, float)) and v == 0:
+        return None
+    ok = positive_budget(v)
+    if ok is None:
+        raise SystemExit(budget_error(f"pipeline.toml の [stages.{stage_name}]", v))
+    return ok
+
+
+def _stage_config(name: str, raw: Any) -> StageConfig:
     s = raw if isinstance(raw, dict) else {}
-    return StageConfig(model=s.get("model"), max_turns=s.get("max_turns"), max_budget_usd=s.get("max_budget_usd"))
+    return StageConfig(model=s.get("model"), max_turns=s.get("max_turns"), max_budget_usd=_max_budget_usd(name, s))
 
 
 def _max_buffer_mb(p: dict[str, Any]) -> int:
@@ -119,7 +150,7 @@ def load_config(
     max_buffer_mb = _max_buffer_mb(p)
 
     raw_stages = raw.get("stages", {})
-    stages = {name: _stage_config(s) for name, s in raw_stages.items()} if isinstance(raw_stages, dict) else {}
+    stages = {name: _stage_config(name, s) for name, s in raw_stages.items()} if isinstance(raw_stages, dict) else {}
 
     return Config(
         project_dir=project_dir,
