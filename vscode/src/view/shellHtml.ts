@@ -29,7 +29,7 @@ import {
 } from './staleMark.ts';
 import { renderTimes } from './timesHtml.ts';
 import { renderTools } from './toolsHtml.ts';
-import { renderUsage } from './usageHtml.ts';
+import { renderStageCosts, renderUsage } from './usageHtml.ts';
 
 export const SHELL_STYLE = `
 .app { display: flex; flex-direction: column; height: 100vh; min-width: 0; }
@@ -319,7 +319,7 @@ export function renderShell(view: PipelineView, list: RunListView, staleAfterSec
     panel('diagram', renderDiagramPanel(view, staleAfterSec)) +
     panel('artifacts', renderArtifacts(view), 'panel-artifacts') +
     panel('tools', renderTools(view.tools ?? null), 'panel-tools') +
-    panel('usage', renderUsage(view.usage)) +
+    panel('usage', renderStageCosts(view.stageCosts) + renderUsage(view.usage)) +
     '</main></div></div>'
   );
 }

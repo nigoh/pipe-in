@@ -2,6 +2,7 @@
 //   AC-73：run-panel-artifacts-light・-dark（実行の一覧つき。実行は 2 つ：(a) 動いている開発フロー・(b) 12 個のパイプ）。
 //   AC-74：写した成果物の更新時刻を、見本の「今」から決めた固定の値にそろえる（新しいページ以外の既存のページの写しも）。
 //   AC-75：既存のページの「図と出力」「使用量」のパネルの HTML は変わらない（今の作りで測った SHA-256 を直書きした、守る検査）。
+//          D0051 で、使用量のパネルの「段ごとの費用」の節を取り除いてから測る形に直した（panelsOf のコメントに理由と補う確かめ。SHA-256 の値は測り直していない）。
 // 画面そのもの（AC-80〜87）は Playwright で見る。ここで確かめるのは、画面で見る前の素材：ページの文字・見本の木・preview.ts の呼び方。
 // 確認用ページの HTML は bootPanel に渡さない（置き換えのスクリプトが先に拾われ、パネルのスクリプトが動かないため）。
 // 新しい関数（buildArtifactsTree・artifactsPageHtml・setArtifactTimes）と新しい出口（PANEL_PAGES の 2 件・panelKind の 'artifacts'・recordPosted）は、
@@ -901,4 +902,20 @@ test('D0025-AC-75: 検査そのもの：panelsOf は「図と出力」と「使�
   assert.notEqual(panelsOf(page(panel('artifacts', 'A1'), 'D2')), a, '図のパネルが変われば違う');
   assert.notEqual(panelsOf(page(panel('artifacts', 'A1'), 'D', 'U2')), a, '使用量のパネルが変われば違う');
   assert.throws(() => panelsOf('<main></main>'), '「図と出力」のパネルが無ければ落ちる');
+});
+
+// D0051：使用量のパネルの「段ごとの費用」の節を取り除いて測る（検査を緩める直し。上の panelsOf のコメントに理由と補う確かめ）
+test('D0025-AC-75: 検査そのもの：費用の節だけが違う使用量のパネルは同じ文字になり、費用の節以外が違えば違う文字になる。今のまま通る。守る', () => {
+  const costs = (body: string): string => `<section class="stage-costs" data-stage-costs><h2 class="terminal-title">段ごとの費用</h2><table><tr><td>${body}</td></tr></table></section>`;
+  const panel = (key: string, body: string, extra = ''): string => `<div class="tabpanel" role="tabpanel" data-detail-panel="${key}"${extra}>${body}</div>`;
+  const usage = '<section><h2 class="terminal-title">使用量</h2><table class="usage-table"><tr><td>入力</td></tr></table></section>';
+  const page = (usageBody: string): string =>
+    `<main class="detail"><h1>t</h1>${panel('diagram', 'D')}${panel('artifacts', 'A', ' hidden')}${panel('usage', usageBody, ' hidden')}</main></div></div>`;
+  const without = panelsOf(page(usage));
+  assert.equal(without, panel('diagram', 'D') + panel('usage', usage, ' hidden'));
+  assert.equal(panelsOf(page(costs('A') + usage)), without, '費用の節が足されても同じ');
+  assert.equal(panelsOf(page(costs('別の中身') + usage)), without, '費用の節の中身が違っても同じ');
+  assert.equal(panelsOf(page(usage.replace('入力', '出力'))), panel('diagram', 'D') + panel('usage', usage.replace('入力', '出力'), ' hidden'));
+  assert.notEqual(panelsOf(page(costs('A') + usage.replace('入力', '出力'))), without, '費用の節以外（使用量の表）が違えば違う');
+  assert.notEqual(panelsOf(page(costs('A') + usage + '<p>余分</p>')), without, '費用の節の外に足したものは測る');
 });

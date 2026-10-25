@@ -6,8 +6,12 @@ import type { GanttModel } from './gantt.ts';
 import { latestMtime, quietSecAt, validMtime } from './quiet.ts';
 import { isDevRecord, isReadableState, parseRunRecord } from './runRecord.ts';
 import type { RunRecord, StageDef, StageRun, TokenCounts, UsageSummary, VerdictFailure } from './runRecord.ts';
-import { STAGE_LABELS } from './stage.ts';
+import { STAGES, STAGE_LABELS } from './stage.ts';
 import type { DevStage, Stage } from './stage.ts';
+import { pickStageBudget } from './stageBudget.ts';
+import type { NodeBudget } from './stageBudget.ts';
+import { buildStageCosts } from './stageCosts.ts';
+import type { StageCostsView } from './stageCosts.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
 import { elapsedSec, parseInstant } from './timestamp.ts';
@@ -129,6 +133,8 @@ export interface PipelineNode {
   sendBackCount: number | null;
   /** 段の節で段の実行が1件以上あるときだけ。ほかは null */
   metrics: StageMetrics | null;
+  /** 段の節だけ、費用を上限と比べた結果（選んだ 1 回）。動いている段・状態を持たない段・節を手で作る側では null か無し（D0051） */
+  budget?: NodeBudget | null;
 }
 
 export interface TerminalView {
@@ -163,6 +169,8 @@ export interface PipelineView {
   noRecords: { message: string; workDir: string } | null;
   /** 使用量（本体 0.2 から）。usage_summary のない記録では null */
   usage: UsageView | null;
+  /** 段ごとの費用の表（runs[] の費用から。費用のある段が無ければ null） */
+  stageCosts: StageCostsView | null;
   /** 確認待ち（state.json の pending_review）。なければ null */
   pendingReview: PendingReviewView | null;
   /** 注意（state.json の warnings） */
@@ -365,6 +373,7 @@ function makeNode(id: NodeId, status: NodeStatus, extra: Partial<PipelineNode> =
     reviseCount: null,
     sendBackCount: null,
     metrics: null,
+    budget: null,
     ...extra,
   };
 }
@@ -381,7 +390,12 @@ function stageNode(
   const last = runs.at(-1);
   const status: NodeStatus =
     runningStage === stage ? 'running' : last === undefined ? 'pending' : last.isError ? 'failed' : 'done';
-  const extra: Partial<PipelineNode> = { metrics: sumMetrics(runs), ...extraNode };
+  // 動いている段には上限の表示を出さない（動いている間の費用はまだ記録に無い）
+  const extra: Partial<PipelineNode> = {
+    metrics: sumMetrics(runs),
+    budget: status === 'running' ? null : pickStageBudget(runs),
+    ...extraNode,
+  };
   if (countSendBack) {
     extra.sendBackCount = runs.filter((r) => r.attempt !== null && r.attempt >= 2).length;
   }
@@ -614,6 +628,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
     waiting: record.final === null && runningStage === null && record.stageRuns.length >= 1,
     noRecords,
     usage: buildUsage(record, stageLabels),
+    stageCosts: buildStageCosts(record.stageRuns, dev ? STAGES : (record.stages ?? []).map((s) => s.name), stageLabels),
     pendingReview:
       record.pendingReview === null
         ? null
