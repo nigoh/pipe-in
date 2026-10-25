@@ -123,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         from .dev.record import main as record_main
 
         return record_main(argv[1:])
+    if argv and argv[0] == "skill":
+        # record と worktree を、今のフォルダだけを相手にする形で流す（allow に入れてよい入口）。Claude Code の /pipe-in が使う
+        from .dev.skill_cmd import main as skill_main
+
+        return skill_main(argv[1:])
     if argv and argv[0] == "worktree":
         # 機能ごとの worktree を切る・main に入ったものを片付ける。Claude Code の /pipe-in が使う
         from .dev.worktree import main as worktree_main
