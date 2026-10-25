@@ -28,7 +28,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 
 ## 確認用のページの一覧
 
-`npm run preview`（下の「撮り直す」の手順2）で `vscode/out/preview/` にできるページの一覧です。一覧の持ち場はここ 1 つで、ページの種類ごとに 1 行です。いちばん右の列が、画像に撮るかどうかです。開発のときに Playwright（MCP）で画面を確かめる手順は `.claude/skills/pipe-in/screen-check.md` にあります。
+`npm run preview`（下の「撮り直す」の手順2）で `vscode/out/preview/` にできるページの一覧です。一覧の持ち場はここ 1 つで、ページの種類ごとに 1 行です。いちばん右の列が、画像に撮るかどうかです。開発のときに Playwright（MCP）で画面を確かめる手順は `.claude/skills/pipe-in/screen-check.md` にあります。Claude のアーティファクトの進み具合のページの答えのボタン（D0044）を確かめるページは、ここでは作らず、`python tests/live_page_preview.py <リポジトリの外の出力先>` で作ります。
 
 | ページ | 見るもの | 画像に撮るか |
 | --- | --- | --- |

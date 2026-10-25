@@ -1,4 +1,4 @@
-"""D0039：答えの文を作る・読む（pipe_in/engine/live_answer.py の build_answer・parse_answer・valid_stage）。
+"""D0044：答えの文を作る・読む（pipe_in/engine/live_answer.py の build_answer・parse_answer・valid_stage）。
 
 ページのボタンが送る文（1行目 `pipe-in: <動作> <段> <識別子>`、revise だけ2行目以降が直してほしい点）を、本体が厳しく読む。
 読み取り器は例外を出さず、直したり推し量ったりせず、変な文字は取り除かずに断る。理由は決まった一覧で、入力の文字は入れない。
@@ -71,8 +71,8 @@ BAD_CHARS = CONTROL_CHARS + ZERO_WIDTH + DIRECTION + LINE_SEPARATORS + SURROGATE
 # ---- 定数 -----------------------------------------------------------------------------------------------
 
 
-def test_d0039_ac13_constants_follow_the_design():
-    """D0039-AC-13: 本体の定数は設計 3.1 のとおり（1か所の定数）。"""
+def test_d0044_ac13_constants_follow_the_design():
+    """D0044-AC-13: 本体の定数は設計 3.1 のとおり（1か所の定数）。"""
     assert la.SENTINEL == "pipe-in: "
     assert la.WIRE == WIRE
     assert la.ACTIONS == ("approved", "revise", "quit")
@@ -90,8 +90,8 @@ def test_d0039_ac13_constants_follow_the_design():
         assert not la.ID_RE.fullmatch(bad), bad
 
 
-def test_d0039_ac13_the_three_reason_lists_do_not_overlap():
-    """D0039-AC-13: 読み取りの理由・照らし合わせの理由・コマンドだけの理由は、重ならない（理由の文字で、どこで断られたか分かる）。"""
+def test_d0044_ac13_the_three_reason_lists_do_not_overlap():
+    """D0044-AC-13: 読み取りの理由・照らし合わせの理由・コマンドだけの理由は、重ならない（理由の文字で、どこで断られたか分かる）。"""
     lists = [set(la.PARSE_REASONS), set(la.CHECK_REASONS), set(la.IO_REASONS)]
     assert [len(x) for x in lists] == [10, 6, 3]
     assert len(set.union(*lists)) == 19
@@ -100,16 +100,16 @@ def test_d0039_ac13_the_three_reason_lists_do_not_overlap():
 # ---- AC-01 正しい形 ---------------------------------------------------------------------------------------
 
 
-def test_d0039_ac01_valid_forms_are_read():
-    """D0039-AC-01: 承認・差し戻し・中止の3つの形が、（動作・段・識別子・直してほしい点）に分かれる。"""
+def test_d0044_ac01_valid_forms_are_read():
+    """D0044-AC-01: 承認・差し戻し・中止の3つの形が、（動作・段・識別子・直してほしい点）に分かれる。"""
     passes(f"pipe-in: approve requirements {ID}", "approved", "requirements")
     passes(f"pipe-in: revise design {ID}\nここを直してください", "revise", "design", feedback="ここを直してください")
     passes(f"pipe-in: quit test {ID}", "quit", "test")
 
 
 @pytest.mark.parametrize("word,expected", [("approve", "approved"), ("revise", "revise"), ("quit", "quit")])
-def test_d0039_ac01_actions_come_back_in_record_words(word, expected):
-    """D0039-AC-01: 動作は record review の言葉（approved・revise・quit）で返る（文の approve は approved になる）。"""
+def test_d0044_ac01_actions_come_back_in_record_words(word, expected):
+    """D0044-AC-01: 動作は record review の言葉（approved・revise・quit）で返る（文の approve は approved になる）。"""
     text = line(word) + ("\nfix" if word == "revise" else "")
     r = parse(text)
     assert r.ok is True and r.action == expected and r.reason is None
@@ -117,8 +117,8 @@ def test_d0039_ac01_actions_come_back_in_record_words(word, expected):
 
 @pytest.mark.parametrize("stage", ["a", "Z", "0", "9", "a-b", "a_b", "A1_b-C", "requirements", "make-diagram_2", "a" * 40, "A" * 40, "0" * 40, "a" + "-" * 39, "a" + "_" * 39])
 @pytest.mark.parametrize("word", ["approve", "quit"])
-def test_d0039_ac01_stage_names_that_fit_are_read(word, stage):
-    """D0039-AC-01: 段の名前は [A-Za-z0-9][A-Za-z0-9_-]{0,39}（1文字・40文字は通る。大文字も記号の - _ も通る）。"""
+def test_d0044_ac01_stage_names_that_fit_are_read(word, stage):
+    """D0044-AC-01: 段の名前は [A-Za-z0-9][A-Za-z0-9_-]{0,39}（1文字・40文字は通る。大文字も記号の - _ も通る）。"""
     passes(line(word, stage), WIRE[word], stage)
 
 
@@ -126,13 +126,13 @@ def test_d0039_ac01_stage_names_that_fit_are_read(word, stage):
     "stage", ["a" * 41, "a" * 100, "-a", "_a", "-", "_", "--", "a b".replace(" ", "\u00a0"), "a.b", "a/b", "a\\b", "a:b", "a,b", "a;b", "a$b", "a`b`", "é", "あ", "設計", "a=", "<b>", "a'b", 'a"b', "a&b", "a|b", "../x"],
     ids=sid,
 )
-def test_d0039_ac01_stage_names_that_do_not_fit_are_bad_stage(stage):
-    """D0039-AC-01: 41文字・先頭が - や _・形に合わない文字が入った段の名前は bad_stage（41文字は境目の +1）。"""
+def test_d0044_ac01_stage_names_that_do_not_fit_are_bad_stage(stage):
+    """D0044-AC-01: 41文字・先頭が - や _・形に合わない文字が入った段の名前は bad_stage（41文字は境目の +1）。"""
     refused(line("approve", stage), "bad_stage")
 
 
-def test_d0039_ac01_stage_length_and_first_char_boundaries():
-    """D0039-AC-01: 段の名前の境目：1文字・40文字は通り、41文字・先頭が - と _ は bad_stage。空は断る（理由は bad_format か bad_stage）。"""
+def test_d0044_ac01_stage_length_and_first_char_boundaries():
+    """D0044-AC-01: 段の名前の境目：1文字・40文字は通り、41文字・先頭が - と _ は bad_stage。空は断る（理由は bad_format か bad_stage）。"""
     passes(line("approve", "a"), "approved", "a")
     passes(line("approve", "a" * 40), "approved", "a" * 40)
     refused(line("approve", "a" * 41), "bad_stage")
@@ -142,19 +142,19 @@ def test_d0039_ac01_stage_length_and_first_char_boundaries():
 
 
 @pytest.mark.parametrize("stage", ["a", "design", "a" * 40, "x-y_z"])
-def test_d0039_ac01_unknown_stage_names_do_not_change_the_action(stage):
-    """D0039-AC-01: 段の名前は形に合えば何でも読める（動作は段の名前に左右されない）。"""
+def test_d0044_ac01_unknown_stage_names_do_not_change_the_action(stage):
+    """D0044-AC-01: 段の名前は形に合えば何でも読める（動作は段の名前に左右されない）。"""
     assert parse(line("quit", stage)).action == "quit"
 
 
 @pytest.mark.parametrize("stage,expected", [("a", True), ("0", True), ("A-b_c", True), ("a" * 40, True), ("a" * 41, False), ("", False), ("-a", False), ("_a", False), ("a b", False), ("a\n", False), ("é", False), ("日本", False), ("a.b", False), ("../x", False), (None, False), (5, False), (b"abc", False), (["a"], False), (("a",), False), ({"a": 1}, False), (1.5, False), (True, False)])
-def test_d0039_ac01_valid_stage_function(stage, expected):
-    """D0039-AC-01: valid_stage は、文字列で、段の名前の形に全体で合うときだけ真（型が違う・末尾の改行つきは偽。例外を出さない）。"""
+def test_d0044_ac01_valid_stage_function(stage, expected):
+    """D0044-AC-01: valid_stage は、文字列で、段の名前の形に全体で合うときだけ真（型が違う・末尾の改行つきは偽。例外を出さない）。"""
     assert la.valid_stage(stage) is expected
 
 
-def test_d0039_ac01_valid_stage_rejects_str_subclasses():
-    """D0039-AC-01: valid_stage は type(stage) is str を要る（文字列のふりをするものを通さない）。"""
+def test_d0044_ac01_valid_stage_rejects_str_subclasses():
+    """D0044-AC-01: valid_stage は type(stage) is str を要る（文字列のふりをするものを通さない）。"""
 
     class Sneaky(str):
         pass
@@ -175,29 +175,29 @@ def test_d0039_ac01_valid_stage_rejects_str_subclasses():
         ("revise", "a\n\nb", f"pipe-in: revise design {ID}\na\n\nb"),
     ],
 )
-def test_d0039_ac01_build_answer_makes_the_designed_text(action, feedback, expected):
-    """D0039-AC-01: build_answer は record review の言葉の動作から、文の言葉（approved → approve）の1行目を作る。revise だけ後ろに直してほしい点が続く。"""
+def test_d0044_ac01_build_answer_makes_the_designed_text(action, feedback, expected):
+    """D0044-AC-01: build_answer は record review の言葉の動作から、文の言葉（approved → approve）の1行目を作る。revise だけ後ろに直してほしい点が続く。"""
     assert la.build_answer(action, "design", ID, feedback) == expected
 
 
 @pytest.mark.parametrize("action", ["approved", "quit", "revise"])
 @pytest.mark.parametrize("stage", ["a", "requirements", "make-diagram_2", "A" * 40])
-def test_d0039_ac01_build_answer_round_trips_through_parse_answer(action, stage):
-    """D0039-AC-01: build_answer が作った文は、parse_answer でそのまま同じ内容に読める（作る規則と読む規則が1つ）。"""
+def test_d0044_ac01_build_answer_round_trips_through_parse_answer(action, stage):
+    """D0044-AC-01: build_answer が作った文は、parse_answer でそのまま同じ内容に読める（作る規則と読む規則が1つ）。"""
     feedback = "直してほしい点\n二行目" if action == "revise" else None
     r = parse(la.build_answer(action, stage, ID, feedback))
     assert r == la.ParseResult(True, action, stage, ID, feedback, None)
 
 
 @pytest.mark.parametrize("feedback", ["x", "日本語と絵文字 😀🎉", "e\u0301", "a\u3000b", "a\tb", "a\n\nb", "<script>alert(1)</script>", "`$(whoami)`; a && b", "x" * 1000, "😀" * 1000])
-def test_d0039_ac01_build_answer_round_trips_feedback(feedback):
-    """D0039-AC-01: 直してほしい点が（日本語・絵文字・結合文字・全角空白・タブ・空行・記号・上限ちょうど）でも、作って読むと同じに戻る。"""
+def test_d0044_ac01_build_answer_round_trips_feedback(feedback):
+    """D0044-AC-01: 直してほしい点が（日本語・絵文字・結合文字・全角空白・タブ・空行・記号・上限ちょうど）でも、作って読むと同じに戻る。"""
     r = parse(la.build_answer("revise", "design", ID, feedback))
     assert r.ok is True and r.feedback == feedback
 
 
-def test_d0039_ac01_build_answer_feedback_is_read_back_without_outer_whitespace():
-    """D0039-AC-01: 直してほしい点の前後の空白は読み取りで取れる（作った文を読むと、前後の空白を取った言葉になる）。"""
+def test_d0044_ac01_build_answer_feedback_is_read_back_without_outer_whitespace():
+    """D0044-AC-01: 直してほしい点の前後の空白は読み取りで取れる（作った文を読むと、前後の空白を取った言葉になる）。"""
     r = parse(la.build_answer("revise", "design", ID, "  \n 本文 \n  "))
     assert r.ok is True and r.feedback == "本文"
 
@@ -242,8 +242,8 @@ def test_d0039_ac01_build_answer_feedback_is_read_back_without_outer_whitespace(
     ],
     ids=sid,
 )
-def test_d0039_ac01_build_answer_refuses_anything_that_would_not_read_back(args):
-    """D0039-AC-01: build_answer は、動作・段・識別子が形に合わない／revise で直してほしい点が無い・読めない／ほかの動作で渡された、のとき ValueError。"""
+def test_d0044_ac01_build_answer_refuses_anything_that_would_not_read_back(args):
+    """D0044-AC-01: build_answer は、動作・段・識別子が形に合わない／revise で直してほしい点が無い・読めない／ほかの動作で渡された、のとき ValueError。"""
     with pytest.raises(ValueError):
         la.build_answer(*args)
 
@@ -252,8 +252,8 @@ def test_d0039_ac01_build_answer_refuses_anything_that_would_not_read_back(args)
 
 
 @pytest.mark.parametrize("ident", ["0123456789", "abcdef0123", "ffffffffff", "0000000000", "a1b2c3d4e5", "9f8e7d6c5b"])
-def test_d0039_ac02_ten_lowercase_hex_pass(ident):
-    """D0039-AC-02: 識別子は小文字の16進ちょうど10文字だけ通る。"""
+def test_d0044_ac02_ten_lowercase_hex_pass(ident):
+    """D0044-AC-02: 識別子は小文字の16進ちょうど10文字だけ通る。"""
     passes(line("approve", "design", ident), "approved", "design", ident)
 
 
@@ -262,13 +262,13 @@ def test_d0039_ac02_ten_lowercase_hex_pass(ident):
     ["a1b2c3d4e", "a1b2c3d4e5f", "a" * 9, "a" * 11, "a" * 64, "A1B2C3D4E5", "a1b2c3d4E5", "g1b2c3d4e5", "a1b2c3d4eg", "a1b2c3d4e-", "a1b2c3d4e_", "a1b2c3d4e;", "a1b2c3d4e`", "0x12345678", "０１２３４５６７８９", "a1b2c3d4e5\u0301", "a1b2c3d4\u00e9"],
     ids=sid,
 )
-def test_d0039_ac02_other_identifiers_are_bad_id(ident):
-    """D0039-AC-02: 9文字・11文字・大文字・g などの16進でない文字・記号つき・全角数字は bad_id。"""
+def test_d0044_ac02_other_identifiers_are_bad_id(ident):
+    """D0044-AC-02: 9文字・11文字・大文字・g などの16進でない文字・記号つき・全角数字は bad_id。"""
     refused(line("approve", "design", ident), "bad_id")
 
 
-def test_d0039_ac02_id_must_be_ten_lowercase_hex():
-    """D0039-AC-02: 識別子の境目：9文字・11文字・大文字・16進でない文字は bad_id。空（3つ目が無い）は断る（bad_format か bad_id）。"""
+def test_d0044_ac02_id_must_be_ten_lowercase_hex():
+    """D0044-AC-02: 識別子の境目：9文字・11文字・大文字・16進でない文字は bad_id。空（3つ目が無い）は断る（bad_format か bad_id）。"""
     refused(line(id="a1b2c3d4e"), "bad_id")
     refused(line(id="a1b2c3d4e5f"), "bad_id")
     refused(line(id="A1B2C3D4E5"), "bad_id")
@@ -277,8 +277,8 @@ def test_d0039_ac02_id_must_be_ten_lowercase_hex():
     refused_with_one_of("pipe-in: approve design", ("bad_format", "bad_id"))
 
 
-def test_d0039_ac02_checks_run_in_the_designed_order():
-    """D0039-AC-02: 規則は 動作 → 段 → 識別子 の順に見る（複数が悪いとき、最初に当たったものが理由になる）。"""
+def test_d0044_ac02_checks_run_in_the_designed_order():
+    """D0044-AC-02: 規則は 動作 → 段 → 識別子 の順に見る（複数が悪いとき、最初に当たったものが理由になる）。"""
     refused(line("accept", "-bad", "ZZ"), "bad_action")
     refused(line("approve", "-bad", "ZZ"), "bad_stage")
     refused(line("approve", "ok", "ZZ"), "bad_id")
@@ -307,14 +307,14 @@ def test_d0039_ac02_checks_run_in_the_designed_order():
     ],
     ids=sid,
 )
-def test_d0039_ac03_case_is_never_folded(text, reason):
-    """D0039-AC-03: PIPE-IN:・Pipe-in:・APPROVE・Revise などは読み替えずに断る（pipe-in: と動作は小文字だけ）。"""
+def test_d0044_ac03_case_is_never_folded(text, reason):
+    """D0044-AC-03: PIPE-IN:・Pipe-in:・APPROVE・Revise などは読み替えずに断る（pipe-in: と動作は小文字だけ）。"""
     refused(text, reason)
 
 
 @pytest.mark.parametrize("stage", ["Design", "DESIGN", "design", "dEsIgN"])
-def test_d0039_ac03_stage_case_is_kept_by_the_reader(stage):
-    """D0039-AC-03: 読み取りは段の大文字小文字をそのまま保つ（小文字にそろえない）。"""
+def test_d0044_ac03_stage_case_is_kept_by_the_reader(stage):
+    """D0044-AC-03: 読み取りは段の大文字小文字をそのまま保つ（小文字にそろえない）。"""
     assert parse(line("approve", stage)).stage == stage
 
 
@@ -349,14 +349,14 @@ def test_d0039_ac03_stage_case_is_kept_by_the_reader(stage):
     ],
     ids=sid,
 )
-def test_d0039_ac04_spacing_variants_are_refused(text):
-    """D0039-AC-04: トークンの間が2個以上の空白・全角空白・NBSP・pipe-in: の直後に空白が無い形・コロンの前の空白は、bad_format で断る。"""
+def test_d0044_ac04_spacing_variants_are_refused(text):
+    """D0044-AC-04: トークンの間が2個以上の空白・全角空白・NBSP・pipe-in: の直後に空白が無い形・コロンの前の空白は、bad_format で断る。"""
     refused(text, "bad_format")
 
 
 @pytest.mark.parametrize("tail", ["\u3000", "\u00a0", "\u3000x", "\u00a0x", "\u2003", "\u00a0\u00a0"], ids=sid)
-def test_d0039_ac04_unicode_space_glued_to_the_id_is_bad_id(tail):
-    """D0039-AC-04: 識別子に NBSP・全角空白がくっついた形は（ASCII の空白で区切られていないので）識別子の形に合わず bad_id。"""
+def test_d0044_ac04_unicode_space_glued_to_the_id_is_bad_id(tail):
+    """D0044-AC-04: 識別子に NBSP・全角空白がくっついた形は（ASCII の空白で区切られていないので）識別子の形に合わず bad_id。"""
     refused(f"pipe-in: approve design {ID}{tail}", "bad_id")
 
 
@@ -371,8 +371,8 @@ def test_d0039_ac04_unicode_space_glued_to_the_id_is_bad_id(tail):
     ],
     ids=sid,
 )
-def test_d0039_ac04_tab_in_the_first_line_is_bad_chars(text):
-    """D0039-AC-04: 1行目の中のタブは、制御文字として bad_chars で断る（文字の検査が先）。"""
+def test_d0044_ac04_tab_in_the_first_line_is_bad_chars(text):
+    """D0044-AC-04: 1行目の中のタブは、制御文字として bad_chars で断る（文字の検査が先）。"""
     refused(text, "bad_chars")
 
 
@@ -394,25 +394,25 @@ def test_d0039_ac04_tab_in_the_first_line_is_bad_chars(text):
     ],
     ids=sid,
 )
-def test_d0039_ac04_outer_whitespace_and_line_end_spaces_are_trimmed(text):
-    """D0039-AC-04: 全体の前後の ASCII の空白（スペース・タブ・改行）は取って通す。"""
+def test_d0044_ac04_outer_whitespace_and_line_end_spaces_are_trimmed(text):
+    """D0044-AC-04: 全体の前後の ASCII の空白（スペース・タブ・改行）は取って通す。"""
     passes(text, "approved")
 
 
 @pytest.mark.parametrize("pad", [" ", "  ", "     ", " " * 40])
-def test_d0039_ac04_trailing_spaces_on_the_first_line_of_revise_are_trimmed(pad):
-    """D0039-AC-04: 1行目の終わりの空白は取る（revise の1行目の後ろに空白があっても、直してほしい点は変わらない）。"""
+def test_d0044_ac04_trailing_spaces_on_the_first_line_of_revise_are_trimmed(pad):
+    """D0044-AC-04: 1行目の終わりの空白は取る（revise の1行目の後ろに空白があっても、直してほしい点は変わらない）。"""
     passes(line("revise") + pad + "\nここ", "revise", feedback="ここ")
 
 
-def test_d0039_ac04_trailing_spaces_before_a_feedback_line_do_not_leak_into_it():
-    """D0039-AC-04: 1行目の終わりの空白は直してほしい点に入らない（2行目の先頭の空白は前後の空白として取れる）。"""
+def test_d0044_ac04_trailing_spaces_before_a_feedback_line_do_not_leak_into_it():
+    """D0044-AC-04: 1行目の終わりの空白は直してほしい点に入らない（2行目の先頭の空白は前後の空白として取れる）。"""
     passes(line("revise") + "   \n   ここ   ", "revise", feedback="ここ")
 
 
 @pytest.mark.parametrize("lead", ["\u00a0", "\u3000", "\u2003", "\x0b", "\x0c", "\u200b"])
-def test_d0039_ac04_only_ascii_space_tab_newline_are_trimmed_at_the_outer_edges(lead):
-    """D0039-AC-04: 外側で取るのは スペース・タブ・改行 だけ。NBSP・全角空白などの先頭は取らず断る（\\x0b・\\x0c・ゼロ幅は文字の検査で bad_chars）。"""
+def test_d0044_ac04_only_ascii_space_tab_newline_are_trimmed_at_the_outer_edges(lead):
+    """D0044-AC-04: 外側で取るのは スペース・タブ・改行 だけ。NBSP・全角空白などの先頭は取らず断る（\\x0b・\\x0c・ゼロ幅は文字の検査で bad_chars）。"""
     r = parse(lead + line())
     assert r.ok is False and r.reason in ("bad_format", "bad_chars")
     r = parse(line() + lead)
@@ -420,14 +420,14 @@ def test_d0039_ac04_only_ascii_space_tab_newline_are_trimmed_at_the_outer_edges(
 
 
 @pytest.mark.parametrize("text", ["", " ", "   ", "\n", "\t", " \t\n\r\n \t", "\n\n\n", "\r\n", "\r\n\r\n", " " * 3999, "\n" * MAX_RAW])
-def test_d0039_ac04_blank_text_is_empty(text):
-    """D0039-AC-04: 空・空白だけ・改行だけの文は empty（取ったあとが空）。"""
+def test_d0044_ac04_blank_text_is_empty(text):
+    """D0044-AC-04: 空・空白だけ・改行だけの文は empty（取ったあとが空）。"""
     refused(text, "empty")
 
 
 @pytest.mark.parametrize("blank", ["\u00a0", "\u3000", "\u2003", "\u00a0\u00a0"])
-def test_d0039_ac04_unicode_space_only_text_is_not_empty_but_not_an_answer(blank):
-    """D0039-AC-04: Unicode の空白だけの文は取れない（empty ではなく bad_format）。"""
+def test_d0044_ac04_unicode_space_only_text_is_not_empty_but_not_an_answer(blank):
+    """D0044-AC-04: Unicode の空白だけの文は取れない（empty ではなく bad_format）。"""
     refused(blank, "bad_format")
 
 
@@ -449,15 +449,15 @@ def test_d0039_ac04_unicode_space_only_text_is_not_empty_but_not_an_answer(blank
     ],
     ids=sid,
 )
-def test_d0039_ac05_crlf_gives_the_same_result_as_lf(lf):
-    """D0039-AC-05: CRLF の文は LF の文と同じ結果になる（通るものも、断るものも。どちらも読み取りが結果を出している）。"""
+def test_d0044_ac05_crlf_gives_the_same_result_as_lf(lf):
+    """D0044-AC-05: CRLF の文は LF の文と同じ結果になる（通るものも、断るものも。どちらも読み取りが結果を出している）。"""
     r = parse(lf)
     assert r.ok or r.reason in PARSE_REASONS, r
     assert parse(lf.replace("\n", "\r\n")) == r
 
 
-def test_d0039_ac05_crlf_inside_feedback_becomes_lf():
-    """D0039-AC-05: 直してほしい点の中の CRLF は LF になる。"""
+def test_d0044_ac05_crlf_inside_feedback_becomes_lf():
+    """D0044-AC-05: 直してほしい点の中の CRLF は LF になる。"""
     r = parse(line("revise") + "\r\n1行目\r\n\r\n3行目\r\n")
     assert r.ok is True and r.feedback == "1行目\n\n3行目" and "\r" not in r.feedback
 
@@ -480,15 +480,15 @@ def test_d0039_ac05_crlf_inside_feedback_becomes_lf():
     ],
     ids=sid,
 )
-def test_d0039_ac05_lone_cr_is_bad_chars(text):
-    """D0039-AC-05: 行の途中・先頭・終わりの単独の CR（\\r）は bad_chars（\\r\\n だけを \\n にそろえ、取り残された \\r は断る）。"""
+def test_d0044_ac05_lone_cr_is_bad_chars(text):
+    """D0044-AC-05: 行の途中・先頭・終わりの単独の CR（\\r）は bad_chars（\\r\\n だけを \\n にそろえ、取り残された \\r は断る）。"""
     refused(text, "bad_chars")
 
 
 @pytest.mark.parametrize("tail", ["\n", "\n\n", "\n\n\n\n", "\n \n", "\n\t\n", "\n   \n  \n", "\r\n\r\n", " \n \n \n", "\n" + " " * 100])
 @pytest.mark.parametrize("word", ["approve", "quit"])
-def test_d0039_ac05_trailing_blank_lines_after_approve_are_trimmed(word, tail):
-    """D0039-AC-05: approve・quit の後ろに空行だけが続く形は、前後の空白として取って通す。"""
+def test_d0044_ac05_trailing_blank_lines_after_approve_are_trimmed(word, tail):
+    """D0044-AC-05: approve・quit の後ろに空行だけが続く形は、前後の空白として取って通す。"""
     passes(line(word) + tail, WIRE[word])
 
 
@@ -501,8 +501,8 @@ def test_d0039_ac05_trailing_blank_lines_after_approve_are_trimmed(word, tail):
     ["\nnow", "\n now", "\nok", "\n\nnow", "\n \nnow", "\n\t\nnow", "\nnow\n", "\n1", "\n.", "\n-", "\n>", "\n`", "\n日本語", "\n😀", "\n\u3000x", "\n\u00a0", "\n\u3000", "\nnow\nmore", f"\n{line('approve')}", "\n```"],
     ids=sid,
 )
-def test_d0039_ac06_text_after_approve_or_quit_is_extra_lines(word, tail):
-    """D0039-AC-06: approve・quit の2行目以降に文字があれば extra_lines（NBSP・全角空白だけの行も文字として残る）。"""
+def test_d0044_ac06_text_after_approve_or_quit_is_extra_lines(word, tail):
+    """D0044-AC-06: approve・quit の2行目以降に文字があれば extra_lines（NBSP・全角空白だけの行も文字として残る）。"""
     refused(line(word) + tail, "extra_lines")
 
 
@@ -512,8 +512,8 @@ def test_d0039_ac06_text_after_approve_or_quit_is_extra_lines(word, tail):
     ids=sid,
 )
 @pytest.mark.parametrize("word", ["approve", "quit"])
-def test_d0039_ac06_text_after_the_id_is_bad_format(word, suffix):
-    """D0039-AC-06: 1行目の識別子の後ろに文字があれば（空白で区切られた4つ目）bad_format。"""
+def test_d0044_ac06_text_after_the_id_is_bad_format(word, suffix):
+    """D0044-AC-06: 1行目の識別子の後ろに文字があれば（空白で区切られた4つ目）bad_format。"""
     refused(line(word) + suffix, "bad_format")
 
 
@@ -532,8 +532,8 @@ def test_d0039_ac06_text_after_the_id_is_bad_format(word, suffix):
     ],
     ids=sid,
 )
-def test_d0039_ac06_a_line_before_the_first_is_bad_format(text):
-    """D0039-AC-06: 1行目の前に別の行があれば bad_format（先頭の空行だけは取る）。"""
+def test_d0044_ac06_a_line_before_the_first_is_bad_format(text):
+    """D0044-AC-06: 1行目の前に別の行があれば bad_format（先頭の空行だけは取る）。"""
     r = parse(text)
     assert r.ok is False and r.reason in ("bad_format", "extra_lines"), r
     if not text.startswith(line()):
@@ -541,8 +541,8 @@ def test_d0039_ac06_a_line_before_the_first_is_bad_format(text):
 
 
 @pytest.mark.parametrize("blank", ["\n", "\n\n", " \n", "\t\n", " \n \n", "\r\n", "\n  \n\t\n"])
-def test_d0039_ac06_blank_lines_before_the_first_are_trimmed(blank):
-    """D0039-AC-06: 1行目の前の空行だけの部分は取って通す。"""
+def test_d0044_ac06_blank_lines_before_the_first_are_trimmed(blank):
+    """D0044-AC-06: 1行目の前の空行だけの部分は取って通す。"""
     passes(blank + line(), "approved")
 
 
@@ -554,19 +554,19 @@ def test_d0039_ac06_blank_lines_before_the_first_are_trimmed(blank):
     ["accept", "approved", "reject", "stop", "cancel", "revise!", "approve!", "approve,", "approve.", "approve;", "approve:", "approves", "approv", "appro", "revision", "revised", "quit!", "quits", "quitt", "exit", "q", "a", "r", "yes", "no", "ok", "ＡＰＰＲＯＶＥ", "ａpprove", "approve\u0301", "approve\u3000", "-approve", "_approve", "approve-", "approve_", "rm", "$(x)", "`x`", "approve&&quit", "approve|quit", "approve/quit", "approve\\quit", "承認", "中止"],
     ids=sid,
 )
-def test_d0039_ac07_unknown_actions_are_bad_action(word):
-    """D0039-AC-07: 知らない動作（accept・approved・reject・stop・cancel・revise! など）は bad_action（直さない）。"""
+def test_d0044_ac07_unknown_actions_are_bad_action(word):
+    """D0044-AC-07: 知らない動作（accept・approved・reject・stop・cancel・revise! など）は bad_action（直さない）。"""
     refused(line(word), "bad_action")
 
 
-def test_d0039_ac07_empty_action_is_refused():
-    """D0039-AC-07: 動作が空（空白が2個並ぶ形）は断る（空白の規則 bad_format で外れる。bad_action でも可）。"""
+def test_d0044_ac07_empty_action_is_refused():
+    """D0044-AC-07: 動作が空（空白が2個並ぶ形）は断る（空白の規則 bad_format で外れる。bad_action でも可）。"""
     refused_with_one_of(f"pipe-in:  design {ID}", ("bad_format", "bad_action"))
 
 
 @pytest.mark.parametrize("stage", ["unknown", "foo", "Z9", "very-new_stage-2", "x"])
-def test_d0039_ac07_unknown_stage_names_are_readable_when_well_formed(stage):
-    """D0039-AC-07: 知らない段の名前は、形が合う限り読める（通すかどうかは照らし合わせが決める）。"""
+def test_d0044_ac07_unknown_stage_names_are_readable_when_well_formed(stage):
+    """D0044-AC-07: 知らない段の名前は、形が合う限り読める（通すかどうかは照らし合わせが決める）。"""
     passes(line("approve", stage), "approved", stage)
 
 
@@ -578,26 +578,26 @@ def test_d0039_ac07_unknown_stage_names_are_readable_when_well_formed(stage):
     ["", "\n", "\n\n", "\n   ", "\n \n \n", "\n\t", "\n\t\n\t", "\n\u3000", "\n\u00a0", "\n\u2003", "\n \u3000 ", "\n\u3000\n\u3000", "\r\n", "\r\n \r\n"],
     ids=sid,
 )
-def test_d0039_ac08_revise_without_feedback_is_need_feedback(tail):
-    """D0039-AC-08: revise で直してほしい点が無い・空白と改行だけ（全角空白・NBSP だけも）なら need_feedback。"""
+def test_d0044_ac08_revise_without_feedback_is_need_feedback(tail):
+    """D0044-AC-08: revise で直してほしい点が無い・空白と改行だけ（全角空白・NBSP だけも）なら need_feedback。"""
     refused(line("revise") + tail, "need_feedback")
 
 
 @pytest.mark.parametrize("n", [1, 2, 10, 999, 1000])
-def test_d0039_ac08_feedback_length_within_the_limit_passes(n):
-    """D0039-AC-08: 直してほしい点は 1 文字から 1000 文字ちょうどまで通る。"""
+def test_d0044_ac08_feedback_length_within_the_limit_passes(n):
+    """D0044-AC-08: 直してほしい点は 1 文字から 1000 文字ちょうどまで通る。"""
     body = "あ" * n
     passes(line("revise") + "\n" + body, "revise", feedback=body)
 
 
 @pytest.mark.parametrize("n", [1001, 1002, 1500, 1900])
-def test_d0039_ac08_feedback_over_the_limit_is_feedback_too_long(n):
-    """D0039-AC-08: 1001 文字以上は feedback_too_long（切らずに断る）。"""
+def test_d0044_ac08_feedback_over_the_limit_is_feedback_too_long(n):
+    """D0044-AC-08: 1001 文字以上は feedback_too_long（切らずに断る）。"""
     refused(line("revise") + "\n" + "あ" * n, "feedback_too_long")
 
 
-def test_d0039_ac08_feedback_length_boundaries():
-    """D0039-AC-08: 直してほしい点の境目：1文字・1000文字は通り、1001文字は feedback_too_long。切って通さない。"""
+def test_d0044_ac08_feedback_length_boundaries():
+    """D0044-AC-08: 直してほしい点の境目：1文字・1000文字は通り、1001文字は feedback_too_long。切って通さない。"""
     r = parse(line("revise") + "\n" + "x" * 1000)
     assert r.ok is True and len(r.feedback) == 1000
     r = parse(line("revise") + "\n" + "x" * 1001)
@@ -605,15 +605,15 @@ def test_d0039_ac08_feedback_length_boundaries():
     assert parse(line("revise") + "\nx").ok is True
 
 
-def test_d0039_ac08_feedback_length_is_counted_after_trimming():
-    """D0039-AC-08: 直してほしい点の長さは、前後の空白を取ったあとで数える（1000文字＋前後の空白は通る。1001文字＋空白は断る）。"""
+def test_d0044_ac08_feedback_length_is_counted_after_trimming():
+    """D0044-AC-08: 直してほしい点の長さは、前後の空白を取ったあとで数える（1000文字＋前後の空白は通る。1001文字＋空白は断る）。"""
     passes(line("revise") + "\n" + " " * 200 + "x" * 1000 + " " * 200, "revise", feedback="x" * 1000)
     passes(line("revise") + "\n\u3000\u3000" + "x" * 1000 + "\u3000", "revise", feedback="x" * 1000)
     refused(line("revise") + "\n" + " " * 200 + "x" * 1001 + " " * 200, "feedback_too_long")
 
 
-def test_d0039_ac08_inner_blank_lines_count_as_characters():
-    """D0039-AC-08: 直してほしい点の中の改行も1文字として数える（x が 500 個＋改行 499 個＋... の境目）。"""
+def test_d0044_ac08_inner_blank_lines_count_as_characters():
+    """D0044-AC-08: 直してほしい点の中の改行も1文字として数える（x が 500 個＋改行 499 個＋... の境目）。"""
     ok = "\n".join(["x"] * 500)  # 500 + 499 = 999
     assert len(ok) == 999
     passes(line("revise") + "\n" + ok, "revise", feedback=ok)
@@ -623,8 +623,8 @@ def test_d0039_ac08_inner_blank_lines_count_as_characters():
     refused(line("revise") + "\n" + ok2 + "y", "feedback_too_long")
 
 
-def test_d0039_ac08_total_length_boundaries():
-    """D0039-AC-08: 全体（前後の空白を取ったあと）2000 文字ちょうどは通り、2001 文字は too_long。"""
+def test_d0044_ac08_total_length_boundaries():
+    """D0044-AC-08: 全体（前後の空白を取ったあと）2000 文字ちょうどは通り、2001 文字は too_long。"""
     # revise：1行目に余白を足して、直してほしい点が上限ちょうど（1000）のまま、全体を 2000 / 2001 にする
     body = "y" * 1000
     head = line("revise")
@@ -636,8 +636,8 @@ def test_d0039_ac08_total_length_boundaries():
     refused(two, "too_long")
 
 
-def test_d0039_ac08_raw_input_limit_is_checked_before_trimming():
-    """D0039-AC-08: 前後の空白を含む入力が 4000 文字を超えたら、中を見ずに too_long（4000 ちょうどは、取ったあとが短ければ通る）。"""
+def test_d0044_ac08_raw_input_limit_is_checked_before_trimming():
+    """D0044-AC-08: 前後の空白を含む入力が 4000 文字を超えたら、中を見ずに too_long（4000 ちょうどは、取ったあとが短ければ通る）。"""
     core = line("approve")
     passes(" " * 1000 + core + " " * (MAX_RAW - 1000 - len(core)), "approved")
     passes("\n" * (MAX_RAW - len(core)) + core, "approved")
@@ -665,13 +665,13 @@ def test_d0039_ac08_raw_input_limit_is_checked_before_trimming():
     ],
     ids=sid,
 )
-def test_d0039_ac08_rule_order_is_length_then_chars_then_format(text, reason):
-    """D0039-AC-08: 規則の順は 長さ（4000・空・2000）→ 文字 → 形。2000 文字超の文に変な文字があっても理由は too_long、形が悪くても変な文字が先。"""
+def test_d0044_ac08_rule_order_is_length_then_chars_then_format(text, reason):
+    """D0044-AC-08: 規則の順は 長さ（4000・空・2000）→ 文字 → 形。2000 文字超の文に変な文字があっても理由は too_long、形が悪くても変な文字が先。"""
     refused(text, reason)
 
 
-def test_d0039_ac08_length_counts_code_points():
-    """D0039-AC-08: 数えるのはコードポイント（絵文字・結合文字も1文字を1と数える。UTF-16 の長さではない）。"""
+def test_d0044_ac08_length_counts_code_points():
+    """D0044-AC-08: 数えるのはコードポイント（絵文字・結合文字も1文字を1と数える。UTF-16 の長さではない）。"""
     passes(line("revise") + "\n" + "😀" * 1000, "revise", feedback="😀" * 1000)
     refused(line("revise") + "\n" + "😀" * 1001, "feedback_too_long")
     combining = "e\u0301" * 500  # 1000 コードポイント
@@ -684,8 +684,8 @@ def test_d0039_ac08_length_counts_code_points():
     assert len("😀") == 1 and len("😀".encode("utf-8")) == 4
 
 
-def test_d0039_ac08_worst_case_text_fits_the_4kib_comment_limit():
-    """D0039-AC-08: コメント本文は 4 KiB（UTF-8）まで。最悪（1行目が最長・直してほしい点が1000文字の絵文字）でも読めて、4096 バイト以下に収まる。"""
+def test_d0044_ac08_worst_case_text_fits_the_4kib_comment_limit():
+    """D0044-AC-08: コメント本文は 4 KiB（UTF-8）まで。最悪（1行目が最長・直してほしい点が1000文字の絵文字）でも読めて、4096 バイト以下に収まる。"""
     head = "pipe-in: revise " + "a" * 40 + " " + "f" * 10
     text = head + "\n" + "😀" * 1000
     assert len(head) + 1 == 68
@@ -736,8 +736,8 @@ FEEDBACK_AS_WRITTEN = [
 
 
 @pytest.mark.parametrize("feedback", FEEDBACK_AS_WRITTEN, ids=sid)
-def test_d0039_ac09_feedback_comes_back_as_written(feedback):
-    """D0039-AC-09: 直してほしい点の中身（日本語・絵文字・結合文字・全角空白・タブ・空行・<script>・引用符・バッククォート・$(…)・; ・&& など）は、そのまま返る。"""
+def test_d0044_ac09_feedback_comes_back_as_written(feedback):
+    """D0044-AC-09: 直してほしい点の中身（日本語・絵文字・結合文字・全角空白・タブ・空行・<script>・引用符・バッククォート・$(…)・; ・&& など）は、そのまま返る。"""
     r = parse(line("revise") + "\n" + feedback)
     assert r == la.ParseResult(True, "revise", "design", ID, feedback.strip(), None)
     assert r.feedback == feedback  # どの見本も前後に空白が無い
@@ -761,15 +761,15 @@ def test_d0039_ac09_feedback_comes_back_as_written(feedback):
     ],
     ids=sid,
 )
-def test_d0039_ac09_only_outer_whitespace_is_trimmed_from_feedback(raw, expected):
-    """D0039-AC-09: 前後の空白（Unicode の空白を含む）だけ取り、中の空白・インデント・空行は変えない。"""
+def test_d0044_ac09_only_outer_whitespace_is_trimmed_from_feedback(raw, expected):
+    """D0044-AC-09: 前後の空白（Unicode の空白を含む）だけ取り、中の空白・インデント・空行は変えない。"""
     r = parse(line("revise") + "\n" + raw)
     assert r.ok is True and r.feedback == expected
 
 
 @pytest.mark.parametrize("ch", ["\u00a0", "\u2003", "\u3000", "\u2009", "\u202f", "\ue000", "\u0301", "\ufe0f", "\U0001f3fb", "\U0001f1ef", "\u3164", "\u2800", "\ufffc", "e"], ids=sid)
-def test_d0039_ac09_ordinary_unusual_characters_are_allowed_in_feedback(ch):
-    """D0039-AC-09: 空白（Zs）・結合文字・異体字選択子・肌色の修飾・私用領域などの通常の文字は、直してほしい点の中で通る。"""
+def test_d0044_ac09_ordinary_unusual_characters_are_allowed_in_feedback(ch):
+    """D0044-AC-09: 空白（Zs）・結合文字・異体字選択子・肌色の修飾・私用領域などの通常の文字は、直してほしい点の中で通る。"""
     r = parse(line("revise") + "\nx" + ch + "y")
     assert r.ok is True and r.feedback == "x" + ch + "y"
 
@@ -799,20 +799,20 @@ WHERE = list(_where("x"))
 
 @pytest.mark.parametrize("where", WHERE)
 @pytest.mark.parametrize("ch", BAD_CHARS, ids=lambda c: f"U+{ord(c):04X}")
-def test_d0039_ac10_bad_characters_are_refused_anywhere(ch, where):
-    """D0039-AC-10: 制御文字（C1 を含む）・ゼロ幅・方向を変える記号・行区切り・孤立サロゲートなどは、1行目・直してほしい点・approve の後ろ・どこにあっても bad_chars で断る。"""
+def test_d0044_ac10_bad_characters_are_refused_anywhere(ch, where):
+    """D0044-AC-10: 制御文字（C1 を含む）・ゼロ幅・方向を変える記号・行区切り・孤立サロゲートなどは、1行目・直してほしい点・approve の後ろ・どこにあっても bad_chars で断る。"""
     refused(_where(ch)[where], "bad_chars")
 
 
 @pytest.mark.parametrize("ch", ["\t", "\n"])
-def test_d0039_ac10_tab_and_newline_in_feedback_are_allowed(ch):
-    """D0039-AC-10: 直してほしい点の中のタブと改行は通る（制御文字の例外）。"""
+def test_d0044_ac10_tab_and_newline_in_feedback_are_allowed(ch):
+    """D0044-AC-10: 直してほしい点の中のタブと改行は通る（制御文字の例外）。"""
     r = parse(line("revise") + f"\nfix{ch}this{ch}too")
     assert r.ok is True and r.feedback == f"fix{ch}this{ch}too"
 
 
-def test_d0039_ac10_tab_and_newline_allowed_only_where_designed():
-    """D0039-AC-10: タブは2行目以降だけ通る。1行目のタブは断る。末尾のタブ・改行は全体の前後として取れる。"""
+def test_d0044_ac10_tab_and_newline_allowed_only_where_designed():
+    """D0044-AC-10: タブは2行目以降だけ通る。1行目のタブは断る。末尾のタブ・改行は全体の前後として取れる。"""
     refused(f"pipe-in: revise design {ID}\t\nfix", "bad_chars")
     refused(f"pipe-in:\trevise design {ID}\nfix", "bad_chars")
     passes(line("approve") + "\t", "approved")
@@ -822,8 +822,8 @@ def test_d0039_ac10_tab_and_newline_allowed_only_where_designed():
 
 
 @pytest.mark.parametrize("ch", ["\u200b", "\u200d", "\u202e", "\ufeff", "\x00", "\ud800", "\u2028", "\x1b"], ids=lambda c: f"U+{ord(c):04X}")
-def test_d0039_ac10_bad_characters_are_refused_not_removed(ch):
-    """D0039-AC-10: 変な文字は取り除いて通さず、断る（取り除くと見た目と中身が違う文が通ってしまうため）。直してほしい点も返さない。"""
+def test_d0044_ac10_bad_characters_are_refused_not_removed(ch):
+    """D0044-AC-10: 変な文字は取り除いて通さず、断る（取り除くと見た目と中身が違う文が通ってしまうため）。直してほしい点も返さない。"""
     for text in (_where(ch)["action"], _where(ch)["feedback"], _where(ch)["after"]):
         r = parse(text)
         assert r.ok is False and r.reason == "bad_chars"
@@ -832,22 +832,22 @@ def test_d0039_ac10_bad_characters_are_refused_not_removed(ch):
         assert parse(text.replace(ch, "")).ok is True
 
 
-def test_d0039_ac10_character_check_comes_before_the_format_check():
-    """D0039-AC-10: 文字の検査は形の検査より先（引用つきで変な文字を含む文は bad_format ではなく bad_chars）。"""
+def test_d0044_ac10_character_check_comes_before_the_format_check():
+    """D0044-AC-10: 文字の検査は形の検査より先（引用つきで変な文字を含む文は bad_format ではなく bad_chars）。"""
     refused("> pipe-in: approve design " + ID + "\u200b", "bad_chars")
     refused("pipe-in: approve\u202e design " + ID, "bad_chars")
     refused("pipe-in: accept\u200b design " + ID, "bad_chars")
 
 
-def test_d0039_ac10_bad_character_list_matches_unicode_categories():
-    """D0039-AC-10: 断る文字の一覧は Cc・Cf・Cs・Zl・Zp（このテストの一覧がその分類に合っている）。"""
+def test_d0044_ac10_bad_character_list_matches_unicode_categories():
+    """D0044-AC-10: 断る文字の一覧は Cc・Cf・Cs・Zl・Zp（このテストの一覧がその分類に合っている）。"""
     bad = {"Cc", "Cf", "Cs", "Zl", "Zp"}
     assert all(unicodedata.category(c) in bad for c in BAD_CHARS)
 
 
 @pytest.mark.parametrize("code", [0x0B, 0x0C, 0x1C, 0x1D, 0x1E, 0x1F, 0x85, 0x7F, 0x9F])
-def test_d0039_ac10_python_whitespace_controls_are_still_bad_chars(code):
-    """D0039-AC-10: str.strip() が空白と見なす制御文字（\\x0b・\\x0c・\\x1c〜\\x1f・\\x85）も、取らずに bad_chars。"""
+def test_d0044_ac10_python_whitespace_controls_are_still_bad_chars(code):
+    """D0044-AC-10: str.strip() が空白と見なす制御文字（\\x0b・\\x0c・\\x1c〜\\x1f・\\x85）も、取らずに bad_chars。"""
     ch = chr(code)
     refused(ch + line(), "bad_chars")
     refused(line() + ch, "bad_chars")
@@ -856,8 +856,8 @@ def test_d0039_ac10_python_whitespace_controls_are_still_bad_chars(code):
     refused(line("revise") + "\n" + ch, "bad_chars")
 
 
-def test_d0039_ac10_zwj_emoji_in_feedback_is_refused():
-    """D0039-AC-10: ZWJ（U+200D）でつないだ絵文字（家族など）は Cf を含むので、直してほしい点に入れると断られる（設計 3.3 の副作用。ページは入力欄で先に知らせる）。"""
+def test_d0044_ac10_zwj_emoji_in_feedback_is_refused():
+    """D0044-AC-10: ZWJ（U+200D）でつないだ絵文字（家族など）は Cf を含むので、直してほしい点に入れると断られる（設計 3.3 の副作用。ページは入力欄で先に知らせる）。"""
     refused(line("revise") + "\n" + "👨\u200d👩\u200d👧", "bad_chars")
     refused(line("revise") + "\n" + "👩\u200d💻 さん", "bad_chars")
     passes(line("revise") + "\n" + "👨👩👧", "revise", feedback="👨👩👧")
@@ -908,24 +908,24 @@ WRAPPED = [
 
 
 @pytest.mark.parametrize("text", WRAPPED, ids=sid)
-def test_d0039_ac11_wrapped_or_decorated_forms_are_not_answers(text):
-    """D0039-AC-11: 引用（>）・コードブロック・バッククォート・箇条書き・見出し・**…**・前に説明の行がある形・後ろに飾りが付いた形は、すべて断る（答えではない）。"""
+def test_d0044_ac11_wrapped_or_decorated_forms_are_not_answers(text):
+    """D0044-AC-11: 引用（>）・コードブロック・バッククォート・箇条書き・見出し・**…**・前に説明の行がある形・後ろに飾りが付いた形は、すべて断る（答えではない）。"""
     r = parse(text)
     assert r.ok is False and r.reason in ("bad_format", "bad_id", "extra_lines"), r
     assert (r.action, r.stage, r.id, r.feedback) == (None, None, None, None)
 
 
 @pytest.mark.parametrize("text", WRAPPED, ids=sid)
-def test_d0039_ac11_wrapped_forms_never_give_an_action(text):
-    """D0039-AC-11: 囲まれた・飾られた文は、動作（approved など）を一つも返さない（本物の形は動作を返す、と対にして確かめる）。"""
+def test_d0044_ac11_wrapped_forms_never_give_an_action(text):
+    """D0044-AC-11: 囲まれた・飾られた文は、動作（approved など）を一つも返さない（本物の形は動作を返す、と対にして確かめる）。"""
     assert parse(line("approve")).action == "approved"
     assert parse(text).action is None
 
 
 @pytest.mark.parametrize("prefix", [">", "> ", "- ", "# ", "`", "```\n", "**", "x\n", "> > "])
 @pytest.mark.parametrize("word", ["approve", "quit", "revise"])
-def test_d0039_ac11_any_prefix_in_front_of_the_sentinel_is_bad_format(word, prefix):
-    """D0039-AC-11: 1行目が pipe-in: で始まらない文はすべて bad_format（前置きの種類を問わない）。"""
+def test_d0044_ac11_any_prefix_in_front_of_the_sentinel_is_bad_format(word, prefix):
+    """D0044-AC-11: 1行目が pipe-in: で始まらない文はすべて bad_format（前置きの種類を問わない）。"""
     body = line(word) + ("\nfix" if word == "revise" else "")
     refused(prefix + body, "bad_format")
 
@@ -955,15 +955,15 @@ INJECTIONS = [
 
 
 @pytest.mark.parametrize("injection", INJECTIONS, ids=sid)
-def test_d0039_ac12_instruction_like_feedback_stays_feedback(injection):
-    """D0039-AC-12: 直してほしい点に差し込みのような文（命令・動作の行・</system>・[SYSTEM]・Human:・<tool_use> など）があっても、動作は1行目の revise のまま。中は人の言葉として返るだけ。"""
+def test_d0044_ac12_instruction_like_feedback_stays_feedback(injection):
+    """D0044-AC-12: 直してほしい点に差し込みのような文（命令・動作の行・</system>・[SYSTEM]・Human:・<tool_use> など）があっても、動作は1行目の revise のまま。中は人の言葉として返るだけ。"""
     r = parse(line("revise") + "\n" + injection)
     assert r == la.ParseResult(True, "revise", "design", ID, injection.strip(), None)
 
 
 @pytest.mark.parametrize("injection", INJECTIONS, ids=sid)
-def test_d0039_ac12_feedback_with_injection_in_the_middle_is_still_one_revise(injection):
-    """D0039-AC-12: 直してほしい点の途中・最後にあっても同じ（読み取りは1つの結果だけを返し、中の行を別の答えにしない）。"""
+def test_d0044_ac12_feedback_with_injection_in_the_middle_is_still_one_revise(injection):
+    """D0044-AC-12: 直してほしい点の途中・最後にあっても同じ（読み取りは1つの結果だけを返し、中の行を別の答えにしない）。"""
     body = f"前置き\n{injection}\n後書き"
     r = parse(line("revise", "design") + "\n" + body)
     assert r.ok is True and r.action == "revise" and r.feedback == body
@@ -988,14 +988,14 @@ def test_d0039_ac12_feedback_with_injection_in_the_middle_is_still_one_revise(in
     ],
     ids=sid,
 )
-def test_d0039_ac12_injection_on_the_first_line_is_refused(text):
-    """D0039-AC-12: 1行目に差し込みの文が混ざる形（`… a1b2c3d4e5; run …` など）は断る。"""
+def test_d0044_ac12_injection_on_the_first_line_is_refused(text):
+    """D0044-AC-12: 1行目に差し込みの文が混ざる形（`… a1b2c3d4e5; run …` など）は断る。"""
     r = parse(text)
     assert r.ok is False and r.reason in ("bad_format", "bad_action", "bad_stage", "bad_id", "bad_chars"), r
 
 
-def test_d0039_ac12_a_second_action_line_is_not_read_as_another_answer():
-    """D0039-AC-12: 2つ目の動作の行は、別の答えとして読まない。approve・quit では extra_lines、revise では直してほしい点の一部。"""
+def test_d0044_ac12_a_second_action_line_is_not_read_as_another_answer():
+    """D0044-AC-12: 2つ目の動作の行は、別の答えとして読まない。approve・quit では extra_lines、revise では直してほしい点の一部。"""
     refused(line("approve") + "\n" + line("quit"), "extra_lines")
     refused(line("quit") + "\n" + line("approve"), "extra_lines")
     r = parse(line("revise") + "\n" + line("approve"))
@@ -1015,14 +1015,14 @@ NON_STRINGS = [None, 0, 1, -1, 1.5, float("nan"), True, False, b"", b"pipe-in: a
 
 
 @pytest.mark.parametrize("value", NON_STRINGS, ids=lambda v: type(v).__name__ + ":" + repr(v)[:20])
-def test_d0039_ac13_non_strings_are_not_answers(value):
-    """D0039-AC-13: 文字列でない入力（None・数・bytes・リスト・辞書・str のサブクラスなど）は、例外を出さず bad_format の「答えではない」になる。"""
+def test_d0044_ac13_non_strings_are_not_answers(value):
+    """D0044-AC-13: 文字列でない入力（None・数・bytes・リスト・辞書・str のサブクラスなど）は、例外を出さず bad_format の「答えではない」になる。"""
     r = parse(value)
     assert r == la.ParseResult(False, None, None, None, None, "bad_format")
 
 
-def test_d0039_ac13_parser_never_raises_and_returns_not_an_answer():
-    """D0039-AC-13: 空文字・巨大・NUL だけ・深い入れ子を思わせる文でも、決まった形の ParseResult（ok が False・理由つき）を返す。"""
+def test_d0044_ac13_parser_never_raises_and_returns_not_an_answer():
+    """D0044-AC-13: 空文字・巨大・NUL だけ・深い入れ子を思わせる文でも、決まった形の ParseResult（ok が False・理由つき）を返す。"""
     cases = {
         "": "empty",
         "x" * (1 << 20): "too_long",
@@ -1048,8 +1048,8 @@ def test_d0039_ac13_parser_never_raises_and_returns_not_an_answer():
 
 
 @pytest.mark.parametrize("make", [lambda: "x" * (1 << 20), lambda: "\n" * (1 << 20), lambda: "\x00" * (1 << 20), lambda: "pipe-in: approve design " + ID + " " * (1 << 20), lambda: "あ" * (1 << 20), lambda: "\ud800" * (1 << 20), lambda: ("pipe-in: revise design " + ID + "\n") + "x" * (1 << 20)], ids=["x", "newline", "nul", "spaces", "japanese", "surrogate", "feedback"])
-def test_d0039_ac13_one_mebibyte_is_refused_within_a_second(make):
-    """D0039-AC-13: 1 MiB の入力は、中を走査せずに too_long で断る（1 秒を超えない）。"""
+def test_d0044_ac13_one_mebibyte_is_refused_within_a_second(make):
+    """D0044-AC-13: 1 MiB の入力は、中を走査せずに too_long で断る（1 秒を超えない）。"""
     text = make()
     started = time.perf_counter()
     r = parse(text)
@@ -1058,8 +1058,8 @@ def test_d0039_ac13_one_mebibyte_is_refused_within_a_second(make):
     assert elapsed < 1.0, elapsed
 
 
-def test_d0039_ac13_inputs_up_to_the_limits_are_fast():
-    """D0039-AC-13: 上限ぎりぎりの入力（4000 文字）を何度読んでも遅くならない（全体で 2 秒以内）。"""
+def test_d0044_ac13_inputs_up_to_the_limits_are_fast():
+    """D0044-AC-13: 上限ぎりぎりの入力（4000 文字）を何度読んでも遅くならない（全体で 2 秒以内）。"""
     texts = ["x" * MAX_RAW, "\n" * MAX_RAW, " " * 1000 + line() + " " * 2000, line("revise") + "\n" + "😀" * 1000, "\x00" * MAX_RAW, "a " * 2000]
     assert [parse(t).reason for t in texts] == ["too_long", "empty", None, None, "too_long", "too_long"]
     started = time.perf_counter()
@@ -1092,8 +1092,8 @@ MARKS = ["SECRET-MARK-ZZ", "ひみつ", "😀", "<script>", "$(x)"]
     ],
     ids=sid,
 )
-def test_d0039_ac13_reason_never_contains_input_characters(text):
-    """D0039-AC-13: 理由の文字列に入力の文字が入らない（理由は決まった一覧の文字列だけ。結果のどの項目にも入力の目印が出ない）。"""
+def test_d0044_ac13_reason_never_contains_input_characters(text):
+    """D0044-AC-13: 理由の文字列に入力の文字が入らない（理由は決まった一覧の文字列だけ。結果のどの項目にも入力の目印が出ない）。"""
     r = parse(text)
     assert r.ok is False and r.reason in PARSE_REASONS
     for field in r:
@@ -1101,8 +1101,8 @@ def test_d0039_ac13_reason_never_contains_input_characters(text):
             assert mark not in str(field), (field, mark)
 
 
-def test_d0039_ac13_every_refusal_uses_a_listed_reason_and_nothing_else():
-    """D0039-AC-13: 断るときの理由は一覧の10個のどれかで、通るときの reason は None（ok と reason が食い違わない）。"""
+def test_d0044_ac13_every_refusal_uses_a_listed_reason_and_nothing_else():
+    """D0044-AC-13: 断るときの理由は一覧の10個のどれかで、通るときの reason は None（ok と reason が食い違わない）。"""
     seen = set()
     for text in [*WRAPPED, *[line(w) for w in ("accept", "approve")], "", " ", "\x00", "x" * 5000, line("revise"), line("revise") + "\n" + "x" * 1001, line("approve") + "\nx", line(id="zz"), line(stage="-x"), line()]:
         r = parse(text)
@@ -1113,8 +1113,8 @@ def test_d0039_ac13_every_refusal_uses_a_listed_reason_and_nothing_else():
     assert {"empty", "too_long", "bad_chars", "bad_format", "bad_action", "bad_stage", "bad_id", "extra_lines", "need_feedback", "feedback_too_long"} == seen
 
 
-def test_d0039_ac13_a_pass_carries_a_complete_result():
-    """D0039-AC-13: 通った結果は、動作・段・識別子がそろい、reason が None。revise だけ直してほしい点がある（approve・quit は None）。"""
+def test_d0044_ac13_a_pass_carries_a_complete_result():
+    """D0044-AC-13: 通った結果は、動作・段・識別子がそろい、reason が None。revise だけ直してほしい点がある（approve・quit は None）。"""
     for text, action, feedback in [(line("approve"), "approved", None), (line("quit"), "quit", None), (line("revise") + "\nx", "revise", "x")]:
         r = parse(text)
         assert r.ok is True and r.reason is None
@@ -1122,8 +1122,8 @@ def test_d0039_ac13_a_pass_carries_a_complete_result():
         assert all(isinstance(v, str) for v in (r.action, r.stage, r.id))
 
 
-def test_d0039_ac13_parse_is_pure_and_repeatable():
-    """D0039-AC-13: 同じ入力は何度読んでも同じ結果（状態を持たない）。"""
+def test_d0044_ac13_parse_is_pure_and_repeatable():
+    """D0044-AC-13: 同じ入力は何度読んでも同じ結果（状態を持たない）。"""
     for text in (line("revise") + "\nfix", line("approve"), "bad", "x" * 5000):
         results = [parse(text) for _ in range(5)]
         assert all(r == results[0] for r in results)
@@ -1171,8 +1171,8 @@ def _norm(text: str) -> str:
     return text.replace("\r\n", "\n").strip(" \t\n")
 
 
-def test_d0039_ac13_fuzz_keeps_the_invariants_of_every_accepted_text():
-    """D0039-AC-13: 揺さぶり（決まった種で4000通りの崩し方）。例外を出さず、通った文は必ず 形・長さ・文字・動作と直してほしい点の対応 の規則を満たし、作り直して読むと同じ結果になる。"""
+def test_d0044_ac13_fuzz_keeps_the_invariants_of_every_accepted_text():
+    """D0044-AC-13: 揺さぶり（決まった種で4000通りの崩し方）。例外を出さず、通った文は必ず 形・長さ・文字・動作と直してほしい点の対応 の規則を満たし、作り直して読むと同じ結果になる。"""
     rng = random.Random(20261024)
     ok_count = 0
     bad = set(BAD_CHARS)

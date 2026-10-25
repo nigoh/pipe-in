@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Any
 
+from . import live_answer
+
 SCHEMA = 1  # 写しの形の版。項目の意味を変える・消すときに上げる（足すだけなら上げない）
 MAX_BYTES = 32768  # 写し全体の上限（dumps した UTF-8 のバイト数）
 MAX_STATE_BYTES = 4 * 1024 * 1024  # state.json をこれより大きければ読まず「記録なし」にする
@@ -294,7 +296,7 @@ def read_open_at(work_dir: Path, state: Any) -> str | None:
 
 
 def _empty(generated_at: str) -> dict[str, Any]:
-    return {"schema": SCHEMA, "generated_at": generated_at, "empty": True, "name": None, "final": None, "stages": []}
+    return {"schema": SCHEMA, "generated_at": generated_at, "empty": True, "name": None, "final": None, "stages": [], "review": None}
 
 
 class _Acc:
@@ -374,6 +376,7 @@ def build_snapshot(state: Any, open_at: Any, *, now: Any, local_tz: Any = None, 
         "name": _clean(state.get("name"), MAX_NAME, hides),
         "final": state["final"] if type(state.get("final")) is str and state["final"] in FINALS else None,
         "stages": [],
+        "review": None,
     }
     # 段の並び：stages の順。壊れた要素・重なった名前は飛ばし、24 まで
     chosen: list[tuple[str, str, str]] = []  # (元の名前, 掃除した名前, 表示名)
@@ -420,10 +423,31 @@ def build_snapshot(state: Any, open_at: Any, *, now: Any, local_tz: Any = None, 
             "duration_sec": None if acc.duration is None else round(acc.duration, 1),
         })
     snap["stages"] = stages
+    snap["review"] = _review(snap["final"], pending, chosen, stages)
     # 念のため：全体が上限を超えるなら、末尾の段から落とす
     while stages and len(dumps(snap).encode("utf-8")) > MAX_BYTES:
         stages.pop()
+        if snap["review"] is not None and all(st["name"] != snap["review"]["stage"] for st in stages):
+            snap["review"] = None  # 確認待ちの段が落ちたら、ボタンの元も出さない
     return snap
+
+
+def _review(final: Any, pending: Any, chosen: list[tuple[str, str, str]], stages: list[dict[str, Any]]) -> dict[str, str] | None:
+    """確認待ちの段の名前と識別子。信用できる形のときだけ入れる（入れないものは null）。"""
+    if final is not None or not isinstance(pending, dict):
+        return None
+    raw = pending.get("stage")
+    for (orig, name, _label), st in zip(chosen, stages):
+        if orig == raw:
+            break
+    else:
+        return None
+    if st["status"] != "review" or name != orig or not live_answer.valid_stage(orig):
+        return None
+    rid = live_answer.review_id(orig, pending.get("since"))
+    if rid is None:
+        return None
+    return {"stage": orig, "id": rid}
 
 
 def dumps(snapshot: Any) -> str:
