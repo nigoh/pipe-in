@@ -195,8 +195,8 @@ def _pipe_in_parts(path: Path, module: str) -> list[str]:
 
 @pytest.mark.parametrize("name", ["live", "live_page"])
 def test_d0027_ac70_live_modules_use_only_stdlib(name):
-    """D0027-AC-70・D0039-AC-50: 進み具合の写し（live.py）とページ（live_page.py）は、標準ライブラリだけ（pipe_in の他の部品も SDK も読まない。互いにも読まない）。
-    例外は live.py が識別子と段の形のために live_answer.py を読むことだけ（D0039）。"""
+    """D0027-AC-70・D0044-AC-50: 進み具合の写し（live.py）とページ（live_page.py）は、標準ライブラリだけ（pipe_in の他の部品も SDK も読まない。互いにも読まない）。
+    例外は live.py が識別子と段の形のために live_answer.py を読むことだけ（D0044）。"""
     path = ROOT / "pipe_in" / "engine" / f"{name}.py"
     assert path.is_file()
     outside = _outside_stdlib(path, f"pipe_in.engine.{name}")
@@ -378,7 +378,7 @@ def test_pipe_lint_imports_only_definition():
     assert outside == []
 
 
-# ---- D0039：答えの文（live_answer.py）の依存 ----------------------------------------------------------------------------------
+# ---- D0044：答えの文（live_answer.py）の依存 ----------------------------------------------------------------------------------
 
 ANSWER_STDLIB = {"__future__", "hashlib", "json", "re", "typing", "unicodedata"}
 
@@ -393,16 +393,16 @@ def _answer_violations(path: Path, module: str) -> list[str]:
     return bad
 
 
-def test_d0039_ac50_live_answer_uses_only_the_standard_library():
-    """D0039-AC-50: live_answer.py は標準ライブラリ（hashlib・re・json・unicodedata・typing）だけ。pipe_in のほかの部品・SDK・子プロセスを読まない（葉）。"""
+def test_d0044_ac50_live_answer_uses_only_the_standard_library():
+    """D0044-AC-50: live_answer.py は標準ライブラリ（hashlib・re・json・unicodedata・typing）だけ。pipe_in のほかの部品・SDK・子プロセスを読まない（葉）。"""
     path = ROOT / "pipe_in" / "engine" / "live_answer.py"
     assert path.is_file()
     assert _outside_stdlib(path, "pipe_in.engine.live_answer") == []
     assert _answer_violations(path, "pipe_in.engine.live_answer") == []
 
 
-def test_d0039_ac50_live_answer_check_finds_forbidden_imports(tmp_path):
-    """D0039-AC-50: live_answer の依存の検査そのものが、pipe_in の部品・SDK・子プロセス・一覧に無い標準ライブラリを読んだ場合を見つけられること。"""
+def test_d0044_ac50_live_answer_check_finds_forbidden_imports(tmp_path):
+    """D0044-AC-50: live_answer の依存の検査そのものが、pipe_in の部品・SDK・子プロセス・一覧に無い標準ライブラリを読んだ場合を見つけられること。"""
     bad = tmp_path / "live_answer.py"
     bad.write_text(
         "import hashlib\nimport subprocess\nimport claude_agent_sdk\nimport os\nfrom . import live\nfrom .config import load_config\nfrom pipe_in.dev import record\n",
@@ -416,43 +416,43 @@ def test_d0039_ac50_live_answer_check_finds_forbidden_imports(tmp_path):
     assert _answer_violations(good, "pipe_in.engine.live_answer") == []
 
 
-def test_d0039_ac50_live_may_read_live_answer_only():
-    """D0039-AC-50: live.py が読んでよい pipe_in の部品は live_answer だけ（識別子と段の形のため）。実際に読んでいる（識別子を自分で作らない）。"""
+def test_d0044_ac50_live_may_read_live_answer_only():
+    """D0044-AC-50: live.py が読んでよい pipe_in の部品は live_answer だけ（識別子と段の形のため）。実際に読んでいる（識別子を自分で作らない）。"""
     path = ROOT / "pipe_in" / "engine" / "live.py"
     parts = _pipe_in_parts(path, "pipe_in.engine.live")
     assert parts, "live.py が live_answer を読んでいない"
     assert all(t == LIVE_ANSWER or t.startswith(LIVE_ANSWER + ".") for t in parts), parts
 
 
-def test_d0039_ac50_live_cmd_may_read_live_answer():
-    """D0039-AC-50: live_cmd.py は live_answer を読んでよく、実際に読んでいる（answer の下位コマンド）。cli.py は live_answer を直接読まない。"""
+def test_d0044_ac50_live_cmd_may_read_live_answer():
+    """D0044-AC-50: live_cmd.py は live_answer を読んでよく、実際に読んでいる（answer の下位コマンド）。cli.py は live_answer を直接読まない。"""
     path = ROOT / "pipe_in" / "engine" / "live_cmd.py"
     assert LIVE_ANSWER in _imports(path, "pipe_in.engine.live_cmd")
     assert "live_answer" not in (ROOT / "pipe_in" / "cli.py").read_text(encoding="utf-8")
 
 
-def test_d0039_ac50_live_page_and_live_watch_do_not_read_live_answer():
-    """D0039-AC-50: live_page.py・live_watch.py は live_answer を読まない（ページは何も読まず、見張りは live だけ）。"""
+def test_d0044_ac50_live_page_and_live_watch_do_not_read_live_answer():
+    """D0044-AC-50: live_page.py・live_watch.py は live_answer を読まない（ページは何も読まず、見張りは live だけ）。"""
     for name in ("live_page", "live_watch"):
         path = ROOT / "pipe_in" / "engine" / f"{name}.py"
         assert not [t for t in _imports(path, f"pipe_in.engine.{name}") if "live_answer" in t], name
 
 
-def test_d0039_ac50_record_does_not_read_live_answer():
-    """D0039-AC-50: pipe_in/dev/record.py（--feedback-file）は live_answer を読まない（dev の中で完結する。上限の数字は record.py に持つ）。"""
+def test_d0044_ac50_record_does_not_read_live_answer():
+    """D0044-AC-50: pipe_in/dev/record.py（--feedback-file）は live_answer を読まない（dev の中で完結する。上限の数字は record.py に持つ）。"""
     path = ROOT / "pipe_in" / "dev" / "record.py"
     assert not [t for t in _imports(path, "pipe_in.dev.record") if "live_answer" in t or t.startswith("pipe_in.engine.live")]
     assert "RECORD_FEEDBACK_LIMIT" in path.read_text(encoding="utf-8")
 
 
-def test_d0039_ac50_nothing_in_engine_imports_dev():
-    """D0039-AC-50: pipe_in/engine/ の新しいコードを含め、engine から dev・pipe・generator を読まない（依存の向き）。"""
+def test_d0044_ac50_nothing_in_engine_imports_dev():
+    """D0044-AC-50: pipe_in/engine/ の新しいコードを含め、engine から dev・pipe・generator を読まない（依存の向き）。"""
     assert _violations("pipe_in/engine", "pipe_in.engine", ["pipe_in.dev", "pipe_in.pipe", "pipe_in_generator"]) == []
     assert (ROOT / "pipe_in" / "engine" / "live_answer.py").is_file()
 
 
-def test_d0039_ac50_dependencies_are_unchanged():
-    """D0039-AC-50: 外部のパッケージの依存を足さない（dependencies が claude-agent-sdk だけ、extras は dev だけ）。今のままで通る（守り続ける検査）。"""
+def test_d0044_ac50_dependencies_are_unchanged():
+    """D0044-AC-50: 外部のパッケージの依存を足さない（dependencies が claude-agent-sdk だけ、extras は dev だけ）。今のままで通る（守り続ける検査）。"""
     import tomllib
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
@@ -460,8 +460,8 @@ def test_d0039_ac50_dependencies_are_unchanged():
     assert set(project.get("optional-dependencies", {})) == {"dev"}
 
 
-def test_d0039_ac29_live_answer_live_and_live_cmd_start_no_child_process_and_use_no_sdk():
-    """D0039-AC-29: live_answer.py・live.py・live_cmd.py は subprocess・SDK・multiprocessing を読まず、os.system / Popen / fork を呼ばない（ソースの検査）。"""
+def test_d0044_ac29_live_answer_live_and_live_cmd_start_no_child_process_and_use_no_sdk():
+    """D0044-AC-29: live_answer.py・live.py・live_cmd.py は subprocess・SDK・multiprocessing を読まず、os.system / Popen / fork を呼ばない（ソースの検査）。"""
     for name in ("live_answer", "live", "live_cmd"):
         path = ROOT / "pipe_in" / "engine" / f"{name}.py"
         assert path.is_file(), name
@@ -472,8 +472,8 @@ def test_d0039_ac29_live_answer_live_and_live_cmd_start_no_child_process_and_use
             assert word not in source, (name, word)
 
 
-def test_d0039_ac29_live_answer_is_in_an_installed_package():
-    """D0039-AC-29: 新しい .py は pipe_in.engine の中（packages に載っている）。package-data を増やさない。"""
+def test_d0044_ac29_live_answer_is_in_an_installed_package():
+    """D0044-AC-29: 新しい .py は pipe_in.engine の中（packages に載っている）。package-data を増やさない。"""
     import tomllib
 
     cfg = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["setuptools"]

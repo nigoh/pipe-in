@@ -4,6 +4,9 @@
 - 写しは HTML に埋めず、ページの JS が `await claude.use("db")` で取り、runs/current を購読して描き直す。
 - 値は textContent だけで画面に出す（HTML として差し込まない）。外部の読み込みは無い。
 - 色は :root のトークンにだけ書く（ライトが既定。ダークは prefers-color-scheme と data-theme で切り替える）。
+- D0044：確認待ちの行に、承認・差し戻し・中止のボタンを出す（`claude.use("comments")` が使えて、写しの review が有効なときだけ）。
+  押すと決まった形の文を `sendToClaude` でコメントとして送る。ボタンの部品は JS が確認待ちが現れたときに作る（_BODY は変えない）。
+  画面に出す文は固定の定数だけで、段の表示名・セッション名・パスは使わない。
 標準ライブラリだけを使う（依存の向きは docs/development/design.md）。
 """
 
@@ -161,6 +164,67 @@ h1 {
   border: 2px solid var(--review);
   background: linear-gradient(90deg, var(--review) 50%, transparent 50%);
 }
+[hidden] {
+  display: none;
+}
+.review {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.rv-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  background: var(--bg);
+}
+.rv-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.rv-btn {
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.rv-approve {
+  border-color: var(--ok);
+}
+.rv-quit {
+  border-color: var(--ng);
+}
+.rv-go {
+  border-width: 2px;
+  border-color: var(--run);
+}
+.rv-btn:disabled {
+  border-style: dashed;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.rv-btn:focus-visible,
+.rv-input:focus-visible {
+  outline: 2px solid var(--run);
+  outline-offset: 2px;
+}
+.rv-msg {
+  margin: 0;
+  color: var(--fg);
+}
+.rv-msg:empty {
+  display: none;
+}
 @media (prefers-reduced-motion: no-preference) {
   @keyframes pulse {
     50% {
@@ -169,6 +233,10 @@ h1 {
   }
   .s-running .mark {
     animation: pulse 1.6s ease-in-out infinite;
+  }
+  .rv-btn,
+  .rv-input {
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 }
 """
@@ -196,6 +264,34 @@ var UNSUPPORTED_MSG = "この写しの版には対応していません";
 var LOADING_MSG = "読み込み中…";
 var NO_NAME = "（名前なし）";
 
+var MAX_FEEDBACK = 1000;
+var STAGE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
+var ID_RE = /^[0-9a-f]{10}$/;
+var BAD_CHARS = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
+var ASK = {
+  approve: "この段を承認しますか",
+  revise: "この直してほしい点で差し戻しますか",
+  quit: "この実行を中止しますか"
+};
+var SENDING_MSG = "送っています…";
+var SENT_MSG = "送りました（会話の返事を待っています）";
+var INVALID = {
+  empty: "直してほしい点を書いてください",
+  too_long: "1000 文字以内にしてください",
+  bad_chars: "使えない文字（制御文字・見えない文字）が入っています"
+};
+var BLOCKED = {
+  writers_only: "この画面からは答えを送れません（アーティファクトの編集者だけが送れます）。会話で答えてください。",
+  no_session: "答えを受け取れる Claude の会話が今ありません。会話で答えてください。",
+  off: "この画面では答えを送る機能が使えません。会話で答えてください。"
+};
+var GENERIC_MSG = "この画面からは答えを送れません。会話で答えてください。";
+var FORBIDDEN_MSG = "この画面からは送れません（許可されていません）。会話で答えてください。";
+var CONSENT_MSG = "同意が確認できなかったため、送られていません。もう一度押すか、会話で答えてください。";
+var RATE_MSG = "続けて送りすぎです。少し待ってからやり直すか、会話で答えてください。";
+var FAILED_MSG = "送れませんでした。もう一度押すか、会話で答えてください。";
+var ANCHOR_FAILED = "場所を取れませんでした。会話で答えてください。";
+
 var STATUS = {
   waiting: { mark: "", word: "待ち" },
   running: { mark: "", word: "実行中" },
@@ -217,6 +313,22 @@ var TIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]
 
 var counters = [];
 var timerId = null;
+
+var rv = {
+  key: null,
+  review: null,
+  gen: 0,
+  can: "none",
+  blockText: "",
+  phase: "idle",
+  action: null,
+  anchor: null,
+  notice: ""
+};
+var commentsPromise = null;
+var commentsApi = null;
+var ui = null;
+var reviewRow = null;
 
 function has(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key);
@@ -299,6 +411,7 @@ function checkSnapshot(value) {
     var status = typeof e.status === "string" && has(STATUS, e.status) ? e.status : "unknown";
     var name = clip(e.name);
     stages.push({
+      name: name,
       label: clip(e.label) || name || NO_NAME,
       status: status,
       attempt: okAttempt(e.attempt),
@@ -310,12 +423,31 @@ function checkSnapshot(value) {
       duration: okNumber(e.duration_sec)
     });
   }
+  var final = typeof value.final === "string" && has(FINALS, value.final) ? value.final : null;
   return {
     empty: value.empty === true,
     name: clip(value.name),
-    final: typeof value.final === "string" && has(FINALS, value.final) ? value.final : null,
-    stages: stages
+    final: final,
+    stages: stages,
+    review: final === null ? checkReview(value.review, stages) : null
   };
+}
+
+function checkReview(value, stages) {
+  try {
+    if (!isObject(value) || !Array.isArray(stages)) return null;
+    var stage = value.stage;
+    var id = value.id;
+    if (typeof stage !== "string" || typeof id !== "string") return null;
+    if (stage.length > 40 || id.length !== 10 || !STAGE_RE.test(stage) || !ID_RE.test(id)) return null;
+    for (var i = 0; i < stages.length; i++) {
+      var row = stages[i];
+      if (isObject(row) && row.name === stage && row.status === "review") return { stage: stage, id: id };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function el(tag, className, text) {
@@ -368,6 +500,9 @@ function show(message) {
   byId("final").textContent = "";
   byId("stages").replaceChildren();
   byId("msg").textContent = message;
+  reviewRow = null;
+  setReview(null);
+  syncPanel();
   syncTimer();
 }
 
@@ -385,12 +520,23 @@ function render(value) {
     }
     var found = [];
     var rows = [];
-    for (var i = 0; i < snap.stages.length; i++) rows.push(buildRow(snap.stages[i], found));
+    var mine = null;
+    for (var i = 0; i < snap.stages.length; i++) {
+      var row = buildRow(snap.stages[i], found);
+      rows.push(row);
+      var s = snap.stages[i];
+      if (mine === null && snap.review !== null && s.name === snap.review.stage && s.status === "review") mine = row;
+    }
+    var memo = rememberFocus();
     byId("stages").replaceChildren.apply(byId("stages"), rows);
     byId("name").textContent = snap.name;
     byId("final").textContent = snap.final === null ? "" : "結果: " + FINALS[snap.final];
     byId("msg").textContent = "";
     counters = found;
+    reviewRow = mine;
+    setReview(snap.review);
+    syncPanel();
+    restoreFocus(memo);
     tick();
     syncTimer();
   } catch (e) {
@@ -423,6 +569,312 @@ function onVisibility() {
   } catch (e) {
     /* 何もしない */
   }
+}
+
+function noop() {}
+
+function validateFeedback(text) {
+  var s = typeof text === "string" ? text.replace(/\r\n/g, "\n") : "";
+  if (BAD_CHARS.test(s.replace(/[\n\t]/g, ""))) return { ok: false, reason: "bad_chars", text: "" };
+  s = s.trim();
+  if (s === "") return { ok: false, reason: "empty", text: "" };
+  if (Array.from(s).length > MAX_FEEDBACK) return { ok: false, reason: "too_long", text: "" };
+  return { ok: true, reason: null, text: s };
+}
+
+function buildAnswerText(action, stage, id, feedback) {
+  if (action !== "approve" && action !== "revise" && action !== "quit") throw new Error("action");
+  if (typeof stage !== "string" || !STAGE_RE.test(stage) || typeof id !== "string" || !ID_RE.test(id)) throw new Error("review");
+  var head = "pipe-in: " + action + " " + stage + " " + id;
+  return action === "revise" ? head + "\n" + feedback : head;
+}
+
+function ensureComments() {
+  if (commentsPromise === null) {
+    commentsPromise = (async () => {
+      try {
+        var c = await claude.use("comments");
+        return c ? c : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+  }
+  return commentsPromise;
+}
+
+function setReview(review) {
+  var key = review === null ? null : review.stage + "\n" + review.id;
+  if (key === rv.key) {
+    rv.review = review;
+    return;
+  }
+  rv.gen += 1;
+  rv.key = key;
+  rv.review = review;
+  rv.can = "none";
+  rv.blockText = "";
+  rv.phase = "idle";
+  rv.action = null;
+  rv.anchor = null;
+  rv.notice = "";
+  if (ui !== null) ui.input.value = "";
+  if (key !== null) startCheck();
+}
+
+function startCheck() {
+  var gen = rv.gen;
+  rv.can = "checking";
+  ensureComments()
+    .then((c) => {
+      if (gen !== rv.gen) return null;
+      if (c === null) {
+        rv.can = "none";
+        syncPanel();
+        return null;
+      }
+      commentsApi = c;
+      var asked;
+      try {
+        asked = Promise.resolve(c.canSendToClaude());
+      } catch (e) {
+        asked = Promise.reject(e);
+      }
+      return asked.then(
+        (v) => settleCheck(gen, v),
+        () => settleCheck(gen, null)
+      );
+    })
+    .catch(noop);
+}
+
+function settleCheck(gen, answer) {
+  if (gen !== rv.gen) return;
+  if (answer === "available") {
+    rv.can = "available";
+  } else {
+    rv.can = "blocked";
+    rv.blockText = typeof answer === "string" && has(BLOCKED, answer) ? BLOCKED[answer] : GENERIC_MSG;
+  }
+  syncPanel();
+}
+
+function makeButton(cls, label, handler) {
+  var b = el("button", "rv-btn " + cls, label);
+  b.setAttribute("type", "button");
+  b.addEventListener("click", handler);
+  return b;
+}
+
+function buildPanel() {
+  var box = el("div", "review");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", "確認待ちの答え");
+  var input = el("textarea", "rv-input");
+  input.setAttribute("maxlength", "1000");
+  input.setAttribute("rows", "3");
+  input.setAttribute("aria-label", "直してほしい点（差し戻すときだけ）");
+  var msg = el("p", "rv-msg");
+  msg.setAttribute("role", "status");
+  msg.setAttribute("aria-live", "polite");
+  var row = el("div", "rv-row");
+  var parts = {
+    box: box,
+    input: input,
+    msg: msg,
+    row: row,
+    approve: makeButton("rv-approve", "承認", () => onAction("approve").catch(noop)),
+    revise: makeButton("rv-revise", "直してほしい点を書いて差し戻す", () => onAction("revise").catch(noop)),
+    quit: makeButton("rv-quit", "中止", () => onAction("quit").catch(noop)),
+    go: makeButton("rv-go", "実行する", () => onGo()),
+    back: makeButton("rv-back", "戻る", () => onBack())
+  };
+  row.appendChild(parts.approve);
+  row.appendChild(parts.revise);
+  row.appendChild(parts.quit);
+  row.appendChild(parts.go);
+  row.appendChild(parts.back);
+  box.appendChild(input);
+  box.appendChild(msg);
+  box.appendChild(row);
+  return parts;
+}
+
+function attachPanel(li) {
+  if (ui.box.parentNode !== li) li.appendChild(ui.box);
+}
+
+function currentMessage() {
+  if (rv.can === "blocked") return rv.blockText;
+  if (rv.phase === "confirm") return has(ASK, rv.action) ? ASK[rv.action] : "";
+  if (rv.phase === "sending") return SENDING_MSG;
+  if (rv.phase === "sent") return SENT_MSG;
+  if (rv.phase === "preparing") return "";
+  return rv.notice;
+}
+
+function syncPanel() {
+  try {
+    var visible = (rv.can === "available" || rv.can === "blocked") && rv.key !== null && reviewRow !== null;
+    if (!visible) {
+      if (ui !== null && ui.box.parentNode) ui.box.remove();
+      return;
+    }
+    if (ui === null) ui = buildPanel();
+    attachPanel(reviewRow);
+    var blocked = rv.can === "blocked";
+    var idle = rv.phase === "idle";
+    var checking = rv.phase === "confirm";
+    ui.row.hidden = blocked;
+    ui.input.hidden = blocked;
+    ui.input.disabled = !idle;
+    var names = ["approve", "revise", "quit"];
+    for (var i = 0; i < names.length; i++) {
+      ui[names[i]].hidden = blocked || checking;
+      ui[names[i]].disabled = !idle;
+    }
+    ui.go.hidden = !checking;
+    ui.go.disabled = !checking;
+    ui.back.hidden = !checking;
+    ui.back.disabled = !checking;
+    ui.msg.textContent = currentMessage();
+  } catch (e) {
+    /* 画面を作れなくても、見るだけの表示は残す */
+  }
+}
+
+function rememberFocus() {
+  try {
+    if (ui === null) return null;
+    var active = document.activeElement;
+    if (!active || !ui.box.contains(active)) return null;
+    return { node: active, from: active.selectionStart, to: active.selectionEnd };
+  } catch (e) {
+    return null;
+  }
+}
+
+function restoreFocus(memo) {
+  try {
+    if (memo === null || ui === null || !ui.box.contains(memo.node)) return;
+    memo.node.focus();
+    if (memo.node === ui.input && typeof memo.from === "number" && typeof memo.to === "number") ui.input.setSelectionRange(memo.from, memo.to);
+  } catch (e) {
+    /* 戻せなくても何もしない */
+  }
+}
+
+async function onAction(action) {
+  if (rv.phase !== "idle" || rv.can !== "available" || ui === null || commentsApi === null) return;
+  if (action !== "approve" && action !== "revise" && action !== "quit") return;
+  if (action === "revise") {
+    var checked = validateFeedback(ui.input.value);
+    if (!checked.ok) {
+      rv.notice = INVALID[checked.reason];
+      syncPanel();
+      return;
+    }
+  }
+  var gen = rv.gen;
+  rv.phase = "preparing";
+  rv.action = action;
+  rv.notice = "";
+  syncPanel();
+  var anchor = null;
+  var failed = false;
+  try {
+    anchor = await commentsApi.anchorFor(ui.box);
+  } catch (e) {
+    failed = true;
+  }
+  if (gen !== rv.gen) return;
+  if (failed || anchor === null || typeof anchor !== "object") {
+    rv.phase = "idle";
+    rv.notice = ANCHOR_FAILED;
+    syncPanel();
+    return;
+  }
+  rv.anchor = anchor;
+  rv.phase = "confirm";
+  syncPanel();
+  ui.go.focus();
+}
+
+function onBack() {
+  if (rv.phase !== "confirm" || ui === null) return;
+  var action = rv.action;
+  rv.phase = "idle";
+  rv.anchor = null;
+  rv.notice = "";
+  syncPanel();
+  if (action !== null && ui[action]) ui[action].focus();
+}
+
+function onGo() {
+  if (rv.phase !== "confirm" || rv.anchor === null || rv.review === null || ui === null || commentsApi === null) return;
+  var gen = rv.gen;
+  var anchor = rv.anchor;
+  var text = "";
+  try {
+    var feedback = "";
+    if (rv.action === "revise") {
+      var checked = validateFeedback(ui.input.value);
+      if (!checked.ok) throw new Error("feedback");
+      feedback = checked.text;
+    }
+    text = buildAnswerText(rv.action, rv.review.stage, rv.review.id, feedback);
+  } catch (e) {
+    rv.phase = "idle";
+    rv.anchor = null;
+    rv.notice = FAILED_MSG;
+    syncPanel();
+    return;
+  }
+  rv.phase = "sending";
+  rv.anchor = null;
+  rv.notice = "";
+  var sent;
+  try {
+    sent = commentsApi.sendToClaude({ anchor: anchor, text: text });
+  } catch (e) {
+    sent = Promise.reject(e);
+  }
+  syncPanel();
+  Promise.resolve(sent).then(
+    () => afterSend(gen, true, null),
+    (err) => afterSend(gen, false, err)
+  );
+}
+
+function failureCode(err) {
+  try {
+    return isObject(err) && typeof err.code === "string" ? err.code : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function afterSend(gen, succeeded, err) {
+  if (gen !== rv.gen) return;
+  if (succeeded) {
+    rv.phase = "sent";
+    syncPanel();
+    return;
+  }
+  var code = failureCode(err);
+  rv.phase = "idle";
+  if (code === "forbidden") {
+    rv.can = "blocked";
+    rv.blockText = FORBIDDEN_MSG;
+  } else if (code === "consent_required") {
+    rv.notice = CONSENT_MSG;
+  } else if (code === "rate_limited") {
+    rv.notice = RATE_MSG;
+  } else {
+    rv.notice = FAILED_MSG;
+  }
+  syncPanel();
+  if (rv.can === "available" && ui !== null && rv.action !== null && ui[rv.action]) ui[rv.action].focus();
 }
 
 function readSnap(snap) {

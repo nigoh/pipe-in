@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
+import stat
 from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +32,7 @@ REVIEWS = {"approved": "approved", "approve": "approved", "revise": "revise", "q
 RED_STATUSES = ("red", "blocked")
 VERDICTS = ("pass", "fail", "blocked")
 FINALS = tuple(e.name for e in Exit if e != Exit.AWAITING_REVIEW)
+RECORD_FEEDBACK_LIMIT = 16384  # --feedback-file から読むバイト数の上限（超えたら断る）
 
 
 class RecordError(Exception):
@@ -348,7 +351,7 @@ def _pairs(values: Sequence[str] | None, what: str) -> list[tuple[str, str]]:
     return out
 
 
-def _parse(argv: list[str]) -> argparse.Namespace:
+def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="pipe-in record",
         description="開発フローの記録（docs/pipeline/）だけを書く。段は流さない。Claude Code の開発用スキルが使う",
@@ -382,7 +385,14 @@ def _parse(argv: list[str]) -> argparse.Namespace:
     s = sub.add_parser("review", parents=[common], help="人の確認の結果")
     s.add_argument("stage")
     s.add_argument("result", help="approved / revise / quit")
-    s.add_argument("--feedback", default="", help="revise のときの、直してほしい点")
+    s.add_argument("--feedback", default=None, help="revise のときの、直してほしい点")
+    s.add_argument(
+        "--feedback-file",
+        dest="feedback_file",
+        type=Path,
+        default=None,
+        help="直してほしい点を書いたファイル（--feedback とは同時に使えない。UTF-8、16384 バイトまで）",
+    )
 
     s = sub.add_parser("red", parents=[common], help="テスト先行の結果")
     s.add_argument("status", help=" / ".join(RED_STATUSES))
@@ -399,7 +409,42 @@ def _parse(argv: list[str]) -> argparse.Namespace:
 
     s = sub.add_parser("finish", parents=[common], help="最後の結果とまとめを書く")
     s.add_argument("final", help=" / ".join(FINALS))
-    return p.parse_args(argv)
+    return p
+
+
+def _parse(argv: list[str]) -> argparse.Namespace:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if getattr(args, "feedback", None) is not None and getattr(args, "feedback_file", None) is not None:
+        parser.error("--feedback と --feedback-file は同時に指定できません")
+    return args
+
+
+def _read_feedback_file(path: Path) -> str:
+    """--feedback-file の中身を読む。無い・通常のファイルでない・大きすぎる・UTF-8 でないときは RecordError。"""
+    try:
+        fd = os.open(os.fspath(path.expanduser()), os.O_RDONLY)
+    except OSError as e:
+        raise RecordError(f"--feedback-file を開けません（{type(e).__name__}）") from e
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise RecordError("--feedback-file は通常のファイルを指定してください")
+        raw = b""
+        while len(raw) <= RECORD_FEEDBACK_LIMIT:
+            chunk = os.read(fd, RECORD_FEEDBACK_LIMIT + 1 - len(raw))
+            if not chunk:
+                break
+            raw += chunk
+    except OSError as e:
+        raise RecordError(f"--feedback-file を読めません（{type(e).__name__}）") from e
+    finally:
+        os.close(fd)
+    if len(raw) > RECORD_FEEDBACK_LIMIT:
+        raise RecordError(f"--feedback-file が大きすぎます（{RECORD_FEEDBACK_LIMIT} バイトまで）")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise RecordError("--feedback-file は UTF-8 で書いてください") from e
 
 
 def main(argv: list[str]) -> int:
@@ -416,7 +461,10 @@ def main(argv: list[str]) -> int:
         elif args.action == "wait":
             r.wait(args.stage)
         elif args.action == "review":
-            r.review(args.stage, args.result, feedback=args.feedback)
+            feedback = args.feedback or ""
+            if args.feedback_file is not None:
+                feedback = _read_feedback_file(args.feedback_file)
+            r.review(args.stage, args.result, feedback=feedback)
         elif args.action == "red":
             r.red(args.status, args.summary, tests=_pairs(args.test, "--test"), commands=args.command or [])
         elif args.action == "verdict":
