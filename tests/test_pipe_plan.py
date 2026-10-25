@@ -129,13 +129,13 @@ def test_d0029_ac13_board_moves_cards_without_dialog():
 # D0042-AC-01・03・11 に置き換えた。
 
 
-def test_d0040_block_after_finds_nested_braces():
+def test_d0042_block_after_finds_nested_braces():
     """検査の補助（AC ではない）：block_after は、入れ子の波括弧と、文字列の中の波括弧を正しく扱う。"""
     text = 'x f() { if (a) { "}" } else { b } } tail { z }'
     assert block_after(text, "f()") == 'f() { if (a) { "}" } else { b } }'
 
 
-def test_d0040_ac01_board_calls_three_tools():
+def test_d0042_ac01_board_calls_three_tools():
     """D0042-AC-01（D0029-AC-11 を新しい3道具に合わせた）: ボードが SESSION_SERVER に呼ぶ道具は list_sessions・create_session・list_environments の3つ。"""
     html = read(BOARD)
     tools = set(re.findall(r'(?:callTool|watchTool)\(\s*SESSION_SERVER\s*,\s*"([a-z_]+)"', html))
@@ -143,20 +143,20 @@ def test_d0040_ac01_board_calls_three_tools():
     assert 'const SESSION_SERVER = "Claude Code Remote";' in html
 
 
-def test_d0040_ac02_board_has_no_other_tools():
+def test_d0042_ac02_board_has_no_other_tools():
     """D0042-AC-02: ボードに send_message・archive_session・interrupt_session の語が無い。（今の作りでも通る。守り続けるための検査）"""
     html = read(BOARD)
     assert re.search(r"\b(?:send_message|archive_session|interrupt_session)\b", html) is None
 
 
-def test_d0040_ac03_skill_declares_three_tools():
+def test_d0042_ac03_skill_declares_three_tools():
     """D0042-AC-03（D0029-AC-12 を3道具に合わせた）: スキルの公開の宣言は3道具で、list_sessions だけの古い宣言が残っていない。"""
     text = read(SKILL)
     assert TOOLS3 in text
     assert 'tools: ["list_sessions"]}' not in text
 
 
-def test_d0040_ac04_create_session_only_from_confirm_submit():
+def test_d0042_ac04_create_session_only_from_confirm_submit():
     """D0042-AC-04: create_session を呼ぶ createSession は、確認フォームの submit の処理からだけ呼ばれる。"""
     html = read(BOARD)
     assert html.count('"create_session"') == 1
@@ -166,7 +166,7 @@ def test_d0040_ac04_create_session_only_from_confirm_submit():
     assert "createSession(" in submit
 
 
-def test_d0040_ac05_environment_id_always_passed():
+def test_d0042_ac05_environment_id_always_passed():
     """D0042-AC-05: create_session の入力に environment_id が入り、環境が空なら呼ぶ前に戻る。"""
     body = fn(read(BOARD), "createSession")
     assert "environment_id: envId" in body
@@ -174,14 +174,14 @@ def test_d0040_ac05_environment_id_always_passed():
     assert body.index("if (!envId") < body.index("callTool")
 
 
-def test_d0040_ac06_run_needs_can_write():
+def test_d0042_ac06_run_needs_can_write():
     """D0042-AC-06: 「実行」を出す条件 canRun に canWrite があり、書けない人で canWrite を落とす既存の結びが残る。"""
     html = read(BOARD)
     assert "canWrite" in fn(html, "canRun")
     assert "canWrite = false" in html
 
 
-def test_d0040_ac07_run_hidden_while_session_running():
+def test_d0042_ac07_run_hidden_while_session_running():
     """D0042-AC-07: canRun は一覧を読み終えたこと（sessionsLoaded）と isRunning を見る。isRunning は ARCHIVED・COMPLETED・FAILED を終わりとして扱う。"""
     html = read(BOARD)
     can = fn(html, "canRun")
@@ -191,7 +191,7 @@ def test_d0040_ac07_run_hidden_while_session_running():
         assert word in running, word
 
 
-def test_d0040_ac08_prompt_built_from_title_and_note():
+def test_d0042_ac08_prompt_built_from_title_and_note():
     """D0042-AC-08: 最初の言葉は「/pipe-in 」に題とメモを付けて作り、題が空のカードでは canRun が偽になる。"""
     html = read(BOARD)
     build = fn(html, "buildPrompt")
@@ -199,7 +199,7 @@ def test_d0040_ac08_prompt_built_from_title_and_note():
     assert ".title" in fn(html, "canRun")
 
 
-def test_d0040_ac09_run_dialog_uses_text_content():
+def test_d0042_ac09_run_dialog_uses_text_content():
     """D0042-AC-09: 確認の画面の動的な文（環境の選び・失敗の理由・環境の説明・送る言葉）は el()・textContent・value で入れる。"""
     html = read(BOARD)
     assert 'id="run-dlg"' in html
@@ -212,7 +212,7 @@ def test_d0040_ac09_run_dialog_uses_text_content():
         assert bad not in html, bad
 
 
-def test_d0040_ac10_session_id_checked_before_update():
+def test_d0042_ac10_session_id_checked_before_update():
     """D0042-AC-10: 返事から取った ID が ^session_[A-Za-z0-9]+$ に合うときだけ、カードの session を update で書く。"""
     html = read(BOARD)
     ext = fn(html, "extractSessionId")
@@ -225,7 +225,13 @@ def test_d0040_ac10_session_id_checked_before_update():
     assert i_ext < i_throw < i_upd
 
 
-def test_d0040_ac11_no_url_id_or_local_path():
+def test_d0042_ac23_session_id_read_from_ccr_wrapper():
+    """D0042-AC-23: create_session の実際の返事は {"ccr": {"id": "session_…"}} の形。extractSessionId は ccr の中の id も読む（実機で確かめた形）。"""
+    ext = fn(read(BOARD), "extractSessionId")
+    assert "p.ccr" in ext and "p.ccr.id" in ext
+
+
+def test_d0042_ac11_no_url_id_or_local_path():
     """D0042-AC-11（D0029-AC-06 を広げた）: スキル・ひな形・D0042 の記録に、ボードの URL・実際のセッション ID・手元のパスが無い。"""
     records = list(DECISIONS.glob("D0042-*.md"))
     assert records, "D0042 の記録が無い"
@@ -237,7 +243,7 @@ def test_d0040_ac11_no_url_id_or_local_path():
             assert local not in text, (path, local)
 
 
-def test_d0040_ac12_listed_in_help_and_decisions():
+def test_d0042_ac12_listed_in_help_and_decisions():
     """D0042-AC-12: /pipe-help の /pipe-plan の行に「新しいセッション」があり、決定の記録の表と記録に D0042 がある。"""
     lines = [ln for ln in read(HELP).splitlines() if "`/pipe-plan" in ln]
     assert lines and any("新しいセッション" in ln for ln in lines), lines
@@ -245,7 +251,7 @@ def test_d0040_ac12_listed_in_help_and_decisions():
     assert list(DECISIONS.glob("D0042-*.md")), "D0042 の記録が無い"
 
 
-def test_d0040_ac13_old_board_asks_republish():
+def test_d0042_ac13_old_board_asks_republish():
     """D0042-AC-13: 古いボード（list_sessions だけの宣言）では、ページが not_in_manifest で「公開し直す」と出し、スキルの「開く」が宣言の古さを見つけて公開し直しを勧める。"""
     err = fn(read(BOARD), "runError")
     assert "not_in_manifest" in err and "公開し直す" in err
@@ -256,7 +262,7 @@ def test_d0040_ac13_old_board_asks_republish():
         assert word in section, word
 
 
-def test_d0040_ac19_environment_choice_and_remember():
+def test_d0042_ac19_environment_choice_and_remember():
     """D0042-AC-19: 環境は state が active のものだけ選べ、1件なら自動で使い、選んだ環境を settings/run に覚える。items には混ぜない。"""
     html = read(BOARD)
     ext = fn(html, "extractEnvironments")
@@ -268,7 +274,7 @@ def test_d0040_ac19_environment_choice_and_remember():
             assert "col." not in line and 'collection("items")' not in line, line
 
 
-def test_d0040_ac20_prompt_prefix_checked():
+def test_d0042_ac20_prompt_prefix_checked():
     """D0042-AC-20: 送る言葉の先頭が「/pipe-in 」でなければ create_session を呼ばない。送る言葉は textarea で編集できる。"""
     html = read(BOARD)
     assert 'startsWith("/pipe-in ")' in fn(html, "promptOk")
@@ -277,7 +283,7 @@ def test_d0040_ac20_prompt_prefix_checked():
     assert re.search(r'<textarea[^>]*id="run-prompt"', html)
 
 
-def test_d0040_ac21_create_input_fixed():
+def test_d0042_ac21_create_input_fixed():
     """D0042-AC-21: create_session の入力は prompt・source_url（REPO）・environment_id・title で、permission_mode・model・--auto・--artifact はボードのどこにも無い。"""
     html = read(BOARD)
     body = fn(html, "createSession")
@@ -287,7 +293,7 @@ def test_d0040_ac21_create_input_fixed():
     assert "--auto" not in html and "--artifact" not in html
 
 
-def test_d0040_ac22_double_press_guarded():
+def test_d0042_ac22_double_press_guarded():
     """D0042-AC-22: submit は creating で二重を止め、#run-go を無効にする。作った直後は justStarted、結果不明は uncertain で「実行」を止める。"""
     html = read(BOARD)
     submit = block_after(html, '$("run-form").addEventListener("submit"')
