@@ -1,4 +1,4 @@
-// 新しく確認待ちになった行の判断（D0043）。vscode を使わない純粋な関数。
+// 新しく確認待ちになった行の判断（D0044）。vscode を使わない純粋な関数。
 import type { RunRow } from './runList.ts';
 import type { RunKey } from './runs.ts';
 

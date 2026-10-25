@@ -1,4 +1,4 @@
-# D0043 確認待ちになったら知らせる
+# D0044 確認待ちになったら知らせる
 
 ## 目的
 
@@ -13,19 +13,19 @@ D0024 は書き換えない。次の1点だけを、この記録が置き換え�
 ## 機能要件と受け入れ基準
 
 - FR-01 VSCode の拡張は、一覧の行が新しく確認待ちになったときに、知らせ（`showInformationMessage`）を1回出す。
-  - D0043-AC-01・D0043-AC-02・D0043-AC-03・D0043-AC-04・D0043-AC-05・D0043-AC-06・D0043-AC-07 判断は `domain/waitingNotice.ts` の純粋な関数 `newlyWaitingKeys`。前に無い／確認待ちでなかった行だけを返す。確認待ち → 動く → 確認待ちならもう一度返す。`archive/` と終わった行は返さない。基準が無い（開いた直後）なら返さない。別の worktree の行も返す。壊れた入力でも例外を出さない。
-  - D0043-AC-08・D0043-AC-09 文は `view/waitNotice.ts`。1件は「<セッション名>（<段>）が確認待ちです」、2件以上は件数だけ。外から来た文字は `plainLine` で1行のプレーンな文字にする。
-  - D0043-AC-10・D0043-AC-11・D0043-AC-12・D0043-AC-13 ボタンは「実行を見る」だけで、押すと既存の `pipe-in.showRun` を実行する。設定 `pipe-in.notifyWhenWaiting` が false なら出さない（型が違う値は既定の true）。パネルで見ている実行は外す。
-  - D0043-AC-14・D0043-AC-15・D0043-AC-16 知らせは `render()` の本体の外の `notifyWaiting` から出す（D0024-AC-15 は変えずに通る）。`retarget()` で基準を捨て、古い世代の読み込みでは何もしない。ステータスバーの色・コマンド・メッセージの種類・CSP は変えない。
-  - D0043-AC-17・D0043-AC-18・D0043-AC-19・D0043-AC-20 設定の鍵は5つ。前の名前の節の設定も読む。新しい部品は `vscode` もファイルも時計も使わず、基準は拡張のメモリだけ（`workspaceState` に書かない）。本体・記録・3つのガードは変えない。
+  - D0044-AC-01・D0044-AC-02・D0044-AC-03・D0044-AC-04・D0044-AC-05・D0044-AC-06・D0044-AC-07 判断は `domain/waitingNotice.ts` の純粋な関数 `newlyWaitingKeys`。前に無い／確認待ちでなかった行だけを返す。確認待ち → 動く → 確認待ちならもう一度返す。`archive/` と終わった行は返さない。基準が無い（開いた直後）なら返さない。別の worktree の行も返す。壊れた入力でも例外を出さない。
+  - D0044-AC-08・D0044-AC-09 文は `view/waitNotice.ts`。1件は「<セッション名>（<段>）が確認待ちです」、2件以上は件数だけ。外から来た文字は `plainLine` で1行のプレーンな文字にする。
+  - D0044-AC-10・D0044-AC-11・D0044-AC-12・D0044-AC-13 ボタンは「実行を見る」だけで、押すと既存の `pipe-in.showRun` を実行する。設定 `pipe-in.notifyWhenWaiting` が false なら出さない（型が違う値は既定の true）。パネルで見ている実行は外す。
+  - D0044-AC-14・D0044-AC-15・D0044-AC-16 知らせは `render()` の本体の外の `notifyWaiting` から出す（D0024-AC-15 は変えずに通る）。`retarget()` で基準を捨て、古い世代の読み込みでは何もしない。ステータスバーの色・コマンド・メッセージの種類・CSP は変えない。
+  - D0044-AC-17・D0044-AC-18・D0044-AC-19・D0044-AC-20 設定の鍵は5つ。前の名前の節の設定も読む。新しい部品は `vscode` もファイルも時計も使わず、基準は拡張のメモリだけ（`workspaceState` に書かない）。本体・記録・3つのガードは変えない。
 - FR-02 `/pipe-in` スキルは、`record wait` を書くときと `--auto` でも止まって聞くとき、人に聞く前に PushNotification で知らせる。
-  - D0043-AC-21・D0043-AC-22・D0043-AC-23 `SKILL.md` の「必ず守ること」に1行、`record.md` に文の決まり（段の名前と固定の言葉だけ・要件メモ・パス・秘密を入れない・`--auto` で止まらずに進むところでは知らせない）。ツールが無い会話では何もしない。
-  - D0043-AC-24（手で）知らせが届くこと。
+  - D0044-AC-21・D0044-AC-22・D0044-AC-23 `SKILL.md` の「必ず守ること」に1行、`record.md` に文の決まり（段の名前と固定の言葉だけ・要件メモ・パス・秘密を入れない・`--auto` で止まらずに進むところでは知らせない）。ツールが無い会話では何もしない。
+  - D0044-AC-24（手で）知らせが届くこと。
 - FR-03 Claude Code の Notification フックは足さず、Claude Code 自身の通知の設定を案内する。
-  - D0043-AC-25・D0043-AC-26・D0043-AC-27 `docs/guide/develop.md` に `preferredNotifChannel`（`/config` の「Local notifications」）の案内とフックを足さない理由。`.claude/settings.json` の `hooks` は `PreToolUse` と `Stop` のまま。
+  - D0044-AC-25・D0044-AC-26・D0044-AC-27 `docs/guide/develop.md` に `preferredNotifChannel`（`/config` の「Local notifications」）の案内とフックを足さない理由。`.claude/settings.json` の `hooks` は `PreToolUse` と `Stop` のまま。
 - FR-04 文書をそろえる。
-  - D0043-AC-28・D0043-AC-29 `docs/guide/vscode.md`・`vscode/README.md`・`docs/guide/develop.md`。
-  - D0043-AC-30・D0043-AC-31（手で）・D0043-AC-32（実機）2つの worktree での知らせ・出さない場合・実際の `/pipe-in`。
+  - D0044-AC-28・D0044-AC-29 `docs/guide/vscode.md`・`vscode/README.md`・`docs/guide/develop.md`。
+  - D0044-AC-30・D0044-AC-31（手で）・D0044-AC-32（実機）2つの worktree での知らせ・出さない場合・実際の `/pipe-in`。
 
 ## 決めたことと理由
 
@@ -56,3 +56,4 @@ D0024 は書き換えない。次の1点だけを、この記録が置き換え�
 - `npm --prefix vscode test`・`npm --prefix vscode run typecheck`・`pytest -q`。
 - 手で（AC-24・30・31）：AC-24 はこの機能を作った会話で、段の区切りごとに PushNotification を送った（届いたかは人が見る）。AC-30・31 はまだ。
 - 実機（AC-32）：まだ。
+- main を取り込んだとき、main に D0043（指摘の形）が先に入っていたので、この記録を D0043 から D0044 に付け替えた（AC の ID・テストの名前・文書の参照も合わせた）。

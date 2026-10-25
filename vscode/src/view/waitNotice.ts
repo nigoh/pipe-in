@@ -1,4 +1,4 @@
-// 確認待ちの知らせの文（D0043）。vscode を使わない。外から来た文字（セッション名・段）は plainLine で整える。
+// 確認待ちの知らせの文（D0044）。vscode を使わない。外から来た文字（セッション名・段）は plainLine で整える。
 import type { RunRow } from '../domain/runList.ts';
 import { plainLine } from './statusBar.ts';
 

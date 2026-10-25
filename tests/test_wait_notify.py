@@ -1,4 +1,4 @@
-"""D0043：確認待ちになったら通知する。スキル（b）・案内の文書（c）・文書・本体を変えないこと（AC-20〜23・AC-25〜29。AC-24 は手で）の検査。
+"""D0044：確認待ちになったら通知する。スキル（b）・案内の文書（c）・文書・本体を変えないこと（AC-20〜23・AC-25〜29。AC-24 は手で）の検査。
 
 拡張（a）のテストは vscode/src/**/*.test.ts にある。ここは SDK を呼ばず、文書とファイルを文字で読むだけ。
 """
@@ -74,14 +74,14 @@ def test_section_helper_finds_body_and_ignores_fenced_hash():
 # ---- (b) スキル ----
 
 
-def test_D0043_AC_21_必ず守ることに_PushNotification_で知らせる決まりがある():
-    """D0043-AC-21: SKILL.md の「必ず守ること」に、record wait のあと人に聞く前に PushNotification で知らせること、ツールが無い会話では何もしないことがある。"""
+def test_D0044_AC_21_必ず守ることに_PushNotification_で知らせる決まりがある():
+    """D0044-AC-21: SKILL.md の「必ず守ること」に、record wait のあと人に聞く前に PushNotification で知らせること、ツールが無い会話では何もしないことがある。"""
     body = must_section(SKILL, "必ず守ること")
     assert missing(body, ["record wait", "PushNotification", "ツールが無い", "何もしない"]) == []
 
 
-def test_D0043_AC_22_auto_で止まって聞く4つの場面でも知らせ_止まらずに進むところでは知らせないと書いてある():
-    """D0043-AC-22: SKILL.md と record.md に、--auto で止まって聞く4つの場面でも知らせることと、止まらずに進むところでは知らせないことがある。"""
+def test_D0044_AC_22_auto_で止まって聞く4つの場面でも知らせ_止まらずに進むところでは知らせないと書いてある():
+    """D0044-AC-22: SKILL.md と record.md に、--auto で止まって聞く4つの場面でも知らせることと、止まらずに進むところでは知らせないことがある。"""
     text = read(SKILL) + read(RECORD)
     # 知らせる決まりそのものがまだ無いのに、既存の「決めきれない点」などの語だけで通らないよう、PushNotification を条件にする
     assert "PushNotification" in text
@@ -90,16 +90,16 @@ def test_D0043_AC_22_auto_で止まって聞く4つの場面でも知らせ_止�
     assert "--auto" in notify_part, "知らせの決まりの行に --auto の扱いが書いてある"
 
 
-def test_D0043_AC_23_知らせの文に要件メモ_パス_秘密を入れないと書いてある():
-    """D0043-AC-23: record.md に、知らせの文へ要件メモ・パス・秘密を入れない（段の名前と固定の言葉だけ）と書いてある。"""
+def test_D0044_AC_23_知らせの文に要件メモ_パス_秘密を入れないと書いてある():
+    """D0044-AC-23: record.md に、知らせの文へ要件メモ・パス・秘密を入れない（段の名前と固定の言葉だけ）と書いてある。"""
     text = read(RECORD)
     assert "PushNotification" in text
     notify_part = "\n".join(l for l in text.splitlines() if "PushNotification" in l or "知らせ" in l)
     assert missing(notify_part, ["要件メモ", "パス", "秘密", "入れない"]) == []
 
 
-def test_D0043_AC_23_PushNotification_の引数は確かめていないか確かめた旨が書いてある():
-    """D0043-AC-23: PushNotification の引数は公式の文書で確かめていない（読めなければそう書く）。record.md に確かめたかどうかの文がある。"""
+def test_D0044_AC_23_PushNotification_の引数は確かめていないか確かめた旨が書いてある():
+    """D0044-AC-23: PushNotification の引数は公式の文書で確かめていない（読めなければそう書く）。record.md に確かめたかどうかの文がある。"""
     text = read(RECORD)
     lines = [l for l in text.splitlines() if "PushNotification" in l]
     assert lines, "record.md に PushNotification の説明が無い"
@@ -111,21 +111,21 @@ def test_D0043_AC_23_PushNotification_の引数は確かめていないか確か
 NOTICE_TITLE = "確認待ちの知らせ"
 
 
-def test_D0043_AC_25_ガイドに_Claude_Code_自身の通知の設定の案内がある():
-    """D0043-AC-25: develop.md の「確認待ちの知らせ」の節に、/config・端末のベル・許可待ち・入力待ちと、確かめていないこと（か確かめた旨）がある。"""
+def test_D0044_AC_25_ガイドに_Claude_Code_自身の通知の設定の案内がある():
+    """D0044-AC-25: develop.md の「確認待ちの知らせ」の節に、/config・端末のベル・許可待ち・入力待ちと、確かめていないこと（か確かめた旨）がある。"""
     body = must_section(DEVELOP, NOTICE_TITLE)
     assert missing(body, ["/config", "端末のベル", "許可待ち", "入力待ち"]) == []
     assert re.search(r"確かめていない|公式の文書で確かめた", body), "設定の名前・項目を確かめたかどうかを書く"
 
 
-def test_D0043_AC_26_フックを足さない理由が書いてある():
-    """D0043-AC-26: 同じ節に、Notification フックを足さない理由（標準出力・ベル・組み込みの通知）がある。"""
+def test_D0044_AC_26_フックを足さない理由が書いてある():
+    """D0044-AC-26: 同じ節に、Notification フックを足さない理由（標準出力・ベル・組み込みの通知）がある。"""
     body = must_section(DEVELOP, NOTICE_TITLE)
     assert missing(body, ["Notification", "標準出力", "ベル", "組み込みの通知"]) == []
 
 
-def test_D0043_AC_29_ガイドに_PushNotification_の短い説明がある():
-    """D0043-AC-29: develop.md の節に、PushNotification・ツールが無いと何もしない・拡張の設定では切れないがある。"""
+def test_D0044_AC_29_ガイドに_PushNotification_の短い説明がある():
+    """D0044-AC-29: develop.md の節に、PushNotification・ツールが無いと何もしない・拡張の設定では切れないがある。"""
     body = must_section(DEVELOP, NOTICE_TITLE)
     assert missing(body, ["PushNotification", "ツールが無い", "何もしない", "拡張の設定", "切れない"]) == []
 
@@ -133,8 +133,8 @@ def test_D0043_AC_29_ガイドに_PushNotification_の短い説明がある():
 # ---- 文書（a） ----
 
 
-def test_D0043_AC_28_ガイドと拡張_README_に知らせの条件と設定が書いてある():
-    """D0043-AC-28: vscode.md の「確認待ちの知らせ」の節と vscode/README.md に、設定名・開いた直後・見ている実行・音と色を出さないことがある。"""
+def test_D0044_AC_28_ガイドと拡張_README_に知らせの条件と設定が書いてある():
+    """D0044-AC-28: vscode.md の「確認待ちの知らせ」の節と vscode/README.md に、設定名・開いた直後・見ている実行・音と色を出さないことがある。"""
     guide = must_section(VSCODE_GUIDE, NOTICE_TITLE)
     readme = read(VSCODE_README)
     for name, text in (("docs/guide/vscode.md の節", guide), ("vscode/README.md", readme)):
@@ -142,8 +142,8 @@ def test_D0043_AC_28_ガイドと拡張_README_に知らせの条件と設定が
         assert gone == [], f"{name} に足りない言葉：{gone}"
 
 
-def test_D0043_AC_28_通知ではありませんの古い文が残っていない_吹き出しの語は残る():
-    """D0043-AC-28: vscode.md から「通知ではありません」が消え、ステータスバーの節には「吹き出し」の語が残る（D0024-AC-46 の検査のため）。"""
+def test_D0044_AC_28_通知ではありませんの古い文が残っていない_吹き出しの語は残る():
+    """D0044-AC-28: vscode.md から「通知ではありません」が消え、ステータスバーの節には「吹き出し」の語が残る（D0024-AC-46 の検査のため）。"""
     md = read(VSCODE_GUIDE)
     assert "通知ではありません" not in md
     bar = section(md, "ステータスバー")
@@ -153,8 +153,8 @@ def test_D0043_AC_28_通知ではありませんの古い文が残っていな�
 # ---- 変えないもの ----
 
 
-def test_D0043_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_notify_py_が無い():
-    """D0043-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は今のまま、.claude/hooks/notify.py が無い。今のまま通る。守る。"""
+def test_D0044_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_notify_py_が無い():
+    """D0044-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は今のまま、.claude/hooks/notify.py が無い。今のまま通る。守る。"""
     data = json.loads(read(SETTINGS))
     assert set(data["hooks"]) == {"PreToolUse", "Stop"}
     assert not (ROOT / ".claude" / "hooks" / "notify.py").exists()
@@ -215,20 +215,20 @@ GUARDED = [
 ]
 
 
-def test_D0043_AC_20_守る対象のファイルが見つかる():
-    """D0043-AC-20: 下の検査が空の一覧で通ってしまわないよう、対象のファイルがあることを確かめる。"""
+def test_D0044_AC_20_守る対象のファイルが見つかる():
+    """D0044-AC-20: 下の検査が空の一覧で通ってしまわないよう、対象のファイルがあることを確かめる。"""
     names = {p.name for p in GUARDED}
     assert {"guard.py", "guard_hook.py", "pipe_in_guard.py"} <= names
 
 
 @pytest.mark.parametrize("path", GUARDED, ids=lambda p: str(p.relative_to(ROOT)))
-def test_D0043_AC_20_本体と守りの仕組みに_notify_も_PushNotification_も入っていない(path: Path):
-    """D0043-AC-20: pipe_in/・generator/・pipe_in_guard.py は通知のために変えない（今のまま通る。守る）。"""
+def test_D0044_AC_20_本体と守りの仕組みに_notify_も_PushNotification_も入っていない(path: Path):
+    """D0044-AC-20: pipe_in/・generator/・pipe_in_guard.py は通知のために変えない（今のまま通る。守る）。"""
     text = path.read_text(encoding="utf-8").lower()
     assert "notif" not in text and "pushnotification" not in text
 
 
-def test_D0043_AC_20_検査が通知の語を見つけられる():
-    """D0043-AC-20: 上の検査の探し方（小文字にして notif）は、PushNotification・notify を見つける。"""
+def test_D0044_AC_20_検査が通知の語を見つけられる():
+    """D0044-AC-20: 上の検査の探し方（小文字にして notif）は、PushNotification・notify を見つける。"""
     for sample in ("PushNotification", "def notify():", "Notification"):
         assert "notif" in sample.lower()
