@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
+import { stripStageCosts } from './budgetFixtures.ts';
 
 // ---- 指紋（見本の記録が変わっていないかを見る） ----
 
@@ -115,7 +116,8 @@ export function panelsOf(text: string): string {
   assert.ok(usage > artifacts, '「使用量」のパネルがある');
   const end = text.indexOf('</main>', usage);
   assert.ok(end > usage, '「使用量」のパネルのあとに </main> がある');
-  return text.slice(diagram, artifacts) + text.slice(usage, end);
+  // D0051：使用量のパネルからは「段ごとの費用」の節を取り除いてから測る（検査を緩める直し。補う確かめは stageCostsHtml.test.ts と previewPagesBudget.test.ts）
+  return text.slice(diagram, artifacts) + stripStageCosts(text.slice(usage, end));
 }
 
 export const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');

@@ -14,7 +14,7 @@ from . import clock
 from .config import MIB, Config
 from .guard import make_guard_hook
 from ..usage.metrics import StageMetrics
-from .spec import StageSpec
+from .spec import StageSpec, stage_budget_usd
 
 # SDK が受信バッファの上限を超えたときの例外の文の一部。今の SDK では CLIJSONDecodeError のまま届くが、
 # SDK の中の予備の経路で素の Exception に平らになって届くこともあるので、型（その2つだけ）と文の両方で見分ける
@@ -108,7 +108,7 @@ def sdk_options(spec: StageSpec, cfg: Config, *, resume: str | None) -> dict[str
         "disallowed_tools": spec.disallowed_tools,
         "model": sc.model or spec.model,
         "max_turns": sc.max_turns or spec.max_turns,
-        "max_budget_usd": sc.max_budget_usd or spec.max_budget_usd,
+        "max_budget_usd": stage_budget_usd(spec, cfg),
         "output_format": spec.output_format,
         "resume": resume,
         "setting_sources": cfg.setting_sources,

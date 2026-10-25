@@ -5,6 +5,7 @@
 // パネルの中のスクリプトは panelScript.ts、止まっているかも（D0021）の印の共通部品は staleMark.ts。
 // 「エージェント・スキル」のタブの表の CSS（TOOLS_STYLE、D0050）は、使用量の表の CSS（USAGE_STYLE）の次に束ねる（@media は持たない）。
 // 成果物の CSS（ARTIFACTS_STYLE）は SHELL_STYLE より前に束ねる（SHELL_STYLE の既存の 2 つの @media の中の規則が、基本の規則を上書きできるように。幅の @media はここに足さない）。
+// 上限の表示（D0051。棒・枠・言葉・状態の色）の CSS もここ。
 // 図の印（.node-stale・点線の枠・矢印の点を止める）の CSS はここ。動き（animation）は no-preference の中だけで、見える・見えない・点線・色は外（動きを減らす設定でも印は出る）。
 import type { PipelineView } from '../domain/pipelineView.ts';
 import type { RunListView } from '../domain/runList.ts';
@@ -55,6 +56,14 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .flow .is-waiting .node-status { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); }
 .flow .node-wait { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .flow .elapsed { fill: var(--vscode-charts-blue); font-variant-numeric: tabular-nums; }
+.flow .budget-track { fill: var(--vscode-editor-background); stroke: var(--vscode-descriptionForeground); stroke-width: 1; }
+.flow .budget-fill { fill: var(--vscode-descriptionForeground); }
+.flow .budget-word { font-size: 11px; font-weight: 600; }
+.flow .is-budget-near .budget-fill { fill: var(--vscode-charts-yellow, var(--vscode-foreground)); }
+.flow .is-budget-near .budget-track { stroke: var(--vscode-charts-yellow, var(--vscode-foreground)); }
+.flow .is-budget-over .budget-fill, .flow .is-budget-stopped .budget-fill { fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.flow .is-budget-over .budget-track, .flow .is-budget-stopped .budget-track { stroke: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.flow .is-budget-stopped .budget-track { stroke-width: 2; }
 .elapsed { color: var(--vscode-foreground); font-variant-numeric: tabular-nums; }
 .flow .node-stale { display: none; fill: var(--vscode-foreground); font-size: 10.5px; font-weight: 600; }
 .flow .node-stale .elapsed { fill: var(--vscode-foreground); }
