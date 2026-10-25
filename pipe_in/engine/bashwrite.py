@@ -675,7 +675,7 @@ def _first_is_filename(args: list[str] | None) -> bool:
     """.open の最初の引数が、モードの形でない文字（＝ファイル名）か。
 
     Path(…).open は最初の引数がモードだが、Image.open('a.png') などはファイル名を取る。ファイル名なら、
-    組み込みの open と同じく 2 つ目の引数か mode= がモードで、それは _py_open（\bopen\( が .open( にも当たる）が判定する。
+    組み込みの open と同じく 2 つ目の引数か mode= がモードで、それは _py_open（open( の形は .open( にも当たる）が判定する。
     最初の引数が文字でないとき・モードの形のときは False（今までどおり Path の open として見る）。"""
     if not args:
         return False
