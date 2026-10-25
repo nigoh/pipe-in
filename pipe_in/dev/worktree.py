@@ -1,4 +1,4 @@
-"""pipe-in worktree：機能ごとの worktree を .claude/worktrees/ に切る・main に入ったものを片付ける（D0047）。
+"""pipe-in worktree：機能ごとの worktree を .claude/worktrees/ に切る・main に入ったものを片付ける（D0048）。
 
 /pipe-in のスキルが、始めるときに new で切り、main に入れたあとに clean で片付ける。
 置き場所を .claude/worktrees/ にするのは、Claude Code の EnterWorktree が承認なしで移れる場所だから。

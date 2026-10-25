@@ -663,20 +663,20 @@ ORIGINAL_BACKTICK_WORDS: tuple[str, ...] = (
 )
 
 
-# D0047 で worktree の切り方を python -m pipe_in worktree new に置き換えたため、もう書かない語
-REPLACED_BY_D0047 = ("git worktree add ../pipe-in-<名前> -b feat/<名前>", "../pipe-in-<名前>", "git worktree add")
+# D0048 で worktree の切り方を python -m pipe_in worktree new に置き換えたため、もう書かない語
+REPLACED_BY_D0048 = ("git worktree add ../pipe-in-<名前> -b feat/<名前>", "../pipe-in-<名前>", "git worktree add")
 
 
 def is_excluded(word: str) -> bool:
     """除く語は 4 つだけ（機械的に決める）：(i) 前の名前を含む語（AC-20 の言い換え）、
     (ii) run-panel- か pipe-editor- を含む語（AC-18 で頭の形か README の指しに置き換わる完全なページ名と、頭の形・URL の形）、
-    (iii) -light.html・-dark.html（語尾だけの語）、(iv) D0047 で置き換えた worktree の切り方の語。"""
+    (iii) -light.html・-dark.html（語尾だけの語）、(iv) D0048 で置き換えた worktree の切り方の語。"""
     return (
         bool(OLD_NAME.search(word))
         or "run-panel-" in word
         or "pipe-editor-" in word
         or word in ("-light.html", "-dark.html")
-        or word in REPLACED_BY_D0047
+        or word in REPLACED_BY_D0048
     )
 
 

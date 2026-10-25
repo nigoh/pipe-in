@@ -1,4 +1,4 @@
-"""pipe-in worktree：機能ごとの worktree を .claude/worktrees/ に切る・main に入ったものを片付ける（D0047）。
+"""pipe-in worktree：機能ごとの worktree を .claude/worktrees/ に切る・main に入ったものを片付ける（D0048）。
 
 本物の git を一時フォルダで動かす（リポジトリの実物には触れない）。SDK は呼ばない。
 """
@@ -47,7 +47,7 @@ def merged(repo: Path, name: str) -> Path:
 
 
 def test_new_makes_worktree_under_claude_worktrees_on_feat_branch(repo: Path) -> None:
-    """D0047-AC-01: 置き場所は .claude/worktrees/<名前>、ブランチは feat/<名前>（--kind で fix・docs）、main から切る。"""
+    """D0048-AC-01: 置き場所は .claude/worktrees/<名前>、ブランチは feat/<名前>（--kind で fix・docs）、main から切る。"""
     path = new(repo, "wait-notify")
     assert path == repo / ".claude" / "worktrees" / "wait-notify"
     assert git(path, "branch", "--show-current").strip() == "feat/wait-notify"
@@ -57,7 +57,7 @@ def test_new_makes_worktree_under_claude_worktrees_on_feat_branch(repo: Path) ->
 
 
 def test_new_from_inside_a_worktree_still_uses_main_checkout(repo: Path) -> None:
-    """D0047-AC-02: worktree の中から呼んでも、置き場所は主の checkout の .claude/worktrees/（入れ子にしない）。"""
+    """D0048-AC-02: worktree の中から呼んでも、置き場所は主の checkout の .claude/worktrees/（入れ子にしない）。"""
     first = new(repo, "one")
     second = new(first, "two")
     assert second == repo / ".claude" / "worktrees" / "two"
@@ -65,13 +65,13 @@ def test_new_from_inside_a_worktree_still_uses_main_checkout(repo: Path) -> None
 
 @pytest.mark.parametrize("name", ["", "a/b", "../x", "-x", "x y", "あ", "a" * 65])
 def test_new_rejects_bad_names(repo: Path, name: str) -> None:
-    """D0047-AC-03: 名前は英数字・. _ - だけ（先頭は英数字、64 字まで）。それ以外は断る。"""
+    """D0048-AC-03: 名前は英数字・. _ - だけ（先頭は英数字、64 字まで）。それ以外は断る。"""
     with pytest.raises(WorktreeError):
         new(repo, name)
 
 
 def test_new_rejects_existing_name_and_unknown_kind(repo: Path) -> None:
-    """D0047-AC-04: 同じ名前の worktree・ブランチがあれば断る。種類は feat・fix・docs だけ。"""
+    """D0048-AC-04: 同じ名前の worktree・ブランチがあれば断る。種類は feat・fix・docs だけ。"""
     new(repo, "dup")
     with pytest.raises(WorktreeError, match="dup"):
         new(repo, "dup")
@@ -83,7 +83,7 @@ def test_new_rejects_existing_name_and_unknown_kind(repo: Path) -> None:
 
 
 def test_clean_removes_merged_worktree_and_branch(repo: Path) -> None:
-    """D0047-AC-05: main に入ったブランチの worktree を消し、ブランチも消す。"""
+    """D0048-AC-05: main に入ったブランチの worktree を消し、ブランチも消す。"""
     path = merged(repo, "done")
     result = clean(repo)
     assert [r.branch for r in result.removed] == ["feat/done"]
@@ -92,7 +92,7 @@ def test_clean_removes_merged_worktree_and_branch(repo: Path) -> None:
 
 
 def test_clean_keeps_unmerged_dirty_and_outside_worktrees(repo: Path, tmp_path: Path) -> None:
-    """D0047-AC-06: main に入っていない・まだコミットしていない変更がある・.claude/worktrees/ の外の worktree は残す（理由を返す）。"""
+    """D0048-AC-06: main に入っていない・まだコミットしていない変更がある・.claude/worktrees/ の外の worktree は残す（理由を返す）。"""
     unmerged = new(repo, "wip")
     commit_in(unmerged, "c.txt")
     dirty = merged(repo, "dirty")
@@ -111,7 +111,7 @@ def test_clean_keeps_unmerged_dirty_and_outside_worktrees(repo: Path, tmp_path: 
 
 
 def test_clean_keeps_worktree_never_committed_on(repo: Path) -> None:
-    """D0047-AC-12: 切ってから一度もコミットしていないブランチは残す（始めたばかりで、ほかの会話が使っているかもしれない）。"""
+    """D0048-AC-12: 切ってから一度もコミットしていないブランチは残す（始めたばかりで、ほかの会話が使っているかもしれない）。"""
     path = new(repo, "fresh")
     result = clean(repo)
     assert result.removed == []
@@ -121,7 +121,7 @@ def test_clean_keeps_worktree_never_committed_on(repo: Path) -> None:
 
 
 def test_clean_keeps_the_worktree_it_is_called_from(repo: Path) -> None:
-    """D0047-AC-07: 呼んだ場所の worktree は消さない（会話がまだその中にいる）。"""
+    """D0048-AC-07: 呼んだ場所の worktree は消さない（会話がまだその中にいる）。"""
     path = merged(repo, "here")
     result = clean(path)
     assert result.removed == []
@@ -130,7 +130,7 @@ def test_clean_keeps_the_worktree_it_is_called_from(repo: Path) -> None:
 
 
 def test_clean_dry_run_changes_nothing(repo: Path) -> None:
-    """D0047-AC-08: --dry-run では消す予定を返すだけで、何も消さない。"""
+    """D0048-AC-08: --dry-run では消す予定を返すだけで、何も消さない。"""
     path = merged(repo, "done")
     result = clean(repo, dry_run=True)
     assert [r.branch for r in result.removed] == ["feat/done"]
@@ -139,7 +139,7 @@ def test_clean_dry_run_changes_nothing(repo: Path) -> None:
 
 
 def test_clean_ignores_ignored_files(repo: Path) -> None:
-    """D0047-AC-09: 無視しているファイル（docs/pipeline/・node_modules/ など）だけなら、変更とみなさず消す。"""
+    """D0048-AC-09: 無視しているファイル（docs/pipeline/・node_modules/ など）だけなら、変更とみなさず消す。"""
     (repo / ".gitignore").write_text("/.claude/worktrees/\n/docs/pipeline/\n", encoding="utf-8")
     git(repo, "commit", "-q", "-am", "ignore")
     path = merged(repo, "rec")
@@ -151,7 +151,7 @@ def test_clean_ignores_ignored_files(repo: Path) -> None:
 
 
 def test_cli_new_and_clean(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """D0047-AC-10: python -m pipe_in worktree new <名前> は切った絶対パスを出す。clean は消したもの・残したものを出す。"""
+    """D0048-AC-10: python -m pipe_in worktree new <名前> は切った絶対パスを出す。clean は消したもの・残したものを出す。"""
     assert cli.main(["worktree", "new", "cli", "--project", str(repo)]) == 0
     out = capsys.readouterr().out
     path = repo / ".claude" / "worktrees" / "cli"
@@ -167,7 +167,7 @@ def test_cli_new_and_clean(repo: Path, capsys: pytest.CaptureFixture[str]) -> No
 
 
 def test_repository_ignores_claude_worktrees() -> None:
-    """D0047-AC-11: このリポジトリの .gitignore が .claude/worktrees/ を載せない。"""
+    """D0048-AC-11: このリポジトリの .gitignore が .claude/worktrees/ を載せない。"""
     root = Path(__file__).resolve().parents[1]
     lines = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "/.claude/worktrees/" in lines

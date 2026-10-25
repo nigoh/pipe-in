@@ -9,7 +9,7 @@ python -m pipe_in worktree new <名前>     # .claude/worktrees/<名前> に fea
 cd .claude/worktrees/<名前>
 ```
 
-`/pipe-in` は、会話が main の作業フォルダで始まっていれば、これを人に聞かずに流して、`EnterWorktree` でその worktree に移ります（D0047）。
+`/pipe-in` は、会話が main の作業フォルダで始まっていれば、これを人に聞かずに流して、`EnterWorktree` でその worktree に移ります（D0048）。
 
 - このリポジトリでは、複数の会話を同時に動かすのがふつうです。1人で1つだけ進めるときも、worktree を切ります。
 - 切る前に、main の作業フォルダの `git status` を見ます。まだコミットされていない変更（ほかの会話の作業）があれば、それがどのファイルかを覚えておきます（あとで main に入れるときに重なりを確かめるため）。

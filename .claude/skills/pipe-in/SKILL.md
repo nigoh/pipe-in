@@ -33,7 +33,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - Read で読み直した SKILL.md では、引数とセッション ID は置き換わらない。要件メモは `docs/pipeline/00_input.md` から取る。
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
   - いちばん確かなのは、会話を worktree のフォルダで始めること（main で始めて移ると、フックは main の版が動く）。会話を worktree の中で始めたとき、または下の EnterWorktree で移ったあとは、そのまま進める。
-  - 会話が main の作業フォルダで始まっていたら、人に聞かずに、先に下の `git status` を見てから `python -m pipe_in worktree new <名前>`（文書だけなら `--kind docs`、直しなら `--kind fix`）で `.claude/worktrees/<名前>` に `feat/<名前>` を切り、`EnterWorktree` に `path`（出た絶対パス）を渡して会話ごと移る（切ったこと・移ったことを伝える）。`cd` では移れない（人が打つ `/cd <パス>` なら移れる）。`EnterWorktree` の `name` の形はブランチ名が決まりと合わないので使わない（D0047）。
+  - 会話が main の作業フォルダで始まっていたら、人に聞かずに、先に下の `git status` を見てから `python -m pipe_in worktree new <名前>`（文書だけなら `--kind docs`、直しなら `--kind fix`）で `.claude/worktrees/<名前>` に `feat/<名前>` を切り、`EnterWorktree` に `path`（出た絶対パス）を渡して会話ごと移る（切ったこと・移ったことを伝える）。`cd` では移れない（人が打つ `/cd <パス>` なら移れる）。`EnterWorktree` の `name` の形はブランチ名が決まりと合わないので使わない（D0048）。
   - 移るのは、段のサブエージェントが会話のその時の作業フォルダから始まり、フック（`.claude/hooks/pipe_in_guard.py`）がその `cwd` を基準に書ける場所を決めるため。
   - `docs/pipeline/` の記録も、その worktree の中にできる。
 - main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る（EnterWorktree で移る前に見る。移ったあとは main の作業フォルダを指す git のコマンドが止められる）。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
