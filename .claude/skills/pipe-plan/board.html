@@ -877,7 +877,8 @@ dialog input[type="text"], dialog select { width: 100%; }
     const ok = (c) => typeof c === "string" && /^session_[A-Za-z0-9]+$/.test(c);
     if (ok(p)) return p;
     if (!p || typeof p !== "object") return "";
-    for (const c of [p.id, p.session_id, p.session && p.session.id]) if (ok(c)) return c;
+    // 実際の返事は ccr の中に id が入る形（D0042 の実機で確かめた）。
+    for (const c of [p.ccr && p.ccr.id, p.id, p.session_id, p.session && p.session.id]) if (ok(c)) return c;
     return "";
   }
   function pickEnvironment(list, saved) {
