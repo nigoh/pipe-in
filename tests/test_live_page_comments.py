@@ -1,4 +1,4 @@
-"""D0039：進み具合のページの「答えのボタン」の動き。Node 22 以上があるときだけ、build_page() の本物の JS を node:vm で動かして確かめる。
+"""D0044：進み具合のページの「答えのボタン」の動き。Node 22 以上があるときだけ、build_page() の本物の JS を node:vm で動かして確かめる。
 
 台は tests/fixtures/live_page_harness.mjs（D0027 の台に、偽の claude.use("comments") と、押す・書く・終わらせる操作を足したもの）。
 comments の口は公式の型定義で確かめた形：const c = await claude.use("comments")（使えない画面では null）・await c.canSendToClaude()
@@ -357,8 +357,8 @@ document.addEventListener("click", function () { log.push("doc"); });
 </script></body></html>"""
 
 
-def test_d0039_harness_records_the_comments_calls(node):
-    """D0039-AC-37: 台の自己検査。偽の comments が、canSendToClaude・anchorFor・sendToClaude の呼び出しを記録し、押した操作の中で呼ばれたか（in_gesture）、発行した anchor そのものか（anchor_issued）を区別する。"""
+def test_d0044_harness_records_the_comments_calls(node):
+    """D0044-AC-37: 台の自己検査。偽の comments が、canSendToClaude・anchorFor・sendToClaude の呼び出しを記録し、押した操作の中で呼ばれたか（in_gesture）、発行した anchor そのものか（anchor_issued）を区別する。"""
     r = run_scene(node, REFERENCE_PAGE, comments={}, steps=[
         {"op": "call", "fn": "doCan", "args": []},
         {"op": "call", "fn": "doAnchor", "args": []},
@@ -378,15 +378,15 @@ def test_d0039_harness_records_the_comments_calls(node):
     assert plain["text"] == "outside-gesture" and plain["in_gesture"] is False and plain["anchor_issued"] is True and [s["n"] for s in c["sends"]] == [0, 1, 2]
 
 
-def test_d0039_harness_in_gesture_is_false_after_an_await(node):
-    """D0039-AC-37: 台の自己検査。クリックの中で await を挟んでから sendToClaude を呼ぶと in_gesture が偽になり、挟まなければ真になる（ページの await の有無を台が見分ける）。"""
+def test_d0044_harness_in_gesture_is_false_after_an_await(node):
+    """D0044-AC-37: 台の自己検査。クリックの中で await を挟んでから sendToClaude を呼ぶと in_gesture が偽になり、挟まなければ真になる（ページの await の有無を台が見分ける）。"""
     page = REFERENCE_PAGE.replace('document.getElementById("go").addEventListener("click", function () { doSend("sync"); });', 'document.getElementById("go").addEventListener("click", async function () { await Promise.resolve(); doSend("after-await"); });')
     r = run_scene(node, page, comments={}, steps=[{"op": "click", "selector": "#go"}])
     assert r["comments"]["sends"][0]["text"] == "after-await" and r["comments"]["sends"][0]["in_gesture"] is False
 
 
-def test_d0039_harness_use_modes(node):
-    """D0039-AC-34: 台の自己検査。claude.use("comments") が null・reject・throw・undefined・設定なし（前の版の場面）を作れて、呼んだ回数を数える。"""
+def test_d0044_harness_use_modes(node):
+    """D0044-AC-34: 台の自己検査。claude.use("comments") が null・reject・throw・undefined・設定なし（前の版の場面）を作れて、呼んだ回数を数える。"""
     for cfg, text in [({"use": "null"}, "none"), ({"use": "rejects"}, "none"), ({"use": "throws"}, "none"), ({"use": "undefined"}, "none"), ({"use": "ok"}, "have"), ({}, "have"), (None, "none")]:
         scene = {} if cfg is None else {"comments": cfg}
         r = run_scene(node, REFERENCE_PAGE, **scene)
@@ -415,14 +415,14 @@ def test_d0039_harness_use_modes(node):
     ],
     ids=sid,
 )
-def test_d0039_harness_can_modes(node, can, expected):
-    """D0039-AC-35: 台の自己検査。canSendToClaude の返す値（文字列・null・数・真偽・オブジェクト・undefined・reject）を作れる。"""
+def test_d0044_harness_can_modes(node, can, expected):
+    """D0044-AC-35: 台の自己検査。canSendToClaude の返す値（文字列・null・数・真偽・オブジェクト・undefined・reject）を作れる。"""
     r = run_scene(node, REFERENCE_PAGE, comments={"can": can}, steps=[{"op": "call", "fn": "doCan", "args": []}])
     assert expected in r["steps"][0]["view"]["lines"], r["steps"][0]["view"]["lines"]
 
 
-def test_d0039_harness_can_throw_set_can_and_pending(node):
-    """D0039-AC-35: 台の自己検査。canSendToClaude が同期で投げる場面・set_can で次の値を替える操作・pending（settle_can で終わらせる）を作れる。"""
+def test_d0044_harness_can_throw_set_can_and_pending(node):
+    """D0044-AC-35: 台の自己検査。canSendToClaude が同期で投げる場面・set_can で次の値を替える操作・pending（settle_can で終わらせる）を作れる。"""
     r = run_scene(node, REFERENCE_PAGE, comments={"can": {"$": "throw"}}, steps=[{"op": "call", "fn": "doCanSync", "args": []}])
     assert r["steps"][0]["threw"] and "canSendToClaude threw" in r["steps"][0]["threw"]
     r = run_scene(node, REFERENCE_PAGE, comments={"can": "off"}, steps=[
@@ -437,8 +437,8 @@ def test_d0039_harness_can_throw_set_can_and_pending(node):
     assert 'can:"no_session":string' in r["steps"][2]["view"]["lines"] and "can-rejected" in r["steps"][3]["view"]["lines"]
 
 
-def test_d0039_harness_anchor_modes(node):
-    """D0039-AC-39: 台の自己検査。anchorFor が reject・同期で投げる・オブジェクトでない値を返す・pending（settle_anchor）を作れる。"""
+def test_d0044_harness_anchor_modes(node):
+    """D0044-AC-39: 台の自己検査。anchorFor が reject・同期で投げる・オブジェクトでない値を返す・pending（settle_anchor）を作れる。"""
     r = run_scene(node, REFERENCE_PAGE, comments={"anchor": "rejects"}, steps=[{"op": "call", "fn": "doAnchor", "args": []}])
     assert "anchor-rejected:invalid" in r["steps"][0]["view"]["lines"]
     r = run_scene(node, REFERENCE_PAGE, comments={"anchor": "throws"}, steps=[{"op": "call", "fn": "doAnchorThrow", "args": []}])
@@ -453,8 +453,8 @@ def test_d0039_harness_anchor_modes(node):
     assert "anchor:ANCHOR-TOKEN-1" in r["steps"][2]["view"]["lines"] and "anchor-rejected:invalid" in r["steps"][3]["view"]["lines"]
 
 
-def test_d0039_harness_send_modes(node):
-    """D0039-AC-39: 台の自己検査。sendToClaude が resolve・pending（settle で終わらせる）・reject（値／コード）・同期で投げる・呼ぶたびに替わる配列を作れる。"""
+def test_d0044_harness_send_modes(node):
+    """D0044-AC-39: 台の自己検査。sendToClaude が resolve・pending（settle で終わらせる）・reject（値／コード）・同期で投げる・呼ぶたびに替わる配列を作れる。"""
     steps = [{"op": "call", "fn": "doSend", "args": ["a"]}]
     assert "sent:a" in run_scene(node, REFERENCE_PAGE, comments={}, steps=steps)["steps"][0]["view"]["lines"]
     r = run_scene(node, REFERENCE_PAGE, comments={"send": {"reject_code": "claude_unavailable"}}, steps=steps)
@@ -479,8 +479,8 @@ def test_d0039_harness_send_modes(node):
     assert "send-rejected:rate_limited:REJECT-MESSAGE-SECRET" in r["steps"][0]["view"]["lines"] and "sent:y" in r["steps"][1]["view"]["lines"] and "sent:z" in r["steps"][2]["view"]["lines"]
 
 
-def test_d0039_harness_click_rules(node):
-    """D0039-AC-38: 台の自己検査。click は、disabled の要素・hidden の要素（自分か祖先）には（force が偽なら）押さず、times 回続けて押し、親へ伝わり、見つからなければ found が偽。"""
+def test_d0044_harness_click_rules(node):
+    """D0044-AC-38: 台の自己検査。click は、disabled の要素・hidden の要素（自分か祖先）には（force が偽なら）押さず、times 回続けて押し、親へ伝わり、見つからなければ found が偽。"""
     r = run_scene(node, REFERENCE_PAGE, steps=[
         {"op": "click", "selector": "#off"},
         {"op": "click", "selector": "#inner"},
@@ -500,8 +500,8 @@ def test_d0039_harness_click_rules(node):
     assert r["listener_errors"] == [] and r["uncaught"] == []
 
 
-def test_d0039_harness_click_bubbles_and_flags_the_gesture(node):
-    """D0039-AC-37: 台の自己検査。click は親・文書へ伝わる（イベントの委譲を使うページも動く）。押している間だけ gesture の旗が立つ。"""
+def test_d0044_harness_click_bubbles_and_flags_the_gesture(node):
+    """D0044-AC-37: 台の自己検査。click は親・文書へ伝わる（イベントの委譲を使うページも動く）。押している間だけ gesture の旗が立つ。"""
     r = run_scene(node, REFERENCE_PAGE, comments={}, steps=[{"op": "click", "selector": "#deep"}, {"op": "call", "fn": "doSend", "args": ["x"]}])
     assert "deep-clicked" in r["steps"][0]["view"]["lines"]
     assert r["comments"]["sends"][0]["in_gesture"] is False
@@ -509,8 +509,8 @@ def test_d0039_harness_click_bubbles_and_flags_the_gesture(node):
     assert r["steps"][1]["threw"] is None and r["steps"][1]["result"] == "outer:deep,doc,outer:deep,doc", "親・文書の順に伝わる"
 
 
-def test_d0039_harness_input_focus_and_selection(node):
-    """D0039-AC-40: 台の自己検査。input は .value を替えて input を送り（disabled・hidden には届かない）、focus は見える・押せる要素だけに効き、要素を動かすと focus が外れ、選択範囲を覚える。"""
+def test_d0044_harness_input_focus_and_selection(node):
+    """D0044-AC-40: 台の自己検査。input は .value を替えて input を送り（disabled・hidden には届かない）、focus は見える・押せる要素だけに効き、要素を動かすと focus が外れ、選択範囲を覚える。"""
     r = run_scene(node, REFERENCE_PAGE, steps=[
         {"op": "input", "selector": "#t", "value": "hello"},
         {"op": "input", "selector": "#u", "value": "x"},
@@ -540,22 +540,22 @@ def test_d0039_harness_input_focus_and_selection(node):
     assert s[14][0]["value"] == "hello" and s[14][0]["selection"] == [1, 3], "値と選択範囲は残る"
 
 
-def test_d0039_harness_query_reports_shown_and_shown_text(node):
-    """D0039-AC-33: 台の自己検査。query の shown（文書に付いていて hidden でない）・view の shown_text（hidden の中を除いた文字）が使える。"""
+def test_d0044_harness_query_reports_shown_and_shown_text(node):
+    """D0044-AC-33: 台の自己検査。query の shown（文書に付いていて hidden でない）・view の shown_text（hidden の中を除いた文字）が使える。"""
     r = run_scene(node, REFERENCE_PAGE, steps=[{"op": "query", "selector": "#inner"}, {"op": "query", "selector": "#go"}, {"op": "query", "selector": "#off"}])
     assert r["steps"][0]["result"][0]["shown"] is False and r["steps"][1]["result"][0]["shown"] is True
     assert r["steps"][2]["result"][0]["disabled"] is True and r["steps"][1]["result"][0]["disabled"] is False
     assert "inner" in r["loaded"]["text"] and "inner" not in r["loaded"]["shown_text"] and "go" in r["loaded"]["shown_text"]
 
 
-def test_d0039_harness_records_native_dialogs(node):
-    """D0039-AC-36: 台の自己検査。confirm・alert・prompt を呼んだページは、台が dialogs に記録する。"""
+def test_d0044_harness_records_native_dialogs(node):
+    """D0044-AC-36: 台の自己検査。confirm・alert・prompt を呼んだページは、台が dialogs に記録する。"""
     r = run_scene(node, REFERENCE_PAGE, steps=[{"op": "call", "fn": "doConfirm", "args": []}])
     assert r["dialogs"] == ["confirm"] and r["steps"][0]["result"] is False
 
 
-def test_d0039_harness_keeps_the_old_scene_working(node):
-    """D0039-AC-34: 台の自己検査。comments を設定しない場面は、前の版のとおり（use("comments") は null）。偽の DOM の追加（value・disabled・focus）が前の版の動きを変えない。"""
+def test_d0044_harness_keeps_the_old_scene_working(node):
+    """D0044-AC-34: 台の自己検査。comments を設定しない場面は、前の版のとおり（use("comments") は null）。偽の DOM の追加（value・disabled・focus）が前の版の動きを変えない。"""
     r = run_scene(node, REFERENCE_PAGE, steps=[{"op": "query", "selector": "#t"}])
     assert r["comments"] == {"use_calls": 1, "can_calls": 0, "anchor_calls": [], "sends": [], "pending_sends": 0, "pending_can": 0, "pending_anchor": 0}
     assert r["db"]["use_calls"] == ["comments"] and r["dialogs"] == [] and r["alerts"] == []
@@ -581,8 +581,8 @@ def baseline_text(node, html, snap) -> str:
 # ---- AC-33 ボタンが出る ----------------------------------------------------------------------------------
 
 
-def test_d0039_ac33_buttons_and_input_appear_only_on_the_review_row(node, html):
-    """D0039-AC-33: comments が取れて canSendToClaude が available、写しの review が有効で確認待ちの行があるとき、その行にだけ承認・差し戻し・中止のボタン3つと入力欄が出る。ほかの行には出ない。"""
+def test_d0044_ac33_buttons_and_input_appear_only_on_the_review_row(node, html):
+    """D0044-AC-33: comments が取れて canSendToClaude が available、写しの review が有効で確認待ちの行があるとき、その行にだけ承認・差し戻し・中止のボタン3つと入力欄が出る。ほかの行には出ない。"""
     rows = [stage("requirements", "done"), stage("design", "running", started_at=iso(60)), stage("red", "review", pending_since=iso(30)), stage("implement"), stage("test", "revised")]
     run = play(node, html, [query("li.s-review > div.review"), query("li.s-running div.review"), query("li.s-done div.review"), query("li.s-waiting div.review"),
                             query("li.s-revised div.review"), query("li.s-review > *"), query("div.review"), query("button"), query("textarea")],
@@ -596,8 +596,8 @@ def test_d0039_ac33_buttons_and_input_appear_only_on_the_review_row(node, html):
     assert run.can_calls == 1 and run.use_calls == ["db", "comments"] and run.sends == []
 
 
-def test_d0039_ac33_parts_have_the_designed_labels_and_attributes(node, html):
-    """D0039-AC-33: 部品の文字と属性（パネルの role・aria-label、入力欄の maxlength・rows・aria-label、ボタンの type・文字、文の欄の role・aria-live）が設計どおり。"""
+def test_d0044_ac33_parts_have_the_designed_labels_and_attributes(node, html):
+    """D0044-AC-33: 部品の文字と属性（パネルの role・aria-label、入力欄の maxlength・rows・aria-label、ボタンの type・文字、文の欄の role・aria-live）が設計どおり。"""
     f = play(node, html, snap=snapshot()).frames[0]
     assert f.attrs("panel")["role"] == "group" and f.attrs("panel")["aria-label"] == "確認待ちの答え"
     assert f.attrs("input")["maxlength"] == "1000" and f.attrs("input")["rows"] == "3" and f.attrs("input")["aria-label"] == "直してほしい点（差し戻すときだけ）"
@@ -611,8 +611,8 @@ def test_d0039_ac33_parts_have_the_designed_labels_and_attributes(node, html):
     assert f.value("input") in (None, "")
 
 
-def test_d0039_ac33_only_the_row_named_by_review_gets_the_panel(node, html):
-    """D0039-AC-33: 確認待ちの行が2つあっても、review の段の行にだけ出る。行の突き合わせは段の名前（name）で、表示名（label）ではない。"""
+def test_d0044_ac33_only_the_row_named_by_review_gets_the_panel(node, html):
+    """D0044-AC-33: 確認待ちの行が2つあっても、review の段の行にだけ出る。行の突き合わせは段の名前（name）で、表示名（label）ではない。"""
     rows = [stage("x1", "review", label="LABEL-red"), stage("red", "review", label="LABEL-x1"), stage("tail")]
     run = play(node, html, [query("li.s-review")], snap=snapshot(rows, review={"stage": "red", "id": ID1}))
     with_panel = [x["text"] for x in run.result(0) if "承認" in x["text"]]
@@ -621,8 +621,8 @@ def test_d0039_ac33_only_the_row_named_by_review_gets_the_panel(node, html):
     assert run.frames[0].counts["panel"] == 1
 
 
-def test_d0039_ac33_panel_moves_with_the_review(node, html):
-    """D0039-AC-33: 確認待ちが別の段に移ったら、パネルは新しい行にだけ出る（古い行には残らない）。パネルはいつも1つ。"""
+def test_d0044_ac33_panel_moves_with_the_review(node, html):
+    """D0044-AC-33: 確認待ちが別の段に移ったら、パネルは新しい行にだけ出る（古い行には残らない）。パネルはいつも1つ。"""
     first = reviewing("design", ID1)
     second = reviewing("red", ID2)
     run = play(node, html, [send(second), query("li.s-review"), query("li.s-done div.review"), query("div.review")], snap=first)
@@ -633,8 +633,8 @@ def test_d0039_ac33_panel_moves_with_the_review(node, html):
     assert len(run.result(2)) == 0 and len(run.result(3)) == 1
 
 
-def test_d0039_ac33_panel_is_not_in_the_static_markup(node, html):
-    """D0039-AC-33: 確認待ちが現れるまで、ページにパネルもボタンも無い（骨組みは変えず、JS が確認待ちが最初に現れたときに作る）。"""
+def test_d0044_ac33_panel_is_not_in_the_static_markup(node, html):
+    """D0044-AC-33: 確認待ちが現れるまで、ページにパネルもボタンも無い（骨組みは変えず、JS が確認待ちが最初に現れたときに作る）。"""
     assert_idle(play(node, html, snap=snapshot()).frames[0], "確認待ちが現れればパネルができる: ")
     run = play(node, html, [send(after_approval())], snap=snapshot(review=None))
     for f in run.frames:
@@ -667,8 +667,8 @@ NO_BUTTON_CASES = {
 
 
 @pytest.mark.parametrize("name", list(NO_BUTTON_CASES))
-def test_d0039_ac34_no_buttons_when_comments_or_review_are_unusable(node, html, name):
-    """D0039-AC-34: comments が null・use の例外・review が null / 無い / 古い写し・final あり・記録なし・schema 違い・確認待ちの行なし、のどの場合も、ボタンも入力欄も出ず、今までの描き方（見るだけ）が変わらない。
+def test_d0044_ac34_no_buttons_when_comments_or_review_are_unusable(node, html, name):
+    """D0044-AC-34: comments が null・use の例外・review が null / 無い / 古い写し・final あり・記録なし・schema 違い・確認待ちの行なし、のどの場合も、ボタンも入力欄も出ず、今までの描き方（見るだけ）が変わらない。
     review が無効なら comments を取りにいかない。comments が使えないときは、文も出さず前の版と同じ画面になる。
     review が無効な場合は今の作りのままで通る（守り続ける検査）。comments が null などの場合は、comments を取りにいく旨で赤になる。"""
     case = NO_BUTTON_CASES[name]
@@ -683,8 +683,8 @@ def test_d0039_ac34_no_buttons_when_comments_or_review_are_unusable(node, html, 
     assert run.last.view["text"] == baseline_text(node, html, case["snap"]), "見るだけの描き方が前の版と違う"
 
 
-def test_d0039_ac34_no_buttons_when_the_db_cannot_be_read(node, html):
-    """D0039-AC-34: db が取れない画面（claude.use("db") が null）では、comments も取りにいかない。見るだけの文（この画面では読めません）のまま。"""
+def test_d0044_ac34_no_buttons_when_the_db_cannot_be_read(node, html):
+    """D0044-AC-34: db が取れない画面（claude.use("db") が null）では、comments も取りにいかない。見るだけの文（この画面では読めません）のまま。"""
     run = play(node, html, claude="null", comments={})
     assert run.use_calls == ["db"] and run.r["comments"]["use_calls"] == 0
     assert "この画面では読めません" in run.frames[0].view["text"]
@@ -692,8 +692,8 @@ def test_d0039_ac34_no_buttons_when_the_db_cannot_be_read(node, html):
 
 
 @pytest.mark.parametrize("mode", ["use_rejects", "use_throws", "use_undefined", "undefined"])
-def test_d0039_ac34_no_buttons_when_the_claude_object_itself_is_unusable(node, html, mode):
-    """D0039-AC-34: claude.use が使えない画面（reject・throw・undefined・claude が無い）でも、ボタンは出ず、例外を出さない。"""
+def test_d0044_ac34_no_buttons_when_the_claude_object_itself_is_unusable(node, html, mode):
+    """D0044-AC-34: claude.use が使えない画面（reject・throw・undefined・claude が無い）でも、ボタンは出ず、例外を出さない。"""
     run = play(node, html, claude=mode, comments={}, strict=False)
     assert run.r["load_error"] is None and run.r["uncaught"] == []
     assert_no_ui(run.frames[0])
@@ -702,16 +702,16 @@ def test_d0039_ac34_no_buttons_when_the_claude_object_itself_is_unusable(node, h
 # ---- AC-35 canSendToClaude の値ごと ---------------------------------------------------------------------------
 
 
-def test_d0039_ac35_available_shows_the_buttons(node, html):
-    """D0039-AC-35: available はボタンが出る（3つのボタンと入力欄が見えて押せる）。呼ぶのは1回。"""
+def test_d0044_ac35_available_shows_the_buttons(node, html):
+    """D0044-AC-35: available はボタンが出る（3つのボタンと入力欄が見えて押せる）。呼ぶのは1回。"""
     run = play(node, html, snap=snapshot(), comments={"can": "available"})
     assert_idle(run.frames[0])
     assert run.can_calls == 1 and run.use_calls == ["db", "comments"]
 
 
 @pytest.mark.parametrize("value,text", [("writers_only", WRITERS), ("no_session", NO_SESSION), ("off", OFF)])
-def test_d0039_ac35_each_blocked_value_shows_its_own_message_and_no_buttons(node, html, value, text):
-    """D0039-AC-35: writers_only・no_session・off は、それぞれ別の理由の文が出てボタン・入力欄が出ない。どの文にも「会話で答えてください」の案内がある。"""
+def test_d0044_ac35_each_blocked_value_shows_its_own_message_and_no_buttons(node, html, value, text):
+    """D0044-AC-35: writers_only・no_session・off は、それぞれ別の理由の文が出てボタン・入力欄が出ない。どの文にも「会話で答えてください」の案内がある。"""
     run = play(node, html, snap=snapshot(), comments={"can": value})
     assert_blocked(run.frames[0], text)
     assert "会話で答えてください" in text and run.can_calls == 1 and run.sends == []
@@ -722,30 +722,30 @@ GENERIC_VALUES = ["maybe", "", "AVAILABLE", "Available", "available ", " availab
 
 
 @pytest.mark.parametrize("value", GENERIC_VALUES, ids=sid)
-def test_d0039_ac35_unusable_values_show_the_generic_message(node, html, value):
-    """D0039-AC-35: 知らない文字列・null・undefined・数・真偽・オブジェクト・reject（例外）は「使えない」の文が出てボタンが出ない。available に似た文字列（大文字・空白つき）も使えない。"""
+def test_d0044_ac35_unusable_values_show_the_generic_message(node, html, value):
+    """D0044-AC-35: 知らない文字列・null・undefined・数・真偽・オブジェクト・reject（例外）は「使えない」の文が出てボタンが出ない。available に似た文字列（大文字・空白つき）も使えない。"""
     run = play(node, html, snap=snapshot(), comments={"can": value})
     assert_blocked(run.frames[0], GENERIC)
     assert run.can_calls == 1 and run.sends == []
 
 
-def test_d0039_ac35_the_four_messages_differ(node, html):
-    """D0039-AC-35: 理由ごとの4つの文（writers_only・no_session・off・ほか）は、どれも違う文。"""
+def test_d0044_ac35_the_four_messages_differ(node, html):
+    """D0044-AC-35: 理由ごとの4つの文（writers_only・no_session・off・ほか）は、どれも違う文。"""
     seen = []
     for value in ("writers_only", "no_session", "off", "other"):
         seen.append(play(node, html, snap=snapshot(), comments={"can": value}).frames[0].message())
     assert seen == [WRITERS, NO_SESSION, OFF, GENERIC] and len(set(seen)) == 4
 
 
-def test_d0039_ac35_every_message_points_to_the_conversation(node, html):
-    """D0039-AC-35: 使えないときの文は、どれも「会話で答えてください」の案内を含む。"""
+def test_d0044_ac35_every_message_points_to_the_conversation(node, html):
+    """D0044-AC-35: 使えないときの文は、どれも「会話で答えてください」の案内を含む。"""
     for value in ("writers_only", "no_session", "off", "other", None, {"$": "reject"}):
         message = play(node, html, snap=snapshot(), comments={"can": value}).frames[0].message()
         assert message and "会話で答えてください" in message, value
 
 
-def test_d0039_ac35_can_send_is_called_once_per_new_id(node, html):
-    """D0039-AC-35: 呼ぶのは確認待ちが現れた（識別子が替わった）ときで、同じ識別子の描き直しのたびには呼ばない。comments を取るのも1回。"""
+def test_d0044_ac35_can_send_is_called_once_per_new_id(node, html):
+    """D0044-AC-35: 呼ぶのは確認待ちが現れた（識別子が替わった）ときで、同じ識別子の描き直しのたびには呼ばない。comments を取るのも1回。"""
     same = snapshot()
     other_time = snapshot(generated_at=iso(-10))
     cost = snapshot([stage("requirements", "done", cost_usd=9.5), stage("design", "done"), stage("red", "review"), stage("implement"), stage("test")])
@@ -757,14 +757,14 @@ def test_d0039_ac35_can_send_is_called_once_per_new_id(node, html):
     assert run.use_calls.count("comments") == 1
 
 
-def test_d0039_ac35_a_changed_stage_with_the_same_id_is_a_new_review(node, html):
-    """D0039-AC-35: 識別子が同じでも段が替われば新しい確認待ち（識別は 段＋識別子）。もう一度 canSendToClaude を呼ぶ。"""
+def test_d0044_ac35_a_changed_stage_with_the_same_id_is_a_new_review(node, html):
+    """D0044-AC-35: 識別子が同じでも段が替われば新しい確認待ち（識別は 段＋識別子）。もう一度 canSendToClaude を呼ぶ。"""
     run = play(node, html, [send(reviewing("red", ID1)), send(reviewing("design", ID1))], snap=reviewing("red", ID1), comments={"can": "available"})
     assert run.can_calls == 2
 
 
-def test_d0039_ac35_review_going_away_and_coming_back_asks_again(node, html):
-    """D0039-AC-35: 確認待ちが消えて同じ識別子でまた現れたら、新しい確認待ちとして呼び直す（前の状態は残らない）。"""
+def test_d0044_ac35_review_going_away_and_coming_back_asks_again(node, html):
+    """D0044-AC-35: 確認待ちが消えて同じ識別子でまた現れたら、新しい確認待ちとして呼び直す（前の状態は残らない）。"""
     run = play(node, html, [typing("書きかけ"), send(after_approval()), send(snapshot())], snap=snapshot())
     assert run.can_calls == 2
     assert_no_ui(run.frames[2])
@@ -772,8 +772,8 @@ def test_d0039_ac35_review_going_away_and_coming_back_asks_again(node, html):
     assert run.frames[3].value("input") in (None, ""), "前の書きかけが残っていない"
 
 
-def test_d0039_ac35_a_new_id_asks_again_and_a_changed_answer_applies(node, html):
-    """D0039-AC-35: 新しい識別子では呼び直し、その時点の答えで出し分ける（前は writers_only でも、次が available ならボタンが出る）。"""
+def test_d0044_ac35_a_new_id_asks_again_and_a_changed_answer_applies(node, html):
+    """D0044-AC-35: 新しい識別子では呼び直し、その時点の答えで出し分ける（前は writers_only でも、次が available ならボタンが出る）。"""
     run = play(node, html, [{"op": "set_can", "value": "available"}, send(snapshot(review={"stage": "red", "id": ID2}))], snap=snapshot(), comments={"can": "writers_only"})
     assert_blocked(run.frames[0], WRITERS)
     assert_blocked(run.frames[1], WRITERS), "同じ識別子のうちは呼び直さない（set_can だけでは替わらない）"
@@ -781,24 +781,24 @@ def test_d0039_ac35_a_new_id_asks_again_and_a_changed_answer_applies(node, html)
     assert run.can_calls == 2
 
 
-def test_d0039_ac35_comments_are_requested_once_even_if_they_were_unusable(node, html):
-    """D0039-AC-35: claude.use("comments") は1回だけ（取れなかったときも null として覚えて、新しい確認待ちでも取り直さない）。"""
+def test_d0044_ac35_comments_are_requested_once_even_if_they_were_unusable(node, html):
+    """D0044-AC-35: claude.use("comments") は1回だけ（取れなかったときも null として覚えて、新しい確認待ちでも取り直さない）。"""
     run = play(node, html, [send(reviewing("red", ID2)), send(after_approval()), send(reviewing("red", ID3))], snap=snapshot(), comments={"use": "rejects"})
     assert run.use_calls.count("comments") == 1 and run.r["comments"]["use_calls"] == 1
     for f in run.frames:
         assert_no_ui(f)
 
 
-def test_d0039_ac35_nothing_is_shown_while_checking(node, html):
-    """D0039-AC-35: canSendToClaude の答えを待っている間（確かめ中）は、ボタンも入力欄も出さない。答えが来てから出す。"""
+def test_d0044_ac35_nothing_is_shown_while_checking(node, html):
+    """D0044-AC-35: canSendToClaude の答えを待っている間（確かめ中）は、ボタンも入力欄も出さない。答えが来てから出す。"""
     run = play(node, html, [{"op": "settle_can", "call": 0, "value": "available"}], snap=snapshot(), comments={"can": "pending"})
     assert_no_ui(run.frames[0], "確かめ中: ")
     assert run.can_calls == 1 and run.r["comments"]["pending_can"] == 1
     assert_idle(run.frames[1])
 
 
-def test_d0039_ac35_a_late_answer_for_an_old_id_is_discarded(node, html):
-    """D0039-AC-35: 識別子が替わったあとに前の識別子の canSendToClaude の答えが遅れて来ても、画面を変えない（新しい識別子の答えだけで出し分ける）。"""
+def test_d0044_ac35_a_late_answer_for_an_old_id_is_discarded(node, html):
+    """D0044-AC-35: 識別子が替わったあとに前の識別子の canSendToClaude の答えが遅れて来ても、画面を変えない（新しい識別子の答えだけで出し分ける）。"""
     run = play(node, html, [send(reviewing("red", ID2)), {"op": "settle_can", "call": 1, "value": "writers_only"}, {"op": "settle_can", "call": 0, "value": "available"}],
                snap=snapshot(), comments={"can": "pending"})
     assert run.can_calls == 2
@@ -807,8 +807,8 @@ def test_d0039_ac35_a_late_answer_for_an_old_id_is_discarded(node, html):
     assert_blocked(run.frames[3], WRITERS), "古い識別子の available が新しい識別子の画面を上書きした"
 
 
-def test_d0039_ac35_a_late_answer_that_arrives_before_the_new_one_does_not_show_the_buttons(node, html):
-    """D0039-AC-35: 前の識別子の答え（available）が、新しい識別子の答えより先に遅れて着いても、新しい識別子の答えが来るまでは、ボタンを出さない（古い答えで出し分けない）。"""
+def test_d0044_ac35_a_late_answer_that_arrives_before_the_new_one_does_not_show_the_buttons(node, html):
+    """D0044-AC-35: 前の識別子の答え（available）が、新しい識別子の答えより先に遅れて着いても、新しい識別子の答えが来るまでは、ボタンを出さない（古い答えで出し分けない）。"""
     run = play(node, html, [send(reviewing("red", ID2)), {"op": "settle_can", "call": 0, "value": "available"}, {"op": "settle_can", "call": 1, "value": "no_session"}],
                snap=snapshot(), comments={"can": "pending"})
     assert_no_ui(run.frames[1])
@@ -816,8 +816,8 @@ def test_d0039_ac35_a_late_answer_that_arrives_before_the_new_one_does_not_show_
     assert_blocked(run.frames[3], NO_SESSION)
 
 
-def test_d0039_ac35_a_rejecting_check_is_the_generic_message_and_is_not_retried(node, html):
-    """D0039-AC-35: canSendToClaude が reject しても、例外を出さず「使えない」の文を出す。同じ識別子の描き直しでは呼び直さない。"""
+def test_d0044_ac35_a_rejecting_check_is_the_generic_message_and_is_not_retried(node, html):
+    """D0044-AC-35: canSendToClaude が reject しても、例外を出さず「使えない」の文を出す。同じ識別子の描き直しでは呼び直さない。"""
     run = play(node, html, [send(snapshot()), send(snapshot(generated_at=iso(-1)))], snap=snapshot(), comments={"can": {"$": "reject"}})
     assert run.can_calls == 1
     for f in run.frames:
@@ -828,8 +828,8 @@ def test_d0039_ac35_a_rejecting_check_is_the_generic_message_and_is_not_retried(
 
 
 @pytest.mark.parametrize("action", ["approve", "quit"])
-def test_d0039_ac36_approve_and_quit_go_through_a_check_step_first(node, html, action):
-    """D0039-AC-36: 承認・中止を押すと、まだ sendToClaude は呼ばれず、確かめ（実行するボタンと戻るボタン）が出る。問いの文は固定。anchor はこの最初の操作で取る（パネルの要素に対して）。"""
+def test_d0044_ac36_approve_and_quit_go_through_a_check_step_first(node, html, action):
+    """D0044-AC-36: 承認・中止を押すと、まだ sendToClaude は呼ばれず、確かめ（実行するボタンと戻るボタン）が出る。問いの文は固定。anchor はこの最初の操作で取る（パネルの要素に対して）。"""
     run = play(node, html, [click(action)], snap=snapshot())
     assert_idle(run.frames[0])
     f = run.frames[1]
@@ -838,8 +838,8 @@ def test_d0039_ac36_approve_and_quit_go_through_a_check_step_first(node, html, a
     assert len(run.anchors) == 1 and run.anchors[0]["el_tag"] == "div" and "review" in run.anchors[0]["el_class"].split() and run.anchors[0]["attached"] is True
 
 
-def test_d0039_ac36_revise_goes_to_the_check_step_with_a_valid_feedback(node, html):
-    """D0039-AC-36: 差し戻しも、直してほしい点が通れば確かめに進む（まだ sendToClaude は呼ばれない）。"""
+def test_d0044_ac36_revise_goes_to_the_check_step_with_a_valid_feedback(node, html):
+    """D0044-AC-36: 差し戻しも、直してほしい点が通れば確かめに進む（まだ sendToClaude は呼ばれない）。"""
     run = play(node, html, [typing("ここを直して"), click("revise")], snap=snapshot())
     assert_confirm(run.frames[2], "revise")
     assert run.sends == [] and len(run.anchors) == 1
@@ -847,8 +847,8 @@ def test_d0039_ac36_revise_goes_to_the_check_step_with_a_valid_feedback(node, ht
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac36_other_buttons_do_nothing_during_the_check_step(node, html, action):
-    """D0039-AC-36: 確かめの間は、承認・差し戻し・中止のボタンは働かない（押されても、anchorFor も sendToClaude も呼ばず、確かめも替わらない）。"""
+def test_d0044_ac36_other_buttons_do_nothing_during_the_check_step(node, html, action):
+    """D0044-AC-36: 確かめの間は、承認・差し戻し・中止のボタンは働かない（押されても、anchorFor も sendToClaude も呼ばず、確かめも替わらない）。"""
     run = play(node, html, [typing("直して"), click("approve"), click(action, force=True), click("quit", force=True), click("revise", force=True)], snap=snapshot())
     assert_confirm(run.frames[2], "approve")
     for f in run.frames[3:]:
@@ -857,8 +857,8 @@ def test_d0039_ac36_other_buttons_do_nothing_during_the_check_step(node, html, a
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac36_back_returns_to_the_start(node, html, action):
-    """D0039-AC-36: 戻るボタンで元に戻る（3つのボタンと入力欄が出て、確かめが消え、sendToClaude は呼ばれない）。入力欄の中身は残る。"""
+def test_d0044_ac36_back_returns_to_the_start(node, html, action):
+    """D0044-AC-36: 戻るボタンで元に戻る（3つのボタンと入力欄が出て、確かめが消え、sendToClaude は呼ばれない）。入力欄の中身は残る。"""
     run = play(node, html, [typing("直して"), click(action), click("back")], snap=snapshot())
     assert_confirm(run.frames[2], action)
     f = run.frames[3]
@@ -868,8 +868,8 @@ def test_d0039_ac36_back_returns_to_the_start(node, html, action):
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac36_after_back_the_same_or_another_action_can_be_checked_again(node, html, action):
-    """D0039-AC-36: 戻ったあと、もう一度押すと、また確かめに進む。そのたびに anchor を取り直す（捨てた anchor を使い回さない）。"""
+def test_d0044_ac36_after_back_the_same_or_another_action_can_be_checked_again(node, html, action):
+    """D0044-AC-36: 戻ったあと、もう一度押すと、また確かめに進む。そのたびに anchor を取り直す（捨てた anchor を使い回さない）。"""
     run = play(node, html, [typing("直して"), click(action), click("back"), click("quit"), click("back"), click("approve")], snap=snapshot())
     assert_confirm(run.frames[4], "quit")
     assert_confirm(run.frames[6], "approve")
@@ -916,8 +916,8 @@ INVALID_FEEDBACK = [
 
 
 @pytest.mark.parametrize("value,reason", INVALID_FEEDBACK, ids=lambda v: sid(v) if isinstance(v, str) and len(v) < 30 else None)
-def test_d0039_ac36_revise_is_refused_before_the_check_step(node, html, value, reason):
-    """D0039-AC-36: 差し戻しは、入力欄が空・空白だけ・1001 文字以上・断られる文字（制御文字・ゼロ幅・RTL・孤立サロゲート）を含むとき、確かめに進めず理由が出て、sendToClaude も anchorFor も呼ばれない。"""
+def test_d0044_ac36_revise_is_refused_before_the_check_step(node, html, value, reason):
+    """D0044-AC-36: 差し戻しは、入力欄が空・空白だけ・1001 文字以上・断られる文字（制御文字・ゼロ幅・RTL・孤立サロゲート）を含むとき、確かめに進めず理由が出て、sendToClaude も anchorFor も呼ばれない。"""
     run = play(node, html, [typing(value), click("revise")], snap=snapshot())
     f = run.frames[2]
     assert_idle(f, message=INVALID[reason])
@@ -925,8 +925,8 @@ def test_d0039_ac36_revise_is_refused_before_the_check_step(node, html, value, r
     assert f.value("input") == value, "入力欄の中身は残る"
 
 
-def test_d0039_ac36_revise_refusal_then_a_fixed_text_goes_on(node, html):
-    """D0039-AC-36: 理由が出たあと、書き直して押すと確かめに進む（理由の文は消える）。"""
+def test_d0044_ac36_revise_refusal_then_a_fixed_text_goes_on(node, html):
+    """D0044-AC-36: 理由が出たあと、書き直して押すと確かめに進む（理由の文は消える）。"""
     run = play(node, html, [click("revise"), typing("書いた"), click("revise")], snap=snapshot())
     assert run.frames[1].message() == INVALID["empty"]
     assert_confirm(run.frames[3], "revise")
@@ -937,30 +937,30 @@ def test_d0039_ac36_revise_refusal_then_a_fixed_text_goes_on(node, html):
     ["x", "あ" * 1000, "😀" * 1000, "e\u0301" * 500, "\U0001f1ef\U0001f1f5" * 500, " " * 30 + "x" * 1000 + "\n\n", "\u3000" + "あ" * 1000 + "\u3000", "a\tb", "a\nb", "a\n\nb", "a\r\nb", "tab\tand\nnewline", "全角\u3000空白", "❤️ 👍🏽 🇯🇵", "<script>alert(1)</script>", "`$(x)`; &&"],
     ids=sid,
 )
-def test_d0039_ac36_revise_that_passes_the_check_goes_on(node, html, value):
-    """D0039-AC-36: 1000 文字ちょうど（コードポイントで数える。絵文字・結合文字・国旗も）・タブ・改行・全角空白・前後の空白つきは確かめに進める。"""
+def test_d0044_ac36_revise_that_passes_the_check_goes_on(node, html, value):
+    """D0044-AC-36: 1000 文字ちょうど（コードポイントで数える。絵文字・結合文字・国旗も）・タブ・改行・全角空白・前後の空白つきは確かめに進める。"""
     run = play(node, html, [typing(value), click("revise")], snap=snapshot())
     assert_confirm(run.frames[2], "revise")
     assert run.sends == [] and len(run.anchors) == 1
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac36_focus_moves_to_the_run_button_in_the_check_step(node, html, action):
-    """D0039-AC-36: 確かめに入ったら、押したボタンの次に使う実行するボタンに focus が移る（キーボードで続けられる）。"""
+def test_d0044_ac36_focus_moves_to_the_run_button_in_the_check_step(node, html, action):
+    """D0044-AC-36: 確かめに入ったら、押したボタンの次に使う実行するボタンに focus が移る（キーボードで続けられる）。"""
     run = play(node, html, [typing("直して"), {"op": "focus", "selector": SEL[action]}, click(action), {"op": "focus_state"}], snap=snapshot())
     assert run.result(3)["tag"] == "button" and "rv-go" in run.result(3)["class"].split(), run.result(3)
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac36_focus_returns_to_the_original_button_on_back(node, html, action):
-    """D0039-AC-36: 戻るときは、もとの動作のボタンに focus が戻る（キーボードで続けられる）。"""
+def test_d0044_ac36_focus_returns_to_the_original_button_on_back(node, html, action):
+    """D0044-AC-36: 戻るときは、もとの動作のボタンに focus が戻る（キーボードで続けられる）。"""
     run = play(node, html, [typing("直して"), click(action), click("back"), {"op": "focus_state"}], snap=snapshot())
     state = run.result(3)
     assert state["tag"] == "button" and f"rv-{action}" in state["class"].split(), state
 
 
-def test_d0039_ac36_no_native_dialog_is_used_in_any_flow(node, html):
-    """D0039-AC-36: 確かめも送信も、window.confirm・alert・prompt を使わない（台が呼び出しを記録する）。"""
+def test_d0044_ac36_no_native_dialog_is_used_in_any_flow(node, html):
+    """D0044-AC-36: 確かめも送信も、window.confirm・alert・prompt を使わない（台が呼び出しを記録する）。"""
     run = play(node, html, [typing("直して"), click("revise"), click("go"), click("back", force=True)], snap=snapshot())
     assert_stopped(run.frames[3], SENT)
     assert len(run.sends) == 1
@@ -976,8 +976,8 @@ def expected_text(action: str, stage_name: str, ident: str, feedback: str | None
 
 
 @pytest.mark.parametrize("action,feedback", [("approve", None), ("quit", None), ("revise", "ここを直してください")])
-def test_d0039_ac37_one_send_per_go_with_the_expected_text(node, html, action, feedback):
-    """D0039-AC-37: 実行するボタンの1回の操作で sendToClaude が1回呼ばれ、text が決まった形（承認・中止は1行、差し戻しは1行目＋直してほしい点）になり、段と識別子は写しの review と同じ。引数は {anchor, text} だけ。"""
+def test_d0044_ac37_one_send_per_go_with_the_expected_text(node, html, action, feedback):
+    """D0044-AC-37: 実行するボタンの1回の操作で sendToClaude が1回呼ばれ、text が決まった形（承認・中止は1行、差し戻しは1行目＋直してほしい点）になり、段と識別子は写しの review と同じ。引数は {anchor, text} だけ。"""
     steps = ([typing(feedback)] if feedback else []) + [click(action), click("go")]
     run = play(node, html, steps, snap=snapshot(), comments={"send": "pending"})
     assert len(run.sends) == 1
@@ -989,14 +989,14 @@ def test_d0039_ac37_one_send_per_go_with_the_expected_text(node, html, action, f
 
 @pytest.mark.parametrize("stage_name", ["requirements", "design", "red", "implement", "test", "make-diagram_2", "A", "a" * 40, "Z9-_x"])
 @pytest.mark.parametrize("ident", [ID1, ID2, ID3, "0000000000", "abcdef0123"])
-def test_d0039_ac37_stage_and_id_come_from_the_review(node, html, stage_name, ident):
-    """D0039-AC-37: 段と識別子は写しの review から来る（段の名前に - _ 大文字・40 文字、識別子の 16 進のどの形でも、そのまま文に入る）。"""
+def test_d0044_ac37_stage_and_id_come_from_the_review(node, html, stage_name, ident):
+    """D0044-AC-37: 段と識別子は写しの review から来る（段の名前に - _ 大文字・40 文字、識別子の 16 進のどの形でも、そのまま文に入る）。"""
     run = play(node, html, [click("approve"), click("go")], snap=reviewing(stage_name, ident))
     assert [s["text"] for s in run.sends] == [expected_text("approve", stage_name, ident)]
 
 
-def test_d0039_ac37_stage_and_id_are_not_taken_from_labels_or_names_on_screen(node, html):
-    """D0039-AC-37: 文の段・識別子は review のものだけ（表示名・セッション名・別の行の名前は使わない）。"""
+def test_d0044_ac37_stage_and_id_are_not_taken_from_labels_or_names_on_screen(node, html):
+    """D0044-AC-37: 文の段・識別子は review のものだけ（表示名・セッション名・別の行の名前は使わない）。"""
     rows = [stage("design", "review", label="LABEL-MARK-A"), stage("red", "review", label="LABEL-MARK-B"), stage("tail", "waiting", label="LABEL-MARK-C")]
     run = play(node, html, [click("quit"), click("go")], snap=snapshot(rows, review={"stage": "red", "id": ID2}, name="SESSION-NAME-MARK"))
     assert [s["text"] for s in run.sends] == [expected_text("quit", "red", ID2)]
@@ -1004,15 +1004,15 @@ def test_d0039_ac37_stage_and_id_are_not_taken_from_labels_or_names_on_screen(no
     assert "MARK" not in json.dumps(run.sends[0])
 
 
-def test_d0039_ac37_send_is_called_inside_the_gesture_without_await(node, html):
-    """D0039-AC-37: sendToClaude は実行するボタンの操作の中で、await を挟まずに呼ばれる（in_gesture が真）。承認・差し戻し・中止のどれでも。"""
+def test_d0044_ac37_send_is_called_inside_the_gesture_without_await(node, html):
+    """D0044-AC-37: sendToClaude は実行するボタンの操作の中で、await を挟まずに呼ばれる（in_gesture が真）。承認・差し戻し・中止のどれでも。"""
     for action in ACTIONS:
         run = play(node, html, [typing("直して"), click(action), click("go")], snap=snapshot())
         assert len(run.sends) == 1 and run.sends[0]["in_gesture"] is True, action
 
 
-def test_d0039_ac37_anchor_is_the_issued_one_and_has_no_outside_text(node, html):
-    """D0039-AC-37: anchor は anchorFor が発行したものそのまま（作り直さない・書き換えない）で、外から来た文字（セッション名・段の表示名・入力欄の文）が入らない。"""
+def test_d0044_ac37_anchor_is_the_issued_one_and_has_no_outside_text(node, html):
+    """D0044-AC-37: anchor は anchorFor が発行したものそのまま（作り直さない・書き換えない）で、外から来た文字（セッション名・段の表示名・入力欄の文）が入らない。"""
     rows = [stage("requirements", "done", label="LABEL-MARK"), stage("red", "review", label="LABEL-MARK-RED")]
     run = play(node, html, [typing("TYPED-INPUT-MARK"), click("revise"), click("go")], snap=snapshot(rows, review={"stage": "red", "id": ID1}, name="SESSION-NAME-MARK"))
     assert len(run.sends) == 1 and run.anchors == [{"el_tag": "div", "el_class": "review", "attached": True}]
@@ -1025,29 +1025,29 @@ def test_d0039_ac37_anchor_is_the_issued_one_and_has_no_outside_text(node, html)
     assert s["text"].endswith("\nTYPED-INPUT-MARK") and "MARK" not in s["text"].split("\n", 1)[0]
 
 
-def test_d0039_ac37_anchor_is_fetched_again_after_going_back(node, html):
-    """D0039-AC-37: 戻ると anchor を捨てる：もう一度確かめに入ったときに取り直した新しい anchor を、そのまま渡す（捨てた anchor を渡さない）。"""
+def test_d0044_ac37_anchor_is_fetched_again_after_going_back(node, html):
+    """D0044-AC-37: 戻ると anchor を捨てる：もう一度確かめに入ったときに取り直した新しい anchor を、そのまま渡す（捨てた anchor を渡さない）。"""
     run = play(node, html, [click("approve"), click("back"), click("approve"), click("go")], snap=snapshot())
     assert len(run.anchors) == 2 and len(run.sends) == 1
     assert len(run.sends) >= 1, "sendToClaude が呼ばれていない（ボタンがまだ無い）"
     assert run.sends[0]["anchor"]["token"] == "ANCHOR-TOKEN-2" and run.sends[0]["anchor_issued"] is True
 
 
-def test_d0039_ac37_the_text_uses_the_trimmed_feedback_with_lf(node, html):
-    """D0039-AC-37: 差し戻しの文は、直してほしい点の前後の空白を取り、CRLF を LF にしたもの（Python の読み取りが返すものと同じ）。"""
+def test_d0044_ac37_the_text_uses_the_trimmed_feedback_with_lf(node, html):
+    """D0044-AC-37: 差し戻しの文は、直してほしい点の前後の空白を取り、CRLF を LF にしたもの（Python の読み取りが返すものと同じ）。"""
     run = play(node, html, [typing("  \n 1行目\r\n\r\n3行目 \n\n"), click("revise"), click("go")], snap=snapshot())
     assert [s["text"] for s in run.sends] == [expected_text("revise", "red", ID1, "1行目\n\n3行目")]
 
 
-def test_d0039_ac37_the_run_button_does_nothing_outside_the_check_step(node, html):
-    """D0039-AC-37: 確かめに入る前に実行するボタンを（force で）押しても、何も送らない・anchorFor も呼ばない。"""
+def test_d0044_ac37_the_run_button_does_nothing_outside_the_check_step(node, html):
+    """D0044-AC-37: 確かめに入る前に実行するボタンを（force で）押しても、何も送らない・anchorFor も呼ばない。"""
     run = play(node, html, [click("go", force=True), click("go", times=3, force=True)], snap=snapshot())
     assert run.sends == [] and run.anchors == []
     assert_idle(run.last)
 
 
-def test_d0039_ac37_sending_does_not_start_timers_or_dialogs(node, html):
-    """D0039-AC-37: 送ってもタイマーが増えず（setTimeout を使わない）、ダイアログも出ない。"""
+def test_d0044_ac37_sending_does_not_start_timers_or_dialogs(node, html):
+    """D0044-AC-37: 送ってもタイマーが増えず（setTimeout を使わない）、ダイアログも出ない。"""
     run = play(node, html, [click("approve"), click("go"), {"op": "advance", "ms": 600000}], snap=snapshot(), comments={"send": "pending"})
     assert run.last.view["timeouts"] == 0 and run.last.view["intervals"] == 0
     assert len(run.sends) >= 1, "sendToClaude が呼ばれていない（ボタンがまだ無い）"
@@ -1058,8 +1058,8 @@ def test_d0039_ac37_sending_does_not_start_timers_or_dialogs(node, html):
 
 
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac38_controls_stop_while_sending_and_stay_stopped_after(node, html, action):
-    """D0039-AC-38: sendToClaude が終わるまでの間、3つのボタンと入力欄が止まり、成功すると止まったまま「送りました（会話の返事を待っています）」が出る。入力欄の中身は残る。"""
+def test_d0044_ac38_controls_stop_while_sending_and_stay_stopped_after(node, html, action):
+    """D0044-AC-38: sendToClaude が終わるまでの間、3つのボタンと入力欄が止まり、成功すると止まったまま「送りました（会話の返事を待っています）」が出る。入力欄の中身は残る。"""
     run = play(node, html, [typing("直して"), click(action), click("go"), {"op": "settle", "call": 0, "how": "resolve"}, {"op": "advance", "ms": 120000}], snap=snapshot(), comments={"send": "pending"})
     assert_confirm(run.frames[2], action)
     assert_stopped(run.frames[3], SENDING)
@@ -1068,15 +1068,15 @@ def test_d0039_ac38_controls_stop_while_sending_and_stay_stopped_after(node, htm
     assert run.frames[5].value("input") == "直して" and len(run.sends) == 1
 
 
-def test_d0039_ac38_a_resolving_send_shows_the_sent_message_without_pending(node, html):
-    """D0039-AC-38: すぐ終わる送信（resolve）でも、最後は「送りました」で止まったままになる。"""
+def test_d0044_ac38_a_resolving_send_shows_the_sent_message_without_pending(node, html):
+    """D0044-AC-38: すぐ終わる送信（resolve）でも、最後は「送りました」で止まったままになる。"""
     run = play(node, html, [click("approve"), click("go")], snap=snapshot(), comments={"send": "resolve"})
     assert_stopped(run.frames[2], SENT)
 
 
 @pytest.mark.parametrize("second", ["go_twice", "go_force_thrice", "other_buttons", "approve_then_go", "quit_force", "back_force"])
-def test_d0039_ac38_repeated_clicks_send_once(node, html, second):
-    """D0039-AC-38: 実行するボタンを続けて2回（同じ操作の中で）押しても、別のボタンを続けて押しても、sendToClaude は合わせて1回。"""
+def test_d0044_ac38_repeated_clicks_send_once(node, html, second):
+    """D0044-AC-38: 実行するボタンを続けて2回（同じ操作の中で）押しても、別のボタンを続けて押しても、sendToClaude は合わせて1回。"""
     steps = {
         "go_twice": [click("approve"), click("go", times=2)],
         "go_force_thrice": [click("approve"), click("go", times=3, force=True), click("go", force=True)],
@@ -1090,16 +1090,16 @@ def test_d0039_ac38_repeated_clicks_send_once(node, html, second):
     assert len(run.anchors) == 1, "anchorFor も1回"
 
 
-def test_d0039_ac38_repeated_clicks_after_the_send_finished_also_send_once(node, html):
-    """D0039-AC-38: 送り終わったあと（送りました）に押しても、もう送らない（同じ確認に二度送らない）。"""
+def test_d0044_ac38_repeated_clicks_after_the_send_finished_also_send_once(node, html):
+    """D0044-AC-38: 送り終わったあと（送りました）に押しても、もう送らない（同じ確認に二度送らない）。"""
     run = play(node, html, [click("approve"), click("go"), {"op": "settle", "call": 0, "how": "resolve"}, click("go", force=True), click("approve", force=True), click("quit", force=True)],
                snap=snapshot(), comments={"send": "pending"})
     assert len(run.sends) == 1 and len(run.anchors) == 1
     assert_stopped(run.last, SENT)
 
 
-def test_d0039_ac38_a_second_action_while_preparing_is_ignored(node, html):
-    """D0039-AC-38: 場所（anchor）を取っている最中に別のボタンを押しても、無視される（anchorFor は1回・確かめは最初に押した動作のもの）。"""
+def test_d0044_ac38_a_second_action_while_preparing_is_ignored(node, html):
+    """D0044-AC-38: 場所（anchor）を取っている最中に別のボタンを押しても、無視される（anchorFor は1回・確かめは最初に押した動作のもの）。"""
     run = play(node, html, [click("approve"), click("quit", force=True), click("revise", force=True), click("approve", force=True), {"op": "settle_anchor", "call": 0, "how": "resolve"}, click("go")],
                snap=snapshot(), comments={"anchor": "pending"})
     assert len(run.anchors) == 1
@@ -1108,8 +1108,8 @@ def test_d0039_ac38_a_second_action_while_preparing_is_ignored(node, html):
     assert not run.frames[1].active("go"), "場所を取る最中に実行するボタンが押せるようになっている"
 
 
-def test_d0039_ac38_rerender_during_sending_keeps_the_state(node, html):
-    """D0039-AC-38: 送信中に写しが替わらずに描き直されても（時刻・別の行の経過・usage が替わる）、状態（止まった入力欄・送っています・送りました）が保たれる。"""
+def test_d0044_ac38_rerender_during_sending_keeps_the_state(node, html):
+    """D0044-AC-38: 送信中に写しが替わらずに描き直されても（時刻・別の行の経過・usage が替わる）、状態（止まった入力欄・送っています・送りました）が保たれる。"""
     base = snapshot()
     changed = snapshot([stage("requirements", "done", cost_usd=9.9, turns=7), stage("design", "done"), stage("red", "review", pending_since=iso(3)), stage("implement"), stage("test")], generated_at=iso(-30))
     run = play(node, html, [typing("直して"), click("revise"), click("go"), send(changed), send(base), {"op": "settle", "call": 0, "how": "resolve"}, send(changed), {"op": "advance", "ms": 20000}], snap=base, comments={"send": "pending"})
@@ -1149,8 +1149,8 @@ RETRYABLE_REJECTS = [
 
 
 @pytest.mark.parametrize("send_mode", RETRYABLE_REJECTS, ids=sid)
-def test_d0039_ac39_rejects_restore_the_controls(node, html, send_mode):
-    """D0039-AC-39: sendToClaude が reject（claude_unavailable・知らないコード・文字列以外・undefined・同期の例外）しても、ページは例外を出さず、決まった失敗の文を出してボタンと入力欄を戻す。"""
+def test_d0044_ac39_rejects_restore_the_controls(node, html, send_mode):
+    """D0044-AC-39: sendToClaude が reject（claude_unavailable・知らないコード・文字列以外・undefined・同期の例外）しても、ページは例外を出さず、決まった失敗の文を出してボタンと入力欄を戻す。"""
     run = play(node, html, [typing("直して"), click("revise"), click("go")], snap=snapshot(), comments={"send": send_mode})
     f = run.last
     assert_idle(f, message=FAILED)
@@ -1158,14 +1158,14 @@ def test_d0039_ac39_rejects_restore_the_controls(node, html, send_mode):
 
 
 @pytest.mark.parametrize("code,text", [("consent_required", CONSENT), ("rate_limited", RATE)])
-def test_d0039_ac39_known_codes_have_their_own_messages_and_allow_retry(node, html, code, text):
-    """D0039-AC-39: consent_required・rate_limited は、それぞれの文を出して、やり直せる（ボタンが戻る）。"""
+def test_d0044_ac39_known_codes_have_their_own_messages_and_allow_retry(node, html, code, text):
+    """D0044-AC-39: consent_required・rate_limited は、それぞれの文を出して、やり直せる（ボタンが戻る）。"""
     run = play(node, html, [click("approve"), click("go")], snap=snapshot(), comments={"send": {"reject_code": code}})
     assert_idle(run.last, message=text)
 
 
-def test_d0039_ac39_forbidden_hides_the_controls(node, html):
-    """D0039-AC-39: forbidden（許可されていない）は、ボタンと入力欄を出さず、理由の文だけにする（押し直しても無駄なので）。"""
+def test_d0044_ac39_forbidden_hides_the_controls(node, html):
+    """D0044-AC-39: forbidden（許可されていない）は、ボタンと入力欄を出さず、理由の文だけにする（押し直しても無駄なので）。"""
     run = play(node, html, [click("approve"), click("go")], snap=snapshot(), comments={"send": {"reject_code": "forbidden"}})
     assert_blocked(run.last, FORBIDDEN)
     assert len(run.sends) == 1
@@ -1183,8 +1183,8 @@ def test_d0039_ac39_forbidden_hides_the_controls(node, html):
     ],
     ids=sid,
 )
-def test_d0039_ac39_reject_text_never_reaches_the_screen(node, html, send_mode):
-    """D0039-AC-39: reject の中の文字（message・code・文字列）は画面に出ない（固定の文だけ）。"""
+def test_d0044_ac39_reject_text_never_reaches_the_screen(node, html, send_mode):
+    """D0044-AC-39: reject の中の文字（message・code・文字列）は画面に出ない（固定の文だけ）。"""
     run = play(node, html, [typing("直して"), click("revise"), click("go")], snap=snapshot(), comments={"send": send_mode})
     assert len(run.sends) == 1 and run.last.message() in (FAILED, FORBIDDEN, CONSENT, RATE), "失敗の文が出ている"
     for f in run.frames:
@@ -1193,8 +1193,8 @@ def test_d0039_ac39_reject_text_never_reaches_the_screen(node, html, send_mode):
     assert run.r["console_errors"] == [] or all("REJECT" not in line for line in run.r["console_errors"])
 
 
-def test_d0039_ac39_pressing_again_sends_again(node, html):
-    """D0039-AC-39: 失敗のあと、もう一度押せば、もう一度送れる（確かめ → 実行を最初から。送る文は同じ）。"""
+def test_d0044_ac39_pressing_again_sends_again(node, html):
+    """D0044-AC-39: 失敗のあと、もう一度押せば、もう一度送れる（確かめ → 実行を最初から。送る文は同じ）。"""
     run = play(node, html, [typing("直して"), click("revise"), click("go"), click("revise"), click("go")], snap=snapshot(), comments={"send": [{"reject_code": "claude_unavailable"}, "resolve"]})
     assert_idle(run.frames[3], message=FAILED)
     assert_stopped(run.last, SENT)
@@ -1204,8 +1204,8 @@ def test_d0039_ac39_pressing_again_sends_again(node, html):
     assert all(s["anchor_issued"] and s["in_gesture"] for s in run.sends)
 
 
-def test_d0039_ac39_repeated_failures_keep_the_buttons_usable(node, html):
-    """D0039-AC-39: 失敗が続いても、何度でも押し直せる（ボタンが戻らなくなる・例外で固まる、ということがない）。"""
+def test_d0044_ac39_repeated_failures_keep_the_buttons_usable(node, html):
+    """D0044-AC-39: 失敗が続いても、何度でも押し直せる（ボタンが戻らなくなる・例外で固まる、ということがない）。"""
     steps = []
     for _ in range(4):
         steps += [click("approve"), click("go")]
@@ -1214,8 +1214,8 @@ def test_d0039_ac39_repeated_failures_keep_the_buttons_usable(node, html):
     assert_idle(run.last, message=FAILED)
 
 
-def test_d0039_ac39_a_late_failure_for_an_old_id_is_discarded(node, html):
-    """D0039-AC-39: 識別子が替わったあとに、前の送信の失敗が遅れて来ても、新しい確認待ちの画面を変えない。"""
+def test_d0044_ac39_a_late_failure_for_an_old_id_is_discarded(node, html):
+    """D0044-AC-39: 識別子が替わったあとに、前の送信の失敗が遅れて来ても、新しい確認待ちの画面を変えない。"""
     run = play(node, html, [click("approve"), click("go"), send(reviewing("red", ID2)), {"op": "settle", "call": 0, "how": {"reject": {"code": "claude_unavailable"}}}], snap=snapshot(), comments={"send": "pending"})
     assert_stopped(run.frames[2], SENDING)
     assert_idle(run.frames[3])
@@ -1224,8 +1224,8 @@ def test_d0039_ac39_a_late_failure_for_an_old_id_is_discarded(node, html):
 
 @pytest.mark.parametrize("anchor_mode", ["rejects", "throws"])
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac39_anchor_failure_stays_at_the_start_with_its_message(node, html, anchor_mode, action):
-    """D0039-AC-39: anchorFor が reject・同期で投げたときは、確かめに進まず「場所を取れませんでした」を出す。ボタンは元のまま（もう一度押せる）。sendToClaude は呼ばれない。入力欄の中身は残る。"""
+def test_d0044_ac39_anchor_failure_stays_at_the_start_with_its_message(node, html, anchor_mode, action):
+    """D0044-AC-39: anchorFor が reject・同期で投げたときは、確かめに進まず「場所を取れませんでした」を出す。ボタンは元のまま（もう一度押せる）。sendToClaude は呼ばれない。入力欄の中身は残る。"""
     run = play(node, html, [typing("直して"), click(action), click(action)], snap=snapshot(), comments={"anchor": anchor_mode})
     for i in (2, 3):
         f = run.frames[i]
@@ -1234,16 +1234,16 @@ def test_d0039_ac39_anchor_failure_stays_at_the_start_with_its_message(node, htm
     assert run.sends == [] and len(run.anchors) == 2
 
 
-def test_d0039_ac39_a_late_anchor_for_an_old_id_is_discarded(node, html):
-    """D0039-AC-39: 場所を取っている最中に識別子が替わったら、遅れて来た anchor の結果は新しい画面を変えない（新しい確認待ちが確かめに進まない）。"""
+def test_d0044_ac39_a_late_anchor_for_an_old_id_is_discarded(node, html):
+    """D0044-AC-39: 場所を取っている最中に識別子が替わったら、遅れて来た anchor の結果は新しい画面を変えない（新しい確認待ちが確かめに進まない）。"""
     run = play(node, html, [click("approve"), send(reviewing("red", ID2)), {"op": "settle_anchor", "call": 0, "how": "resolve"}], snap=snapshot(), comments={"anchor": "pending"})
     assert_idle(run.frames[2])
     assert_idle(run.frames[3]), "古い識別子の anchor が新しい画面を確かめにした"
     assert run.sends == []
 
 
-def test_d0039_ac39_a_late_anchor_failure_for_an_old_id_is_discarded(node, html):
-    """D0039-AC-39: 同じく、遅れて来た anchor の失敗も、新しい画面に失敗の文を出さない。"""
+def test_d0044_ac39_a_late_anchor_failure_for_an_old_id_is_discarded(node, html):
+    """D0044-AC-39: 同じく、遅れて来た anchor の失敗も、新しい画面に失敗の文を出さない。"""
     run = play(node, html, [click("approve"), send(reviewing("red", ID2)), {"op": "settle_anchor", "call": 0, "how": "reject"}], snap=snapshot(), comments={"anchor": "pending"})
     assert_idle(run.frames[3])
 
@@ -1275,8 +1275,8 @@ ENDED = {
 
 @pytest.mark.parametrize("state", ["typed", "confirm", "sending", "sent"])
 @pytest.mark.parametrize("name", list(NEW_REVIEWS))
-def test_d0039_ac40_a_new_id_resets_everything_and_asks_again(node, html, state, name):
-    """D0039-AC-40: 確認待ちの識別子が替わる（別の段・差し戻し後の新しい確認）と、「送りました」・確かめの途中・入力欄の中身が消えて元に戻り、新しい確認待ちでは canSendToClaude を呼び直す。"""
+def test_d0044_ac40_a_new_id_resets_everything_and_asks_again(node, html, state, name):
+    """D0044-AC-40: 確認待ちの識別子が替わる（別の段・差し戻し後の新しい確認）と、「送りました」・確かめの途中・入力欄の中身が消えて元に戻り、新しい確認待ちでは canSendToClaude を呼び直す。"""
     new = NEW_REVIEWS[name]
     run = play(node, html, [*drive_to(state), send(new)], snap=snapshot(), comments={"send": "pending"})
     f = run.last
@@ -1293,8 +1293,8 @@ def test_d0039_ac40_a_new_id_resets_everything_and_asks_again(node, html, state,
 
 @pytest.mark.parametrize("state", ["typed", "confirm", "sending", "sent"])
 @pytest.mark.parametrize("name", list(ENDED))
-def test_d0039_ac40_the_ended_review_removes_the_buttons(node, html, state, name):
-    """D0039-AC-40: 確認待ちでなくなる（承認された・final）と、ボタンも入力欄も「送りました」も消える。呼び直しはしない。"""
+def test_d0044_ac40_the_ended_review_removes_the_buttons(node, html, state, name):
+    """D0044-AC-40: 確認待ちでなくなる（承認された・final）と、ボタンも入力欄も「送りました」も消える。呼び直しはしない。"""
     run = play(node, html, [*drive_to(state), send(ENDED[name])], snap=snapshot(), comments={"send": "pending"})
     assert_no_ui(run.last)
     assert run.can_calls == 1
@@ -1302,8 +1302,8 @@ def test_d0039_ac40_the_ended_review_removes_the_buttons(node, html, state, name
 
 
 @pytest.mark.parametrize("state", ["typed", "confirm", "sending", "sent"])
-def test_d0039_ac40_the_same_id_keeps_input_check_sending_and_sent(node, html, state):
-    """D0039-AC-40: 識別子が同じままの描き直し（別の行の経過が替わる・usage が替わる・時刻が替わる）では、入力欄の中身・確かめの途中・送信中・送信後の状態が保たれる。呼び直さない。"""
+def test_d0044_ac40_the_same_id_keeps_input_check_sending_and_sent(node, html, state):
+    """D0044-AC-40: 識別子が同じままの描き直し（別の行の経過が替わる・usage が替わる・時刻が替わる）では、入力欄の中身・確かめの途中・送信中・送信後の状態が保たれる。呼び直さない。"""
     base = snapshot()
     rerenders = [
         snapshot(generated_at=iso(-60)),
@@ -1320,30 +1320,30 @@ def test_d0039_ac40_the_same_id_keeps_input_check_sending_and_sent(node, html, s
     assert run.can_calls == 1 and len(run.sends) == (1 if state in ("sending", "sent") else 0)
 
 
-def test_d0039_ac40_a_late_send_result_for_an_old_id_does_not_touch_the_new_screen(node, html):
-    """D0039-AC-40: 識別子が替わったあとに、前の送信の結果（成功）が遅れて来ても、新しい確認待ちの画面を「送りました」にしない。"""
+def test_d0044_ac40_a_late_send_result_for_an_old_id_does_not_touch_the_new_screen(node, html):
+    """D0044-AC-40: 識別子が替わったあとに、前の送信の結果（成功）が遅れて来ても、新しい確認待ちの画面を「送りました」にしない。"""
     run = play(node, html, [*drive_to("sending"), send(reviewing("red", ID2)), {"op": "settle", "call": 0, "how": "resolve"}], snap=snapshot(), comments={"send": "pending"})
     assert_idle(run.frames[-2])
     assert_idle(run.last), "古い送信の成功が新しい画面に出た"
     assert run.last.value("input") in (None, "")
 
 
-def test_d0039_ac40_input_of_the_old_review_is_not_sent_for_the_new_one(node, html):
-    """D0039-AC-40: 前の確認待ちで書いた入力は、新しい確認待ちの送信に混ざらない（新しい差し戻しは、新しく書いた文だけ）。"""
+def test_d0044_ac40_input_of_the_old_review_is_not_sent_for_the_new_one(node, html):
+    """D0044-AC-40: 前の確認待ちで書いた入力は、新しい確認待ちの送信に混ざらない（新しい差し戻しは、新しく書いた文だけ）。"""
     run = play(node, html, [typing("OLD-TEXT"), send(reviewing("red", ID2)), typing("新しい指摘"), click("revise"), click("go")], snap=snapshot())
     assert [s["text"] for s in run.sends] == [expected_text("revise", "red", ID2, "新しい指摘")]
 
 
-def test_d0039_ac40_ended_and_returned_review_starts_fresh(node, html):
-    """D0039-AC-40: 確認待ちが終わって、同じ識別子でまた現れたら、新しい確認待ち：送信済みの状態は残らず、もう一度答えられる。"""
+def test_d0044_ac40_ended_and_returned_review_starts_fresh(node, html):
+    """D0044-AC-40: 確認待ちが終わって、同じ識別子でまた現れたら、新しい確認待ち：送信済みの状態は残らず、もう一度答えられる。"""
     run = play(node, html, [*drive_to("sent"), send(after_approval()), send(snapshot())], snap=snapshot(), comments={"send": "pending"})
     assert_no_ui(run.frames[5])
     assert_idle(run.last)
     assert run.can_calls == 2
 
 
-def test_d0039_ac40_focus_survives_a_rerender(node, html):
-    """D0039-AC-40: 入力欄にフォーカスがあるとき、同じ識別子の描き直し（行の作り直し）でフォーカスと選択範囲が外れない（書いている途中で止まらない）。"""
+def test_d0044_ac40_focus_survives_a_rerender(node, html):
+    """D0044-AC-40: 入力欄にフォーカスがあるとき、同じ識別子の描き直し（行の作り直し）でフォーカスと選択範囲が外れない（書いている途中で止まらない）。"""
     run = play(node, html, [typing("あいうえお"), {"op": "focus", "selector": SEL["input"]}, {"op": "select", "selector": SEL["input"], "start": 1, "end": 3},
                             send(snapshot(generated_at=iso(-5))), {"op": "focus_state"}, query(SEL["input"])], snap=snapshot())
     assert run.result(4) == {"tag": "textarea", "class": "rv-input"}
@@ -1351,8 +1351,8 @@ def test_d0039_ac40_focus_survives_a_rerender(node, html):
     assert e["value"] == "あいうえお" and e["selection"] == [1, 3] and e["focused"] is True
 
 
-def test_d0039_ac40_focus_survives_many_rerenders(node, html):
-    """D0039-AC-40: 描き直しが何度続いても、入力欄のフォーカスが保たれる。"""
+def test_d0044_ac40_focus_survives_many_rerenders(node, html):
+    """D0044-AC-40: 描き直しが何度続いても、入力欄のフォーカスが保たれる。"""
     steps = [typing("abc"), {"op": "focus", "selector": SEL["input"]}]
     for i in range(5):
         steps.append(send(snapshot(generated_at=iso(-i - 1))))
@@ -1361,8 +1361,8 @@ def test_d0039_ac40_focus_survives_many_rerenders(node, html):
     assert run.result(len(steps) - 1) == {"tag": "textarea", "class": "rv-input"}
 
 
-def test_d0039_ac40_focus_is_not_stolen_by_a_rerender(node, html):
-    """D0039-AC-40: フォーカスが入力欄に無いときの描き直しは、フォーカスを奪わない。"""
+def test_d0044_ac40_focus_is_not_stolen_by_a_rerender(node, html):
+    """D0044-AC-40: フォーカスが入力欄に無いときの描き直しは、フォーカスを奪わない。"""
     run = play(node, html, [send(snapshot(generated_at=iso(-5))), {"op": "focus_state"}], snap=snapshot())
     assert_idle(run.frames[0])
     assert_idle(run.frames[1])
@@ -1375,8 +1375,8 @@ def test_d0039_ac40_focus_is_not_stolen_by_a_rerender(node, html):
 # ---- AC-41 外の文字が入らない -----------------------------------------------------------------------------------
 
 
-def test_d0039_ac41_outside_marks_never_reach_the_screen_or_the_text(node, html):
-    """D0039-AC-41: ボタンの文・送る文・画面の文に、パス・セッション名・段の表示名（label）・自由な文が入らない。入るのは段と識別子と、人が入力欄に書いた文（送る文だけ）。値は textContent だけで出す。"""
+def test_d0044_ac41_outside_marks_never_reach_the_screen_or_the_text(node, html):
+    """D0044-AC-41: ボタンの文・送る文・画面の文に、パス・セッション名・段の表示名（label）・自由な文が入らない。入るのは段と識別子と、人が入力欄に書いた文（送る文だけ）。値は textContent だけで出す。"""
     hostile = "<script>alert('HOSTILE-MARK')</script>"
     rows = [
         stage("requirements", "done", label="LABEL-MARK-1 /" + "home/someone/secret"),
@@ -1428,8 +1428,8 @@ def test_d0039_ac41_outside_marks_never_reach_the_screen_or_the_text(node, html)
     ],
     ids=sid,
 )
-def test_d0039_ac41_a_review_that_does_not_fit_makes_no_buttons(node, html, review):
-    """D0039-AC-41: 写しの review の段・識別子が決まった形に合わない（<script>・長すぎ・大文字の16進・空・前後に空白や改行）ときは、ボタンを出さず、それで送る文を作らない。"""
+def test_d0044_ac41_a_review_that_does_not_fit_makes_no_buttons(node, html, review):
+    """D0044-AC-41: 写しの review の段・識別子が決まった形に合わない（<script>・長すぎ・大文字の16進・空・前後に空白や改行）ときは、ボタンを出さず、それで送る文を作らない。"""
     control_shows_buttons(node, html)
     rows = [stage("requirements", "done"), stage(review["stage"] if isinstance(review["stage"], str) and review["stage"] else "red", "review"), stage("tail")]
     run = play(node, html, [click("approve", force=True), click("go", force=True)], snap=snapshot(rows, review=review))
@@ -1467,8 +1467,8 @@ BROKEN_REVIEWS = [
 
 
 @pytest.mark.parametrize("review", BROKEN_REVIEWS, ids=sid)
-def test_d0039_ac42_broken_review_values_do_not_throw_and_show_no_buttons(node, html, review):
-    """D0039-AC-42: review が配列・文字列・キー欠け・型違い・巨大な文字列でも、例外を出さず、ボタンは出さない（見るだけに戻る）。タイマーは1つのまま。"""
+def test_d0044_ac42_broken_review_values_do_not_throw_and_show_no_buttons(node, html, review):
+    """D0044-AC-42: review が配列・文字列・キー欠け・型違い・巨大な文字列でも、例外を出さず、ボタンは出さない（見るだけに戻る）。タイマーは1つのまま。"""
     control_shows_buttons(node, html)
     run = play(node, html, [send(snapshot(review=review))], snap=snapshot(review=review))
     for f in run.frames:
@@ -1494,8 +1494,8 @@ BROKEN_ROWS = {
 
 
 @pytest.mark.parametrize("name", list(BROKEN_ROWS))
-def test_d0039_ac42_broken_rows_do_not_throw_and_show_no_buttons(node, html, name):
-    """D0039-AC-42: stages の中の status が未知・名前が無い・型違い・上限の外でも、例外を出さず、ボタンは出さない。"""
+def test_d0044_ac42_broken_rows_do_not_throw_and_show_no_buttons(node, html, name):
+    """D0044-AC-42: stages の中の status が未知・名前が無い・型違い・上限の外でも、例外を出さず、ボタンは出さない。"""
     control_shows_buttons(node, html)
     snap = snapshot(BROKEN_ROWS[name], review={"stage": "red", "id": ID1})
     run = play(node, html, [send(snap)], snap=snap)
@@ -1504,8 +1504,8 @@ def test_d0039_ac42_broken_rows_do_not_throw_and_show_no_buttons(node, html, nam
     assert run.can_calls == 0 and run.sends == []
 
 
-def test_d0039_ac42_timer_stays_single(node, html):
-    """D0039-AC-42: 動いている行・確認待ちの行・ボタンがあっても、タイマーは1つ（1000ms）のまま。確かめ・送信・戻り・失敗・描き直しでも増えない。"""
+def test_d0044_ac42_timer_stays_single(node, html):
+    """D0044-AC-42: 動いている行・確認待ちの行・ボタンがあっても、タイマーは1つ（1000ms）のまま。確かめ・送信・戻り・失敗・描き直しでも増えない。"""
     snap = snapshot([stage("requirements", "done"), stage("design", "running", started_at=iso(30)), stage("red", "review", pending_since=iso(20)), stage("implement"), stage("test")])
     steps = [click("approve"), click("back"), typing("直して"), click("revise"), click("go"), send(snap), {"op": "advance", "ms": 3000}, {"op": "settle", "call": 0, "how": {"reject": "x"}},
              click("quit"), click("go"), send(reviewing("red", ID2)), {"op": "advance", "ms": 3000}, send(after_approval())]
@@ -1515,8 +1515,8 @@ def test_d0039_ac42_timer_stays_single(node, html):
         assert f.view["intervals"] <= 1 and f.view["interval_ms"] in ([], [1000]) and f.view["timeouts"] == 0, (i, f.view["intervals"], f.view["timeouts"])
 
 
-def test_d0039_ac42_timer_count_is_the_same_with_and_without_buttons(node, html):
-    """D0039-AC-42: ボタンがあってもなくても、タイマーの数は同じ（ボタンはタイマーを足さない）。"""
+def test_d0044_ac42_timer_count_is_the_same_with_and_without_buttons(node, html):
+    """D0044-AC-42: ボタンがあってもなくても、タイマーの数は同じ（ボタンはタイマーを足さない）。"""
     snap = snapshot([stage("requirements", "done"), stage("design", "running", started_at=iso(30)), stage("red", "review", pending_since=iso(20))])
     with_comments_run = play(node, html, snap=snap)
     assert_idle(with_comments_run.frames[0])
@@ -1549,8 +1549,8 @@ def test_d0039_ac42_timer_count_is_the_same_with_and_without_buttons(node, html)
     ],
     ids=sid,
 )
-def test_d0039_ac42_check_review_function(node, html, value, stages, expected):
-    """D0039-AC-42: checkReview(value, stages) は、段と識別子が決まった形で、stages に同じ名前の確認待ち（status が review）の行があるときだけ {stage, id} を返す。そうでなければ null。例外を出さない。"""
+def test_d0044_ac42_check_review_function(node, html, value, stages, expected):
+    """D0044-AC-42: checkReview(value, stages) は、段と識別子が決まった形で、stages に同じ名前の確認待ち（status が review）の行があるときだけ {stage, id} を返す。そうでなければ null。例外を出さない。"""
     r = run_scene(node, html, steps=[{"op": "call", "fn": "checkReview", "args": [value, stages]}])
     step = r["steps"][0]
     assert step["threw"] is None, step["threw"]
@@ -1560,8 +1560,8 @@ def test_d0039_ac42_check_review_function(node, html, value, stages, expected):
 # ---- AC-48 古い形の扱い ----------------------------------------------------------------------------------------
 
 
-def test_d0039_ac48_a_snapshot_without_review_renders_view_only(node, html):
-    """D0039-AC-48: review の無い写し（前の版が書いたもの）を新しいページが読んでも、見るだけで描ける（ボタンなし・comments を取りにいかない・前の版と同じ画面）。"""
+def test_d0044_ac48_a_snapshot_without_review_renders_view_only(node, html):
+    """D0044-AC-48: review の無い写し（前の版が書いたもの）を新しいページが読んでも、見るだけで描ける（ボタンなし・comments を取りにいかない・前の版と同じ画面）。"""
     old = snapshot(review=NO_KEY)
     assert "review" not in old
     run = play(node, html, [send(old)], snap=old)
@@ -1572,8 +1572,8 @@ def test_d0039_ac48_a_snapshot_without_review_renders_view_only(node, html):
     assert "LABEL-red" in run.last.view["text"] and "SESSION-NAME-MARK" in run.last.view["text"]
 
 
-def test_d0039_ac48_a_page_without_comments_ignores_review(node, html):
-    """D0039-AC-48: use("comments") が null の画面は、review を足した写しでも、review 無しと同じ画面になる（review を無視する）。"""
+def test_d0044_ac48_a_page_without_comments_ignores_review(node, html):
+    """D0044-AC-48: use("comments") が null の画面は、review を足した写しでも、review 無しと同じ画面になる（review を無視する）。"""
     with_review = snapshot()
     without = snapshot(review=NO_KEY)
     a = play(node, html, snap=with_review, comments={"use": "null"}).last.view["text"]
@@ -1583,8 +1583,8 @@ def test_d0039_ac48_a_page_without_comments_ignores_review(node, html):
     assert a == b == c == d
 
 
-def test_d0039_ac48_unknown_keys_in_the_snapshot_are_ignored(node, html):
-    """D0039-AC-48: 写しに知らないキーが足されても（前の版のページが review を無視するのと同じ向きに）、新しいページは見た目を変えない。"""
+def test_d0044_ac48_unknown_keys_in_the_snapshot_are_ignored(node, html):
+    """D0044-AC-48: 写しに知らないキーが足されても（前の版のページが review を無視するのと同じ向きに）、新しいページは見た目を変えない。"""
     plain = snapshot()
     extended = snapshot(future_key={"a": 1}, other=[1, 2, 3])
     a = play(node, html, snap=plain)
@@ -1593,8 +1593,8 @@ def test_d0039_ac48_unknown_keys_in_the_snapshot_are_ignored(node, html):
     assert_idle(b.last)
 
 
-def test_d0039_ac48_the_page_still_renders_the_old_snapshot_text_exactly(node, html):
-    """D0039-AC-48: 確認待ちの行の文字（待ち・確認待ち・経過・usage）は、ボタンがあっても前の版と同じ並びで出る（ボタンの文字は後ろに足されるだけ）。"""
+def test_d0044_ac48_the_page_still_renders_the_old_snapshot_text_exactly(node, html):
+    """D0044-AC-48: 確認待ちの行の文字（待ち・確認待ち・経過・usage）は、ボタンがあっても前の版と同じ並びで出る（ボタンの文字は後ろに足されるだけ）。"""
     snap = snapshot([stage("requirements", "done", cost_usd=0.5, turns=3), stage("design", "running", started_at=iso(83)), stage("red", "review", pending_since=iso(40)), stage("implement"), stage("test")])
     plain = play(node, html, snap=snap, comments=None).last.view["lines"]
     with_buttons = play(node, html, snap=snap).last.view["lines"]
@@ -1634,8 +1634,8 @@ FEEDBACK_SAMPLES = [
 
 @pytest.mark.parametrize("stage_name,ident", [("red", ID1), ("design", ID2), ("make-diagram_2", ID3), ("a" * 40, "0000000000")])
 @pytest.mark.parametrize("action", ACTIONS)
-def test_d0039_ac32_js_text_is_read_by_the_python_parser(node, html, action, stage_name, ident):
-    """D0039-AC-32: ページの JS が作る文（承認・差し戻し・中止のそれぞれ）が、Python の parse_answer でそのまま読める（動作・段・識別子・直してほしい点が一致する）。"""
+def test_d0044_ac32_js_text_is_read_by_the_python_parser(node, html, action, stage_name, ident):
+    """D0044-AC-32: ページの JS が作る文（承認・差し戻し・中止のそれぞれ）が、Python の parse_answer でそのまま読める（動作・段・識別子・直してほしい点が一致する）。"""
     feedback = "ここを直してください\n二行目" if action == "revise" else None
     steps = ([typing(feedback)] if feedback else []) + [click(action), click("go")]
     run = play(node, html, steps, snap=reviewing(stage_name, ident))
@@ -1645,8 +1645,8 @@ def test_d0039_ac32_js_text_is_read_by_the_python_parser(node, html, action, sta
 
 
 @pytest.mark.parametrize("feedback", FEEDBACK_SAMPLES, ids=sid)
-def test_d0039_ac32_js_feedback_is_read_back_by_the_python_parser(node, html, feedback):
-    """D0039-AC-32: 直してほしい点が日本語・絵文字・結合文字・改行（空行を含む）・全角空白・1000 文字ちょうど・記号でも、JS が作る文を Python が同じ直してほしい点として読む。"""
+def test_d0044_ac32_js_feedback_is_read_back_by_the_python_parser(node, html, feedback):
+    """D0044-AC-32: 直してほしい点が日本語・絵文字・結合文字・改行（空行を含む）・全角空白・1000 文字ちょうど・記号でも、JS が作る文を Python が同じ直してほしい点として読む。"""
     run = play(node, html, [typing(feedback), click("revise"), click("go")], snap=snapshot())
     assert len(run.sends) == 1, "JS の検査が通らなかった（Python が読めるのに JS が断った）"
     expected = feedback.replace("\r\n", "\n").strip()
@@ -1656,8 +1656,8 @@ def test_d0039_ac32_js_feedback_is_read_back_by_the_python_parser(node, html, fe
 
 
 @pytest.mark.parametrize("feedback", FEEDBACK_SAMPLES, ids=sid)
-def test_d0039_ac32_js_text_equals_build_answer(node, html, feedback):
-    """D0039-AC-32: 逆に、JS が作る文は、同じ引数で Python の build_answer が作る文と（バイト列まで）一致する。"""
+def test_d0044_ac32_js_text_equals_build_answer(node, html, feedback):
+    """D0044-AC-32: 逆に、JS が作る文は、同じ引数で Python の build_answer が作る文と（バイト列まで）一致する。"""
     run = play(node, html, [typing(feedback), click("revise"), click("go")], snap=snapshot())
     assert len(run.sends) >= 1, "sendToClaude が呼ばれていない（ボタンがまだ無い）"
     text = run.sends[0]["text"]
@@ -1667,8 +1667,8 @@ def test_d0039_ac32_js_text_equals_build_answer(node, html, feedback):
 
 
 @pytest.mark.parametrize("action", ["approve", "quit"])
-def test_d0039_ac32_js_one_line_text_equals_build_answer(node, html, action):
-    """D0039-AC-32: 承認・中止の1行の文も build_answer と一致する。"""
+def test_d0044_ac32_js_one_line_text_equals_build_answer(node, html, action):
+    """D0044-AC-32: 承認・中止の1行の文も build_answer と一致する。"""
     run = play(node, html, [click(action), click("go")], snap=snapshot())
     assert len(run.sends) >= 1, "sendToClaude が呼ばれていない（ボタンがまだ無い）"
     assert run.sends[0]["text"] == la.build_answer(WIRE[action], "red", ID1)
@@ -1690,8 +1690,8 @@ def _chars_for_agreement() -> list[str]:
     return [chr(c) for c in stable if c not in (0xFFFE, 0xFFFF) and not (0xFFF0 <= c <= 0xFFF8)]
 
 
-def test_d0039_ac32_js_validation_is_not_looser_than_the_parser(node, html):
-    """D0039-AC-32: ページの検査が ok と答えた文は、必ず Python の読み取りも ok で読める（ページの検査がゆるくならない。ゆるいと送ってから断られる）。文字を1つずつ前後に文字を付けて確かめる。"""
+def test_d0044_ac32_js_validation_is_not_looser_than_the_parser(node, html):
+    """D0044-AC-32: ページの検査が ok と答えた文は、必ず Python の読み取りも ok で読める（ページの検査がゆるくならない。ゆるいと送ってから断られる）。文字を1つずつ前後に文字を付けて確かめる。"""
     chars = _chars_for_agreement()
     texts = [f"x{c}y" for c in chars] + [f"{c}" for c in chars] + [f"{c}x" for c in chars]
     results = _validate(node, html, texts)
@@ -1705,8 +1705,8 @@ def test_d0039_ac32_js_validation_is_not_looser_than_the_parser(node, html):
     assert any(r["ok"] for r in results) and any(not r["ok"] for r in results)
 
 
-def test_d0039_ac32_js_and_python_agree_on_which_characters_are_bad(node, html):
-    """D0039-AC-32: 文字の種類（Cc・Cf・Cs・Zl・Zp を、改行とタブを除いて断る）の判断が、JS と Python で一致する（安定した範囲の文字で）。"""
+def test_d0044_ac32_js_and_python_agree_on_which_characters_are_bad(node, html):
+    """D0044-AC-32: 文字の種類（Cc・Cf・Cs・Zl・Zp を、改行とタブを除いて断る）の判断が、JS と Python で一致する（安定した範囲の文字で）。"""
     chars = _chars_for_agreement()
     results = _validate(node, html, [f"x{c}y" for c in chars])
     wrong = []
@@ -1722,8 +1722,8 @@ def test_d0039_ac32_js_and_python_agree_on_which_characters_are_bad(node, html):
     ["", " ", "\n", "\u3000", "x", "あ" * 1000, "あ" * 1001, "😀" * 1000, "😀" * 1001, " " * 20 + "x" * 1000 + " " * 20, "\r\n", "a\r\nb", "a\rb", "a\tb", "\ta\t", "a\u200bb", "👨\u200d👩", "e\u0301" * 500, "e\u0301" * 501],
     ids=sid,
 )
-def test_d0039_ac32_js_validation_results_match_the_parser_for_samples(node, html, text):
-    """D0039-AC-32: 見本の文（空・空白だけ・上限・上限+1・CR・タブ・ゼロ幅・結合文字）で、ページの検査（ok・reason・text）と Python の読み取りの結果が一致する。"""
+def test_d0044_ac32_js_validation_results_match_the_parser_for_samples(node, html, text):
+    """D0044-AC-32: 見本の文（空・空白だけ・上限・上限+1・CR・タブ・ゼロ幅・結合文字）で、ページの検査（ok・reason・text）と Python の読み取りの結果が一致する。"""
     (res,) = _validate(node, html, [text])
     parsed = la.parse_answer(f"pipe-in: revise design {ID1}\n{text}")
     if res["ok"]:
@@ -1734,16 +1734,16 @@ def test_d0039_ac32_js_validation_results_match_the_parser_for_samples(node, htm
         assert parsed.reason == reason, (res, parsed)
 
 
-def test_d0039_ac32_js_validation_reports_the_designed_reasons_in_the_designed_order(node, html):
-    """D0039-AC-32: 検査の順は 文字 → 空 → 長さ。制御文字だけの文は empty ではなく bad_chars、空白＋1001 文字は too_long。"""
+def test_d0044_ac32_js_validation_reports_the_designed_reasons_in_the_designed_order(node, html):
+    """D0044-AC-32: 検査の順は 文字 → 空 → 長さ。制御文字だけの文は empty ではなく bad_chars、空白＋1001 文字は too_long。"""
     results = _validate(node, html, ["\x00", "\x00   ", "   ", "あ" * 1001 + "\x00", " " + "あ" * 1001, "", "\u200b"])
     assert [r["reason"] for r in results] == ["bad_chars", "bad_chars", "empty", "bad_chars", "too_long", "empty", "bad_chars"]
     assert [r["ok"] for r in results] == [False] * 7
     assert all(r["text"] in ("", None) for r in results)
 
 
-def test_d0039_ac32_build_answer_text_matches_build_answer(node, html):
-    """D0039-AC-32: ページの buildAnswerText(action, stage, id, feedback) を直接呼んでも、Python の build_answer と同じ文を返す。"""
+def test_d0044_ac32_build_answer_text_matches_build_answer(node, html):
+    """D0044-AC-32: ページの buildAnswerText(action, stage, id, feedback) を直接呼んでも、Python の build_answer と同じ文を返す。"""
     cases = [("approve", "design", ID1, ""), ("quit", "red", ID2, ""), ("revise", "make-diagram_2", ID3, "直して\n二行目"), ("revise", "a", "0123456789", "😀")]
     r = run_scene(node, html, steps=[{"op": "call", "fn": "buildAnswerText", "args": list(c)} for c in cases])
     for (action, stage_name, ident, feedback), step in zip(cases, r["steps"]):

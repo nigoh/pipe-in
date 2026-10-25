@@ -1,4 +1,4 @@
-// 知らせの対象の行の絞り込みと、設定の値の読み（D0044）。vscode を使わない純粋な関数。
+// 知らせの対象の行の絞り込みと、設定の値の読み（D0045）。vscode を使わない純粋な関数。
 import { newlyWaitingKeys } from '../domain/waitingNotice.ts';
 import type { RunRow } from '../domain/runList.ts';
 import type { RunKey } from '../domain/runs.ts';

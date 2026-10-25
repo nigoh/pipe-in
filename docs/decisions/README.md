@@ -47,7 +47,8 @@
 | [D0041](D0041-agent-limits.md) | 監査・助言・審査のサブエージェントの定義に回数の上限（`maxTurns` 100・80・50）を付け、会話を開かずに流す監査・助言の呼び方に `--disallowedTools "mcp__*"` を足して MCP の道具も見せない（D0012 の呼び方の2行を置き換える） |
 | [D0042](D0042-pipe-plan-run.md) | 計画ボードのカードの「実行」から、確認を経て新しいセッションを作り `/pipe-in` を始める（ページが宣言する道具を `list_sessions` 1つから3つに。D0029 の「読むだけ」を置き換える） |
 | [D0043](D0043-finding-schema.md) | （案）仕様書レビューの指摘を決まった形（指摘の形 v1）で受け渡し、形・出典・引用の一致を `pipe-in-gen findings-check` で機械で検査する |
-| [D0044](D0044-wait-notify.md) | 確認待ちになったら知らせる（拡張の知らせと設定 `pipe-in.notifyWhenWaiting`・`/pipe-in` の PushNotification・Claude Code の通知の設定の案内。D0024-AC-26 の設定の鍵を5つに） |
+| [D0044](D0044-live-answer.md) | 進み具合のページの確認待ちの行に、承認・差し戻し・中止のボタンを出す（コメントの機能で決まった形の文を送り、会話が `pipe-in live answer` で読んでから記録する。`/pipe-in --artifact` だけ） |
+| [D0045](D0045-wait-notify.md) | 確認待ちになったら知らせる（拡張の知らせと設定 `pipe-in.notifyWhenWaiting`・`/pipe-in` の PushNotification・Claude Code の通知の設定の案内。D0024-AC-26 の設定の鍵を5つに） |
 
 ## ひな形
 

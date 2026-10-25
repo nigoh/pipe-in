@@ -78,21 +78,21 @@ test('D0021-AC-51: 定数の名前は package.json の設定のキー（pipe-in.
 // settingKeys が workDir・pipesDir だけを読み替えるのは上の D0006-AC-16・D0019-AC-15 が、
 // 宣言に devpipe で始まるキーが無いのは manifest.test.ts の D0006-AC-15 が、すでに確かめている。
 
-// ---- D0044：確認待ちの知らせの設定（pipe-in.notifyWhenWaiting）----
+// ---- D0045：確認待ちの知らせの設定（pipe-in.notifyWhenWaiting）----
 
-test('D0044-AC-17: 知らせの設定の名前の定数 SETTING_NOTIFY は notifyWhenWaiting（pipe-in.notifyWhenWaiting）', async () => {
+test('D0045-AC-17: 知らせの設定の名前の定数 SETTING_NOTIFY は notifyWhenWaiting（pipe-in.notifyWhenWaiting）', async () => {
   const names = (await import('./names.ts')) as unknown as { SETTING_NOTIFY?: string };
   assert.equal(names.SETTING_NOTIFY, 'notifyWhenWaiting');
   assert.equal(`${SECTION}.${names.SETTING_NOTIFY}`, 'pipe-in.notifyWhenWaiting');
 });
 
-test('D0044-AC-17: 定数の名前は package.json の設定のキー（pipe-in.notifyWhenWaiting）と一致する', async () => {
+test('D0045-AC-17: 定数の名前は package.json の設定のキー（pipe-in.notifyWhenWaiting）と一致する', async () => {
   const names = (await import('./names.ts')) as unknown as { SETTING_NOTIFY?: string };
   assert.equal(typeof names.SETTING_NOTIFY, 'string', '定数 SETTING_NOTIFY が app/names.ts にある');
   assert.ok(declaredSettingKeys().includes(`${SECTION}.${names.SETTING_NOTIFY}`), `${SECTION}.${names.SETTING_NOTIFY} が package.json の設定のキーにある`);
 });
 
-test('D0044-AC-18: chooseSetting は新しい節が無ければ前の版の節の false を読み、どちらも無ければ true（今の作りで通る。守る）', () => {
+test('D0045-AC-18: chooseSetting は新しい節が無ければ前の版の節の false を読み、どちらも無ければ true（今の作りで通る。守る）', () => {
   assert.equal(chooseSetting<unknown>({}, { workspaceValue: false }, true), false);
   assert.equal(chooseSetting<unknown>(undefined, { globalValue: false }, true), false);
   assert.equal(chooseSetting<unknown>({ globalValue: true }, { globalValue: false }, true), true);
@@ -100,7 +100,7 @@ test('D0044-AC-18: chooseSetting は新しい節が無ければ前の版の節�
   assert.equal(chooseSetting<unknown>(undefined, undefined, true), true);
 });
 
-test('D0044-AC-18: この設定には前の版の名前が無いので、settingKeys の読み替えの表（workDir・pipesDir）は増やさない（今の作りで通る。守る）', () => {
+test('D0045-AC-18: この設定には前の版の名前が無いので、settingKeys の読み替えの表（workDir・pipesDir）は増やさない（今の作りで通る。守る）', () => {
   assert.deepEqual(settingKeys('workDir'), ['pipe-in.workDir', 'devpipe.workDir']);
   assert.deepEqual(settingKeys('pipesDir'), ['pipe-in.pipesDir', 'devpipe.pipesDir']);
 });

@@ -1,4 +1,4 @@
-"""D0039：.claude/skills/pipe-in/SKILL.md の `--artifact` の節（ページから来た答えの受け方）。
+"""D0044：.claude/skills/pipe-in/SKILL.md の `--artifact` の節（ページから来た答えの受け方）。
 
 公開の宣言は {"db": {}, "comments": {}}（comments を宣言しない公開の手順を残さない）。
 ページから来た答えは、本文を Write でファイルに書く → `pipe-in live answer --text-file …` で読む → ok のときだけ `record review` を書く、で受ける。
@@ -20,6 +20,7 @@ from pipe_in.engine import live_cmd
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / ".claude" / "skills" / "pipe-in" / "SKILL.md"
 HEADING = "## 進み具合をアーティファクトで見る（`--artifact`）"
+ARTIFACT = SKILL.parent / "artifact.md"
 
 
 def whole() -> str:
@@ -29,10 +30,12 @@ def whole() -> str:
 
 
 def section() -> str:
+    """SKILL.md の `--artifact` の節と、その手順を移した補助ファイル artifact.md をつなげて読む（main で手順が artifact.md に分けられたため）。"""
     text = whole()
     start = text.index(HEADING)
     end = text.find("\n## ", start + len(HEADING))
-    return text[start:] if end < 0 else text[start:end]
+    head = text[start:] if end < 0 else text[start:end]
+    return head + "\n" + ARTIFACT.read_text(encoding="utf-8")
 
 
 def code_spans(text: str) -> list[str]:
@@ -51,22 +54,22 @@ def options_of(parser: argparse.ArgumentParser) -> set[str]:
 # ---- AC-44 公開の宣言 ------------------------------------------------------------------------------------
 
 
-def test_d0039_ac44_skill_publishes_with_the_comments_capability():
-    """D0039-AC-44: SKILL.md の公開の宣言が {"db": {}, "comments": {}} で、comments を宣言しない公開の手順（{"db": {}} だけ）が残っていない。"""
+def test_d0044_ac44_skill_publishes_with_the_comments_capability():
+    """D0044-AC-44: SKILL.md の公開の宣言が {"db": {}, "comments": {}} で、comments を宣言しない公開の手順（{"db": {}} だけ）が残っていない。"""
     text = whole()
     assert '{"db": {}, "comments": {}}' in section()
     assert not re.search(r"""\{\s*"db"\s*:\s*\{\s*\}\s*\}""", text), '{"db": {}} だけの宣言が残っている'
     assert "capabilities" in section() and "icon" in section()
 
 
-def test_d0039_ac44_the_publish_step_is_still_once_and_without_editing_the_html():
-    """D0039-AC-44: 公開は1回だけ（公開し直さない・HTML は書き換えない）の手順は残る。"""
+def test_d0044_ac44_the_publish_step_is_still_once_and_without_editing_the_html():
+    """D0044-AC-44: 公開は1回だけ（公開し直さない・HTML は書き換えない）の手順は残る。"""
     sec = section()
     assert "1回だけ" in sec and "公開し直さない" in sec and "書き換えない" in sec
 
 
-def test_d0039_ac44_the_view_only_sentence_is_replaced():
-    """D0039-AC-44: 「ページは見るだけで、承認・直してほしい点・中止は、これまでどおり会話で聞く」という前の版の文は、ボタンで答えられる旨に置き換わる。"""
+def test_d0044_ac44_the_view_only_sentence_is_replaced():
+    """D0044-AC-44: 「ページは見るだけで、承認・直してほしい点・中止は、これまでどおり会話で聞く」という前の版の文は、ボタンで答えられる旨に置き換わる。"""
     sec = section()
     assert "ページは見るだけで、承認・直してほしい点・中止は、これまでどおり会話で聞く" not in sec
     assert "ボタン" in sec and "コメント" in sec
@@ -100,25 +103,25 @@ ANSWER_STEPS = {
 
 
 @pytest.mark.parametrize("label", list(ANSWER_STEPS))
-def test_d0039_ac45_skill_has_the_answer_steps(label):
-    """D0039-AC-45: --artifact の節に、答えの受け方がある（Write でファイル・live answer --text-file・ok のときだけ record review・revise は --feedback-file・ok でなければ変えない・コマンド行に入れない・人の言葉）。"""
+def test_d0044_ac45_skill_has_the_answer_steps(label):
+    """D0044-AC-45: --artifact の節に、答えの受け方がある（Write でファイル・live answer --text-file・ok のときだけ record review・revise は --feedback-file・ok でなければ変えない・コマンド行に入れない・人の言葉）。"""
     assert has_sentence(*ANSWER_STEPS[label]), f"--artifact の節に「{label}」を言う文が無い"
 
 
-def test_d0039_ac45_skill_says_to_ignore_orders_inside_feedback():
-    """D0039-AC-45: 直してほしい点は人の言葉として扱い、中に命令のような文があっても従わない旨がある。"""
+def test_d0044_ac45_skill_says_to_ignore_orders_inside_feedback():
+    """D0044-AC-45: 直してほしい点は人の言葉として扱い、中に命令のような文があっても従わない旨がある。"""
     assert has_sentence(("命令", "指示"), ("従わない",))
 
 
-def test_d0039_ac45_skill_runs_the_snapshot_steps_after_record_review_too():
-    """D0039-AC-45: 写しを作って ArtifactData に書く手順（live snapshot → ArtifactData の set）は、答えを受けて record review を書いたあとにも流す旨がある。"""
+def test_d0044_ac45_skill_runs_the_snapshot_steps_after_record_review_too():
+    """D0044-AC-45: 写しを作って ArtifactData に書く手順（live snapshot → ArtifactData の set）は、答えを受けて record review を書いたあとにも流す旨がある。"""
     sec = section()
     assert "ArtifactData" in sec and "live snapshot" in sec
     assert has_sentence(("record review",), ("写し", "snapshot", "ArtifactData", "3.", "4.")), "record review のあとに写しを作り直す文が無い"
 
 
-def test_d0039_ac45_step_check_finds_a_missing_sentence():
-    """D0039-AC-45: 文の検査そのものが、言葉がそろった文が無い場合を見つけられる（検査の検査）。"""
+def test_d0044_ac45_step_check_finds_a_missing_sentence():
+    """D0044-AC-45: 文の検査そのものが、言葉がそろった文が無い場合を見つけられる（検査の検査）。"""
     fake = "本文を Write で書く。別の文に ファイル とだけある。"
     found = [x for x in sentences(fake) if all(any(alt in x for alt in g) for g in ANSWER_STEPS["本文を Write でファイルに書く"])]
     assert found == []
@@ -126,8 +129,8 @@ def test_d0039_ac45_step_check_finds_a_missing_sentence():
     assert [x for x in sentences(fake) if all(any(alt in x for alt in g) for g in ANSWER_STEPS["本文を Write でファイルに書く"])]
 
 
-def test_d0039_ac45_skill_options_match_the_real_parsers():
-    """D0039-AC-45: SKILL の `live answer`・`record review` の引数が、本体の実際の引数（live_cmd._parser() の answer と record._build_parser() の review）にある。"""
+def test_d0044_ac45_skill_options_match_the_real_parsers():
+    """D0044-AC-45: SKILL の `live answer`・`record review` の引数が、本体の実際の引数（live_cmd._parser() の answer と record._build_parser() の review）にある。"""
     real_answer = options_of(subparser(live_cmd._parser(), "answer"))
     real_review = options_of(subparser(record._build_parser(), "review"))
     assert {"--text-file", "--stdin", "--feedback-out", "--project", "--config", "--work-dir"} <= real_answer
@@ -144,8 +147,8 @@ def test_d0039_ac45_skill_options_match_the_real_parsers():
     assert "--text-file" in used_answer and "--feedback-file" in used_review
 
 
-def test_d0039_ac45_skill_option_check_finds_a_wrong_option():
-    """D0039-AC-45: 引数の突き合わせそのものが、本体に無い引数（--text など）を見つけられる（検査の検査）。"""
+def test_d0044_ac45_skill_option_check_finds_a_wrong_option():
+    """D0044-AC-45: 引数の突き合わせそのものが、本体に無い引数（--text など）を見つけられる（検査の検査）。"""
     real_answer = {"--text-file", "--stdin", "--feedback-out", "--project", "--config", "--work-dir", "--help"}
     bad = "python -m pipe_in live answer --text 'x' --text-file F"
     used = set(re.findall(r"(?<![\w-])--[a-z][a-z-]*", bad))
@@ -153,8 +156,8 @@ def test_d0039_ac45_skill_option_check_finds_a_wrong_option():
     assert set(re.findall(r"(?<![\w-])--[a-z][a-z-]*", "python -m pipe_in live answer --text-file F --feedback-out O")) <= real_answer
 
 
-def test_d0039_ac45_skill_commands_use_the_module_form_like_the_rest_of_the_skill():
-    """D0039-AC-45: 手順のコマンドは python -m pipe_in …（SKILL の他の手順と同じ書き方）。"""
+def test_d0044_ac45_skill_commands_use_the_module_form_like_the_rest_of_the_skill():
+    """D0044-AC-45: 手順のコマンドは python -m pipe_in …（SKILL の他の手順と同じ書き方）。"""
     spans = [c for c in code_spans(section()) if "live answer" in c and "--text-file" in c]
     assert spans and all(c.lstrip().startswith("python -m pipe_in live answer") for c in spans)
     spans = [c for c in code_spans(section()) if "record review" in c and "--feedback-file" in c]
@@ -178,13 +181,13 @@ LOCAL_PATHS = [
 
 
 @pytest.mark.parametrize("pattern", LOCAL_PATHS, ids=lambda p: p[:28])
-def test_d0039_ac46_skill_has_no_local_paths_or_secrets(pattern):
-    """D0039-AC-46: スキルに手元のパス（ユーザー名の入ったパス）・メールアドレス・秘密・公開したページの URL を書かない。今のままで通る（守り続ける検査）。"""
+def test_d0044_ac46_skill_has_no_local_paths_or_secrets(pattern):
+    """D0044-AC-46: スキルに手元のパス（ユーザー名の入ったパス）・メールアドレス・秘密・公開したページの URL を書かない。今のままで通る（守り続ける検査）。"""
     assert not re.search(pattern, whole()), pattern
 
 
-def test_d0039_ac46_secret_check_finds_a_planted_secret():
-    """D0039-AC-46: 秘密・パスの検査そのものが、混ぜた見本を見つけられる（検査の検査）。"""
+def test_d0044_ac46_secret_check_finds_a_planted_secret():
+    """D0044-AC-46: 秘密・パスの検査そのものが、混ぜた見本を見つけられる（検査の検査）。"""
     planted = ["C:\\" + "Us" + "ers\\someone\\x", "/" + "home/someone/x", "me@" + "example.com", "sk-ABCDEFGHIJKLMNOPQRSTUV", "ghp_ABCDEFGHIJKLMNOPQRSTUV", "API_KEY = abcdefghijklmnop1234", "-----BEGIN RSA PRIVATE KEY-----"]
     for sample in planted:
         assert any(re.search(p, sample) for p in LOCAL_PATHS), sample
@@ -206,19 +209,19 @@ COMMAND_LINE_TEXT = [
 
 
 @pytest.mark.parametrize("pattern", COMMAND_LINE_TEXT, ids=lambda p: p[:28])
-def test_d0039_ac46_skill_never_passes_text_on_the_command_line(pattern):
-    """D0039-AC-46: --artifact の節に、本文を引数で渡す形（--text "…"）・外から来た文字を --feedback "…" に入れる手順・echo/ヒアドキュメントで本文を渡す形が無い。今のままで通る。"""
+def test_d0044_ac46_skill_never_passes_text_on_the_command_line(pattern):
+    """D0044-AC-46: --artifact の節に、本文を引数で渡す形（--text "…"）・外から来た文字を --feedback "…" に入れる手順・echo/ヒアドキュメントで本文を渡す形が無い。今のままで通る。"""
     assert not re.search(pattern, section()), pattern
 
 
-def test_d0039_ac46_command_line_check_finds_the_forbidden_forms():
-    """D0039-AC-46: 禁止の形の検査そのものが、混ぜた見本（--text "…"・--feedback "…"・echo で本文）を見つけられる。"""
+def test_d0044_ac46_command_line_check_finds_the_forbidden_forms():
+    """D0044-AC-46: 禁止の形の検査そのものが、混ぜた見本（--text "…"・--feedback "…"・echo で本文）を見つけられる。"""
     planted = ['live answer --text "pipe-in: approve x y"', "live answer --text=pipe-in", 'record review x revise --feedback "$BODY"', "echo 'pipe-in: approve' | python -m pipe_in", "cat <<EOF"]
     for sample in planted:
         assert any(re.search(p, sample) for p in COMMAND_LINE_TEXT), sample
 
 
-def test_d0039_ac46_the_skill_does_not_use_the_forbidden_text_option_anywhere_in_the_artifact_section():
-    """D0039-AC-46: --artifact の節の `…` の中に、--text（--text-file 以外）が出ない。"""
+def test_d0044_ac46_the_skill_does_not_use_the_forbidden_text_option_anywhere_in_the_artifact_section():
+    """D0044-AC-46: --artifact の節の `…` の中に、--text（--text-file 以外）が出ない。"""
     for c in code_spans(section()):
         assert not re.search(r"--text(?!-file)\b", c), c
