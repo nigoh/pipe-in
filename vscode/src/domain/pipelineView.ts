@@ -11,6 +11,8 @@ import type { DevStage, Stage } from './stage.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
 import { elapsedSec, parseInstant } from './timestamp.ts';
+import { buildToolsTable } from './toolsTable.ts';
+import type { ToolsTable } from './toolsTable.ts';
 
 /**
  * 段のログ 1 つの写し：ファイル名と中身と、ファイルの更新時刻。
@@ -180,6 +182,17 @@ export interface PipelineView {
   stageTimes: StageTimes[];
   /** 時系列（段の実行ごとの行・エージェントの帯・確認を待った帯・横軸） */
   gantt: GanttModel;
+  /**
+   * 使ったエージェント・スキル・道具の表（D0050）。null ＝ 作らなかった（一覧の行の組み立て）。
+   * 項目が無い（古い写し）ときも、表が空として読む。
+   */
+  tools?: ToolsTable | null;
+}
+
+/** 図の状態の組み立て方。 */
+export interface BuildViewOptions {
+  /** 偽なら表（tools）を作らず、段のログから呼び出しも取り出さない（null）。省けば真。一覧の行の組み立て（summarizeRun）だけが偽にする */
+  tools?: boolean;
 }
 
 /** 検証の不合格1件。 */
@@ -309,12 +322,15 @@ interface ReadLog {
   mtimeMs: number | null;
 }
 
-/** 名前の読めるログだけを (seq, fileName) の昇順に並べる。 */
-function readLogs(stageLogs: WorkDirSnapshot['stageLogs']): ReadLog[] {
+/** 名前の読めるログだけを (seq, fileName) の昇順に並べる。withCalls なら道具の呼び出し（calls）も取り出す。 */
+function readLogs(stageLogs: WorkDirSnapshot['stageLogs'], withCalls: boolean): ReadLog[] {
   const logs: ReadLog[] = [];
   for (const file of stageLogs) {
     const name = parseStageLogName(file.fileName);
-    if (name) logs.push({ name, log: parseStageLog(file.text), fileName: file.fileName, mtimeMs: validMtime(file.mtimeMs) });
+    if (name) {
+      const log = parseStageLog(file.text, withCalls ? { calls: true } : undefined);
+      logs.push({ name, log, fileName: file.fileName, mtimeMs: validMtime(file.mtimeMs) });
+    }
   }
   return logs.sort((a, b) => a.name.seq - b.name.seq || (a.fileName < b.fileName ? -1 : a.fileName > b.fileName ? 1 : 0));
 }
@@ -551,11 +567,26 @@ function buildStageTimes(record: RunRecord, labels: Readonly<Record<Stage, strin
   return out;
 }
 
-export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock): PipelineView {
+/** 使ったエージェント・スキル・道具の表。段のログの呼び出しと、記録の段の受け持ちから作る（時系列と同じ段の表示名・受け持ちの決め方）。 */
+function buildTools(logs: ReadLog[], runningLog: ReadLog | null, record: RunRecord, stageLabels: Readonly<Record<Stage, string>>): ToolsTable {
+  return buildToolsTable({
+    logs: logs.map(({ name, log }) => ({ seq: name.seq, stage: name.stage, attempt: name.attempt, agent: log.agent, calls: log.calls ?? [] })),
+    runs: record.stageRuns,
+    running:
+      runningLog === null
+        ? null
+        : { seq: runningLog.name.seq, stage: runningLog.name.stage, attempt: runningLog.name.attempt, agent: runningLog.log.agent },
+    labels: stageLabels,
+    driver: record.hasDriver,
+  });
+}
+
+export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, options?: BuildViewOptions): PipelineView {
+  const withTools = options?.tools !== false;
   const record = parseRunRecord(snapshot.stateJson);
   const dev = isDevRecord(record);
   const stageLabels = stageLabelsOf(record, dev);
-  const logs = readLogs(snapshot.stageLogs);
+  const logs = readLogs(snapshot.stageLogs, withTools);
   const runningLog = findRunningLog(logs, record);
   const runningStage = runningLog?.name.stage ?? null;
   const shown = runningLog ?? logs.at(-1) ?? null;
@@ -614,5 +645,6 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock):
       clock,
       quietSec,
     }),
+    tools: withTools ? buildTools(logs, runningLog, record, stageLabels) : null,
   };
 }

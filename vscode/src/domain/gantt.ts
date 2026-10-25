@@ -82,9 +82,26 @@ interface Draft {
   run: StageRun | null;
 }
 
-function labelOf(stage: Stage, attempt: number | null, labels: Readonly<Record<string, string>>): string {
-  const name = labels[stage] ?? stage;
+/**
+ * 「段の表示名」＋「 N 回目」（回が無ければ表示名だけ）。時系列の行と、エージェント・スキルの表の「使った段」が同じ書き方になるよう共有する。
+ * 表示名は labels が自分で持つ鍵だけ引く（constructor のような段名で、プロトタイプの関数が入らない）。無い段は段の名前のまま。
+ */
+export function labelOf(stage: Stage, attempt: number | null, labels: Readonly<Record<string, string>>): string {
+  const own: string | undefined = Object.hasOwn(labels, stage) ? labels[stage] : undefined;
+  const name = own ?? stage;
   return attempt !== null && attempt > 0 ? `${name} ${attempt} 回目` : name;
+}
+
+/** 通し番号ごとの最初のログ（同じ通し番号のログが重なる記録でも、最初のものを使う）。 */
+export function firstLogBySeq<T extends { seq: number }>(logs: readonly T[]): Map<number, T> {
+  const logOf = new Map<number, T>();
+  for (const log of logs) if (!logOf.has(log.seq)) logOf.set(log.seq, log);
+  return logOf;
+}
+
+/** 段の実行の受け持ち：runs[] の agent、無ければその通し番号の最初のログの agent、それも無ければ null。 */
+export function ownerOf(run: Pick<StageRun, 'agent' | 'seq'>, logOf: ReadonlyMap<number, { agent: string | null }>): string | null {
+  return run.agent ?? logOf.get(run.seq)?.agent ?? null;
 }
 
 function clampDuration(sec: number): number {
@@ -115,8 +132,7 @@ export function buildGantt(input: GanttInput): GanttModel {
   const { record, logs, running, labels, clock, quietSec } = input;
   const offset = clock?.localOffsetMin ?? 0;
   const instant = (text: string | null): number | null => (text === null ? null : parseInstant(text, offset));
-  const logOf = new Map<number, GanttLog>();
-  for (const log of logs) if (!logOf.has(log.seq)) logOf.set(log.seq, log);
+  const logOf = firstLogBySeq(logs);
 
   // 実行ごとの下書き（通し番号の順）
   const drafts: Draft[] = [...record.stageRuns]
@@ -125,7 +141,7 @@ export function buildGantt(input: GanttInput): GanttModel {
       seq: run.seq,
       stage: run.stage,
       attempt: run.attempt,
-      agent: run.agent ?? logOf.get(run.seq)?.agent ?? null,
+      agent: ownerOf(run, logOf),
       startMs: instant(logOf.get(run.seq)?.startedAt ?? null),
       durationSec: clampDuration(run.durationSec),
       isError: run.isError,

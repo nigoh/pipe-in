@@ -21,6 +21,12 @@
 // - 選んだ行へ寄せる（revealArtRow）：選びが替わったときだけ、一覧の枠の中に見える位置まで動かす。枠が見えていないあいだは持ち越し、見えたときに寄せる。
 // - 焦点：戻す先が隠れたプレビュー・押せない行のときは、見えているプレビューの枠へ移す。
 // - 見る実行が替わったときは、選びを既定に戻し、成果物まわりのスクロールを先頭に戻す。
+// D0050 で足したもの（「エージェント・スキル」のタブ。新しい仕組みは足さず、既存の仕組みがそのまま働く）：
+// - タブの切り替え（data-detail-tab="tools"）・縦の位置（パネル data-scroll="panel-tools"）・横の位置（表の枠 data-scroll="tools-table"）・焦点（枠の data-keep="tools-table"）は、
+//   これまでの data-detail-tab・data-scroll・data-keep の仕組みで描き直しをまたいで残る。送るメッセージは増えない。
+// - 見る実行が替わったときだけ、panel-tools と tools-table の位置を先頭に戻す（消す一覧に足しただけ）。
+// - 別のタブを見ていて表の枠が隠れているあいだは、枠そのものは焦点を持てない。そのとき焦点があった要素（別のタブのボタンなど）が、描き直しのあとも同じ要素に戻る。
+//   タブに戻ったときに枠へ焦点を移す動きは足さない（押したタブのボタンの焦点を横取りしないため）。
 export const PANEL_SCRIPT = `
 (function () {
   const vscode = acquireVsCodeApi();
@@ -307,6 +313,8 @@ export const PANEL_SCRIPT = `
       delete scrollMemo['artifact-list'];
       delete scrollMemo.detail;
       delete scrollMemo['panel-artifacts'];
+      delete scrollMemo['panel-tools'];
+      delete scrollMemo['tools-table'];
       artPicked = null;
       artShown = null;
       wasNear = true;

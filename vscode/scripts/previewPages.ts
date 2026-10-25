@@ -5,6 +5,7 @@
 // 足す script タグ・style タグにはすべて nonce を付ける。
 // 「止まっているかもしれない実行の印」（D0021）の見本も、ここで作る。tests/fixtures/ の見本は読むだけで書かない。
 // 「成果物」タブの見本（D0025）も、ここで作る。長い Markdown などの見本の文章は artifactSamples.ts にある。
+// 「エージェント・スキル」タブの見本（D0050）も、ここで作る。見本の記録（ログ・state.json）の中身は toolsSamples.ts にある。
 // ログと成果物の更新時刻（utimes）をそろえるのは、呼ぶ側が作った一時フォルダの中の写しだけ（拡張の src/ は更新時刻を読むだけ）。
 import { cp, mkdir, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -20,6 +21,8 @@ import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
 import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
+import { bareRecordSample, freshSample, sdkSample, skillRecordSample } from './toolsSamples.ts';
+import type { SampleRun, ToolsVariant } from './toolsSamples.ts';
 
 export type Theme = 'light' | 'dark';
 
@@ -46,9 +49,10 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * パネルのページの種類：完了した見本・動いている見本（次の render を送る補助つき）・確認待ちの見本、
  * 実行の一覧の見本（runs）・archive を省く一覧の見本（runs-omitted）、
  * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）、
- * 「成果物」タブの見本（artifacts。実行の一覧つき。更新後の本体を送る補助と、送ったメッセージを貯める window.__posted つき）。
+ * 「成果物」タブの見本（artifacts。実行の一覧つき。更新後の本体を送る補助と、送ったメッセージを貯める window.__posted つき）、
+ * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -66,10 +70,13 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-stale-soon-dark', 'dark'],
   ['run-panel-artifacts-light', 'light'],
   ['run-panel-artifacts-dark', 'dark'],
+  ['run-panel-tools-light', 'light'],
+  ['run-panel-tools-dark', 'dark'],
 ];
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
+  if (page.includes('-tools-')) return 'tools';
   if (page.includes('-artifacts-')) return 'artifacts';
   if (page.includes('-stale-soon-')) return 'stale-soon';
   if (page.includes('-stale-')) return 'stale';
@@ -587,6 +594,66 @@ export async function buildArtifactsTree(dest: string, variant: ArtifactsVariant
   });
   await setArtifactTimes(survey, finishedAt);
   return { workspace };
+}
+
+// ---- 「エージェント・スキル」タブの見本（D0050）---------------------------------------------------
+// 実行は 4 つ。(a) 動いている SDK の実行（tools-sdk。初めに見る）・(b) /pipe-in の記録（直下。受け持ちと時間が出る）・
+// (c) --agent を付けなかった /pipe-in の記録（archive/ の前の実行）・(d) 呼び出しがまだ無い SDK の実行（tools-fresh）。
+// 見本の中身は toolsSamples.ts が全部生成する。木は呼ぶ側が作った一時フォルダ（dest）の中だけに作り、tests/fixtures/ には何も足さない・書かない。
+
+/** 見本の実行の目印（実行の一覧の行の key）。テストと画面の手順が使う。 */
+export const TOOLS_SDK_KEY = makeRunKey(HERE, 'tools-sdk');
+export const TOOLS_PIPE_IN_KEY = makeRunKey(HERE, '');
+export const TOOLS_BARE_KEY = makeRunKey(HERE, 'archive/20261016-090000');
+export const TOOLS_FRESH_KEY = makeRunKey(HERE, 'tools-fresh');
+
+/** 見本の実行 1 つを dir に書く（state.json・logs/・文書）。ログの更新時刻と文書の更新時刻は「今」から決めた固定の値にそろえる。 */
+async function writeToolsRun(dir: string, sample: SampleRun, nowMs: number): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, 'state.json'), `${JSON.stringify(sample.state, null, 2)}\n`, 'utf8');
+  if (sample.logs.length > 0) {
+    await mkdir(path.join(dir, 'logs'), { recursive: true });
+    for (const log of sample.logs) await writeFile(path.join(dir, 'logs', log.fileName), log.text, 'utf8');
+  }
+  for (const [name, text] of Object.entries(sample.files)) await writeFile(path.join(dir, name), text, 'utf8');
+  await setLogTimes(dir, nowMs);
+  await setArtifactTimes(dir, nowMs);
+}
+
+/**
+ * 「エージェント・スキル」タブの見本の木。ワークスペースは dest/main（返す workspace）。
+ * 直下が (b)、tools-sdk が (a)、archive/20261016-090000 が (c)、tools-fresh が (d)。variant が next なら (a) の動いているログ 06_rubric に呼び出しが増える
+ * （Grep 15 回・module-reader 2 回・新しい道具 1 種。(b)〜(d) は同じ）。「今」は確認待ちの見本の待ち始めから WAITING_SEC 秒後。
+ * 動いている (a)(d) のログの更新時刻も「今」にそろえる（更新なしの印は出ない）。
+ */
+export async function buildToolsTree(dest: string, variant: ToolsVariant): Promise<{ workspace: string }> {
+  const workspace = path.join(dest, 'main');
+  const here = path.join(workspace, 'docs', 'pipeline');
+  await writeMainGit(workspace);
+  const waitingSince = await startOfLiveness(WAITING_DIR);
+  if (waitingSince === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
+  const now = Date.parse(waitingSince) + WAITING_SEC * 1000;
+  await writeToolsRun(here, skillRecordSample(now), now);
+  await writeToolsRun(path.join(here, 'tools-sdk'), sdkSample(now, variant), now);
+  await writeToolsRun(path.join(here, 'archive', '20261016-090000'), bareRecordSample(now), now);
+  await writeToolsRun(path.join(here, 'tools-fresh'), freshSample(now), now);
+  return { workspace };
+}
+
+/**
+ * 「エージェント・スキル」タブの確認用ページ。木を dest の中に組み立て、本番と同じ読み取りで読み、目安 STALE_AFTER_SEC で一覧のページにする。
+ * 初めに見るのは (a)。window.__previewNext() は (a) の更新後の本体を送る（Grep の回数が増えて Read を抜き、module-reader が増え、新しい道具が 1 種増える。
+ * そのために dest/next にもう 1 つ木を組み立てる）。window.__posted に、パネルが送ったメッセージの type が貯まる（行を押しても余計な通信が増えないことを見る）。
+ */
+export async function toolsPageHtml(dest: string, theme: Theme): Promise<string> {
+  const since = await startOfLiveness(WAITING_DIR);
+  if (since === null) throw new Error('確認待ちの見本に待ち始めの時刻がありません');
+  const clock = previewClock(since, WAITING_SEC);
+  const entries = await readRunsView((await buildToolsTree(dest, 'current')).workspace, clock, { selected: TOOLS_SDK_KEY });
+  const updated = await readRunsView((await buildToolsTree(path.join(dest, 'next'), 'next')).workspace, clock, { selected: TOOLS_SDK_KEY });
+  const next = updated.find((e) => e.key === TOOLS_SDK_KEY);
+  if (next === undefined) throw new Error('更新後の見本に (a) の行がありません');
+  return panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC, recordPosted: true, next });
 }
 
 /**

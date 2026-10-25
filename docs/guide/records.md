@@ -26,11 +26,11 @@
 |---|---|---|
 | `name` | セッション名。VSCode の実行の一覧の太字の名前 | `pipe-in --name "…"`、`pipe-in record start --name "…"`。付けなければ、要件メモ（`00_input.md`）の最初の行から作ります（先頭の `#` を取り、中の連続する空白を 1 つにし、60 文字を超えるときは 59 文字＋`…`）。取れなければ書きません。確認待ちからの再開（`--review`・`--from`）でも変わりません（`--review` に `--name` は付けられません。名前は始めるときだけ付けます） |
 | `session_id` | Claude Code の会話の ID（開発用スキルが残す） | `pipe-in record start --session-id <ID>`。付けなければ書きません。空白や改行を含む値、100 文字を超える値は断ります。パイプの記録には書かず、拡張が `runs[]` の `session_id` のうち、最後に動いた段のものを使います |
-| `agent`（`runs[]` の要素と `Prompt` 行） | その段を受け持ったエージェントの名前 | `pipe-in record begin <段> --agent <名前>`。付けなければ書きません。SDK で流す段には書きません。VSCode の時系列の行の名前に出ます |
+| `agent`（`runs[]` の要素と `Prompt` 行） | その段を受け持ったエージェントの名前 | `pipe-in record begin <段> --agent <名前>`。付けなければ書きません。SDK で流す段には書きません。VSCode の時系列の行の名前と、エージェント・スキルの表のエージェントの行に出ます |
 
 名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。
 
-時刻は、`logs/*.jsonl` の最初の行（`Prompt`）の `at`（段の始まり）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。
+時刻は、`logs/*.jsonl` の `Prompt` の行の `at`（段の始まり。同じログに何度か流したときは最後の `Prompt` の行）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。
 
 新しい開発フローを始めるとき、前の終わった記録は `archive/<開始日時>/`（例 `archive/20261017-100000/`。同じ日時が重なると `-2` が付く）に、`state.json`・各段の成果物・`logs/` ごと移されます。形は `docs/pipeline/` の直下と同じです。VSCode の拡張は、この `archive/` の中の記録を「前の実行」として実行の一覧に出します（読むだけで、移すのは本体です。くわしくは [VSCode の拡張](vscode.md#実行の一覧)）。パイプの実行（`docs/pipeline/<パイプ名>/`）は `archive/` へ移されません。
 

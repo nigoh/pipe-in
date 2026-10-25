@@ -9,7 +9,7 @@
 | いつ | コマンド |
 | --- | --- |
 | 始めるとき（要件メモを渡す） | `python -m pipe_in record start --text "<要件メモ>" --name "<セッション名>"`（長いときは `--input <ファイル>`。`--name` を省くと要件メモの最初の行から作る） |
-| 段を任せる直前 | `python -m pipe_in record begin <段> --agent <サブエージェント>`（要件定義と設計は `pipe-in-analyst`、テスト先行は `pipe-in-tester`、実装は `pipe-in-coder`、検証は `pipe-in-verifier`。VSCode の時系列の行に出る。実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
+| 段を任せる直前 | `python -m pipe_in record begin <段> --agent <サブエージェント>`（要件定義と設計は `pipe-in-analyst`、テスト先行は `pipe-in-tester`、実装は `pipe-in-coder`、検証は `pipe-in-verifier`。VSCode の時系列の行とエージェント・スキルの表に出る。実装と検証は `--attempt N`。直してもらうときは `--note 指摘を反映`） |
 | サブエージェントが返ったあと | `python -m pipe_in record done <段> --summary "<ひとこと>"`（失敗なら `--error`） |
 | 人の確認を待つとき | `python -m pipe_in record wait <段>` |
 | 人が答えたとき | `python -m pipe_in record review <段> approved`（`revise --feedback "<直してほしい点>"`・`quit`） |

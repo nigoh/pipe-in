@@ -118,6 +118,8 @@ export interface RunRecord {
   sessionId: string | null;
   /** パイプの名前（開発フローは 'dev'）。パイプを持つ前の記録では null */
   pipe: string | null;
+  /** 外の会話（/pipe-in のスキル）が書いた記録か。state.json の driver が項目として有り、null でないこと（値は見ない。本体と同じ判定）。無い・読めない写しでは false */
+  hasDriver: boolean;
   /** 段の並び。パイプを持つ前の記録では null */
   stages: StageDef[] | null;
   pendingReview: PendingReview | null;
@@ -139,6 +141,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   name: null,
   sessionId: null,
   pipe: null,
+  hasDriver: false,
   stages: null,
   pendingReview: null,
   warnings: [],
@@ -217,6 +220,7 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.stages = parseStages(data.stages);
   record.pendingReview = parsePendingReview(data.pending_review);
   record.warnings = Array.isArray(data.warnings) ? data.warnings.filter((w): w is string => typeof w === 'string') : [];
+  record.hasDriver = Object.hasOwn(data, 'driver') && data.driver !== null;
   if (!Array.isArray(data.runs)) return record;
 
   // 段の並びを持たない記録はパイプを持つ前の開発フローのものなので、開発の5段だけを受け付ける

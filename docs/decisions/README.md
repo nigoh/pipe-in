@@ -53,6 +53,7 @@
 | [D0047](D0047-spec-review-template.md) | 仕様書レビューのパイプのひな形 `spec-review` を足す（素人の質問 → 知識の下ごしらえ → 6つの検査を同時に → 根拠の確認（`findings-check`）→ まとめと質問票。指摘は D0043 の形 v1） |
 | [D0048](D0048-worktree-auto.md) | worktree を自動で切って、main に入ったら自動で片付ける（pipe-in worktree new・clean） |
 | [D0049](D0049-skill-shell.md) | /pipe-in が打つシェルのコマンドを、確認なしで通る形にまとめる（pipe-in skill・worktree sync） |
+| [D0050](D0050-run-tools.md) | 実行の詳細に「エージェント・スキル」のタブを足し、選んだ実行で使ったエージェント・スキル・道具の名前・種類・回数・使った段を表で見られるようにする（拡張が段のログを数えるだけ。本体と記録の形は変えない） |
 
 ## ひな形
 

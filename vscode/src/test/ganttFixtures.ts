@@ -22,11 +22,22 @@ export function logName(seq: number, stage: string, attempt?: number): string {
   return `${String(seq).padStart(2, '0')}_${stage}${attempt === undefined ? '' : `_${attempt}`}.jsonl`;
 }
 
-/** 段のログ 1 つ。finished なら結果の行を持つ（動いていない）。at は文字でも壊れた値でもよい。 */
-export function stageLog(p: { seq: number; stage: string; attempt?: number; at?: unknown; finished?: boolean; agent?: unknown }): { fileName: string; text: string } {
+/**
+ * 段のログ 1 つ。finished なら結果の行を持つ（動いていない）。at は文字でも壊れた値でもよい。
+ * lines（D0050）は、文章の行のあと・結果の行の前に足す行（呼び出しの行など。呼び出しごとに別の id を持たせた行を渡す）。
+ */
+export function stageLog(p: {
+  seq: number;
+  stage: string;
+  attempt?: number;
+  at?: unknown;
+  finished?: boolean;
+  agent?: unknown;
+  lines?: readonly string[];
+}): { fileName: string; text: string } {
   return {
     fileName: logName(p.seq, p.stage, p.attempt),
-    text: logText([promptLine(p.stage, p.at, p.agent), assistantText('x'), ...(p.finished === false ? [] : [resultLine()])]),
+    text: logText([promptLine(p.stage, p.at, p.agent), assistantText('x'), ...(p.lines ?? []), ...(p.finished === false ? [] : [resultLine()])]),
   };
 }
 
@@ -39,6 +50,8 @@ export interface RunSpec {
   durationSec?: number;
   agent?: unknown;
   isError?: boolean;
+  /** 段のログに足す行（D0050。呼び出しの行など）。省くと足さない */
+  lines?: readonly string[];
 }
 
 export const dur = (run: RunSpec): number => run.durationSec ?? 0;
@@ -51,7 +64,7 @@ export function ganttSnapshot(p: {
   runs: RunSpec[];
   /** runs[] に入れる、段の実行以外の要素。after は直前の実行の seq（その実行の直後に差し込む） */
   extras?: { after: number; entry: object }[];
-  running?: { seq: number; stage: string; attempt?: number; start?: unknown; agent?: unknown };
+  running?: { seq: number; stage: string; attempt?: number; start?: unknown; agent?: unknown; lines?: readonly string[] };
   final?: string | null;
   startedAt?: unknown;
   updatedAt?: unknown;
@@ -73,10 +86,20 @@ export function ganttSnapshot(p: {
     );
     for (const x of p.extras ?? []) if (x.after === r.seq) entries.push(x.entry);
   }
-  const logs = p.runs.map((r) => stageLog({ seq: r.seq, stage: r.stage, attempt: r.attempt, at: r.start === undefined ? undefined : atSec(r.start), agent: r.agent }));
+  const logs = p.runs.map((r) =>
+    stageLog({ seq: r.seq, stage: r.stage, attempt: r.attempt, at: r.start === undefined ? undefined : atSec(r.start), agent: r.agent, ...(r.lines === undefined ? {} : { lines: r.lines }) }),
+  );
   if (p.running !== undefined) {
     logs.push(
-      stageLog({ seq: p.running.seq, stage: p.running.stage, attempt: p.running.attempt, at: p.running.start, finished: false, agent: p.running.agent }),
+      stageLog({
+        seq: p.running.seq,
+        stage: p.running.stage,
+        attempt: p.running.attempt,
+        at: p.running.start,
+        finished: false,
+        agent: p.running.agent,
+        ...(p.running.lines === undefined ? {} : { lines: p.running.lines }),
+      }),
     );
   }
   return snapshot({

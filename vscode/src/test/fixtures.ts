@@ -22,9 +22,37 @@ export function assistantText(text: string): string {
   return JSON.stringify({ _type: 'AssistantMessage', content: [{ text }], model: 'x' });
 }
 
-/** ツールの呼び出しの部品を1つ持つ発言。 */
-export function assistantTool(name: string, input: object): string {
-  return JSON.stringify({ _type: 'AssistantMessage', content: [{ id: 't', name, input }], model: 'x' });
+/** ツールの呼び出しの部品を1つ持つ発言。id（呼び出しの ID）は既定 't'。呼び出しごとに別の id を渡せる（D0050）。 */
+export function assistantTool(name: string, input: object, id = 't'): string {
+  return JSON.stringify({ _type: 'AssistantMessage', content: [{ id, name, input }], model: 'x' });
+}
+
+/**
+ * 部品を複数持つ発言（D0050）。parentToolUseId は発言の行の項目（部品の項目ではない。サブエージェントの中の発言が、呼んだ Agent の id を持つ）。
+ * 渡さない（undefined）と項目ごと無い。文字・null・数・オブジェクトも渡せる（壊れた値を試すため）。
+ */
+export function assistantParts(parts: readonly unknown[], parentToolUseId?: unknown): string {
+  return JSON.stringify({
+    _type: 'AssistantMessage',
+    content: parts,
+    model: 'x',
+    ...(parentToolUseId === undefined ? {} : { parent_tool_use_id: parentToolUseId }),
+  });
+}
+
+/** 道具の呼び出しの部品 { id, name, input }（D0050。assistantParts に渡す）。 */
+export function toolPart(name: string, input: unknown, id: string): { id: string; name: string; input: unknown } {
+  return { id, name, input };
+}
+
+/** 道具の結果の部品 { tool_use_id, content, is_error }（UserMessage の部品。数えない）。 */
+export function resultPart(toolUseId: string, isError = false): { tool_use_id: string; content: string; is_error: boolean } {
+  return { tool_use_id: toolUseId, content: '結果', is_error: isError };
+}
+
+/** 考え中の部品 { thinking, signature }（数えない）。 */
+export function thinkingPart(): { thinking: string; signature: string } {
+  return { thinking: '考え中', signature: 'sig' };
 }
 
 /** 段の実行の終わりの行。 */
@@ -161,10 +189,13 @@ export function stateJson(p: {
   name?: unknown;
   /** セッション ID（D0019。record start --session-id が書く session_id）。省くと持たない */
   sessionId?: unknown;
+  /** 外の会話で進めた記録の印（本体が書く driver。D0050）。省くと持たない。null・''・0・false・{} も渡せる（null でなければ「ある」） */
+  driver?: unknown;
 }): string {
   return JSON.stringify({
     started_at: p.startedAt === undefined ? '2026-10-16T00:00:00' : p.startedAt,
     updated_at: p.updatedAt === undefined ? '2026-10-16T00:00:00' : p.updatedAt,
+    ...(p.driver === undefined ? {} : { driver: p.driver }),
     ...(p.pipe === undefined ? {} : { pipe: p.pipe }),
     ...(p.name === undefined ? {} : { name: p.name }),
     ...(p.sessionId === undefined ? {} : { session_id: p.sessionId }),

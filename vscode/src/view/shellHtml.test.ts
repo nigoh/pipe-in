@@ -10,6 +10,7 @@ import { FakeDocument } from '../test/fakeDom.ts';
 import type { FakeNode } from '../test/fakeDom.ts';
 import { DIAGRAMS_STAGES, snapshot, stageRunEntry, stateJson } from '../test/fixtures.ts';
 import { finishedView, runningView, viewAt, waitingView } from '../test/liveFixtures.ts';
+import { panelsByName } from '../test/panelParts.ts';
 import { showcaseView } from '../test/reasonFixtures.ts';
 import { SID, listView, row, sampleRows } from '../test/runListFixtures.ts';
 
@@ -28,12 +29,8 @@ function between(text: string, from: string, to: string): string {
 const detailTop = (out: string): string => between(out, 'class="crumbs"', 'data-detail-tab=');
 const headOf = (out: string): string => between(out, 'class="head"', 'class="detail-meta"');
 const metaOf = (out: string): string => between(out, 'class="detail-meta"', 'data-detail-tab=');
-/** 詳細の 3 つのタブパネル（tabpanel の開きタグの後ろから、次のパネルの手前まで） */
-function panelsOf(out: string): string[] {
-  const parts = out.split(/<[a-z]+\b[^>]*role="tabpanel"[^>]*>/);
-  assert.equal(parts.length, 4, 'role="tabpanel" が 3 つ');
-  return parts.slice(1);
-}
+// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0050 で test/panelParts.ts へ移した（関数の中身は変えていない）。
+// 番号でなく名前で取るので、タブが 3 つから 4 つになっても、中身を見るテストが位置に左右されない。個数は決め打ちしない（個数は D0050-AC-28 の 2 件が見る）。
 
 const WAITING_LIST = (selected = 'here|') => listView(sampleRows(), { selected });
 
@@ -231,22 +228,23 @@ test('D0019-AC-61: パイプの確認待ちは、段の label で「○○の確
 
 // ---- AC-62・AC-63・AC-64：詳細のタブと「図と出力」の枠 ----
 
-test('D0019-AC-62: 詳細のタブ「図と出力」「成果物」「使用量」が role="tablist" で並び、初めに選ばれているのは「図と出力」だけ（aria-selected）', async () => {
+test('D0050-AC-28: 詳細のタブ「図と出力」「成果物」「エージェント・スキル」「使用量」が role="tablist" で並び、初めに選ばれているのは「図と出力」だけ（aria-selected）（D0019-AC-62 の「タブ 3 つ」を置き換える）', async () => {
   const out = await render(waitingView(40), WAITING_LIST());
   const tabs = [...out.matchAll(/<button\b[^>]*data-detail-tab="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
-  assert.deepEqual(tabs.map((t) => t[1]), ['diagram', 'artifacts', 'usage']);
-  assert.deepEqual(tabs.map((t) => plain(t[2]!)), ['図と出力', '成果物', '使用量']);
-  assert.deepEqual(tabs.map((t) => /aria-selected="(true|false)"/.exec(t[0])?.[1]), ['true', 'false', 'false']);
+  assert.deepEqual(tabs.map((t) => t[1]), ['diagram', 'artifacts', 'tools', 'usage']);
+  assert.deepEqual(tabs.map((t) => plain(t[2]!)), ['図と出力', '成果物', 'エージェント・スキル', '使用量']);
+  assert.deepEqual(tabs.map((t) => /aria-selected="(true|false)"/.exec(t[0])?.[1]), ['true', 'false', 'false', 'false']);
   for (const t of tabs) assert.match(t[0], /role="tab"/);
   assert.equal(count(out, /role="tablist"/g), 2, '状態のタブと詳細のタブの 2 つ');
   assert.ok(out.lastIndexOf('role="tablist"', out.indexOf('data-detail-tab="diagram"')) > out.indexOf('class="detail"'), '詳細のタブは詳細の中の role="tablist"');
 });
 
-test('D0019-AC-62: タブパネルは 3 つ（role="tabpanel"）で、初めに見えるのは「図と出力」だけ（ほかは hidden）', async () => {
+test('D0050-AC-28: タブパネルは 4 つ（role="tabpanel"。図と出力・成果物・エージェント・スキル・使用量の順）で、初めに見えるのは「図と出力」だけ（ほかは hidden）（D0019-AC-62 の「タブパネルは 3 つ」を置き換える）', async () => {
   const out = await render(waitingView(40), WAITING_LIST());
   const tags = [...out.matchAll(/<[a-z]+\b[^>]*role="tabpanel"[^>]*>/g)].map((m) => m[0]);
-  assert.equal(tags.length, 3);
-  assert.deepEqual(tags.map((t) => /\bhidden\b/.test(t)), [false, true, true]);
+  assert.equal(tags.length, 4);
+  assert.deepEqual(tags.map((t) => /\bdata-detail-panel="([^"]*)"/.exec(t)?.[1]), ['diagram', 'artifacts', 'tools', 'usage']);
+  assert.deepEqual(tags.map((t) => /\bhidden\b/.test(t)), [false, true, true, true]);
 });
 
 test('D0019-AC-63: 「図と出力」は 左に図の枠（.pane-diagram：図・注意・理由・時間）、右に出力（上）と時系列（下）', async () => {
@@ -290,7 +288,7 @@ test('D0019-AC-63: 一覧・図の枠・出力・時系列は、それぞれ別�
 // まだ無い行は押せない（disabled）。メッセージの元になる（data-artifact を持つ）のは、プレビューの「エディタで開く」だけ。
 test('D0025-AC-10: 「成果物」タブは、成果物の一覧の行（data-art-pick。data-artifact を持たない）と、ある成果物のプレビューの「エディタで開く」（data-artifact）でできていて、まだ無い行は押せない（disabled）。メッセージの元になるのはプレビューの「エディタで開く」だけ（D0019-AC-64 を D0025 で置き換え）', async () => {
   const view = buildPipelineView(snapshot({ artifacts: { '00_input.md': 'メモ', '01_requirements.md': '要件', '03_red_tests.md': '  ' } }));
-  const [, artifacts] = panelsOf(await render(view, listView([])));
+  const { artifacts } = panelsByName(await render(view, listView([])));
   const doc = new FakeDocument();
   doc.innerHTML = artifacts!;
   const fileOf = (n: FakeNode): string | undefined => n.querySelector('.art-file')?.textContent;
@@ -322,15 +320,15 @@ test('D0025-AC-10: 「成果物」タブは、成果物の一覧の行（data-ar
 });
 
 test('D0019-AC-64: 「使用量」タブに使用量の表（usage-table）がある。使用量の無い記録では空', async () => {
-  const [, , usage] = panelsOf(await render(showcaseView(), listView([])));
+  const { usage } = panelsByName(await render(showcaseView(), listView([])));
   assert.match(usage!, /class="usage-table"/);
   assert.match(usage!, /使用量/);
-  const [, , none] = panelsOf(await render(buildPipelineView(snapshot()), listView([])));
+  const { usage: none } = panelsByName(await render(buildPipelineView(snapshot()), listView([])));
   assert.doesNotMatch(none!, /usage-table/);
 });
 
 test('D0019-AC-63: 「図と出力」以外のタブパネルに、図・出力・時系列は入らない（図と出力のタブにだけある）', async () => {
-  const [, artifacts, usage] = panelsOf(await render(showcaseView(), listView([])));
+  const { artifacts, usage } = panelsByName(await render(showcaseView(), listView([])));
   for (const p of [artifacts!, usage!]) assert.doesNotMatch(p, /class="flow"|class="terminal"|gantt-svg|data-reasons/);
 });
 

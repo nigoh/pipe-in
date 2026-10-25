@@ -172,7 +172,8 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
   const raw = rawState(input.stateJson);
   const record = parseRunRecord(input.stateJson);
   const stageLogs = input.previous ? [] : input.stageLogs;
-  const view = buildPipelineView({ workDir: '', stateJson: input.stateJson, stageLogs, artifacts: {} }, clock);
+  // 一覧の行は表（エージェント・スキル・道具）を使わないので、表も呼び出しの取り出しも頼まない（行ごと・約 5 秒ごとの読み直しを重くしない）
+  const view = buildPipelineView({ workDir: '', stateJson: input.stateJson, stageLogs, artifacts: {} }, clock, { tools: false });
 
   // 判定の順は図の帯・ステータスバーと同じ：final → 動いている → 確認待ち → それ以外
   let state: RunState;
