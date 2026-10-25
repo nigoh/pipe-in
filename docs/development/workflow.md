@@ -109,12 +109,41 @@ git rebase --autostash main           # まだコミットしていない自分�
 ## 5. 終える：確かめてコミットし、main に入れる
 
 1. main が進んでいれば載せ直す（上の「3. 載せ直す」）。
-2. 触った側のテストを全部流す。Python と拡張の両方に触れたら両方。拡張なら `npm run typecheck` も。
+2. 触った側のテストを全部流す。Python と拡張の両方に触れたら両方。拡張なら `npm run typecheck` も。GitHub に出した PR があれば、その CI（`python`・`extension`）が緑であることも見る（下の「6. CI」）。
 3. `git status` で、自分の変更だけがあることを確かめる（ほかの作業のファイルが無いか）。
 4. `git add` してから `git diff --cached` を読み、[principles.md](principles.md) の「7. 公開する前提で書く」のものが入っていないかを見る。
 5. **1つの機能を1つのコミット**にする。文の形は既存に合わせる：
    - `feat(pipe-in): …`・`feat(pipe-in-vscode): …`・`fix(…): …`・`docs: …`・`chore: …`
    - 1行目は日本語で、何ができるようになるか。本文に、変えた点を箇条書きで。決定の記録があれば、その番号を書く
-6. main に入れる。**main に入れる直前**にもう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。そのうえで、main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ。マージのコミットは作らない）。
+6. main に入れる。**main に入れる直前**にもう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。PR を出してあれば、載せ直したあとの CI が緑かを見る。PR を出さずに入れるなら、手元で Python と拡張の全テストを流した結果を見る。そのうえで、main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ。マージのコミットは作らない）。
    - main の作業フォルダに、ほかの会話のまだコミットしていない変更があり、それが自分のブランチの変更と同じファイルなら、git が断ります。そのときは、**ほかの会話の作業を stash しない**（その会話の作業を壊すおそれがある）。自分のブランチ側からそのファイルの変更を外すか、その会話がコミットするのを待ってから載せ直します。
 7. コミット・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない（`git commit`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある。公式の文書では、個人の許可があっても確認が出る。実機では確かめていない）。
+
+## 6. CI：main に入る前の確認
+
+`.github/workflows/ci.yml` が、main 向けの PR と main への push で、`CLAUDE.md` の「コマンド」と同じテスト・型検査・ビルドを流す。ジョブは2つで、並べて動く。
+
+| ジョブ名 | 流すもの |
+| --- | --- |
+| `python` | `pip install -e '.[dev]'` → `pytest -q`（Python 3.11） |
+| `extension` | `vscode/` で `npm ci` → `npm test` → `npm run typecheck` → `npm run build`（Node 22） |
+
+- OS は `ubuntu-24.04`。Windows は対象外で、通るかは確かめていない。`npm run preview` は Playwright が要るので流さない。
+- 権限は `contents: read` だけ。`pull_request_target` を使わず、秘密（API キーなど）も使わず、SDK も呼ばないので、利用料はかからない。外からの PR でも同じ権限で動く。
+- 使うアクションは `actions/checkout`・`actions/setup-python`・`actions/setup-node` だけで、40桁のコミットの SHA で固定し、後ろに版のコメントを付ける。更新は Dependabot（`github-actions`）が PR で出す。
+- ジョブ名（`python`・`extension`）は、ブランチの保護の「必須のチェック」に出る名前になる。変えると保護が外れるので、変えたら保護の設定も直す。
+- 落ちたときは、PR の Checks で `python` か `extension` を開き、落ちた手順のログを見る。手元で同じものを流して直す（コマンドは `CLAUDE.md` の「コマンド」と同じ）。
+- `python` の Python と `extension` の Node の版は、`pyproject.toml` の `requires-python` と `vscode/package.json` の `engines.node` の下限に合わせる。下限を変えたら CI の版も直す（`tests/test_ci_workflow.py` が食い違いを見つける）。
+
+### ブランチの保護（人が GitHub の設定でする）
+
+初めての CI の実行が緑になってから行う。画面の名前は GitHub の更新で変わりうる。
+
+1. Settings → Rules（または Branches）で、main を対象に「Require status checks to pass」を有効にし、必須のチェックに `python` と `extension` を選ぶ。
+2. 「Require a pull request before merging」を選ぶかを決める。
+   - 選ぶ場合：main に入れるのは PR 経由になる。今の「手元で `git merge --ff-only`」の運用はやめ、PR の CI が緑になってから GitHub で入れる。
+   - 選ばない場合：手元での `git merge --ff-only` を続ける。入れる前の確認は、上の「5. 終える」の6のとおり、PR があればその CI、無ければ手元の全テストで補う。保護は PR を出したときの目安にとどまる。
+
+### 外からの PR の承認
+
+Settings → Actions → General の「Fork pull request workflows」で、初めて投稿する外部の人の PR は、承認してから CI が動くようにする。承認の前に、PR が `.github/` やテストを書き換えていないかを読む。

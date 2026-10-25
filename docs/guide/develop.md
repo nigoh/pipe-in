@@ -22,6 +22,19 @@ pip install -e '.[dev]' && pytest
 
 直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](../development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](../decisions/) にあります。README とガイドの画像の撮り直し方は [docs/assets/README.md](../assets/README.md) にあります。
 
+## CI（GitHub Actions）
+
+main 向けの PR と main への push で、`.github/workflows/ci.yml` が自動でテストを流します。`python` ジョブ（Python 3.11）は `pip install -e '.[dev]'` のあと `pytest -q`、`extension` ジョブ（Node 22）は `vscode/` で `npm ci`・`npm test`・`npm run typecheck`・`npm run build` を順に流します。権限は `contents: read` だけで、秘密（API キーなど）は使わず、SDK も呼ばないので利用料はかかりません。
+
+手元で同じものを流すには：
+
+```bash
+pip install -e '.[dev]' && pytest -q
+cd vscode && npm ci && npm test && npm run typecheck && npm run build
+```
+
+落ちたときは、PR の Checks で `python` か `extension` を開き、落ちた手順のログを見て、手元で同じものを流して直します。ブランチの保護の設定など、くわしくは [docs/development/workflow.md](../development/workflow.md) の「6. CI」にあります。
+
 ## Claude Code で開発するとき
 
 何かを直した・足したら、文書もそろえます。`/pipe-docs [要点か範囲]` が、変えたファイルを集めて文書係のサブエージェント `pipe-in-documenter` に README.md・`docs/guide/`・`docs/development/` などを直させます（CLAUDE.md・`/pipe-help`・決定の記録は案を見せ、承認したものだけを直します）。コードを変えたのに文書が変わっていないまま止まろうとすると、一度だけ知らせが出ます。くわしくは [docs/development/workflow.md](../development/workflow.md) の「4. そろえる」にあります。
