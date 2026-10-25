@@ -33,6 +33,7 @@ import {
   readShowcaseView,
   staleRunsPageHtml,
   startOfLiveness,
+  toolsPageHtml,
   withTheme,
 } from './previewPages.ts';
 import type { Theme } from './previewPages.ts';
@@ -156,7 +157,7 @@ for (const [page, model, theme] of PAGES) {
 // 「実行を見る」パネルのページ：画面用の見本の記録（tests/fixtures/showcase/）を、拡張の本物の読み取りと renderPanelHtml で HTML にしたもの。
 // 動いている・確認待ちの見本（D0017）は、始まりの時刻から決まった秒数が経った時点を「今」にして組み立てる。
 // 動いている見本のページには、次の見本（差し戻しの回数が増えたもの）を render で送る補助 window.__previewNext() も入れる。
-// どのページも、止まっているかも（D0021）の目安 STALE_AFTER_SEC で組み立てる（動いている・確認待ち・一覧・成果物のページは、印が出ないことを見る）。
+// どのページも、止まっているかも（D0021）の目安 STALE_AFTER_SEC で組み立てる（動いている・確認待ち・一覧・成果物・エージェント・スキルのページは、印が出ないことを見る）。
 for (const dir of [SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR]) {
   if (!existsSync(path.join(dir, 'state.json'))) {
     throw new Error(`見本の記録 ${path.basename(dir)}/ がありません。python tests/showcase.py で作ってください`);
@@ -213,6 +214,11 @@ for (const [page, theme] of PANEL_PAGES) {
   // 「成果物」タブの見本（D0025）：長い Markdown・上限を超える日本語・外から来た文字・名前が極端なパイプの 2 つの実行。木は一時フォルダの中だけに作る
   if (kind === 'artifacts') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('artifacts', (dest) => artifactsPageHtml(dest, theme)), 'utf8');
+    continue;
+  }
+  // 「エージェント・スキル」タブの見本（D0047）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
+  if (kind === 'tools') {
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('tools', (dest) => toolsPageHtml(dest, theme)), 'utf8');
     continue;
   }
   writeFileSync(path.join(OUT, `${page}.html`), panelPreviewHtml(views[kind], theme, kind === 'running' ? runningNext : undefined, STALE_AFTER_SEC), 'utf8');

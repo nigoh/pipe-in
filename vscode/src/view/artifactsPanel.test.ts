@@ -14,6 +14,7 @@ import { FakeDocument } from '../test/fakeDom.ts';
 import type { FakeNode } from '../test/fakeDom.ts';
 import { snapshot } from '../test/fixtures.ts';
 import { finishedView, runningView, waitingView } from '../test/liveFixtures.ts';
+import { panelsByName } from '../test/panelParts.ts';
 import { showcaseView } from '../test/reasonFixtures.ts';
 import { listView, sampleRows } from '../test/runListFixtures.ts';
 import { escapeHtml } from './escape.ts';
@@ -91,12 +92,8 @@ const shownNames = (doc: FakeDocument): string[] =>
     .filter((p) => !p.hasAttribute('hidden'))
     .map((p) => p.getAttribute('data-art-preview')!);
 const count = (text: string, re: RegExp): number => (text.match(re) ?? []).length;
-/** 詳細の 3 つのタブパネル（tabpanel の開きタグの後ろから、次のパネルの手前まで）。shellHtml.test.ts の panelsOf と同じ */
-function panelsOf(out: string): string[] {
-  const parts = out.split(/<[a-z]+\b[^>]*role="tabpanel"[^>]*>/);
-  assert.equal(parts.length, 4, 'role="tabpanel" が 3 つ');
-  return parts.slice(1);
-}
+// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0047 で test/panelParts.ts へ移した（関数の中身は変えていない）。
+// 番号でなく名前で取るので、タブが 4 つになっても位置に左右されない。個数は決め打ちしない。
 
 // ---- タグだけを取り出して属性名を調べる（AC-32・AC-38：成果物の文字（text ノード）は調べない） ----
 
@@ -636,7 +633,7 @@ test('D0025-AC-69: キーボードの焦点：.art-row:focus-visible と .art-bo
 // ---- AC-70：成果物のタブに図・出力・時系列・理由は入らない ----
 
 test('D0025-AC-70: 「成果物」のタブパネルに、図（.flow）・出力（.terminal）・時系列（gantt-svg）・理由（data-reasons）は入らない（図と出力のタブにだけある）', () => {
-  const [diagram, artifacts, usage] = panelsOf(renderViewBody(viewWith(dev(), showcaseView()), listView(sampleRows())));
+  const { diagram, artifacts, usage } = panelsByName(renderViewBody(viewWith(dev(), showcaseView()), listView(sampleRows())));
   for (const p of [artifacts!, usage!]) assert.doesNotMatch(p, /class="flow"|class="terminal"|gantt-svg|data-reasons/);
   assert.match(diagram!, /class="flow"/, '見本の図は「図と出力」にある（検査が空振りでない）');
   assert.match(diagram!, /data-reasons/);
@@ -646,7 +643,7 @@ test('D0025-AC-70: 「成果物」のタブパネルに、図（.flow）・出�
 test('D0025-AC-70: 見えるのは選んだタブだけ（成果物のタブパネルは、初めは hidden）。「成果物を開く」ボタンは今までどおり data-open-artifacts で、成果物の一覧の行は data-artifact を持たない', () => {
   const out = renderViewBody(viewWith(dev()), undefined);
   const tags = [...out.matchAll(/<[a-z]+\b[^>]*role="tabpanel"[^>]*>/g)].map((m) => m[0]);
-  assert.deepEqual(tags.map((t) => /\bhidden\b/.test(t)), [false, true, true]);
+  assert.deepEqual(tags.map((t) => /\bhidden\b/.test(t)), [false, true, true, true]);
   assert.match(out, /<button\b[^>]*data-open-artifacts[^>]*>[\s\S]*?成果物を開く[\s\S]*?<\/button>/);
   const doc = parse(out);
   const rows = doc.querySelectorAll('.art-row');

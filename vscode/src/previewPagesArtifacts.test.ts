@@ -11,12 +11,10 @@
 // 「今のまま通る。守る」と書いたテストは、今の作りで通り、実装のあとも通り続けることを見張る。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile, readdir, stat, mkdir, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 import { HERE, makeRunKey } from './domain/runs.ts';
 import type { ViewClock } from './domain/pipelineView.ts';
 import {
@@ -42,6 +40,25 @@ import {
   startOfLiveness,
 } from '../scripts/previewPages.ts';
 import type { Theme } from '../scripts/previewPages.ts';
+// ページの文字を読む補助（fingerprint・between・panelsOf・runStub など）は、D0047 で test/previewText.ts へ移した（関数の中身は変えていない）
+import {
+  bodiesOf,
+  between,
+  dangerousAttributes,
+  definedVars,
+  fingerprint,
+  pageBodies,
+  panelsOf,
+  plain,
+  pressedRuns,
+  previewNextBody,
+  rootBody,
+  runStub,
+  sha256,
+  stubOf,
+  unescapeText,
+  usedVars,
+} from './test/previewText.ts';
 import { callArgs, withoutComments } from './test/sourceText.ts';
 import { withTempDir } from './test/tempDir.ts';
 import { renderViewBody } from './view/panelHtml.ts';
@@ -78,124 +95,12 @@ async function previewNow(): Promise<ViewClock> {
   return previewClock(since, WAITING_SEC);
 }
 
-// ---- 指紋（見本の記録が変わっていないかを見る） ----
+// ---- 指紋（見本の記録が変わっていないかを見る。fingerprint は test/previewText.ts） ----
 
-/** dir の下のファイルごとの「相対パス・大きさ・更新時刻・中身の指紋」。順番は名前順。 */
-async function fingerprint(dir: string): Promise<string[]> {
-  const out: string[] = [];
-  const walk = async (d: string): Promise<void> => {
-    const entries = (await readdir(d, { withFileTypes: true })).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    for (const ent of entries) {
-      const full = path.join(d, ent.name);
-      if (ent.isDirectory()) {
-        await walk(full);
-        continue;
-      }
-      const info = await stat(full);
-      const sum = createHash('sha1').update(await readFile(full)).digest('hex');
-      out.push(`${path.relative(dir, full).split(path.sep).join('/')}|${info.size}|${info.mtimeMs}|${sum}`);
-    }
-  };
-  await walk(dir);
-  return out;
-}
 const FIXTURE_DIRS = [SHOWCASE_DIR, RUNNING_DIR, RUNNING_NEXT_DIR, WAITING_DIR];
 const fixturePrints = async (): Promise<string[][]> => Promise.all(FIXTURE_DIRS.map(fingerprint));
 
-// ---- ページの文字の読み方 ----
-
-function between(text: string, from: string, to: string): string {
-  const start = text.indexOf(from);
-  if (start < 0) return '';
-  const end = text.indexOf(to, start + from.length);
-  return text.slice(start, end < 0 ? undefined : end);
-}
-
-function unescapeText(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
-}
-
-/** text の start から始まる JSON のオブジェクトを、波かっこの釣り合いで切り出して読む（文字列の中の波かっこと \ は数えない）。 */
-function jsonObjectAt(text: string, start: number): Record<string, string> {
-  let depth = 0;
-  let inString = false;
-  for (let i = start; i < text.length; i++) {
-    const c = text[i];
-    if (inString) {
-      if (c === '\\') i += 1;
-      else if (c === '"') inString = false;
-      continue;
-    }
-    if (c === '"') inString = true;
-    else if (c === '{') depth += 1;
-    else if (c === '}') {
-      depth -= 1;
-      if (depth === 0) return JSON.parse(text.slice(start, i + 1)) as Record<string, string>;
-    }
-  }
-  throw new Error('BODIES の JSON が閉じていない');
-}
-
-/** 実行の一覧のページに埋めた、行の key ごとの本体（BODIES）。 */
-function bodiesOf(html: string): Record<string, string> {
-  const at = html.indexOf('const BODIES=');
-  assert.ok(at >= 0, 'BODIES がある');
-  return jsonObjectAt(html, at + 'const BODIES='.length);
-}
-
-/** `window.__previewNext=…html:"…"` に埋めた本体を、JSON として読み戻す。 */
-function previewNextBody(html: string): string {
-  const at = html.indexOf('window.__previewNext=');
-  assert.ok(at >= 0, 'window.__previewNext がある');
-  const m = /html:("(?:[^"\\]|\\.)*")/.exec(html.slice(at));
-  assert.ok(m !== null, '__previewNext に本体の文字が埋まっている');
-  return JSON.parse(m[1]!) as string;
-}
-
-/** ページの <div class="root"> の中（初めの本体）。 */
-function rootBody(html: string): string {
-  const head = '<div class="root">';
-  const start = html.indexOf(head);
-  assert.ok(start >= 0, '<div class="root"> がある');
-  const end = html.indexOf('</div>\n<script nonce="preview">', start);
-  assert.ok(end > start, '本体のあとにパネルのスクリプトがある');
-  return html.slice(start + head.length, end);
-}
-
-/** ページに入っている本体すべて：行ごとの本体（BODIES があるページ）か初めの本体、と、次の本体（__previewNext があるページ）。 */
-function pageBodies(html: string): string[] {
-  const bodies = html.includes('const BODIES=') ? Object.values(bodiesOf(html)) : [rootBody(html)];
-  if (html.includes('window.__previewNext=')) bodies.push(previewNextBody(html));
-  return bodies;
-}
-
-/** 本体の文字の、「図と出力」と「使用量」のパネルをつないだもの（「成果物」のパネルは含めない。AC-75）。 */
-function panelsOf(text: string): string {
-  const diagram = text.indexOf('<div class="tabpanel" role="tabpanel" data-detail-panel="diagram"');
-  assert.ok(diagram >= 0, '「図と出力」のパネルがある');
-  const artifactsAt = text.indexOf('data-detail-panel="artifacts"', diagram);
-  assert.ok(artifactsAt >= 0, '「成果物」のパネルがある');
-  const artifacts = text.lastIndexOf('<div class="tabpanel"', artifactsAt);
-  assert.ok(artifacts > diagram, '「成果物」のパネルは「図と出力」のあと');
-  const usage = text.indexOf('<div class="tabpanel" role="tabpanel" data-detail-panel="usage"', artifacts);
-  assert.ok(usage > artifacts, '「使用量」のパネルがある');
-  const end = text.indexOf('</main>', usage);
-  assert.ok(end > usage, '「使用量」のパネルのあとに </main> がある');
-  return text.slice(diagram, artifacts) + text.slice(usage, end);
-}
-
-const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
-
-/** 実行の一覧で aria-pressed="true" の行の data-run（見ている行）。 */
-function pressedRuns(html: string): string[] {
-  return [...html.matchAll(/<button\b[^>]*\sdata-run="([^"]*)"[^>]*\saria-pressed="true"/g)].map((m) => m[1]!);
-}
+// ---- ページの文字の読み方（between・bodiesOf・panelsOf など多くは test/previewText.ts） ----
 
 /** 本体の文字にある data-quiet="…" の値（同じ値は 1 つにまとめる）。 */
 function quietSet(html: string): string[] {
@@ -252,26 +157,6 @@ const previewOf = (body: string, name: string): Preview => {
 };
 
 const STAMP = /\d{2}\/\d{2} \d{2}:\d{2}/;
-
-/** HTML からスクリプトとスタイルの中身を除き、タグだけを取り出して、属性の名前（小文字）を並べる。属性の値の中の文字は見ない。 */
-function tagAttributeNames(html: string): string[] {
-  const markup = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '');
-  const names: string[] = [];
-  for (const tag of markup.matchAll(/<[a-zA-Z][^>]*>/g)) {
-    const bare = tag[0].replace(/="[^"]*"/g, '=""');
-    for (const attr of bare.matchAll(/\s([^\s=/>"']+)/g)) names.push(attr[1]!.toLowerCase());
-  }
-  return names;
-}
-/** 実行される・読み込まれる道になる属性（style・on…・src・href）。 */
-const dangerousAttributes = (html: string): string[] => tagAttributeNames(html).filter((n) => n === 'style' || n === 'src' || n === 'href' || n.startsWith('on'));
-
-function usedVars(html: string): string[] {
-  return [...new Set([...html.matchAll(/var\(\s*(--vscode-[\w-]+)/g)].map((m) => m[1]!))].sort();
-}
-function definedVars(css: string): Set<string> {
-  return new Set([...css.matchAll(/(--vscode-[\w-]+)\s*:/g)].map((m) => m[1]!));
-}
 
 // ---- 更新時刻の読み方 ----
 
@@ -371,8 +256,10 @@ test('D0025-AC-73: PANEL_PAGES の先頭 12 件は今のまま（名前・順・
   assert.deepEqual(PANEL_PAGES.slice(0, 12).map(([name, theme]) => [name, theme]), EXISTING_PAGES.map(([name, theme]) => [name, theme]));
 });
 
+// D0047-AC-29：エージェント・スキルのタブの確認用ページが 2 件足されるので、成果物の 2 件は 13・14 件目（slice(12, 14)）として見る。
+// 14 件目より後ろが tools の 2 件だけであることは previewPagesTools.test.ts（D0047-AC-46）が見る。
 test('D0025-AC-73: PANEL_PAGES は先頭 12 件のあとに run-panel-artifacts-light（明るい）・run-panel-artifacts-dark（暗い）の 2 件だけが足される', () => {
-  assert.deepEqual(PANEL_PAGES.slice(12).map(([name, theme]) => [name, theme]), [
+  assert.deepEqual(PANEL_PAGES.slice(12, 14).map(([name, theme]) => [name, theme]), [
     ['run-panel-artifacts-light', 'light'],
     ['run-panel-artifacts-dark', 'dark'],
   ]);
@@ -637,25 +524,7 @@ test('D0025-AC-73: 明るいページと暗いページは、テーマの色の 
 
 // ---- recordPosted（window.__posted） ----
 
-/** ページの <body> 直後の置き換えのスクリプト（acquireVsCodeApi）の文字。 */
-function stubOf(html: string): string {
-  const m = /<body>\s*<script nonce="preview">([\s\S]*?)<\/script>/.exec(html);
-  assert.ok(m !== null, '<body> の直後に置き換えのスクリプトがある');
-  return m[1]!;
-}
-interface StubWindow {
-  postMessage(message: unknown): void;
-  acquireVsCodeApi(): { postMessage(message: unknown): void };
-  __posted?: unknown;
-}
-/** 置き換えのスクリプトを偽の window の上で動かす。window.postMessage で届いたものは sent に貯める。 */
-function runStub(html: string): { win: StubWindow; sent: any[] } {
-  const sent: any[] = [];
-  const win = { postMessage: (message: unknown) => void sent.push(message) } as StubWindow;
-  vm.runInNewContext(stubOf(html), { window: win });
-  return { win, sent };
-}
-const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+// （stubOf・runStub・plain は test/previewText.ts）
 
 test('D0025-AC-73: panelRunsPreviewHtml に recordPosted: true を渡すと、置き換えの acquireVsCodeApi が送られたメッセージの type を window.__posted に貯める。selectRun への返信（render）は今のまま', async () => {
   const pages = await loadPages();

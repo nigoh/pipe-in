@@ -42,8 +42,9 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | `run-panel-stale-light.html`・`run-panel-stale-dark.html`（`run-panel-stale-*`） | 止まっているかもしれない実行の印（D0021）。動いている実行の最後の更新が、目安の10分を12秒過ぎた見本 | 撮らない |
 | `run-panel-stale-soon-dark.html` | 目安の5秒手前の見本。数秒待つと印が出て、`window.__previewNext()` で更新後の本体を送ると消える | 撮らない |
 | `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html`（`run-panel-artifacts-*`） | 成果物のタブ（D0025）。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。成果物の一覧・プレビュー・選び・描き直しのあとの動きと内容を見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
+| `run-panel-tools-light.html`・`run-panel-tools-dark.html`（`run-panel-tools-*`） | エージェント・スキルのタブ（D0047）。実行の一覧つきで、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`window.__previewNext()` で動いている実行が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。表・案内・空の文・描き直しのあとの動きを見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 
-見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が作ります。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
+見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が、エージェント・スキルのタブの見本の記録（ログと `state.json`）は `vscode/scripts/toolsSamples.ts` が作ります。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
 
 ## 撮り直す
 
@@ -53,9 +54,9 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
    python tests/showcase.py
    ```
 
-2. 確認用のページを作る。`vscode/out/preview/` に、上の「確認用のページの一覧」の表のページができます。どれを画像に撮るかも、その表のいちばん右の列にあります（動き・印・成果物のタブを見るためのページは、動きが静止画に写らないので、画像には撮りません）。
+2. 確認用のページを作る。`vscode/out/preview/` に、上の「確認用のページの一覧」の表のページができます。どれを画像に撮るかも、その表のいちばん右の列にあります（動き・印・成果物のタブ・エージェント・スキルのタブを見るためのページは、動きが静止画に写らないか、内容を見るためのものなので、画像には撮りません）。
 
-   ページの作り方（コードは `vscode/scripts/preview.ts` と `previewPages.ts`）：動いている・確認待ちのページ（`run-panel-running-*`・`run-panel-waiting-*`）と、実行の一覧・更新なし・成果物のタブのページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。写した成果物（`*.md` と、成果物の見本の `.txt`）の更新時刻も、見本の「今」から決めた固定の値にそろえます（`setArtifactTimes`。成果物の一覧の時刻の欄が、ビルドのたびに変わらないようにするためです）。成果物の見本の木も一時フォルダに作り、読み終えたら消します。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
+   ページの作り方（コードは `vscode/scripts/preview.ts` と `previewPages.ts`）：エージェント・スキルのタブのページ（`run-panel-tools-*`）は、見本の記録を一時フォルダの中に生成して作ります（`tests/fixtures/` には何も足さず、読み終えたら消します）。動いている・確認待ちのページ（`run-panel-running-*`・`run-panel-waiting-*`）と、実行の一覧・更新なし・成果物のタブのページは、素材の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」にそろえてから読みます（`vscode/scripts/previewPages.ts` の `readLiveViewAligned`・`copySample`・`setLogTimes`。`tests/fixtures/` の見本は書き換えません）。写した成果物（`*.md` と、成果物の見本の `.txt`）の更新時刻も、見本の「今」から決めた固定の値にそろえます（`setArtifactTimes`。成果物の一覧の時刻の欄が、ビルドのたびに変わらないようにするためです）。成果物の見本の木も一時フォルダに作り、読み終えたら消します。そろえないと更新時刻がチェックアウトした時刻しだいで変わるので、そろえてあるこれらのページには、いつ作っても印が出ません（出るのは `run-panel-stale-*` だけです）。
 
    実行の一覧のページ（`run-panel-runs-*` と、archive を省く一覧の `run-panel-runs-omitted-*`）は、上の4つの見本の記録から、一時フォルダの中に「主の checkout＋2つの別の worktree＋`archive/`」の木を組み立て、拡張の本物の読み取りで読んで作ります（`vscode/scripts/previewPages.ts`。`tests/fixtures/` には何も足さず、一時フォルダは作ったあとで消します）。木に写すとき、写しごとに セッション名（`name`）・セッション ID・段の受け持ち（`agent`）を足し、時刻（`started_at`・`updated_at`・`since`・段のログの `at`）をまとめて動かして、動いている実行は「今」の少し前に始まり、終わった実行は数時間〜数日前になるようにします（時系列の帯が見えるようにするため）。行を押すと右の詳細（図・出力・時系列）が切り替わるので、ブラウザで選び方・絞り込み・タブ・待ち時間の増え方を確かめられます。ここから `run-list-light.png`・`run-list-dark.png`・`run-list.gif` を撮ります（撮り方は下の手順5）。
 

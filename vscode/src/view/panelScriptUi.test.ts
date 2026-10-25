@@ -62,12 +62,12 @@ const selectedDetailTabs = (h: PanelHarness): string[] =>
     .querySelectorAll('button[data-detail-tab]')
     .filter((b) => b.getAttribute('aria-selected') === 'true')
     .map((b) => b.getAttribute('data-detail-tab')!);
-/** 見えているタブパネルの番号（0 図と出力・1 成果物・2 使用量） */
-const shownPanels = (h: PanelHarness): number[] =>
+/** 見えているタブパネルの data-detail-panel の値（diagram 図と出力・artifacts 成果物・tools エージェント・スキル・usage 使用量）。D0047：番号でなく名前で取る */
+const shownPanels = (h: PanelHarness): string[] =>
   h.doc
     .querySelectorAll('[role="tabpanel"]')
-    .map((p, i) => (p.closest('[hidden]') === null ? i : -1))
-    .filter((i) => i >= 0);
+    .filter((p) => p.closest('[hidden]') === null)
+    .map((p) => p.getAttribute('data-detail-panel') ?? '');
 const type = (h: PanelHarness, text: string): void => h.typeText(filterInput(h), text);
 
 test('D0019-AC-65: パネルのスクリプトは view/panelScript.ts の PANEL_SCRIPT で、HTML の <script nonce> にそのまま入る。外部の読み込みをしない', async () => {
@@ -202,20 +202,20 @@ test('D0019-AC-59: 該当する行が無いタブ（その状態の run が無�
 test('D0019-AC-62: 詳細のタブは初め「図と出力」が選ばれ、そのパネルだけが見える', () => {
   const h = boot();
   assert.deepEqual(selectedDetailTabs(h), ['diagram']);
-  assert.deepEqual(shownPanels(h), [0]);
+  assert.deepEqual(shownPanels(h), ['diagram']);
 });
 
 test('D0019-AC-62: 「成果物」「使用量」のタブを押すと、そのパネルだけが見える。「図と出力」に戻せる', () => {
   const h = boot();
   detailTab(h, 'artifacts').dispatch('click');
   assert.deepEqual(selectedDetailTabs(h), ['artifacts']);
-  assert.deepEqual(shownPanels(h), [1]);
+  assert.deepEqual(shownPanels(h), ['artifacts']);
   detailTab(h, 'usage').dispatch('click');
   assert.deepEqual(selectedDetailTabs(h), ['usage']);
-  assert.deepEqual(shownPanels(h), [2]);
+  assert.deepEqual(shownPanels(h), ['usage']);
   detailTab(h, 'diagram').dispatch('click');
   assert.deepEqual(selectedDetailTabs(h), ['diagram']);
-  assert.deepEqual(shownPanels(h), [0]);
+  assert.deepEqual(shownPanels(h), ['diagram']);
 });
 
 test('D0019-AC-62: 「成果物を開く」ボタンは「成果物」のタブを選ぶ（メッセージは送らない）', () => {
@@ -224,7 +224,7 @@ test('D0019-AC-62: 「成果物を開く」ボタンは「成果物」のタブ�
   assert.ok(open, '「成果物を開く」ボタンがある');
   open.dispatch('click');
   assert.deepEqual(selectedDetailTabs(h), ['artifacts']);
-  assert.deepEqual(shownPanels(h), [1]);
+  assert.deepEqual(shownPanels(h), ['artifacts']);
   assert.deepEqual(h.posted, [{ type: 'ready' }]);
 });
 
@@ -273,7 +273,7 @@ test('D0019-AC-65: 描き直しをまたいで、状態のタブの選びと、�
   assert.deepEqual(selectedListTabs(h), ['done']);
   assert.deepEqual(visibleKeys(h), ['here|survey', 'here|review', 'here|archive/20261016-090000']);
   assert.deepEqual(selectedDetailTabs(h), ['usage']);
-  assert.deepEqual(shownPanels(h), [2]);
+  assert.deepEqual(shownPanels(h), ['usage']);
 });
 
 test('D0019-AC-65: 選んだ run を替える描き直しでも、絞り込み・状態のタブ・詳細のタブ・理由の欄の選びは残る', () => {

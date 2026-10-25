@@ -88,7 +88,7 @@ pipe-in --project ~/src/myapp --review quit                                     
 pipe-in record start --text "要件メモ"            # 00_input.md と空の記録（途中の記録があれば断る。終わった記録は archive/ へ）
                                                   #   --name "…"（セッション名）・--session-id <ID> も付けられる
 pipe-in record begin requirements                 # 段を始める（拡張に「動いている」と出る）
-                                                  #   --agent <名前> を付けると、時系列の行に受け持ちが出る
+                                                  #   --agent <名前> を付けると、時系列の行とエージェント・スキルの表に受け持ちが出る
 pipe-in record done requirements --summary "…"    # 段を閉じる
 pipe-in record wait requirements                  # 確認待ち
 pipe-in record review requirements approved       # revise --feedback "…" / quit
@@ -100,7 +100,7 @@ pipe-in record finish PASSED                      # 記録を閉じる
 
 </details>
 
-- 記録には `"driver": "pipe-dev"` が入ります。`pipe-in --review` は、`driver` の入った記録（前の版の記録も）の続きを流しません。
+- 記録には `"driver": "pipe-dev"` が入ります。`pipe-in --review` は、`driver` の入った記録（前の版の記録も）の続きを流しません。VSCode のエージェント・スキルの表は、この `driver` で `/pipe-in` の記録を見分けます（呼び出しが記録に残らないことの案内が出ます）。
 
 ## 進み具合を Claude のアーティファクトで見る（`pipe-in live`）
 

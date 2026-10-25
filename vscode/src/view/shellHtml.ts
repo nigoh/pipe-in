@@ -4,7 +4,8 @@
 // 選んでいる run の行（一覧の rows のうち selected）があればそこから、無ければ図の状態（view）から詳細の上の部分を作る。
 // 選んだ行が動いていて段のログが目安の時間動かないとき（D0021）は、見出しに「⚠ 止まっているかも」のバッジ、メタの下に知らせを足す（どちらも行の quietSec から作る）。
 // 「成果物」のタブの中身（一覧＋プレビュー、D0025）は artifactsHtml.ts。その幅の規則は、ここの既存の 2 つの @media（1100px・800px）の中に書く。
-// 実際にスクロールする外側の枠（<main class="detail">・「成果物」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
+// 「エージェント・スキル」のタブの中身（使ったエージェント・スキル・道具の表、D0047）は toolsHtml.ts。タブが増えても切れないよう、.detail-tabs は折り返す（@media は足さない）。
+// 実際にスクロールする外側の枠（<main class="detail">・「成果物」と「エージェント・スキル」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
 import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import { stateWord } from '../domain/runList.ts';
@@ -27,6 +28,7 @@ import {
   staleTime,
 } from './staleMark.ts';
 import { renderTimes } from './timesHtml.ts';
+import { renderTools } from './toolsHtml.ts';
 import { renderUsage } from './usageHtml.ts';
 
 export const SHELL_STYLE = `
@@ -63,8 +65,8 @@ export const SHELL_STYLE = `
 .badge.stale-badge.is-stale { display: inline-flex; border-style: dashed; border-color: ${STALE_COLOR}; }
 .notice.stale-notice { display: none; border-style: dashed; border-color: ${STALE_COLOR}; background: transparent; }
 .notice.stale-notice.is-stale { display: flex; }
-.detail-tabs { flex: none; display: flex; gap: 4px; border-bottom: 1px solid var(--vscode-panel-border); }
-.detail-tabs button { min-height: 28px; padding: 8px 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vscode-descriptionForeground); font: inherit; cursor: pointer; }
+.detail-tabs { flex: none; display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--vscode-panel-border); }
+.detail-tabs button { min-height: 28px; padding: 8px 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vscode-descriptionForeground); font: inherit; white-space: nowrap; cursor: pointer; }
 .detail-tabs button[aria-selected="true"] { border-bottom-color: var(--vscode-focusBorder); color: var(--vscode-foreground); font-weight: 600; }
 .detail-tabs button:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: -2px; }
 .tabpanel { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
@@ -225,10 +227,11 @@ function renderHead(row: RunRow | null, stale: string): string {
 
 // ---- 詳細のタブとパネル ----
 
-// 詳細のタブ（図と出力・成果物・使用量）。
+// 詳細のタブ（図と出力・成果物・エージェント・スキル・使用量）。「エージェント・スキル」は D0047。
 const DETAIL_TABS: readonly [string, string][] = [
   ['diagram', '図と出力'],
   ['artifacts', '成果物'],
+  ['tools', 'エージェント・スキル'],
   ['usage', '使用量'],
 ];
 
@@ -315,6 +318,7 @@ export function renderShell(view: PipelineView, list: RunListView, staleAfterSec
     renderTabs() +
     panel('diagram', renderDiagramPanel(view, staleAfterSec)) +
     panel('artifacts', renderArtifacts(view), 'panel-artifacts') +
+    panel('tools', renderTools(view.tools ?? null), 'panel-tools') +
     panel('usage', renderUsage(view.usage)) +
     '</main></div></div>'
   );

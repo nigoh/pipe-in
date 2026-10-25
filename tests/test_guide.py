@@ -1699,7 +1699,7 @@ def test_D0025_AC_78_決定の記録の表にD0025の行がD0024とD0026の間�
 def test_D0025_AC_79_確認用ページの名前の頭がassetsのREADMEに出てくる_守る():
     """D0025-AC-79: vscode/scripts/previewPages.ts の PANEL_PAGES の各ページ名の頭（-light・-dark を除いたもの）が、docs/assets/README.md に出てくる
     （run-panel-artifacts のように、ページを足して README に書き忘れた食い違いに気づく）。出てくるとは、頭のあとに -light・-dark・-*・-<テーマ>・.html が続く形。
-    今の PANEL_PAGES（14 件。成果物のページ 2 件を含む）は通り、ページを足して README に書き忘れると落ちる。（今のまま通る。守る）"""
+    今の PANEL_PAGES（16 件。成果物のページ 2 件とエージェント・スキルのページ 2 件を含む）は通り、ページを足して README に書き忘れると落ちる。（今のまま通る。守る）"""
     heads = panel_page_heads(read_doc(PREVIEW_PAGES_TS))
     assert heads, "previewPages.ts から PANEL_PAGES のページ名が読めない"
     assert heads_missing(read_doc(ASSETS_README), heads) == []
