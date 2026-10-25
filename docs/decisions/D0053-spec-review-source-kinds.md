@@ -1,4 +1,4 @@
-# D0052 ひな形 spec-review の知識の段に、出典の台帳の kind に使える6つの値と振り分けを書く
+# D0053 ひな形 spec-review の知識の段に、出典の台帳の kind に使える6つの値と振り分けを書く
 
 ## 目的
 
@@ -9,18 +9,18 @@
 テストは `tests/test_template_spec_review.py`（下では `::` からの名前だけを書く）。
 
 - FR-01 `generator/templates/spec-review/prompts/02_knowledge.md` に節「## kind に使える値」を足し、`spec`・`customer`・`law`・`standard`・`public_spec`・`past_case` の6つを、意味を添えた箇条書きで並べる。`spec` は `SRC-001` の1件だけに使う。
-  - D0052-AC-01 6つの値が全部、一覧に入っている（`::test_d0051_ac01_prompt_lists_all_six_kinds`）
+  - D0053-AC-01 6つの値が全部、一覧に入っている（`::test_d0051_ac01_prompt_lists_all_six_kinds`）
 - FR-02 振り分けを書く：法令は `law`、ガイドライン・標準・政府の計画・業界団体の指針は `standard`、公開の仕様書は `public_spec`、社内規程は `customer`、過去の議事録や事例は `past_case`。それでも迷うものは台帳に入れず `issues.md` の論点にとどめる。
-  - D0052-AC-02 振り分けの語と値の組が書かれている（`::test_d0051_ac02_prompt_has_routing_examples`）
+  - D0053-AC-02 振り分けの語と値の組が書かれている（`::test_d0051_ac02_prompt_has_routing_examples`）
 - FR-03 指示文の一覧は、`findings_check.py` の `SOURCE_KINDS` と Schema の enum と食い違わない。
-  - D0052-AC-03 一覧が `SOURCE_KINDS` と同じ集合で、`SOURCE_KINDS` に仮の値を足すと差が出る（`::test_d0051_ac03_listed_kinds_match_source_kinds` ほか）
-  - D0052-AC-04 一覧・`SOURCE_KINDS`・`sources.schema.json` の enum の3つが同じ（`::test_d0051_ac04_listed_kinds_match_schema_enum`）
+  - D0053-AC-03 一覧が `SOURCE_KINDS` と同じ集合で、`SOURCE_KINDS` に仮の値を足すと差が出る（`::test_d0051_ac03_listed_kinds_match_source_kinds` ほか）
+  - D0053-AC-04 一覧・`SOURCE_KINDS`・`sources.schema.json` の enum の3つが同じ（`::test_d0051_ac04_listed_kinds_match_schema_enum`）
 - FR-04 台帳の決まりに「`guideline`・`plan` のような値を作らない」を足す。
-  - D0052-AC-05 `guideline`・`plan` は使える値として一覧に入らない（`::test_d0051_ac05_guideline_and_plan_are_not_listed_values`）
+  - D0053-AC-05 `guideline`・`plan` は使える値として一覧に入らない（`::test_d0051_ac05_guideline_and_plan_are_not_listed_values`）
 - FR-05 ほかのファイルは変えない。すでに写したパイプは書き換えない。
-  - D0052-AC-06 ほかの指示文・README・`pipe.toml` に、この節も一覧も無い（`::test_d0051_ac06_other_prompts_and_files_unchanged`）
-  - D0052-AC-07 写したあとのパイプの指示文は書き換わらない。新しい指示文は新しく写すパイプから効く（`::test_d0051_ac07_copied_prompt_is_not_rewritten`）
-  - D0052-AC-08（手で）本物で `spec-review` を流し、台帳の `kind` が6つのどれかになり、知識の確認で差し戻さずに済む
+  - D0053-AC-06 ほかの指示文・README・`pipe.toml` に、この節も一覧も無い（`::test_d0051_ac06_other_prompts_and_files_unchanged`）
+  - D0053-AC-07 写したあとのパイプの指示文は書き換わらない。新しい指示文は新しく写すパイプから効く（`::test_d0051_ac07_copied_prompt_is_not_rewritten`）
+  - D0053-AC-08（手で）本物で `spec-review` を流し、台帳の `kind` が6つのどれかになり、知識の確認で差し戻さずに済む
 
 ## 決めたことと理由
 

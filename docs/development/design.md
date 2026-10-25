@@ -33,6 +33,7 @@
 | 機能ごとの worktree を切る・main に入ったものを片付ける・main に載せ直す（pipe-in worktree new・clean・sync。D0048・D0049） | `pipe_in/dev/worktree.py` |
 | /pipe-in が打つ記録と worktree のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049） | `pipe_in/dev/skill_cmd.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
+| CI（main に入る前のテスト・型検査・ビルド。権限は contents: read だけで、秘密を使わない）と、その更新（Dependabot） | `.github/workflows/ci.yml`・`.github/dependabot.yml` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |

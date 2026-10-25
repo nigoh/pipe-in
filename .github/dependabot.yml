@@ -33,3 +33,17 @@ updates:
       # 拡張が動く VSCode の下限（engines.vscode）と揃えておく型なので、勝手に上げない
       - dependency-name: "@types/vscode"
         update-types: [version-update:semver-major, version-update:semver-minor]
+
+  # GitHub Actions のワークフロー（.github/workflows/）
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions-minor:
+        update-types: [minor, patch]
