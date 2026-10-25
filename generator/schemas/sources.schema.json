@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "仕様書レビューの出典の台帳（指摘の形 v1）",
-  "description": "他の道具に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まない。id の重なりと、spec の件の file と --spec の結びは、検査コード（generator/findings_check.py）が確かめる。",
+  "description": "他の道具に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まない。id の重なりと、spec の件の file と --spec の結びは、検査コード（generator/findings_check.py）が確かめる。文字列の欄で空白だけの値と、/ や \\ を含む file は、検査コードが落とす（Schema より厳しい）。",
   "type": "object",
   "required": ["v", "sources"],
   "additionalProperties": false,

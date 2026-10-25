@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "仕様書レビューの指摘のファイル（指摘の形 v1）",
-  "description": "他の道具（エディタ・他の言語）に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まず、決まりをコードに持つ（食い違わないことはテストが守る）。台帳との照らし合わせ・引用の一致・guess と sources の対・id の重なり・naive の出典は Schema では書けず、検査コード（generator/findings_check.py）が確かめる。",
+  "description": "他の道具（エディタ・他の言語）に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まず、決まりをコードに持つ（食い違わないことはテストが守る）。台帳との照らし合わせ・引用の一致・guess と sources の対・id の重なり・naive の出典は Schema では書けず、検査コード（generator/findings_check.py）が確かめる。文字列の欄で空白だけの値は、検査コードが「欄がありません」として落とす（Schema の minLength より厳しい）。",
   "type": "object",
   "required": ["v", "findings"],
   "additionalProperties": false,

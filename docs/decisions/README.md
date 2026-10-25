@@ -46,7 +46,7 @@
 | [D0040](D0040-live-watch-windows-pipe.md) | Windows でも、標準出力が閉じた `pipe-in live watch` が静かに終了コード 1 で止まる（標準出力の書き込みの `OSError` を errno を問わず受け、閉じたのか書けないのかで文を分ける。付け替えられないときは `sys.stdout` を外す） |
 | [D0041](D0041-agent-limits.md) | 監査・助言・審査のサブエージェントの定義に回数の上限（`maxTurns` 100・80・50）を付け、会話を開かずに流す監査・助言の呼び方に `--disallowedTools "mcp__*"` を足して MCP の道具も見せない（D0012 の呼び方の2行を置き換える） |
 | [D0042](D0042-pipe-plan-run.md) | 計画ボードのカードの「実行」から、確認を経て新しいセッションを作り `/pipe-in` を始める（ページが宣言する道具を `list_sessions` 1つから3つに。D0029 の「読むだけ」を置き換える） |
-| [D0043](D0043-finding-schema.md) | （案）仕様書レビューの指摘を決まった形（指摘の形 v1）で受け渡し、形・出典・引用の一致を `pipe-in-gen findings-check` で機械で検査する |
+| [D0043](D0043-finding-schema.md) | 仕様書レビューの指摘を決まった形（指摘の形 v1。Schema は `generator/schemas/`）で受け渡し、形・出典・引用の一致（NFKC と空白を除いて比べる）・役割ごとの決まりを `pipe-in-gen findings-check` で LLM を呼ばずに検査する（終了コード 0・1・2） |
 
 ## ひな形
 
