@@ -54,6 +54,7 @@
 | [D0048](D0048-worktree-auto.md) | worktree を自動で切って、main に入ったら自動で片付ける（pipe-in worktree new・clean） |
 | [D0049](D0049-skill-shell.md) | /pipe-in が打つシェルのコマンドを、確認なしで通る形にまとめる（pipe-in skill・worktree sync） |
 | [D0050](D0050-run-tools.md) | 実行の詳細に「エージェント・スキル」のタブを足し、選んだ実行で使ったエージェント・スキル・道具の名前・種類・回数・使った段を表で見られるようにする（拡張が段のログを数えるだけ。本体と記録の形は変えない） |
+| [D0051](D0051-spec-review-source-kinds.md) | ひな形 spec-review の知識の段に、出典の台帳の `kind` に使える6つの値と振り分けを書き、`SOURCE_KINDS`・Schema と食い違わないことをテストで守る（D0047 の実機で見つかった不具合の直し） |
 
 ## ひな形
 
