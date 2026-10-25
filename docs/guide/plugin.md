@@ -53,6 +53,51 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 - `final` の行で終わります。Monitor は1回の見張りが最長30分なので、`--timeout 1750` で見張り、`timeout` の行（または Monitor の期限）で止まったときは、実行が続いていれば起こし直します。行の形と終了コードは[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch)。
 - 書くのは一時フォルダのファイルと ArtifactData だけです。利用料はかかりません。
 
+## プラグインの eval
+
+プラグイン自身のスキルが、狙いどおりに動くかを確かめるケースを、`plugin/evals/` に置いてあります。Claude Code の `claude plugin eval` で流します。ケースは小さなテキストのファイルで、`pipe-build`・`pipe-eval`・`pipe-judge` のスキルごとに 3 本、全部で 9 本です。
+
+| ケース | スキル | 測ること | tags |
+| --- | --- | --- | --- |
+| `build-shows-table-first` | pipe-build | 書く前に段の表を見せて確認を待つ（書かない・流さない・任せない） | cheap・needs-bash・needs-pipe-in-gen |
+| `build-passes-check` | pipe-build | 確認済みの表を pipe-builder に任せ、`pipe.toml`・`README.md` を書き、`pipe-in-gen check` で検査する | agent・needs-bash・needs-write・needs-pipe-in-gen |
+| `build-refuses-judge-only` | pipe-build | 審査（judge）だけで自分に戻す検査を作らず、`command` と組む案内を返す | agent・needs-bash・needs-write・needs-pipe-in-gen |
+| `eval-lists-and-waits` | pipe-eval | 流す前に一覧を見せ、返事を待つ | cheap |
+| `eval-result-json` | pipe-eval | 流してよいと言われたら 2 つ流し、結果を JSON で返す | cheap・needs-bash |
+| `eval-stops-without-state` | pipe-eval | 記録（`state.json`）が無ければ流さずに、先にパイプを流すよう伝える | cheap |
+| `judge-calls-judge-score` | pipe-judge | 審査役を呼び、点の計算を `pipe-in-gen judge-score` にさせる | agent・needs-bash・needs-pipe-in-gen |
+| `judge-must-violation-fails` | pipe-judge | must に違反した報告を `fail` にし、根拠に違反の引用を書く | agent・needs-bash・needs-pipe-in-gen |
+| `judge-rejects-bad-runs` | pipe-judge | 範囲外の `--runs` を、審査役にも計算にも回さずに断る | cheap・needs-pipe-in-gen |
+
+各ケースの本文は `/pipe-in:<スキル名>` で始まります。見本のファイル（対象プロジェクトや記録）は、`scaffold.sh` が Claude の始まる前に空のワークスペースへその場で作ります（中から標準ライブラリだけの `scaffold.py` を呼びます）。`pipe-in-gen` が無い、または作業フォルダが空でないときは、何も書かずに止まります。採点（`graders/`）は、書かない・呼ばないといった道具の使い方と、返事の語を見るものがほとんどで、Claude に採点させる `llm` は 1 ケースだけです。
+
+### 流し方
+
+`claude plugin eval` は Claude を呼ぶので、**利用料がかかります。人に言われたときだけ流してください**（CI には入れません）。
+
+```
+claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write Edit \
+  --model sonnet --judge-model haiku --threshold 0.8 --runs 3 --ablation none \
+  --output-dir <plugin/ の外のフォルダ> --no-publish
+```
+
+- `--scaffold` が無いと見本が作られず、全ケースが空のワークスペースで動いて落ちます。必ず付けます。
+- `--ablation none` で、プラグインを入れた回だけを流します。付けないと、プラグイン無しで比べる回も同じ数だけ流れて、費用が倍になります。ケースは `/pipe-in:<スキル>` を呼ぶので、プラグイン無しの回と比べる意味はほとんどありません。
+- `--allow-tools Bash Write Edit` は全ケースに効きます。ケースの `allowed_tools` では `Bash`・`Write`・`Edit` を許せないので、ケース側は `tags` の `needs-bash`・`needs-write` で、何が要るかを示します。
+- `--case <ケース名>` で 1 本だけ、`--tag cheap` で審査役やサブエージェントを呼ばない安いケースだけ、`--tag agent` で高いケースだけ、`--tag needs-pipe-in-gen` で Claude が `pipe-in-gen` を使うケースだけを流せます。ただし見本を作る `scaffold.sh` は、9 本とも `pipe-in-gen` が PATH に無いと止まるので、どのタグで流すときも `pipe-in-gen` を入れておきます。
+- `--output-dir` は `plugin/` の外に向けます。既定の結果の置き場所はプラグインのフォルダの中で、`plugin/evals/results/` は `.gitignore` に入れてあります。
+- `--max-cost-usd` で費用の上限を付けます。値は、実機で 1 ケースの費用を測ってから決めます（まだ測っていません）。
+- `--trust-plugin` を付けるので、信頼できるプラグインだけに使います。プラグインのフックは、サンドボックスの外で動きます。
+
+### 前提と注意
+
+- Claude Code v2.1.269 以上、git 2.31 以上、Bash が要ります。Windows では WSL2 の中で流します（Windows そのままでは、Bash を許すケースはサンドボックスが無いので、1 回ずつ断られます）。Linux は bubblewrap と socat も要ります。
+- `eval-*` の 3 本は、流すコマンドに `python` を使います。`python` が無く `python3` だけの環境では落ちます。
+- `Bash` を許すと、OS のサンドボックスの中で動きます。サンドボックスの Bash は home の下を読めないので、home の下の venv に入れた `pipe-in-gen` は使えないおそれがあります。`pipe-in-gen` は home の外に入れるか、実機で確かめてください（`pip install -e .` で入ります）。
+- 結果は、`--output-dir` の先の `aggregate-result.json` と `report.html` に出ます。
+- `claude -p` で `/スキル名` が展開されることは公式の文書にありますが、`claude plugin eval` の中で `/pipe-in:<スキル>` の形が展開されるかは、まだ実機で確かめていません。`file_exists` の `path` の基準と、サブエージェントが書いたファイルや呼んだ道具が採点に数えられるかも、まだです。`scaffold.sh` には実行ビットを付けてあります。
+- ケースを足しても、プラグインの版は 0.5.0 のままで、スキル・エージェント・フックの動きは変わりません。`pytest` が見るのはケースのファイルの形だけで、`claude plugin eval` は流しません。
+
 ## 0.4.0 以前から更新するとき
 
 0.5.0 で `/pipe-in:pipe-build` が `references/stage-rules.md`（段の決め方と、検査と審査の組み方）を持ち、`command` と `judge` を組んだ段を作れるようになりました。0.4.0 以前を入れていた人は、`/plugin` で更新して入れ直してください（開いている会話に反映するには `/reload-plugins`）。0.4.0 までの版はこれまでどおり動きます。新しい SKILL.md は `references/` のファイルが無いと半端になるので、プラグインは丸ごと更新します。
