@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: build-shows-table-first
+context:
+  scaffold_script: scaffold.sh
