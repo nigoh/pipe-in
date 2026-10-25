@@ -20,6 +20,9 @@ export const SETTING_SHOW_OTHER = 'showOtherWorktrees';
 /** 「止まっているかも」の印を出す目安（分）の設定の名前（pipe-in.staleAfterMinutes）。この設定にも前の版（devpipe）の名前が無い */
 export const SETTING_STALE_AFTER = 'staleAfterMinutes';
 
+/** 新しく確認待ちになったときに知らせるかの設定の名前（pipe-in.notifyWhenWaiting）。この設定にも前の版（devpipe）の名前が無い（書いてあれば読む） */
+export const SETTING_NOTIFY = 'notifyWhenWaiting';
+
 export const VIEW_IDS = { status: 'pipe-in.status', run: 'pipe-in.run', pipeEditor: 'pipe-in.pipeEditor' } as const;
 
 /** 設定の各側の値（VSCode の inspect の結果のうち、使う所だけ） */

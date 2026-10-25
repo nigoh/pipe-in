@@ -79,7 +79,8 @@ test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設
   const keys = Object.keys(manifest.contributes?.configuration?.properties ?? {}).sort();
   // D0019: 別の worktree を出す設定（pipe-in.showOtherWorktrees）が増えた。期待の一覧に足しただけで、ほかは変えない
   // D0021: 止まっているかもしれない印の目安の設定（pipe-in.staleAfterMinutes）が増えた。同じく期待の一覧に足しただけ
-  assert.deepEqual(keys, ['pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir']);
+  // D0043: 確認待ちの知らせの設定（pipe-in.notifyWhenWaiting）が増えた。
+  assert.deepEqual(keys, ['pipe-in.notifyWhenWaiting', 'pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir']);
   assert.equal(manifest.contributes.configuration.properties['pipe-in.pipesDir'].default, '');
   assert.doesNotMatch(JSON.stringify(manifest.contributes), /devpipe/i);
   assert.doesNotMatch(JSON.stringify({ name: manifest.name, displayName: manifest.displayName, description: manifest.description }), /devpipe/i);
@@ -175,7 +176,7 @@ function listFiles(dir: string): string[] {
 }
 
 // ---- D0024：ステータスバーの件数 ----
-// 宣言は変えない（ボタンは pipe-in.showRun のまま・コマンドは 2 つ・設定の鍵は 4 つのまま）。
+// 宣言は変えない（ボタンは pipe-in.showRun のまま・コマンドは 2 つ・設定の鍵は D0043 で 5 つになった）。
 // 変えるのは設定 pipe-in.showOtherWorktrees の説明の文だけ（「ステータスバーの件数」と「パネルを閉じている間の読み直し」にも効く）。
 // 説明の言い方は「ステータスバー」にそろえた（利用者向けの文書と statusBar.test.ts に合わせる）。
 
@@ -196,10 +197,31 @@ test('D0024-AC-26: ステータスバーのボタンは pipe-in.showRun のま�
   assert.ok(ids.includes('pipe-in.showRun'), 'contributes.commands に pipe-in.showRun があること');
 });
 
-test('D0024-AC-26: コマンドは 2 つ、設定の鍵は 4 つのまま（件数の形を切る設定などを足さない）（今のまま通る。守る）', () => {
+test('D0024-AC-26（D0043 で 5 つに書き換え）: コマンドは 2 つ、設定の鍵は 5 つ（件数の形を切る設定などを足さない。理由：機能の要件で設定が1つ増えるため）', () => {
   const manifest = readManifest();
   assert.equal((manifest.contributes?.commands ?? []).length, 2, 'コマンド ID は増やさない');
-  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 4, '設定の鍵は増やさない');
+  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 5, '設定の鍵は 5 つ（D0043 まで。増やすときは決定の記録に理由を書く）');
+});
+
+test('D0043-AC-17: pipe-in.notifyWhenWaiting は boolean・default true・説明あり', () => {
+  const prop = readManifest().contributes?.configuration?.properties?.['pipe-in.notifyWhenWaiting'];
+  assert.ok(prop, 'pipe-in.notifyWhenWaiting の設定項目があること');
+  assert.equal(prop.type, 'boolean');
+  assert.equal(prop.default, true);
+  assert.equal(typeof prop.description, 'string');
+  assert.ok(prop.description.length > 0, '説明があること');
+});
+
+test('D0043-AC-17: 既存の設定の鍵・型・既定は変えない（pipesDir・workDir は文字、showOtherWorktrees は真偽、staleAfterMinutes は整数）（今のまま通る。守る）', () => {
+  const props = readManifest().contributes?.configuration?.properties ?? {};
+  assert.equal(props['pipe-in.pipesDir']?.type, 'string');
+  assert.equal(props['pipe-in.pipesDir']?.default, '');
+  assert.equal(props['pipe-in.workDir']?.type, 'string');
+  assert.equal(props['pipe-in.workDir']?.default, 'docs/pipeline');
+  assert.equal(props['pipe-in.showOtherWorktrees']?.type, 'boolean');
+  assert.equal(props['pipe-in.showOtherWorktrees']?.default, true);
+  assert.equal(props['pipe-in.staleAfterMinutes']?.type, 'integer');
+  assert.equal(props['pipe-in.staleAfterMinutes']?.default, 10);
 });
 
 for (const phrase of ['ステータスバーの件数', 'パネルを閉じている間の読み直し']) {

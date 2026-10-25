@@ -14,7 +14,8 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_SHOW_OTHER, SETTING_STALE_AFTER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
+import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_NOTIFY, SETTING_SHOW_OTHER, SETTING_STALE_AFTER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
+import { notifyEnabled, planWaitingNotice } from './app/notifyWaiting.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
 import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
@@ -32,7 +33,7 @@ import { resolveArtifactPath } from './domain/artifacts.ts';
 import { HERE } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
 import { frontWaitingKey } from './domain/runList.ts';
-import type { RunListView } from './domain/runList.ts';
+import type { RunListView, RunRow } from './domain/runList.ts';
 import { DEBOUNCE_MS, POLL_MS, PRESENCE_CHECK_MS, WATCH_GLOB, createGeneration, createPoller, shouldPoll } from './app/refreshPolicy.ts';
 import { chooseEntry, findEntry, isPreviousRun, loadRunList, toListView } from './app/runList.ts';
 import type { RunList, RunsSource } from './app/runList.ts';
@@ -45,6 +46,7 @@ import { parseWebviewMessage } from './view/messages.ts';
 import type { ToPanelMessage } from './view/messages.ts';
 import { renderPanelHtml, renderViewBody } from './view/panelHtml.ts';
 import { statusBarLabel } from './view/statusBar.ts';
+import { SHOW_RUN_LABEL, waitingNoticeText } from './view/waitNotice.ts';
 
 /** 知らせの頭とパネルの題に出す名前 */
 const NAME = 'pipe-in';
@@ -77,6 +79,8 @@ let lastListView: RunListView | null = null;
 let runsSource: RunsSource | null = null;
 /** 直前に出した、選んだ run が動いている・確認待ちか（パネルが隠れて見えたとき、読み直しを続けるかの判断に使う） */
 let lastLive = false;
+/** 前の読み直しの一覧の行（新しく確認待ちになった行を見つける基準）。拡張のメモリだけで、どこにも書かない。見る先が変わったら捨てる */
+let noticeBase: RunRow[] | null = null;
 /** いま見ている実行のフォルダと、開いてよい成果物の名前 */
 let shown: { runAbs: string; artifacts: string[] } | null = null;
 /** 読み込みの世代。最後に始めた読み込みの結果だけを使い、古い結果は捨てる */
@@ -170,6 +174,13 @@ function readSetting(key: 'workDir' | 'pipesDir', fallback: string): string {
   return chooseSetting(current, legacy, fallback);
 }
 
+/** 確認待ちの知らせの設定を読む（真偽の判断は notifyEnabled）。新しい節に書いていればそれ、無ければ前の版の節、どちらも無ければ true */
+function readNotifySetting(): unknown {
+  const current = vscode.workspace.getConfiguration(SECTION).inspect<unknown>(SETTING_NOTIFY);
+  const legacy = vscode.workspace.getConfiguration(LEGACY_SECTION).inspect<unknown>(SETTING_NOTIFY);
+  return chooseSetting(current, legacy, true);
+}
+
 export function deactivate(): void {
   poller.stop();
   presencePoller.stop();
@@ -253,6 +264,7 @@ function retarget(): void {
   lastList = null;
   lastListView = null;
   lastLive = false;
+  noticeBase = null;
   target = currentWorkDir();
   if (!target) {
     runsSource = null;
@@ -341,6 +353,26 @@ async function render(): Promise<void> {
   }
   watchRemote(panel !== undefined ? otherDir : null);
   updatePolling(live);
+  notifyWaiting(listView);
+}
+
+/** 新しく確認待ちになった実行を知らせる。基準は毎回更新する（設定が false のあいだも。あとで true にしても溜まった分を出さない）。 */
+function notifyWaiting(listView: RunListView): void {
+  const prev = noticeBase;
+  noticeBase = listView.rows;
+  const rows = planWaitingNotice({
+    prev,
+    rows: listView.rows,
+    selected: listView.selected,
+    panelVisible: panel !== undefined && panel.visible,
+    enabled: notifyEnabled(readNotifySetting()),
+  });
+  const text = waitingNoticeText(rows);
+  if (text === null) return;
+  void vscode.window.showInformationMessage(`${NAME}: ${text}`, SHOW_RUN_LABEL).then(
+    (pick) => { if (pick === SHOW_RUN_LABEL) void vscode.commands.executeCommand(COMMANDS.showRun); },
+    () => undefined,
+  );
 }
 
 /** 選びを替えて覚える。行を押したときと、ボタンが確認待ちを先に出すときの、書き込みはここだけ。 */
