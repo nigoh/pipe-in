@@ -15,7 +15,7 @@
 
 pipe-in のリポジトリ
 ├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）
-│  └─ templates/           ひな形（dev / diagrams / spec-qa）
+│  └─ templates/           ひな形（dev / diagrams / spec-qa / spec-review）
 └─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）
 ```
 
@@ -87,6 +87,7 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 | `dev` | 要件定義 → 設計 → テスト先行 → 実装 → 検証 | [開発フロー](usage.md#開発フローの流れ)そのもの。テストのコマンドを環境から埋める |
 | `diagrams` | ソースの調査 → 図を描く → 図とソースの突き合わせ | フロー図・シーケンス図・状態遷移図・クラス図（Mermaid）。検査コマンド（`python`）と審査つき。`python` が無い・`python3` だけの環境では、`pipe.toml` の `command` を `python3 -c …` などに書き換える |
 | `spec-qa` | 仕様とソースの対応 → 食い違いと検討事項 → QA の観点とテストケース | 対応表・食い違いの一覧・テストケース案。どの段もコードは書かない |
+| `spec-review` | 素人の質問 → 知識の下ごしらえ → 視点別の検査（6段が同時に流れる） → 根拠の確認 → まとめと質問票 | 指摘（引用と出典つき）と、人に聞く質問票（CSV）。引用と出典は `findings-check` で機械が確かめる。どの段も Bash・Web・MCP は使えない。仕様書は `docs/spec-review/spec.md`（Markdown 1ファイル）に置く。段の入れ外しと使い方は、写したパイプの `README.md` に書いてある |
 
 ## 見本のパイプ
 
@@ -215,7 +216,7 @@ F-003: severity: 決まった値の外です: 'blocker'（critical・major・min
 
 1行は `<指摘の id>: <欄>: <理由>` です。並びは、指摘の順 → 欄の決まった順で、同じ入力なら同じです。
 
-`check` 段から呼ぶときは `command` に書きます。pipe-in は終了コード 0 以外をすべて不合格として扱うので、1（誤りあり）も 2（入力を受け取れない）も、出力を添えて差し戻しになります。既定には組み込んでいません。
+`check` 段から呼ぶときは `command` に書きます。pipe-in は終了コード 0 以外をすべて不合格として扱うので、1（誤りあり）も 2（入力を受け取れない）も、出力を添えて差し戻しになります。ひな形 `spec-review` の `verify` 段が組み込んでいます。ほかのパイプには既定では入りません。
 
 ```toml
 [stages.check]
