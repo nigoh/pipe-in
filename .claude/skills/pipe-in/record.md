@@ -19,3 +19,4 @@
 - 段の名前は `requirements`・`design`・`red`・`implement`・`test`。
 - `start` は途中の記録があると断る。前の記録が途中のまま残っていたら、人にどうするか（`finish STOPPED_BY_HUMAN` で閉じるか）聞く。終わった記録は `docs/pipeline/archive/` に移る。
 - この記録は `pipe-in --review` では続けられない（記録に `driver` があるので `pipe-in` が断る）。続きはこの会話で進める。
+- PushNotification の文は段の名前（段でなければ「監査と助言」など）と固定の言葉だけにし、要件メモ・パス・秘密を入れない。`--auto` で止まらずに進むところでは知らせない（働きは公式の文書 tools-reference、引数 message・status はツールの説明で確かめた）。

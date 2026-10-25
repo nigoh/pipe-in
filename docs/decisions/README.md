@@ -49,6 +49,7 @@
 | [D0043](D0043-finding-schema.md) | 仕様書レビューの指摘を決まった形（指摘の形 v1。Schema は `generator/schemas/`）で受け渡し、形・出典・引用の一致（NFKC と空白を除いて比べる）・役割ごとの決まりを `pipe-in-gen findings-check` で LLM を呼ばずに検査する（終了コード 0・1・2） |
 | [D0044](D0044-live-answer.md) | 進み具合のページの確認待ちの行に、承認・差し戻し・中止のボタンを出す（コメントの機能で決まった形の文を送り、会話が `pipe-in live answer` で読んでから記録する。`/pipe-in --artifact` だけ） |
 | [D0045](D0045-plugin-evals.md) | プラグイン自身の eval のケースを `plugin/evals/` に 9 本置く（`claude plugin eval` 用。費用のかからない採点が中心で、`pytest` はファイルの形だけを見る。流すのは人に言われたときだけ） |
+| [D0046](D0046-wait-notify.md) | 確認待ちになったら知らせる（拡張の知らせと設定 `pipe-in.notifyWhenWaiting`・`/pipe-in` の PushNotification・Claude Code の通知の設定の案内。D0024-AC-26 の設定の鍵を5つに） |
 
 ## ひな形
 
