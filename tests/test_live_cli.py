@@ -23,7 +23,7 @@ from pipe_in.engine import live, live_cmd, live_page
 ROOT = Path(__file__).resolve().parents[1]
 NOW = ls.NOW
 SEP = chr(92)
-EMPTY_KEYS = ["schema", "generated_at", "empty", "name", "final", "stages"]
+EMPTY_KEYS = ["schema", "generated_at", "empty", "name", "final", "stages", "review"]
 
 
 def run_live(argv, cap, *, now=NOW):

@@ -90,12 +90,12 @@ def test_d0031_ac42_main_accepts_watch_deps():
 
 
 def test_d0031_ac51_live_help_lists_watch(capfd):
-    """D0031-AC-51: pipe-in live の使い方に、下位コマンド watch が出る（{snapshot,page,watch}）。"""
+    """D0031-AC-51: pipe-in live の使い方に、下位コマンド watch が出る（D0039 で answer が増え、{snapshot,page,watch,answer}）。"""
     with pytest.raises(SystemExit) as e:
         live_cmd.main(["--help"])
     out = capfd.readouterr().out
     assert e.value.code == 0
-    assert "{snapshot,page,watch}" in out and "watch" in out
+    assert "{snapshot,page,watch,answer}" in out and "watch" in out and "answer" in out
 
 
 def test_d0031_ac51_watch_help_lists_every_option(capfd):

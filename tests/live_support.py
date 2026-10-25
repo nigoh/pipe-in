@@ -19,7 +19,7 @@ UTC = timezone.utc
 NOW = datetime(2026, 10, 17, 12, 0, 0, tzinfo=UTC)
 STAGES = ("requirements", "design", "red", "implement", "test")
 LABELS = {"requirements": "要件定義", "design": "設計", "red": "テスト先行", "implement": "実装", "test": "検証"}
-KEYS = ["schema", "generated_at", "empty", "name", "final", "stages"]
+KEYS = ["schema", "generated_at", "empty", "name", "final", "stages", "review"]
 STAGE_KEYS = [
     "name", "label", "status", "attempt", "started_at", "pending_since", "verdict", "cost_usd", "turns", "duration_sec",
 ]
@@ -136,3 +136,36 @@ def dev_record_midway(project: Path, clock: datetime = datetime(2026, 10, 17, 10
 
 def utc_text(t: datetime) -> str:
     return t.astimezone(UTC).isoformat(timespec="seconds")
+
+
+# ---- D0039：確認待ちの答え（テストの補助。本体の関数ではなく、設計 4 節の式をそのまま書く） ----------------------------------------
+
+
+def expected_review_id(stage: str, since: str) -> str:
+    """設計 4 節の識別子：SHA-256("pipe-in:review\\n" + 段 + "\\n" + since) の先頭 10 文字。本体の review_id と突き合わせる基準。"""
+    import hashlib
+
+    return hashlib.sha256(("pipe-in:review\n" + stage + "\n" + since).encode("utf-8")).hexdigest()[:10]
+
+
+def pending_project(project: Path, stage: str = "requirements", clock: datetime = datetime(2026, 10, 17, 10, 0, 0)) -> Path:
+    """本物の Recorder で作る、指定の段が確認待ちの記録（その前の段は承認済み）。work_dir を返す。"""
+    r = recorder(project, clock)
+    r.start("足したい機能のメモ MEMO-BODY-MARK", name="確認待ちのセッション", session_id="SESSION-ID-MARK")
+    for name in STAGES:
+        r.begin(name, agent="pipe-in-analyst")
+        r.done(name, summary="段を終えた")
+        if name == stage:
+            r.wait(name)
+            return work_of(project)
+        if name in ("requirements", "design", "red"):
+            r.wait(name)
+            r.review(name, "approved")
+    raise AssertionError(f"確認待ちにできない段: {stage}")
+
+
+def pending_of(work: Path) -> dict[str, Any]:
+    """state.json の pending_review（辞書）。"""
+    value = json.loads((work / "state.json").read_text(encoding="utf-8"))["pending_review"]
+    assert isinstance(value, dict), "確認待ちになっていない"
+    return value
