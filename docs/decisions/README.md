@@ -51,6 +51,7 @@
 | [D0045](D0045-plugin-evals.md) | プラグイン自身の eval のケースを `plugin/evals/` に 9 本置く（`claude plugin eval` 用。費用のかからない採点が中心で、`pytest` はファイルの形だけを見る。流すのは人に言われたときだけ） |
 | [D0046](D0046-wait-notify.md) | 確認待ちになったら知らせる（拡張の知らせと設定 `pipe-in.notifyWhenWaiting`・`/pipe-in` の PushNotification・Claude Code の通知の設定の案内。D0024-AC-26 の設定の鍵を5つに） |
 | [D0047](D0047-spec-review-template.md) | 仕様書レビューのパイプのひな形 `spec-review` を足す（素人の質問 → 知識の下ごしらえ → 6つの検査を同時に → 根拠の確認（`findings-check`）→ まとめと質問票。指摘は D0043 の形 v1） |
+| [D0048](D0048-worktree-auto.md) | worktree を自動で切って、main に入ったら自動で片付ける（pipe-in worktree new・clean） |
 
 ## ひな形
 
