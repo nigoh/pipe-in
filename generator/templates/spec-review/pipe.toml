@@ -1,0 +1,122 @@
+# pipe-in のパイプ：仕様書のレビュー（素人の質問・用語と論点・視点別の検査・根拠の確認・質問票）
+#
+# 仕様書は docs/spec-review/spec.md（Markdown 1ファイル）に置きます。くわしくは README.md を見てください。
+# 段の並び・書き込める範囲・確認の有無・検証はここで、各段への指示は prompts/ のファイルで決めます。
+# 段を入れ外しするときは、README.md の「役割の入れ外し」に従ってください。
+
+[pipe]
+kind = "linear"
+label = "仕様書のレビュー（素人の質問・用語と論点・視点別の検査・根拠の確認・質問票）"
+description = "仕様書を読み、素人の質問と視点別の指摘を集め、引用と出典を機械で確かめて、人に聞く質問票にまとめる"
+input = "optional"  # 依頼メモで、見てほしい範囲や背景を伝えられる
+
+[[stages]]
+# 素人の目で、分からないことを質問にする。知識の置き場は読ませない（指示文だけの決まり）
+name = "naive"
+label = "素人の質問"
+output = "01_naive.json"
+access = "read"
+model = "haiku"
+prompt_file = "prompts/01_naive.md"
+
+[[stages]]
+# 用語集・ドメインモデル・論点・出典の台帳を作る。台帳は、あとの段と根拠の確認が使う
+name = "knowledge"
+label = "知識の下ごしらえ"
+output = "02_knowledge.md"
+access = "docs"
+docs_dir = "docs/spec-review/knowledge"
+model = "sonnet"
+review = true
+prompt_file = "prompts/02_knowledge.md"
+
+[[stages]]
+# 品質（曖昧・矛盾・検証できない・書き方の不統一）を探す。次の検査役の6段は同時に流れる
+name = "quality"
+label = "品質の検査"
+output = "03_quality.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/03_quality.md"
+
+[[stages]]
+# 網羅（あるべきなのに書かれていないもの）を探す
+name = "gap"
+label = "網羅の検査"
+output = "04_gap.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/04_gap.md"
+
+[[stages]]
+# 利用者の視点で探す
+name = "user"
+label = "利用者の視点"
+output = "05_user.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/05_user.md"
+
+[[stages]]
+# テスターの視点で探す
+name = "tester"
+label = "テスターの視点"
+output = "06_tester.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/06_tester.md"
+
+[[stages]]
+# 設計者の視点で探す
+name = "designer"
+label = "設計者の視点"
+output = "07_designer.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/07_designer.md"
+
+[[stages]]
+# 運用の視点で探す
+name = "operations"
+label = "運用の視点"
+output = "08_operations.json"
+access = "read"
+model = "haiku"
+group = "inspect"
+prompt_file = "prompts/08_operations.md"
+
+[[stages]]
+# 指摘を集め、引用と根拠を確かめる。引用と出典は pipe-in-gen findings-check が機械で確かめ、合わなければ自分へ戻す（2回まで）
+name = "verify"
+label = "根拠の確認"
+output = "09_findings.json"
+access = "read"
+model = "sonnet"
+prompt_file = "prompts/09_verify.md"
+# docs/pipeline/{{name}}/ は作業の記録の既定の置き場所。work_dir を変えたら、command のこの部分を書き換える
+[stages.check]
+command = "pipe-in-gen findings-check docs/pipeline/{{name}}/09_findings.json --sources docs/spec-review/knowledge/sources.json --spec docs/spec-review/spec.md"
+on_fail = "verify"
+max_retries = 2
+
+[[stages]]
+# 指摘を要約し、人に聞く質問票（CSV）を書く。質問票が8列かを機械で確かめ、合わなければ自分へ戻す（2回まで）
+name = "report"
+label = "まとめと質問票"
+output = "10_report.md"
+access = "docs"
+docs_dir = "docs/spec-review/out"
+writes = ["docs/spec-review/out/questionnaire.csv"]
+model = "sonnet"
+review = true
+prompt_file = "prompts/10_report.md"
+# 外側は "、中は ' で書くと、Windows の cmd.exe でも sh でも崩れない。python が無い環境（python3 だけ等）では command を書き換える
+[stages.check]
+command = "python -c \"import csv,io,sys,pathlib as P;t=P.Path('docs/spec-review/out/questionnaire.csv').read_bytes().decode('utf-8-sig');sys.exit(0 if len(next(csv.reader(io.StringIO(t))))==8 else 1)\""
+on_fail = "report"
+max_retries = 2

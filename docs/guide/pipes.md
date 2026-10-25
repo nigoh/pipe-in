@@ -15,7 +15,7 @@
 
 pipe-in のリポジトリ
 ├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）
-│  └─ templates/           ひな形（dev / diagrams / spec-qa）
+│  └─ templates/           ひな形（dev / diagrams / spec-qa / spec-review）
 └─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）
 ```
 
@@ -48,7 +48,7 @@ $ pipe-in-gen check diagrams
 Claude Code では、プラグインのスキル `/pipe-in:pipe-build <目的、または直したいパイプと直したい点>` で、会話で作る・直すことができます（「[Claude Code のプラグイン](plugin.md)」）。
 
 - `pipe-in-gen new` は対象のファイルを見て、テストのコマンドやソース・文書の場所を埋めます。対象の絶対パスはパイプに書きません。
-- `pipe-in-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の段が SDK の受信バッファの上限（`max_buffer_mb`）を超えたときは、やり直さずに止まり、何も書かずに終了コード 1 で終わります。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。`judge`（`must`・`criteria`）も組めます。審査で差し戻すなら `command` と組んでください。利用料がかかります。
+- `pipe-in-gen design` は、Claude が対象を読むだけで調べて段を組み、ジェネレーターが検査に通るまで（3回まで）直させてから書きます。通らなければ何も書きません。設計の段が SDK の受信バッファの上限（`max_buffer_mb`）を超えたときは、やり直さずに案内を出して止まり、何も書かずに終了コード 1 で終わります（直し方は[設定](config.md)の `max_buffer_mb`）。設計の記録は対象の `<work_dir>/design-<名前>/logs/` に残ります。`judge`（`must`・`criteria`）も組めます。審査で差し戻すなら `command` と組んでください。利用料がかかります。
 - 同じ名前のパイプがあれば作りません（`--force` で作り直し）。ほかの置き場所（前の版の置き場所を含む）に同じ名前があるときは、`--force` を付けても作りません。
 - パイプは対象プロジェクトの `.pipe-in/pipes/` に作ります。`--pipes-dir`（そこだけを使う）か `PIPE_IN_PIPES_DIR` で変えられます。
 - 探すときは、対象の `.pipe-in/pipes/` → 前の版の置き場所（[前の名前から移る](migrate.md)）→ 今までの場所（`PIPE_IN_PIPES_DIR`、なければ pipe-in のリポジトリの `pipes/`）の順です。前の版で `pipes/` に作ったパイプも、そのまま流せます。
@@ -87,6 +87,7 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 | `dev` | 要件定義 → 設計 → テスト先行 → 実装 → 検証 | [開発フロー](usage.md#開発フローの流れ)そのもの。テストのコマンドを環境から埋める |
 | `diagrams` | ソースの調査 → 図を描く → 図とソースの突き合わせ | フロー図・シーケンス図・状態遷移図・クラス図（Mermaid）。検査コマンド（`python`）と審査つき。`python` が無い・`python3` だけの環境では、`pipe.toml` の `command` を `python3 -c …` などに書き換える |
 | `spec-qa` | 仕様とソースの対応 → 食い違いと検討事項 → QA の観点とテストケース | 対応表・食い違いの一覧・テストケース案。どの段もコードは書かない |
+| `spec-review` | 素人の質問 → 知識の下ごしらえ → 視点別の検査（6段が同時に流れる） → 根拠の確認 → まとめと質問票 | 指摘（引用と出典つき）と、人に聞く質問票（CSV）。引用と出典は `findings-check` で機械が確かめる。どの段も Bash・Web・MCP は使えない。仕様書は `docs/spec-review/spec.md`（Markdown 1ファイル）に置く。段の入れ外しと使い方は、写したパイプの `README.md` に書いてある |
 
 ## 見本のパイプ
 
@@ -182,6 +183,47 @@ description = "秘密の値を書かない"
 - 結果は `state.json` の `check.judge` に残り、`99_summary.md` の検証の行の下に 1 行（平均・しきい値・合否）が出ます。
 - **古い版の pipe-in では、`judge` は知らないキーとして黙って無視されます。** `verdict` や `command` を併記していれば審査なしで動き、`judge` だけだと検証が無いのと同じになります。審査を使うパイプは新しい版の pipe-in で流してください。
 - VSCode の作業台には審査の編集画面はありません。審査つきのパイプを開いて保存しても `judge` は消えず、そのまま書き戻します（検証のスイッチを切って保存した段では、`judge` も書き出されません）。書き換えるときは `pipe.toml` を直接直してください。
+
+## 指摘の検査（`pipe-in-gen findings-check`）
+
+仕様書をレビューするパイプが出す「指摘」（指摘の形 v1）を、LLM を呼ばずに検査します。標準ライブラリだけで動き、書き込みはしません。
+
+```bash
+pipe-in-gen findings-check findings.json --sources sources.json --spec spec.md [--spec other.md ...]
+```
+
+- 指摘のファイルは `{"v": 1, "findings": [...]}`、台帳は `{"v": 1, "sources": [...]}` の形です。`v` が無い・1 以外のファイルは「版が分かりません」で終わります。
+- 台帳の `kind` が `spec` の件は、仕様書の本文のファイル名を `file` に書きます（`/` や `\` は入れない）。`--spec` のうち、名前（パスの最後）が `file` と同じものと結びます。結べない・同じ名前が2つ以上・`--spec` が無い、のときは終了コード 2 です。使われない `--spec` は開きません。
+- 調べること（5つ）：形（必須の欄・決まった値・定義にない欄・型）、出典（`sources` と `location.source` が台帳にあるか、`guess` との対）、引用の一致、役割の決まり（`naive` は `spec` 以外の出典を使えない・`kind` と `risk`・`status` と `links`・`role` と `perspective` の対）、版。
+- 引用は、本文に含まれていなければ落ちます。比べる前に、NFKC にそろえて空白（改行・タブ・全角空白を含む）を全部消します。全角英数と半角英数は同じとみなす緩さがあり、大文字と小文字は区別します。言い換えは通しません。`kind` が `missing` のときだけ `quote` を空にできます。`spec` 以外の出典を引いた指摘は、本文と照らせないので落とします。
+- `naive` の決まりは出力の検査だけです。`naive` に知識ベースを読ませない仕組み（読める範囲の制限）ではありません。
+
+終了コードは、0＝誤りなし、1＝誤りあり、2＝入力を受け取れない（ファイルが無い・JSON でない・UTF-8 でない・引数が足りない・版が分からない・`--spec` が結べない）です。
+
+誤りがないときの出力：
+
+```text
+誤りなし（指摘 2 件・出典 3 件）
+```
+
+誤りがあるときの出力（標準出力に1行ずつ。終了コードは 1）：
+
+```text
+F-002: location.quote: 引用が本文にありません: '利用者は、本を最大9冊まで借りられる。'
+F-003: severity: 決まった値の外です: 'blocker'（critical・major・minor）
+誤り 2 件
+```
+
+1行は `<指摘の id>: <欄>: <理由>` です。並びは、指摘の順 → 欄の決まった順で、同じ入力なら同じです。
+
+`check` 段から呼ぶときは `command` に書きます。pipe-in は終了コード 0 以外をすべて不合格として扱うので、1（誤りあり）も 2（入力を受け取れない）も、出力を添えて差し戻しになります。ひな形 `spec-review` の `verify` 段が組み込んでいます。ほかのパイプには既定では入りません。
+
+```toml
+[stages.check]
+command = "pipe-in-gen findings-check findings.json --sources sources.json --spec spec.md"
+```
+
+欄の定義は JSON Schema（`generator/schemas/finding.schema.json`・`sources.schema.json`）にもあります。エディタや他の言語の道具に渡す契約で、検査は実行時にこれを読まず、コードの決まりで動きます（食い違わないことはテストが守ります）。この機能の前の版の `pipe-in-gen` には `findings-check` が無いので、`pipe-in-gen --help` に出るか確かめてください。
 
 ## 分岐・飛び先・並列
 

@@ -7,6 +7,7 @@
 同じ名前のパイプがほかの置き場所や前の版のフォルダ名であれば、作らずに断る（どちらを使うか迷わないように）。
 guard-hook は、Claude Code のプラグイン（plugin/hooks/hooks.json）から呼ぶフック。
 judge-score は、プラグインの pipe-judge が審査役の採点（標準入力の JSON）から総合点・合否を計算させるのに呼ぶ。
+findings-check は、仕様書レビューの指摘のファイルを、形・出典・引用・役割の決まりで検査する（LLM を呼ばない）。
 """
 
 from __future__ import annotations
@@ -51,6 +52,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=True)
     sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder と pipe-judge の操作を絞る）")
     sub.add_parser("judge-score", help="審査役の採点（標準入力の JSON）から総合点・合否・ばらつきを出す（プラグインの pipe-judge が呼ぶ）")
+
+    sub.add_parser("findings-check", help="指摘のファイルを、形・出典・引用・役割の決まりで検査する（LLM を呼ばない）")
 
     new = sub.add_parser("new", help="ひな形から .pipe-in/pipes/pipe-in-<名前>/ を作る")
     new.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
@@ -213,6 +216,11 @@ def main(argv: list[str] | None = None) -> int:
         from .judge_score import main as judge_main
 
         return judge_main()
+    if argv[:1] == ["findings-check"]:
+        # 指摘・台帳・仕様書のファイルだけで動く（--project は持たないので、プロジェクトの検めより前に分ける）
+        from .findings_check import main as findings_main
+
+        return findings_main(argv[1:])
     args = _parse_args(argv)
     given = args.pipes_dir.expanduser() if args.pipes_dir else None
     project = _project(args.project)

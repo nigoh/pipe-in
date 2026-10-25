@@ -584,7 +584,8 @@ def test_D0039_AC_10_補助ファイルが読めないときは思い出しで�
 SKILL_LIMIT = 12_300
 # 設計 12 の 2：収まらないときは合計の上限を 17,500 字に上げてよい、と設計の段で人が決めた（決定の記録 D0039）。
 # 実装では 17,100 字に収まったが、検証のあとの監査と助言で人が承認した直しで超えたので、17,500 字に上げた。
-TOTAL_LIMIT = 17_500
+# D0046：main の --artifact の追加（D0044）と確認待ちの知らせの決まりで、ほぼ同時に枠を使い切ったので、人が決めて 17,800 字に上げた。
+TOTAL_LIMIT = 17_800
 
 
 def test_D0039_AC_11_SKILLは12300字以下():
@@ -593,8 +594,8 @@ def test_D0039_AC_11_SKILLは12300字以下():
     assert n <= SKILL_LIMIT, f"SKILL.md が {n} 字（上限 {SKILL_LIMIT}）"
 
 
-def test_D0039_AC_11_SKILLと3つの補助ファイルの合計は17500字以下():
-    """D0039-AC-11: SKILL.md と 3 つの補助ファイルの合計は 17,500 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた）。
+def test_D0039_AC_11_SKILLと3つの補助ファイルの合計は17800字以下():
+    """D0039-AC-11: SKILL.md と 3 つの補助ファイルの合計は 17,800 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に上げた）。
     3 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。"""
     total = len(skill()) + sum(len(read_doc(SKILL_DIR / n)) for n in HELPERS)
     assert total <= TOTAL_LIMIT, f"合計が {total} 字（上限 {TOTAL_LIMIT}）"
@@ -636,7 +637,8 @@ ORIGINAL_BACKTICK_WORDS: tuple[str, ...] = (
     "python -m pipe_in record finish PASSED", "TEST_FAILED", "STOPPED_BY_HUMAN", "STAGE_ERROR", "BLOCKED",
     "requirements", "design", "red", "implement", "test", "start", "finish STOPPED_BY_HUMAN", "docs/pipeline/archive/",
     "--artifact", "-p", "record start", "python -m pipe_in live page --out <一時フォルダ>/pipe-in-live.html", "capabilities",
-    '{"db": {}}', "icon", "chart", "begin", "done", "wait", "review", "verdict", "finish",
+    # '{"db": {}}' は、ページのボタン（D0044）で公開の宣言を {"db": {}, "comments": {}} に替えたので外した
+    "icon", "chart", "begin", "done", "wait", "review", "verdict", "finish",
     "python -m pipe_in live snapshot --out <一時フォルダ>/pipe-in-live.json", "--out", "set", "url", "collection", "runs", "doc_id",
     "current", "file_path", "if_version", "version", "get", "docs/guide/records.md", "/pipe-in", "review <段> revise",
     "review <段> quit", "review <段> approved", "--yes", "pipe_in/engine/guard.py", "/pipe-help",
@@ -661,11 +663,21 @@ ORIGINAL_BACKTICK_WORDS: tuple[str, ...] = (
 )
 
 
+# D0048 で worktree の切り方を python -m pipe_in worktree new に置き換えたため、もう書かない語
+REPLACED_BY_D0048 = ("git worktree add ../pipe-in-<名前> -b feat/<名前>", "../pipe-in-<名前>", "git worktree add")
+
+
 def is_excluded(word: str) -> bool:
-    """除く語は 3 つだけ（機械的に決める）：(i) 前の名前を含む語（AC-20 の言い換え）、
+    """除く語は 4 つだけ（機械的に決める）：(i) 前の名前を含む語（AC-20 の言い換え）、
     (ii) run-panel- か pipe-editor- を含む語（AC-18 で頭の形か README の指しに置き換わる完全なページ名と、頭の形・URL の形）、
-    (iii) -light.html・-dark.html（語尾だけの語）。"""
-    return bool(OLD_NAME.search(word)) or "run-panel-" in word or "pipe-editor-" in word or word in ("-light.html", "-dark.html")
+    (iii) -light.html・-dark.html（語尾だけの語）、(iv) D0048 で置き換えた worktree の切り方の語。"""
+    return (
+        bool(OLD_NAME.search(word))
+        or "run-panel-" in word
+        or "pipe-editor-" in word
+        or word in ("-light.html", "-dark.html")
+        or word in REPLACED_BY_D0048
+    )
 
 
 def kept_words() -> list[str]:

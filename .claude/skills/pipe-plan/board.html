@@ -172,12 +172,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .prio.p-mid i:nth-child(-n+2) { background: var(--fg); }
 .prio.p-low i:first-child { background: var(--muted); }
 .card .note { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.card .acts { display: flex; gap: 4px; justify-content: flex-end; }
+.card .acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .mv {
   font: inherit; font-size: 11px; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--muted); cursor: pointer; min-height: 24px;
+  background: var(--panel); color: var(--muted); cursor: pointer; min-height: 24px; white-space: nowrap;
 }
 .mv:hover { color: var(--teal-text); border-color: var(--teal); }
+.mv.run { color: var(--coral-text); border-color: var(--coral); }
+.mv:disabled { opacity: .5; cursor: not-allowed; }
 .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .pill { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--quiet); color: var(--muted); white-space: nowrap; }
 .pill.mono { font-family: var(--f-mono); }
@@ -197,7 +199,8 @@ textarea { min-height: 90px; resize: vertical; width: 100%; }
 dialog input[type="text"], dialog select { width: 100%; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
 .actions .right { display: flex; gap: 8px; margin-left: auto; }
-.confirm { font-size: 12px; color: var(--bad); }
+.confirm { font-size: 12px; color: var(--bad); overflow-wrap: anywhere; }
+.confirm a { color: var(--teal); }
 .links { font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
 .links a { color: var(--teal); }
 .ro-note { font-size: 12px; color: var(--muted); }
@@ -283,6 +286,24 @@ dialog input[type="text"], dialog select { width: 100%; }
   </form>
 </dialog>
 
+<dialog id="run-dlg">
+  <form id="run-form" method="dialog">
+    <h3>新しいセッションで /pipe-in を始める</h3>
+    <div class="field"><label for="run-prompt">送る言葉（直せます。先頭は「/pipe-in 」のまま）</label><textarea id="run-prompt" maxlength="8000"></textarea></div>
+    <div class="field"><label for="run-env">環境</label><select id="run-env"></select></div>
+    <p class="ro-note" id="run-env-note"></p>
+    <p class="ro-note">作ると Claude Code Remote に新しいセッションができ、プランの利用枠を使います（並べて作るほど減ります）。段の区切りで止まるので、続きはセッションで答えてください。</p>
+    <p class="confirm" id="run-msg" hidden></p>
+    <div class="actions">
+      <button class="btn small" type="button" id="run-allow" hidden>許して読む</button>
+      <div class="right">
+        <button class="btn" type="button" id="run-cancel">やめる</button>
+        <button class="btn primary" type="submit" id="run-go">作る</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 <script>
 (() => {
   const REPO = "https://github.com/nigoh/pipe-in";
@@ -330,6 +351,10 @@ dialog input[type="text"], dialog select { width: 100%; }
   let filterStage = null, filterKind = null, query = "", showAllDone = false, editing = null;
   let scopeAll = false, showQuiet = false;
   let dragId = null;
+  let sessionsLoaded = false, savedEnvId = "", envs = [], creating = false;
+  let runItem = null, runBlocked = false, envSeq = 0;
+  const justStarted = new Set();
+  const uncertain = new Set();
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -422,6 +447,7 @@ dialog input[type="text"], dialog select { width: 100%; }
 
   function renderSessions() {
     sessionsById = new Map(sessions.map((s) => [s.id, s]));
+    for (const id of [...justStarted]) if (sessionsById.has(id)) justStarted.delete(id);
     const scoped = sessions.filter((s) => !String(s.session_status || "").includes("ARCHIVED") && (scopeAll || touchesRepo(s)));
     scoped.sort((a, b) => (bucketOf(a).rank - bucketOf(b).rank) || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
     const active = scoped.filter((s) => bucketOf(s).rank < 4);
@@ -521,6 +547,7 @@ dialog input[type="text"], dialog select { width: 100%; }
     const list = extractSessions(result && result.payload);
     if (!list) { setLiveMsg("セッションの一覧の形が読めませんでした。", true); return; }
     sessions = list;
+    sessionsLoaded = true;
     const at = result.cache && result.cache.storedAt ? new Date(result.cache.storedAt) : new Date();
     $("live-stamp").textContent = at.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) + " 時点";
     $("live-refresh").hidden = false;
@@ -571,6 +598,7 @@ dialog input[type="text"], dialog select { width: 100%; }
 
   $("live-refresh").addEventListener("click", async () => {
     if (!mcp) return;
+    uncertain.clear(); renderBoard();
     try { await mcp.invalidate(SESSION_SERVER, "list_sessions"); } catch (e) {}
     askOnce();
   });
@@ -659,6 +687,14 @@ dialog input[type="text"], dialog select { width: 100%; }
     if (canWrite && col) {
       const i = STATUS_IDS.indexOf(it.status);
       const acts = el("div", "acts");
+      if (canRun(it)) {
+        const run = el("button", "mv run", "実行");
+        run.type = "button";
+        if (uncertain.has(it.id)) { run.disabled = true; run.title = "セッションを読み直して確かめてから"; }
+        run.addEventListener("click", (ev) => { ev.stopPropagation(); openRun(it); });
+        run.addEventListener("keydown", (ev) => ev.stopPropagation());
+        acts.append(run);
+      }
       if (i > 0) acts.append(moveButton(it, STATUS_IDS[i - 1], "← " + STATUSES[i - 1].name));
       if (i >= 0 && i < STATUS_IDS.length - 1) acts.append(moveButton(it, STATUS_IDS[i + 1], STATUSES[i + 1].name + " →"));
       c.append(acts);
@@ -806,9 +842,202 @@ dialog input[type="text"], dialog select { width: 100%; }
     catch (e) { writeError(e); }
   });
 
+  const runDlg = $("run-dlg");
+  function isRunning(sid) {
+    const s = sessionsById.get(sid);
+    if (!s) return justStarted.has(sid);
+    if (String(s.session_status || "").includes("ARCHIVED")) return false;
+    const raw = String(s.status_bucket || "").replace("SESSION_STATUS_BUCKET_", "");
+    return raw !== "COMPLETED" && raw !== "FAILED";
+  }
+  function canRun(it) {
+    return !!(canWrite && col && mcp && (it.title || "").trim() && (!it.session || (sessionsLoaded && !isRunning(it.session))));
+  }
+  function buildPrompt(it) {
+    const title = (it.title || "").trim();
+    const note = (it.note || "").trim();
+    return "/pipe-in " + title + (note ? "\n\n" + note : "");
+  }
+  function promptOk(text) {
+    return typeof text === "string" && text.startsWith("/pipe-in ") && text.slice(9).trim().length > 0;
+  }
+  function readJsonText(payload) {
+    if (typeof payload !== "string") return payload;
+    const a = payload.indexOf("{"), b = payload.lastIndexOf("}");
+    try { return a >= 0 && b > a ? JSON.parse(payload.slice(a, b + 1)) : null; } catch (e) { return null; }
+  }
+  function extractEnvironments(payload) {
+    const p = readJsonText(payload);
+    const list = (p && p.environments) || (p && p.ccr && p.ccr.data) || (p && p.data) || (Array.isArray(p) ? p : null);
+    if (!Array.isArray(list)) return null;
+    return list.filter((e) => e && typeof e.environment_id === "string" && e.state === "active");
+  }
+  function extractSessionId(payload) {
+    const p = readJsonText(payload);
+    const ok = (c) => typeof c === "string" && /^session_[A-Za-z0-9]+$/.test(c);
+    if (ok(p)) return p;
+    if (!p || typeof p !== "object") return "";
+    // 実際の返事は ccr の中に id が入る形（D0042 の実機で確かめた）。
+    for (const c of [p.ccr && p.ccr.id, p.id, p.session_id, p.session && p.session.id]) if (ok(c)) return c;
+    return "";
+  }
+  function pickEnvironment(list, saved) {
+    if (saved && list.some((e) => e.environment_id === saved)) return { id: saved, lost: false };
+    if (list.length === 1) return { id: list[0].environment_id, lost: !!saved };
+    return { id: "", lost: !!saved };
+  }
+  function setRunMsg(text, sid) {
+    $("run-msg").textContent = text;
+    const m = $("run-msg");
+    if (sid && /^session_[A-Za-z0-9]+$/.test(sid)) {
+      const a = el("a", null, "開く");
+      a.href = SESSION_URL + sid; a.target = "_blank"; a.rel = "noopener";
+      m.append(" ", a);
+    }
+    m.hidden = !text;
+  }
+  function syncGo() {
+    $("run-go").disabled = creating || runBlocked || !envs.length || !runItem || uncertain.has(runItem.id);
+    $("run-cancel").disabled = creating;
+  }
+  function runError(e, reading) {
+    const code = e && e.code;
+    const unsure = () => { if (runItem) uncertain.add(runItem.id); renderBoard(); };
+    let text;
+    if (code === "not_in_manifest") {
+      runBlocked = true;
+      text = "このボードは古い宣言のまま公開されています。ボードを公開し直す必要があります（Claude Code で `/pipe-plan` を開くと勧めます）";
+    } else if (code === "approval_required" || code === "consent_required") {
+      text = reading
+        ? "環境を読むには、このページに許しが要ります。「許して読む」を押してください。断った場合、セッションは作られません"
+        : "このページに、セッションを作る許しが要ります。許しの画面で許してから、もう一度「作る」を押してください。許されなければセッションは作られていません";
+      $("run-allow").hidden = !reading;
+    } else if (code === "blocked_by_policy") {
+      text = "組織の決まりで作れません。セッションは作られていません";
+    } else if (code === "needs_reauth") {
+      text = "Claude Code Remote のつながりが切れています。claude.ai の設定 → コネクタでつなぎ直してください";
+    } else if (code === "server_not_connected" || code === "selection_required") {
+      text = "この画面では Claude Code Remote が使えません";
+    } else if (code === "tool_error") {
+      text = (reading ? "環境を読めませんでした（" : "作れませんでした（") + String(e.message || "").slice(0, 120) + "）";
+    } else if (reading) {
+      text = "環境を読めませんでした。少し待ってから、もう一度開いてください";
+    } else if (code === "no_session_id") {
+      text = "セッションは作られたかもしれませんが、返事から ID を読めませんでした。一覧を読み直して確かめてください";
+      unsure();
+    } else {
+      text = "結果が分かりません。作られたかもしれません。「読み直す」で一覧を確かめてから、もう一度押してください";
+      unsure();
+    }
+    setRunMsg(text);
+  }
+  async function loadEnvironments() {
+    const seq = ++envSeq;
+    const sel = $("run-env");
+    envs = []; runBlocked = false;
+    sel.replaceChildren();
+    $("run-allow").hidden = true;
+    $("run-env-note").textContent = "環境を読んでいます…";
+    syncGo();
+    try {
+      const r = await mcp.callTool(SESSION_SERVER, "list_environments", {}, { cache: { staleTime: 0, gcTime: 300000 } });
+      if (seq !== envSeq) return;
+      const list = extractEnvironments(r && r.payload);
+      if (!list) { $("run-env-note").textContent = "環境の一覧の形が読めませんでした"; return; }
+      if (!list.length) { $("run-env-note").textContent = "使える環境がありません"; return; }
+      envs = list;
+      const pick = pickEnvironment(list, savedEnvId);
+      const opts = list.map((e) => { const op = el("option", null, e.name || e.environment_id); op.value = e.environment_id; return op; });
+      if (!pick.id) { const ph = el("option", null, "選んでください"); ph.value = ""; opts.unshift(ph); }
+      sel.replaceChildren(...opts);
+      sel.value = pick.id;
+      let note = "";
+      if (pick.lost) note = "前に選んだ環境が見つかりません。" + (pick.id ? "環境が 1 つなので自動で選びました" : "選び直してください");
+      else if (list.length === 1) note = "環境が 1 つなので自動で選びました";
+      else if (!pick.id) note = "使う環境を選んでください";
+      $("run-env-note").textContent = note;
+    } catch (e) {
+      if (seq !== envSeq) return;
+      envs = [];
+      $("run-env-note").textContent = "";
+      runError(e, true);
+    } finally {
+      if (seq === envSeq) syncGo();
+    }
+  }
+  function openRun(it) {
+    if (creating) return;
+    runItem = it;
+    $("run-prompt").value = buildPrompt(it);
+    setRunMsg("");
+    runDlg.showModal();
+    loadEnvironments();
+  }
+  async function createSession(item, prompt, envId) {
+    if (!promptOk(prompt)) return "";
+    if (!envId) return "";
+    if (!mcp || !col) return "";
+    const r = await mcp.callTool(SESSION_SERVER, "create_session", {
+      prompt,
+      source_url: REPO,
+      environment_id: envId,
+      title: item.title.trim().slice(0, 200),
+    });
+    const id = extractSessionId(r && r.payload);
+    if (!id) { const err = new Error("返事から ID を読めない"); err.code = "no_session_id"; throw err; }
+    try {
+      await col.doc(item.id).update({ session: id, updatedAt: new Date().toISOString() });
+    } catch (e) {
+      const err = new Error("カードに書けない"); err.code = "card_write_failed"; err.sessionId = id; throw err;
+    }
+    return id;
+  }
+  async function rememberEnv(envId) {
+    if (!db || !envId || envId === savedEnvId) return;
+    try {
+      await db.collection("settings").doc("run").set({ environmentId: envId, updatedAt: new Date().toISOString() });
+      savedEnvId = envId;
+    } catch (e) {}
+  }
+  $("run-cancel").addEventListener("click", () => { if (!creating) runDlg.close(); });
+  $("run-allow").addEventListener("click", () => loadEnvironments());
+  runDlg.addEventListener("cancel", (ev) => { if (creating) ev.preventDefault(); });
+  $("run-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (creating || !runItem) return;
+    const item = runItem;
+    const prompt = $("run-prompt").value;
+    const envId = $("run-env").value;
+    if (!promptOk(prompt)) { setRunMsg("先頭は「/pipe-in 」にしてください（その後ろに内容も要ります）"); return; }
+    if (!envId) { setRunMsg("環境を選んでください"); return; }
+    creating = true;
+    $("run-go").disabled = true;
+    $("run-cancel").disabled = true;
+    setRunMsg("");
+    try {
+      const id = await createSession(item, prompt, envId);
+      if (!id) return;
+      justStarted.add(id);
+      rememberEnv(envId);
+      runDlg.close();
+      showToast("セッションを作りました", false);
+      try { await mcp.invalidate(SESSION_SERVER, "list_sessions"); } catch (e) {}
+      askOnce();
+    } catch (e) {
+      if (e && e.code === "card_write_failed") {
+        justStarted.add(e.sessionId);
+        rememberEnv(envId);
+        setRunMsg("セッションは作れましたが、カードに書けませんでした。ID：" + e.sessionId, e.sessionId);
+      } else runError(e, false);
+    } finally {
+      creating = false;
+      syncGo();
+    }
+  });
+
   $("q").addEventListener("input", (ev) => { query = ev.target.value.trim(); renderBoard(); });
   document.addEventListener("keydown", (ev) => {
-    if (dlg.open || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (dlg.open || runDlg.open || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     const tag = (document.activeElement && document.activeElement.tagName) || "";
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") { if (ev.key === "Escape") document.activeElement.blur(); return; }
     if (ev.key === "/") { ev.preventDefault(); $("q").focus(); }
@@ -832,11 +1061,19 @@ dialog input[type="text"], dialog select { width: 100%; }
       render();
       if (sessions.length) renderSessions();
     }, () => setSync("読み込みが止まりました。開き直してください", true));
+    try {
+      db.collection("settings").onSnapshot((snap) => {
+        const d = snap.docs.find((x) => x.id === "run");
+        const v = d ? d.data().environmentId : "";
+        savedEnvId = typeof v === "string" ? v : "";
+      }, () => {});
+    } catch (e) {}
   })();
 
   (async () => {
     mcp = await window.claude?.use?.("mcp");
     if (!mcp) { setLiveMsg("このページではセッションを読めません（claude.ai で開くと見られます）。"); return; }
+    renderBoard();
     let state = "prompt";
     try {
       const perms = await window.claude.use("permissions");

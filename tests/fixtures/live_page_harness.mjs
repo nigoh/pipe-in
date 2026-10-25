@@ -10,6 +10,15 @@
 //   hidden   始めに document.hidden にするか（既定 false）
 //   initial  購読した直後に（非同期で）届ける値。{"value": ...} | {"missing": true}。省くと何も届かない
 //   steps    順に行う操作（下）
+//   comments D0044：偽の claude.use("comments")。省くと use("comments") は null（前の版と同じ）。次のキーを持つ（すべて省ける）
+//              use     "ok"（既定）| "null" | "rejects" | "throws" | "undefined"
+//              can     "available"（既定）| "writers_only" | "no_session" | "off" | 任意の JSON 値 | {"$":"reject"} | {"$":"throw"} |
+//                      {"$":"undefined"} | "pending"（settle_can で終わらせるまで返さない）
+//              anchor  "ok"（既定）| "rejects" | "throws" | "not_an_object" | "pending"（settle_anchor で終わらせる）
+//              send    "resolve"（既定）| "pending" | {"reject": 値} | {"reject_code": "claude_unavailable"} | "throws" |
+//                      それらの配列（呼ぶたびに順に使い、最後のものを繰り返す）
+//              anchorFor(el) は {path, x, y, token: "ANCHOR-TOKEN-<n>"} を発行する。sendToClaude は受けた anchor が発行したものそのものか
+//              （anchor_issued）と、押した操作の中で呼ばれたか（in_gesture。await を挟むと偽）を記録する。
 //
 // 操作（steps の要素。結果の steps[i] に threw（投げた例外の文。無ければ null）と view が入る）:
 //   {"op":"send","value":V}            db に値 V を届ける（snap.exists = true, snap.data() = V）
@@ -20,13 +29,28 @@
 //   {"op":"set_now","at":ISO}          時計をその時刻にする（タイマーは動かさない。時計が戻る場面）
 //   {"op":"hidden","value":B}          document.hidden を B にして visibilitychange を送る
 //   {"op":"call","fn":NAME,"args":[…]} トップレベルの関数 NAME を呼ぶ（結果は result）
-//   {"op":"query","selector":S}        S に合う要素の {tag, text, attrs} を result に返す
+//   {"op":"query","selector":S}        S に合う要素の {tag, text, attrs, value, selection, disabled, shown, focused} を result に返す
+//                                      （shown = 文書に付いていて、自分も祖先も hidden でない）
+//   {"op":"click","selector":S,"times":1,"force":false}  S に合う最初の要素を times 回、続けて（同じ操作の中で）押す。force が偽なら、
+//                                      disabled か hidden（自分か祖先）の要素には押さない（ブラウザと同じ）。押している間 gesture の旗が立つ。
+//                                      result = {found, dispatched, skipped}。click は親へ伝わる（bubbles）
+//   {"op":"input","selector":S,"value":V,"force":false}  S の .value を V にして input を送る（disabled・hidden には force なしで届かない）
+//   {"op":"focus","selector":S}        S の要素を focus() する（見えない・disabled・focus できない要素には効かない）
+//   {"op":"select","selector":S,"start":A,"end":B}  S の要素に setSelectionRange(A, B)
+//   {"op":"focus_state"}               document.activeElement の {tag, class} を result に返す（何も無ければ body）
+//   {"op":"settle","call":I,"how":"resolve"|{"reject":V}}  send: "pending" の I 番目の送信を終わらせる
+//   {"op":"settle_can","call":I,"value":V}   can: "pending" の I 番目の canSendToClaude を V で終わらせる（{"$":"reject"} は reject）
+//   {"op":"settle_anchor","call":I,"how":"resolve"|"reject"}  anchor: "pending" の I 番目の anchorFor を終わらせる
+//   {"op":"set_can","value":V}         canSendToClaude が次に返す値を替える
 //
 // 値の中の NaN・Infinity は {"$":"NaN"}・{"$":"Infinity"}・{"$":"-Infinity"} と書く（JSON に書けないため）。結果も同じ書き方で返す。
 //
 // view（画面の様子）: lines（文字の節。順番どおり）・text（lines を改行でつないだもの）・tags（要素の種類ごとの数）・attrs（使われた属性名）・
 //   created（createElement で作った要素の種類の一覧）・intervals（回っている setInterval の数）・timeouts・interval_ms・
-//   html_insertions（innerHTML などに書こうとした回数）・hidden・now_ms
+//   html_insertions（innerHTML などに書こうとした回数）・hidden・now_ms・
+//   shown_lines / shown_text（hidden の要素の中を除いた文字。画面に見える文字）
+// 結果の最上位: comments {use_calls, can_calls, anchor_calls[{el_tag, el_class, attached}], sends[{text, anchor, anchor_issued, in_gesture, n, keys, argc}],
+//   pending_sends, pending_can, pending_anchor}・dialogs（alert・confirm・prompt を呼んだ記録）
 
 import fs from "node:fs";
 import vm from "node:vm";
@@ -46,7 +70,10 @@ function decodeEntities(s) {
 
 // ---- 偽の DOM -------------------------------------------------------------------------------------
 
-const counters = { htmlInsertions: 0, created: [], alerts: [] };
+const counters = { htmlInsertions: 0, created: [], alerts: [], dialogs: [] };
+const focusState = { el: null };
+const gesture = { active: false };
+const world = { root: null, body: null };
 
 class Node_ {
   constructor() {
@@ -86,6 +113,8 @@ class Node_ {
       if (i >= 0) this.parentNode.childNodes.splice(i, 1);
       this.parentNode = null;
     }
+    // 動かした・外した要素（かその祖先）が focus を持っていたら、ブラウザと同じく focus を失う
+    if (focusState.el && (this === focusState.el || this.contains(focusState.el))) focusState.el = null;
   }
   _nodes(items) {
     const out = [];
@@ -410,8 +439,94 @@ class Element_ extends Node_ {
   getElementsByClassName(cls) {
     return descendants(this).filter((e) => e.classList.contains(cls));
   }
-  focus() {}
-  blur() {}
+  get isConnected() {
+    for (let n = this; n; n = n.parentNode) if (n === world.root) return true;
+    return false;
+  }
+  _rendered() {
+    // 文書に付いていて、自分も祖先も hidden でない（display: none でない）
+    if (!this.isConnected) return false;
+    for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (n._attrs.has("hidden")) return false;
+    return true;
+  }
+  _focusable() {
+    return ["button", "textarea", "input", "select"].includes(this.localName) || this._attrs.has("tabindex");
+  }
+  focus() {
+    if (!this._rendered() || this.disabled || !this._focusable()) return;
+    focusState.el = this;
+  }
+  blur() {
+    if (focusState.el === this) focusState.el = null;
+  }
+  get disabled() {
+    return this._attrs.has("disabled");
+  }
+  set disabled(v) {
+    if (v) this._attrs.set("disabled", "");
+    else this._attrs.delete("disabled");
+  }
+  get value() {
+    if (this._value !== undefined) return this._value;
+    if (this._attrs.has("value")) return this._attrs.get("value");
+    return this.localName === "textarea" ? this.textContent : "";
+  }
+  set value(v) {
+    this._value = v == null ? "" : String(v);
+    this._selStart = this._selEnd = this._value.length;
+  }
+  get selectionStart() {
+    return this._selStart === undefined ? this.value.length : this._selStart;
+  }
+  get selectionEnd() {
+    return this._selEnd === undefined ? this.value.length : this._selEnd;
+  }
+  setSelectionRange(a, b) {
+    const n = this.value.length;
+    const lo = Math.max(0, Math.min(Number(a) || 0, n));
+    const hi = Math.max(lo, Math.min(Number(b) || 0, n));
+    this._selStart = lo;
+    this._selEnd = hi;
+  }
+  get type() {
+    return this._attrs.get("type") || "";
+  }
+  set type(v) {
+    this._attrs.set("type", String(v));
+  }
+  get rows() {
+    return Number(this._attrs.get("rows")) || 2;
+  }
+  set rows(v) {
+    this._attrs.set("rows", String(v));
+  }
+  get maxLength() {
+    return this._attrs.has("maxlength") ? Number(this._attrs.get("maxlength")) : -1;
+  }
+  set maxLength(v) {
+    this._attrs.set("maxlength", String(v));
+  }
+  get placeholder() {
+    return this._attrs.get("placeholder") || "";
+  }
+  set placeholder(v) {
+    this._attrs.set("placeholder", String(v));
+  }
+  get name() {
+    return this._attrs.get("name") || "";
+  }
+  set name(v) {
+    this._attrs.set("name", String(v));
+  }
+  get tabIndex() {
+    return this._attrs.has("tabindex") ? Number(this._attrs.get("tabindex")) : this._focusable() ? 0 : -1;
+  }
+  set tabIndex(v) {
+    this._attrs.set("tabindex", String(v));
+  }
+  get ownerDocument() {
+    return world.document;
+  }
   click() {
     this.dispatchEvent({ type: "click" });
   }
@@ -541,6 +656,45 @@ function buildDom(html) {
   return { htmlEl, head, body, title };
 }
 
+// 親へ伝わる（要素 → 親 → html → document）イベントを送る（click・input）。止める・既定を止めるの呼び出しも受ける。聞き手の例外はブラウザと同じく他の聞き手を止めない
+const reported = [];
+function fire(target, type) {
+  const ev = {
+    type,
+    target,
+    bubbles: true,
+    cancelable: true,
+    defaultPrevented: false,
+    isTrusted: true,
+    detail: 1,
+    preventDefault() {
+      this.defaultPrevented = true;
+    },
+    stopPropagation() {
+      this._stop = true;
+    },
+    stopImmediatePropagation() {
+      this._stop = true;
+    },
+  };
+  // 要素 → 親 → … → html → document の順に伝える
+  const path = [];
+  for (let n = target; n; n = n.parentNode) path.push(n);
+  if (world.document) path.push(world.document);
+  for (const n of path) {
+    if (ev._stop) break;
+    ev.currentTarget = n;
+    for (const fn of ((n._listeners && n._listeners[type]) || []).slice()) {
+      try {
+        if (typeof fn === "function") fn.call(n, ev);
+        else fn.handleEvent(ev);
+      } catch (e) {
+        reported.push(`${type}: ${e && e.message ? e.message : e}`);
+      }
+    }
+  }
+}
+
 // ---- 主な処理 --------------------------------------------------------------------------------------------
 
 const PRELUDE = `
@@ -629,7 +783,6 @@ async function main() {
     get visibilityState() {
       return hidden ? "hidden" : "visible";
     },
-    activeElement: null,
     createElement(tag) {
       if (typeof tag !== "string" || !/^[a-zA-Z][\w-]*$/.test(tag)) throw new Error("InvalidCharacterError");
       counters.created.push(tag.toLowerCase());
@@ -667,6 +820,17 @@ async function main() {
       counters.htmlInsertions += 1;
       throw new Error("document.writeln は使えない");
     },
+  });
+  world.root = htmlEl;
+  world.body = body;
+  world.document = document;
+  Object.defineProperty(document, "activeElement", {
+    get: () => {
+      const a = focusState.el;
+      if (a && (!a._rendered() || a.disabled)) focusState.el = null;
+      return focusState.el || body;
+    },
+    configurable: true,
   });
   Object.defineProperty(document, "hidden", { get: () => hidden, configurable: true });
   Object.defineProperty(document, "visibilityState", { get: () => (hidden ? "hidden" : "visible"), configurable: true });
@@ -748,9 +912,9 @@ async function main() {
     requestAnimationFrame: (fn) => addTimer(() => fn(vnow), 16, false, []),
     cancelAnimationFrame: (id) => void timers.delete(id),
     queueMicrotask,
-    alert: (...a) => void counters.alerts.push(a.map(String).join(" ")),
-    confirm: () => false,
-    prompt: () => null,
+    alert: (...a) => void (counters.alerts.push(a.map(String).join(" ")), counters.dialogs.push("alert")),
+    confirm: () => (counters.dialogs.push("confirm"), false),
+    prompt: () => (counters.dialogs.push("prompt"), null),
     navigator: { language: "ja", languages: ["ja"], userAgent: "live-page-harness" },
     performance: { now: () => vnow - startMs },
     matchMedia: (q) => ({ matches: false, media: String(q), addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }),
@@ -769,6 +933,87 @@ async function main() {
   sandbox.parent = sandbox;
   sandbox.frames = sandbox;
 
+  // ---- D0044：偽の comments ----
+  const cfg = scene.comments && typeof scene.comments === "object" ? scene.comments : null;
+  const comm = {
+    useCalls: 0,
+    canCalls: 0,
+    anchorCalls: [],
+    sends: [],
+    can: cfg && cfg.can !== undefined ? cfg.can : "available",
+    anchors: 0,
+    issued: [],
+    pendingSends: [],
+    pendingCan: [],
+    pendingAnchors: [],
+  };
+  const special = (v, name) => v !== null && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 1 && v.$ === name;
+  const decodeValue = (v) => (special(v, "undefined") ? undefined : v);
+  const elPath = (el) => {
+    const parts = [];
+    for (let n = el; n && n.nodeType === 1 && n !== world.root; n = n.parentNode) {
+      const sibs = n.parentNode ? n.parentNode.children : [n];
+      const cls = n.className ? "." + n.className.split(/\s+/).filter(Boolean).join(".") : "";
+      parts.unshift(`${n.localName}${cls}:nth-child(${sibs.indexOf(n) + 1})`);
+    }
+    return parts.join(" > ");
+  };
+  const issueAnchor = (el) => {
+    const a = { path: elPath(el), x: 1, y: 2, token: `ANCHOR-TOKEN-${++comm.anchors}` };
+    comm.issued.push(a);
+    return a;
+  };
+  const rejection = (message, code) => Object.assign(new Error(message), code === undefined ? {} : { code });
+  const fakeComments = {
+    canSendToClaude() {
+      comm.canCalls += 1;
+      const v = comm.can;
+      if (v === "pending") return new Promise((resolve, reject) => comm.pendingCan.push({ resolve, reject }));
+      if (special(v, "throw")) throw new Error("canSendToClaude threw");
+      if (special(v, "reject")) return Promise.reject(new Error("canSendToClaude rejected"));
+      return Promise.resolve(decodeValue(v));
+    },
+    anchorFor(el) {
+      comm.anchorCalls.push({ el_tag: el && el.localName, el_class: el && el.className, attached: !!(el && el.isConnected) });
+      const how = cfg && cfg.anchor !== undefined ? cfg.anchor : "ok";
+      if (how === "throws") throw new Error("anchorFor threw");
+      if (how === "rejects") return Promise.reject(rejection("invalid", "invalid"));
+      if (how === "not_an_object") return Promise.resolve("ANCHOR-STRING");
+      if (how === "pending") return new Promise((resolve, reject) => comm.pendingAnchors.push({ resolve, reject, el }));
+      return Promise.resolve(issueAnchor(el));
+    },
+    sendToClaude(arg) {
+      const n = comm.sends.length;
+      const isObj = arg !== null && typeof arg === "object";
+      comm.sends.push({
+        text: isObj ? arg.text : null,
+        anchor: isObj ? arg.anchor : null,
+        anchor_issued: isObj && comm.issued.includes(arg.anchor),
+        in_gesture: gesture.active,
+        n,
+        keys: isObj ? Object.keys(arg).sort() : null,
+        argc: arguments.length,
+      });
+      let how = cfg && cfg.send !== undefined ? cfg.send : "resolve";
+      if (Array.isArray(how)) how = how[Math.min(n, how.length - 1)];
+      if (how === "throws") throw new Error("sendToClaude threw");
+      if (how === "pending") return new Promise((resolve, reject) => comm.pendingSends.push({ resolve, reject }));
+      if (how !== null && typeof how === "object" && "reject_code" in how) return Promise.reject(rejection("REJECT-MESSAGE-SECRET", how.reject_code));
+      if (how !== null && typeof how === "object" && "reject" in how) return Promise.reject(decodeValue(how.reject));
+      return Promise.resolve();
+    },
+  };
+  function commentsUse() {
+    comm.useCalls += 1;
+    if (!cfg) return Promise.resolve(null);
+    const how = cfg.use !== undefined ? cfg.use : "ok";
+    if (how === "throws") throw new Error("claude.use('comments') threw");
+    if (how === "rejects") return Promise.reject(new Error("claude.use('comments') rejected"));
+    if (how === "null") return Promise.resolve(null);
+    if (how === "undefined") return Promise.resolve(undefined);
+    return Promise.resolve(fakeComments);
+  }
+
   if (mode !== "undefined") {
     sandbox.claude = {
       use: (name) => {
@@ -776,6 +1021,7 @@ async function main() {
         if (mode === "use_throws") throw new Error("claude.use threw");
         if (mode === "use_rejects") return Promise.reject(new Error("claude.use rejected"));
         if (mode === "use_undefined") return Promise.resolve(undefined);
+        if (name === "comments" && mode !== "null") return commentsUse();
         if (name !== "db" || mode === "null") return Promise.resolve(null);
         return Promise.resolve(fakeDb);
       },
@@ -816,10 +1062,24 @@ async function main() {
       }
     };
     walk(body);
+    const shown = [];
+    const walkShown = (n) => {
+      for (const c of n.childNodes) {
+        if (c.nodeType === 3) {
+          const t = c.data.replace(/\s+/g, " ").trim();
+          if (t) shown.push(t);
+        } else if (c.nodeType === 1 && !c._attrs.has("hidden")) {
+          walkShown(c);
+        }
+      }
+    };
+    walkShown(body);
     const live = [...timers.values()];
     return {
       lines,
       text: lines.join("\n"),
+      shown_lines: shown,
+      shown_text: shown.join("\n"),
       tags,
       attrs: [...attrs].sort(),
       created: counters.created.slice(),
@@ -948,7 +1208,74 @@ async function main() {
           tag: e.localName,
           text: e.textContent,
           attrs: Object.fromEntries(e._attrs),
+          value: e._value === undefined ? null : e._value,
+          selection: e.localName === "textarea" ? [e.selectionStart, e.selectionEnd] : null,
+          disabled: e.disabled,
+          shown: e._rendered(),
+          focused: document.activeElement === e,
         }));
+      } else if (step.op === "click") {
+        const target = queryAll(body, step.selector)[0] || null;
+        r.result = { found: target !== null, dispatched: 0, skipped: 0 };
+        if (target) {
+          gesture.active = true;
+          try {
+            for (let i = 0; i < (step.times ?? 1); i++) {
+              if (!step.force && (target.disabled || !target._rendered())) {
+                r.result.skipped += 1;
+                continue;
+              }
+              r.result.dispatched += 1;
+              fire(target, "click");
+            }
+          } finally {
+            gesture.active = false;
+          }
+        }
+      } else if (step.op === "input") {
+        const target = queryAll(body, step.selector)[0] || null;
+        r.result = { found: target !== null, dispatched: 0, skipped: 0 };
+        if (target) {
+          if (!step.force && (target.disabled || !target._rendered())) {
+            r.result.skipped += 1;
+          } else {
+            target.value = step.value;
+            r.result.dispatched += 1;
+            fire(target, "input");
+          }
+        }
+      } else if (step.op === "focus") {
+        const target = queryAll(body, step.selector)[0] || null;
+        r.result = { found: target !== null };
+        if (target) target.focus();
+      } else if (step.op === "select") {
+        const target = queryAll(body, step.selector)[0] || null;
+        r.result = { found: target !== null };
+        if (target) target.setSelectionRange(step.start, step.end);
+      } else if (step.op === "focus_state") {
+        const a = document.activeElement;
+        r.result = { tag: a.localName, class: a.className };
+      } else if (step.op === "settle") {
+        const p = comm.pendingSends[step.call];
+        if (!p) throw new Error("settle: その送信は pending でない " + step.call);
+        if (step.how === "resolve") p.resolve();
+        else p.reject(decodeValue(step.how.reject));
+        r.result = { settled: step.call };
+      } else if (step.op === "settle_can") {
+        const p = comm.pendingCan[step.call];
+        if (!p) throw new Error("settle_can: その呼び出しは pending でない " + step.call);
+        if (special(step.value, "reject")) p.reject(new Error("canSendToClaude rejected"));
+        else p.resolve(decodeValue(step.value));
+        r.result = { settled: step.call };
+      } else if (step.op === "settle_anchor") {
+        const p = comm.pendingAnchors[step.call];
+        if (!p) throw new Error("settle_anchor: その呼び出しは pending でない " + step.call);
+        if (step.how === "reject") p.reject(rejection("invalid", "invalid"));
+        else p.resolve(issueAnchor(p.el));
+        r.result = { settled: step.call };
+      } else if (step.op === "set_can") {
+        comm.can = step.value;
+        r.result = { set: true };
       } else {
         throw new Error("知らない op " + step.op);
       }
@@ -970,8 +1297,18 @@ async function main() {
     console_logs: consoleLines.log,
     unhandled,
     uncaught,
-    listener_errors: listenerErrors,
+    listener_errors: listenerErrors.concat(reported),
     alerts: counters.alerts,
+    dialogs: counters.dialogs,
+    comments: {
+      use_calls: comm.useCalls,
+      can_calls: comm.canCalls,
+      anchor_calls: comm.anchorCalls,
+      sends: comm.sends,
+      pending_sends: comm.pendingSends.length,
+      pending_can: comm.pendingCan.length,
+      pending_anchor: comm.pendingAnchors.length,
+    },
     db: {
       calls: db.calls,
       writes: db.writes,

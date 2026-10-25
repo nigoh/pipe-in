@@ -12,7 +12,8 @@ dist/
 # 動画を作る見本のパイプ（examples/video/）を、このリポジトリを対象に流したときの出力（ロゴ・案・こま・MP4・選んだ記録）
 /video/
 
-# Claude Code の手元だけの設定
+# Claude Code の手元だけの設定と、機能ごとの worktree（python -m pipe_in worktree new が切る。D0048）
+/.claude/worktrees/
 .claude/settings.local.json
 CLAUDE.local.md
 
@@ -32,6 +33,9 @@ Thumbs.db
 # このリポジトリを対象にして作ったパイプ（.pipe-in/pipes/、前の版の .devpipe/pipes/）も載せない
 /.pipe-in/
 /.devpipe/
+
+# プラグインの eval の結果（claude plugin eval の出力。利用料のかかる実行の記録）
+/plugin/evals/results/
 
 # Playwright（MCP）で画面を確かめたときのスクリーンショット
 .playwright-mcp/

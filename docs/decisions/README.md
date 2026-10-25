@@ -36,16 +36,26 @@
 | [D0030](D0030-brand-plug.md) | ブランドを「プラグ」（今のロゴのコーラルとティール）に決め、画面のデザインの土台（部品と画面の見本、明暗の色の決まり）を `docs/design/` に残す |
 | [D0031](D0031-live-watch.md) | ターミナルで流す pipe-in の進み具合もアーティファクトで見る（`pipe-in live watch` が記録を見張り、プラグインのスキル `/pipe-in:pipe-live` が Monitor で受けて写しを書く。見るだけ） |
 | [D0032](D0032-guard-fail-closed.md) | サブエージェント用のフック（`pipe_in_guard.py`）が例外や想定外の入力で落ちても、pipe-in-* の呼び出しは止める側に倒す（入口を囲み、書けないときは終了コード 2。止める表と許す表は変えず、例外と型のおかしい `agent_type` では止める側に広げる） |
+| [D0033](D0033-sdk-buffer-rest.md) | パイプと pipe-in-gen design でも、SDK の受信バッファの上限（D0026 の `max_buffer_mb`）を超えたら止める（パイプは終了コード 3。差し戻しもグループの後の段もしない。pipe-in-gen design はやり直さずに案内を出して終了コード 1。古い版で 1048576 bytes のトレースバックが出たら入れ直す） |
 | [D0034](D0034-first-run-watch.md) | work_dir がまだ無いプロジェクトでも、最初の実行でパネルとステータスバーが進む（拡張が約 3 秒ごとに `stat` で有無だけを確かめ、できたら見張りを張って読み直す。消えたら外す。拡張は work_dir を作らない） |
 | [D0035](D0035-stage-agent-guard.md) | 段の中のサブエージェントの呼び方を守る（裏で動かす形・入れ子を止め、1回の実行で呼べる数に上限 `max_agent_calls`、既定 20。超えたら止めて理由を返すだけ） |
 | [D0036](D0036-bash-write-guard.md) | 段の Bash による書き込み（リダイレクト・tee・sed -i・cp・mv・touch・python -c など）を、段の書き込み範囲で止める。先が読めなければ止める。サンドボックスではない |
 | [D0037](D0037-build-judge.md) | プラグインの pipe-build と `pipe-in-gen design` で、検査と審査の段を組めるようにする（`references/stage-rules.md`・ひな形 diagrams の例） |
 | [D0038](D0038-pipe-lessons.md) | パイプを流して分かったこと（置き場所が要る段は docs、テストを書く段もあとの検査を流す、差し戻しは直せる段へ など）を、pipe-build のスキルと `pipe-in-gen check` の警告（`⚠`。誤りにはしない）に入れる |
 | [D0039](D0039-skill-tidy.md) | /pipe-in のスキルを、長い会話でも決まりが残る形に整える（冒頭の決まり・補助ファイル 3 つ・許可の規則・前の名前の残り） |
+| [D0040](D0040-live-watch-windows-pipe.md) | Windows でも、標準出力が閉じた `pipe-in live watch` が静かに終了コード 1 で止まる（標準出力の書き込みの `OSError` を errno を問わず受け、閉じたのか書けないのかで文を分ける。付け替えられないときは `sys.stdout` を外す） |
+| [D0041](D0041-agent-limits.md) | 監査・助言・審査のサブエージェントの定義に回数の上限（`maxTurns` 100・80・50）を付け、会話を開かずに流す監査・助言の呼び方に `--disallowedTools "mcp__*"` を足して MCP の道具も見せない（D0012 の呼び方の2行を置き換える） |
+| [D0042](D0042-pipe-plan-run.md) | 計画ボードのカードの「実行」から、確認を経て新しいセッションを作り `/pipe-in` を始める（ページが宣言する道具を `list_sessions` 1つから3つに。D0029 の「読むだけ」を置き換える） |
+| [D0043](D0043-finding-schema.md) | 仕様書レビューの指摘を決まった形（指摘の形 v1。Schema は `generator/schemas/`）で受け渡し、形・出典・引用の一致（NFKC と空白を除いて比べる）・役割ごとの決まりを `pipe-in-gen findings-check` で LLM を呼ばずに検査する（終了コード 0・1・2） |
+| [D0044](D0044-live-answer.md) | 進み具合のページの確認待ちの行に、承認・差し戻し・中止のボタンを出す（コメントの機能で決まった形の文を送り、会話が `pipe-in live answer` で読んでから記録する。`/pipe-in --artifact` だけ） |
+| [D0045](D0045-plugin-evals.md) | プラグイン自身の eval のケースを `plugin/evals/` に 9 本置く（`claude plugin eval` 用。費用のかからない採点が中心で、`pytest` はファイルの形だけを見る。流すのは人に言われたときだけ） |
+| [D0046](D0046-wait-notify.md) | 確認待ちになったら知らせる（拡張の知らせと設定 `pipe-in.notifyWhenWaiting`・`/pipe-in` の PushNotification・Claude Code の通知の設定の案内。D0024-AC-26 の設定の鍵を5つに） |
+| [D0047](D0047-spec-review-template.md) | 仕様書レビューのパイプのひな形 `spec-review` を足す（素人の質問 → 知識の下ごしらえ → 6つの検査を同時に → 根拠の確認（`findings-check`）→ まとめと質問票。指摘は D0043 の形 v1） |
+| [D0048](D0048-worktree-auto.md) | worktree を自動で切って、main に入ったら自動で片付ける（pipe-in worktree new・clean） |
 
 ## ひな形
 
-ファイルの名前は `Dnnnn-<英小文字・数字・->.md`。番号は上の表の次。足したら上の表にも1行足す。
+ファイルの名前は `Dnnnn-<英小文字・数字・->.md`。番号は上の表の次（ほかのブランチで使っている番号は飛ばす）。足したら上の表にも1行足す。
 
 ```markdown
 # Dnnnn <何ができるようになったか>
