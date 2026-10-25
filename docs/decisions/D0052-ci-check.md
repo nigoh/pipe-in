@@ -33,10 +33,10 @@ main に入る変更で `pytest` や拡張のテストが落ちるのを、入�
 - D0052-AC-10：`docs/development/workflow.md` と `docs/guide/` の該当する文書（`docs/guide/develop.md`）に、CI が流すもの・秘密を使わないこと・手元で同じものを流す方法が書いてある。（tests/test_ci_workflow.py）
 - D0052-AC-11：ワークフローのコマンドが、`CLAUDE.md` の「コマンド」と食い違わない（`pytest -q`、`npm ci`、`npm test`、`npm run typecheck`、`npm run build`）。（tests/test_ci_workflow.py）
 - D0052-AC-12：古い形の扱い。`.github/workflows/` が無かった頃の PR・ブランチには影響せず、ワークフローを足しても `pipeline.toml`・`pipe.toml`・`state.json`・pipe-in の置き場所は変わらない（変えていないことを、`git diff --name-only main...HEAD` が `.github/`・`docs/`・`.claude/skills/`・`tests/`・`CLAUDE.md` の中だけであることで示す）。（tests/test_ci_workflow.py。変えたファイルが範囲の中だけなのは、検証の段で git status で確かめた）
-- D0052-AC-13（実機）：この変更の PR を GitHub に出すと、ワークフローが動き、Python と拡張のジョブが緑になる。（まだ。この変更の PR を GitHub に出してから確かめる）
+- D0052-AC-13（実機）：この変更の PR を GitHub に出すと、ワークフローが動き、Python と拡張のジョブが緑になる。（確かめた：PR #94 で `python` と `extension` の 2 つのジョブが動き、どちらも緑になった）
 - D0052-AC-14（実機）：わざと落ちるテストを入れた PR で、チェックが赤になる（確かめたら PR は閉じる。main に入れない）。（まだ。この変更の PR を GitHub に出してから確かめる）
 - D0052-AC-15（実機）：フォークからの PR で、ワークフローが秘密と書き込み権限なしで動く（実行ログの `GITHUB_TOKEN Permissions` が Contents: read だけ）。（まだ。この変更の PR を GitHub に出してから確かめる）
-- D0052-AC-16（実機）：全体の所要時間が、決めた上限（Q-2 の案の見積もりより長くならない。設計で測って決める）に収まる。（まだ。この変更の PR を GitHub に出してから確かめる）
+- D0052-AC-16（実機）：全体の所要時間が、決めた上限（Q-2 の案の見積もりより長くならない。設計で測って決める）に収まる。（確かめた：PR #94 の最初の実行で `python` 2 分 15 秒・`extension` 31 秒。並べて流すので全体は約 2 分半。タイムアウトの 20 分・10 分は十分に余裕があるので、そのままにした）
 
 ## 決めたことと理由
 
@@ -67,13 +67,13 @@ main に入る変更で `pytest` や拡張のテストが落ちるのを、入�
 
 ### 受け入れたリスク
 
-1. **CI が通るかは、GitHub の上で流すまで分からない**（AC-13〜16）。読みでは、git を使うテストは一時フォルダで用意し、時計は差し替えているので通る見込み。本物の子プロセスや HTTP を使う 3 つのテスト（`test_live_watch_cli`・`test_live_answer_cli`・`test_video_review`）は、遅い入れ物で揺れるかもしれない。
+1. **CI の上で揺れるテストがあるかもしれない**（最初の実行は緑だった）。読みでは、git を使うテストは一時フォルダで用意し、時計は差し替えているので通る見込み。本物の子プロセスや HTTP を使う 3 つのテスト（`test_live_watch_cli`・`test_live_answer_cli`・`test_video_review`）は、遅い入れ物で揺れるかもしれない。
 2. **ブランチの保護を人が設定するまでは、CI が赤でも main に入れられる。**
 3. **アクションの SHA は手で更新する**（Dependabot が知らせる）。
 
 ### 確かめていないこと
 
-- AC-13〜16（実機）：この変更の PR で CI が動いて緑になるか、わざと落とした PR で赤になるか、外からの PR で権限が読むだけになるか、所要時間。
+- AC-14・15（実機）：わざと落とした PR で赤になるか、外からの PR で権限が読むだけになるか（AC-13・16 は PR #94 で確かめた）。
 - Windows で全部のテストが通るか。
 
 ## 対象外・残った課題
