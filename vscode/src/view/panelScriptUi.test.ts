@@ -62,7 +62,7 @@ const selectedDetailTabs = (h: PanelHarness): string[] =>
     .querySelectorAll('button[data-detail-tab]')
     .filter((b) => b.getAttribute('aria-selected') === 'true')
     .map((b) => b.getAttribute('data-detail-tab')!);
-/** 見えているタブパネルの data-detail-panel の値（diagram 図と出力・artifacts 成果物・tools エージェント・スキル・usage 使用量）。D0047：番号でなく名前で取る */
+/** 見えているタブパネルの data-detail-panel の値（diagram 図と出力・artifacts 成果物・tools エージェント・スキル・usage 使用量）。D0049：番号でなく名前で取る */
 const shownPanels = (h: PanelHarness): string[] =>
   h.doc
     .querySelectorAll('[role="tabpanel"]')

@@ -1,4 +1,4 @@
-# D0047 実行の詳細に、使ったエージェント・スキル・道具の表を出す
+# D0049 実行の詳細に、使ったエージェント・スキル・道具の表を出す
 
 ## 目的
 
@@ -8,106 +8,106 @@
 
 ## 機能要件と受け入れ基準
 
-拡張のテストは `vscode/src/` の node:test、文書のテストは `tests/test_tools_tab_docs.py`。どのテストも名前（Python は docstring）の頭が `D0047-AC-xx:`。画面は確認用ページ（`run-panel-tools-light`・`-dark`）を Playwright で開いて確かめた。
+拡張のテストは `vscode/src/` の node:test、文書のテストは `tests/test_tools_tab_docs.py`。どのテストも名前（Python は docstring）の頭が `D0049-AC-xx:`。画面は確認用ページ（`run-panel-tools-light`・`-dark`）を Playwright で開いて確かめた。
 
 #### 数える元と範囲
 - FR-01 数える元は、選んだ実行の段のログの道具の呼び出し。新しく読む場所は増やさない
-  - D0047-AC-01 数える呼び出しの判定を出力と共有する（tests/test_tools_tab_docs.py・vscode/src/domain/stageLogToolCalls.test.ts）
-  - D0047-AC-02 数と出力の道具の行が同じ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
-  - D0047-AC-03 読むファイル・口を増やさない（vscode/src/app/refreshViewTools.test.ts）
-  - D0047-AC-04 別の worktree・archive も同じ表（vscode/src/app/refreshViewTools.test.ts）
+  - D0049-AC-01 数える呼び出しの判定を出力と共有する（tests/test_tools_tab_docs.py・vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-02 数と出力の道具の行が同じ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-03 読むファイル・口を増やさない（vscode/src/app/refreshViewTools.test.ts）
+  - D0049-AC-04 別の worktree・archive も同じ表（vscode/src/app/refreshViewTools.test.ts）
 #### 種類と名前
 - FR-02 呼び出しを、エージェント・スキル・道具の 3 つの種類に分け、名前を付ける
-  - D0047-AC-05 エージェント・スキル・道具の見分け（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
-  - D0047-AC-06 名前の決まりと読めない名前（vscode/src/domain/toolsTable.test.ts）
-  - D0047-AC-07 同じ種類・名前は 1 行（vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-05 エージェント・スキル・道具の見分け（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-06 名前の決まりと読めない名前（vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-07 同じ種類・名前は 1 行（vscode/src/domain/toolsTable.test.ts）
 #### 入力の中身は出さない
 - FR-03 呼び出しの入力のうち、表に使うのは名前だけ
-  - D0047-AC-08 入力の中身は出さない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-08 入力の中身は出さない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
 #### サブエージェントの中の呼び出し
 - FR-04 サブエージェントの中の呼び出しも数える
-  - D0047-AC-09 parent_tool_use_id は数え方に使わない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts・vscode/src/domain/toolsTable.test.ts）
-  - D0047-AC-10 サブエージェントの中も数える（vscode/src/domain/pipelineViewTools.test.ts）
+  - D0049-AC-09 parent_tool_use_id は数え方に使わない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts・vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-10 サブエージェントの中も数える（vscode/src/domain/pipelineViewTools.test.ts）
 #### 回数
 - FR-05 各行に回数を出す
-  - D0047-AC-11 回数は呼んだ数（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-11 回数は呼んだ数（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts）
 #### 使った段
 - FR-06 各行に、使った段を出す
-  - D0047-AC-12 使った段（3 つまで・title）（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-13 段の表示名は時系列と同じ元（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-12 使った段（3 つまで・title）（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-13 段の表示名は時系列と同じ元（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
 #### 時間
 - FR-07 時間は、記録に正しい値がある行だけ出す
-  - D0047-AC-14 道具ごとの時間は出さない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-15 受け持ちの行の時間（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-16 時間の列は有るときだけ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-14 道具ごとの時間は出さない（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/stageLogToolCalls.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-15 受け持ちの行の時間（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-16 時間の列は有るときだけ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
 #### 段の受け持ち
 - FR-08 `/pipe-in` の記録の段の受け持ち（`agent`）を、エージェントの行として出す
-  - D0047-AC-17 受け持ちをエージェントの行に（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
-  - D0047-AC-18 同じ段の実行は 1 回だけ（vscode/src/domain/toolsTable.test.ts）
-  - D0047-AC-19 受け持ちと subagent_type が同じ名前なら 1 行（vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-17 受け持ちをエージェントの行に（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-18 同じ段の実行は 1 回だけ（vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-19 受け持ちと subagent_type が同じ名前なら 1 行（vscode/src/domain/toolsTable.test.ts）
 #### `/pipe-in` の記録の案内
 - FR-09 `/pipe-in` の記録には、呼び出しが残らないことを案内で伝える
-  - D0047-AC-20 driver の有無（vscode/src/domain/runRecordDriver.test.ts）
-  - D0047-AC-21 案内 A（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-22 案内 B（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-20 driver の有無（vscode/src/domain/runRecordDriver.test.ts）
+  - D0049-AC-21 案内 A（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-22 案内 B（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
 #### 表
 - FR-10 表の形・並び・上限・空のとき
-  - D0047-AC-23 列・並び（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-24 要約（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-25 100 行の上限（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-26 空の文（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-27 パネルと枠の属性（vscode/src/view/panelScriptTools.test.ts・vscode/src/view/shellHtmlTools.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-23 列・並び（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-24 要約（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-25 100 行の上限（vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-26 空の文（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-27 パネルと枠の属性（vscode/src/view/panelScriptTools.test.ts・vscode/src/view/shellHtmlTools.test.ts・vscode/src/view/toolsHtml.test.ts）
 #### タブ
 - FR-11 詳細のタブに「エージェント・スキル」を足す
-  - D0047-AC-28 詳細のタブが 4 つ（vscode/src/view/shellHtml.test.ts・vscode/src/view/shellHtmlTools.test.ts）
-  - D0047-AC-29 タブ・パネルの数や位置を固定したテストの直し（直した既存のテスト：vscode/src/view/shellHtml.test.ts・vscode/src/view/artifactsPanel.test.ts・vscode/src/view/panelScriptUi.test.ts・vscode/src/previewPagesArtifacts.test.ts。下の「既存のテストを変えた理由」）
-  - D0047-AC-30 タブを押すと切り替わる（vscode/src/view/panelScriptTools.test.ts）
-  - D0047-AC-31 描き直しをまたぐ保持（vscode/src/view/panelScriptTools.test.ts）
-  - D0047-AC-32 図と出力・使用量の HTML は変わらない（vscode/src/view/shellHtmlTools.test.ts）
+  - D0049-AC-28 詳細のタブが 4 つ（vscode/src/view/shellHtml.test.ts・vscode/src/view/shellHtmlTools.test.ts）
+  - D0049-AC-29 タブ・パネルの数や位置を固定したテストの直し（直した既存のテスト：vscode/src/view/shellHtml.test.ts・vscode/src/view/artifactsPanel.test.ts・vscode/src/view/panelScriptUi.test.ts・vscode/src/previewPagesArtifacts.test.ts。下の「既存のテストを変えた理由」）
+  - D0049-AC-30 タブを押すと切り替わる（vscode/src/view/panelScriptTools.test.ts）
+  - D0049-AC-31 描き直しをまたぐ保持（vscode/src/view/panelScriptTools.test.ts）
+  - D0049-AC-32 図と出力・使用量の HTML は変わらない（vscode/src/view/shellHtmlTools.test.ts）
 #### 動いている実行
 - FR-12 描き直しのたびに、選んだ実行のログから作り直す
-  - D0047-AC-33 同じ写しから同じ HTML（vscode/src/architecture.test.ts・vscode/src/domain/pipelineViewTools.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-34 動いている実行は描き直しで増える（vscode/src/domain/pipelineViewTools.test.ts）
+  - D0049-AC-33 同じ写しから同じ HTML（vscode/src/architecture.test.ts・vscode/src/domain/pipelineViewTools.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-34 動いている実行は描き直しで増える（vscode/src/domain/pipelineViewTools.test.ts）
 #### 外から来た文字・約束を増やさない
 - FR-13 外から来た文字は `escapeHtml` を通す
-  - D0047-AC-35 escapeHtml を 1 回だけ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-36 style・on…・src・href を増やさない（vscode/src/view/shellHtmlTools.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-35 escapeHtml を 1 回だけ（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-36 style・on…・src・href を増やさない（vscode/src/view/shellHtmlTools.test.ts・vscode/src/view/toolsHtml.test.ts）
 - FR-14 拡張は読むだけで、メッセージ・設定・依存を増やさない
-  - D0047-AC-37 メッセージ・設定・依存を増やさない（既存の vscode/src/manifest.test.ts・vscode/src/view/messages.test.ts・vscode/src/webview/csp.test.ts が変えずに通り、vscode/package.json・package-lock.json は変わらない）
-  - D0047-AC-38 書かない・child_process なし・層を守る（vscode/src/architecture.test.ts）
+  - D0049-AC-37 メッセージ・設定・依存を増やさない（既存の vscode/src/manifest.test.ts・vscode/src/view/messages.test.ts・vscode/src/webview/csp.test.ts が変えずに通り、vscode/package.json・package-lock.json は変わらない）
+  - D0049-AC-38 書かない・child_process なし・層を守る（vscode/src/architecture.test.ts）
 #### 本体を変えない・一覧を重くしない
 - FR-15 本体と記録の形は変えず、一覧の行の組み立てに表の計算を入れない
-  - D0047-AC-39 本体・記録の形・守りを変えない（手で）確かめた：検証の段で、載せ直した main からの git diff --name-only と git status --short を合わせて見た。本体・generator/・plugin/・.claude/hooks/・.claude/agents/・infra/・extension.ts・webview/・package*.json・pyproject.toml は無変更。app/ に出るのはテストのファイル vscode/src/app/refreshViewTools.test.ts だけで、製品のコードは変えていない
-  - D0047-AC-40 一覧の行の項目を増やさない（vscode/src/domain/runListTools.test.ts）
-  - D0047-AC-41 一覧の行の組み立ては表を数えない（vscode/src/app/refreshViewTools.test.ts・vscode/src/architecture.test.ts・vscode/src/domain/pipelineViewTools.test.ts）
+  - D0049-AC-39 本体・記録の形・守りを変えない（手で）確かめた：検証の段で、載せ直した main からの git diff --name-only と git status --short を合わせて見た。本体・generator/・plugin/・.claude/hooks/・.claude/agents/・infra/・extension.ts・webview/・package*.json・pyproject.toml は無変更。app/ に出るのはテストのファイル vscode/src/app/refreshViewTools.test.ts だけで、製品のコードは変えていない
+  - D0049-AC-40 一覧の行の項目を増やさない（vscode/src/domain/runListTools.test.ts）
+  - D0049-AC-41 一覧の行の組み立ては表を数えない（vscode/src/app/refreshViewTools.test.ts・vscode/src/architecture.test.ts・vscode/src/domain/pipelineViewTools.test.ts）
 #### 古い形・壊れた値
 - FR-16 古い記録・壊れた値でも、例外を出さない
-  - D0047-AC-42 壊れた部品・行でも例外なし（vscode/src/domain/stageLogToolCalls.test.ts）
-  - D0047-AC-43 古い記録・壊れた state.json でも読める（vscode/src/domain/pipelineViewTools.test.ts）
-  - D0047-AC-44 __proto__ などの名前（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
-  - D0047-AC-45 極端な入力（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
+  - D0049-AC-42 壊れた部品・行でも例外なし（vscode/src/domain/stageLogToolCalls.test.ts）
+  - D0049-AC-43 古い記録・壊れた state.json でも読める（vscode/src/domain/pipelineViewTools.test.ts）
+  - D0049-AC-44 __proto__ などの名前（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts・vscode/src/view/toolsHtml.test.ts）
+  - D0049-AC-45 極端な入力（vscode/src/domain/pipelineViewTools.test.ts・vscode/src/domain/toolsTable.test.ts）
 #### 確認用ページ
 - FR-17 `npm run preview` で、タブを画面で確かめられるようにする
-  - D0047-AC-46 確認用ページ（vscode/src/previewPagesArtifacts.test.ts・vscode/src/previewPagesTools.test.ts）
+  - D0049-AC-46 確認用ページ（vscode/src/previewPagesArtifacts.test.ts・vscode/src/previewPagesTools.test.ts）
 #### 文書
 - FR-18 使う人向けの説明と、開発の文書をそろえる
-  - D0047-AC-47 ガイド（tests/test_tools_tab_docs.py）
-  - D0047-AC-48 拡張の README（tests/test_tools_tab_docs.py）
-  - D0047-AC-49 設計の文書（tests/test_tools_tab_docs.py）
-  - D0047-AC-50 確認用ページの持ち場（tests/test_tools_tab_docs.py）
-  - D0047-AC-51 決定の記録の表（tests/test_tools_tab_docs.py）
+  - D0049-AC-47 ガイド（tests/test_tools_tab_docs.py）
+  - D0049-AC-48 拡張の README（tests/test_tools_tab_docs.py）
+  - D0049-AC-49 設計の文書（tests/test_tools_tab_docs.py）
+  - D0049-AC-50 確認用ページの持ち場（tests/test_tools_tab_docs.py）
+  - D0049-AC-51 決定の記録の表（tests/test_tools_tab_docs.py）
 #### 画面・手で・実機
 - FR-19 確認用ページ・手・実機で確かめる（画面は Playwright で開いて確かめる）
-  - D0047-AC-52 （画面）表と要約が見える（画面）確かめた：1280×800 で要約「125 種類・合計 190 回」、列見出し 名前・種類・回数・使った段、エージェント → スキル → 道具の順、「ほか N 件」と title
-  - D0047-AC-53 （画面）外から来た文字が文字のまま（画面）確かめた：<script>・<img onerror>・"・& を含む名前が文字のまま。パネルに script・img・iframe 0、外への通信 0、コンソールのエラー 0
-  - D0047-AC-54 （画面）100 行を超えると省略の文（画面）確かめた：行 100・「ほか 25 種類を省いています」
-  - D0047-AC-55 （画面）/pipe-in の記録・案内・空の文（画面）確かめた：(b) 案内 A・受け持ちの行・時間の列、(c) 案内 B だけ、(d) 空の文だけ、(a) に戻すと時間の列なし。タブの選びは行を替えても残る
-  - D0047-AC-56 （画面）描き直しのあとも位置と焦点が残る（画面）確かめた：縦（1280×800）の位置 120 と横（360×800）の位置と焦点が __previewNext() のあとも残り、別の実行で先頭に戻る。__posted は ready と selectRun だけ（横の位置は 40 を書いて 39 に丸められ、39 のまま残った）
-  - D0047-AC-57 （画面）明暗で読める（画面）確かめた：明暗で見出しの背景が本文と違い、読める。1 回目は列見出し「回数」が 2 行に折れたので attempt 2 で直した（vscode/src/view/toolsHtml.test.ts の D0047-AC-57 のテスト）
-  - D0047-AC-58 （画面）幅と高さで崩れない（画面）確かめた：幅 1280・1101・1100・1000・801・800・360 × 高さ 800・400 で横スクロール無し・タブが切れない・長い名前が折り返す。縦は 1101px 以上でパネル、801〜1100px で詳細の枠、800px 以下でページ全体
-  - D0047-AC-59 （画面）既存のページが変わらない（画面）確かめた：run-panel-light・run-panel-running-dark・run-panel-artifacts-light・run-panel-runs-dark でタブ 4 つが 1 行、エラー 0、新しいタブに見本の記録の道具の表
-  - D0047-AC-60 （手で）SDK を呼ばずに（手で）確かめた：一時フォルダの記録で start のあと案内 B、begin --agent のあいだ受け持ちの行（時間の列なし）、done のあと時間の列。見本の写しで Write 7・Bash 5・Edit 4・Read 4・Grep 1、行を足すと次の読み直しで増えた
-  - D0047-AC-61 （実機）実際の SDK で数が合う（実機）確かめていない（利用料がかかるので、人に言われたときだけ。tests/test_tools_tab_docs.py は文書だけを見る）
+  - D0049-AC-52 （画面）表と要約が見える（画面）確かめた：1280×800 で要約「125 種類・合計 190 回」、列見出し 名前・種類・回数・使った段、エージェント → スキル → 道具の順、「ほか N 件」と title
+  - D0049-AC-53 （画面）外から来た文字が文字のまま（画面）確かめた：<script>・<img onerror>・"・& を含む名前が文字のまま。パネルに script・img・iframe 0、外への通信 0、コンソールのエラー 0
+  - D0049-AC-54 （画面）100 行を超えると省略の文（画面）確かめた：行 100・「ほか 25 種類を省いています」
+  - D0049-AC-55 （画面）/pipe-in の記録・案内・空の文（画面）確かめた：(b) 案内 A・受け持ちの行・時間の列、(c) 案内 B だけ、(d) 空の文だけ、(a) に戻すと時間の列なし。タブの選びは行を替えても残る
+  - D0049-AC-56 （画面）描き直しのあとも位置と焦点が残る（画面）確かめた：縦（1280×800）の位置 120 と横（360×800）の位置と焦点が __previewNext() のあとも残り、別の実行で先頭に戻る。__posted は ready と selectRun だけ（横の位置は 40 を書いて 39 に丸められ、39 のまま残った）
+  - D0049-AC-57 （画面）明暗で読める（画面）確かめた：明暗で見出しの背景が本文と違い、読める。1 回目は列見出し「回数」が 2 行に折れたので attempt 2 で直した（vscode/src/view/toolsHtml.test.ts の D0049-AC-57 のテスト）
+  - D0049-AC-58 （画面）幅と高さで崩れない（画面）確かめた：幅 1280・1101・1100・1000・801・800・360 × 高さ 800・400 で横スクロール無し・タブが切れない・長い名前が折り返す。縦は 1101px 以上でパネル、801〜1100px で詳細の枠、800px 以下でページ全体
+  - D0049-AC-59 （画面）既存のページが変わらない（画面）確かめた：run-panel-light・run-panel-running-dark・run-panel-artifacts-light・run-panel-runs-dark でタブ 4 つが 1 行、エラー 0、新しいタブに見本の記録の道具の表
+  - D0049-AC-60 （手で）SDK を呼ばずに（手で）確かめた：一時フォルダの記録で start のあと案内 B、begin --agent のあいだ受け持ちの行（時間の列なし）、done のあと時間の列。見本の写しで Write 7・Bash 5・Edit 4・Read 4・Grep 1、行を足すと次の読み直しで増えた
+  - D0049-AC-61 （実機）実際の SDK で数が合う（実機）確かめていない（利用料がかかるので、人に言われたときだけ。tests/test_tools_tab_docs.py は文書だけを見る）
 
 ## 決めたことと理由
 
@@ -120,7 +120,7 @@
 - **入口は、既定で表を作り、一覧の行だけ止める。** `buildPipelineView(snapshot, clock, { tools })` は既定で表を作り、一覧の行の組み立て（`summarizeRun`）だけが `{ tools: false }` を渡す。`app/`・`extension.ts` を変えずに済む。パネルが閉じていてもステータスバーのために図の状態を作るので、表の計算も毎回走る（重さは AC-45 で上限を測った）。
 - **AC-31 の「別のタブを見ていて隠れている状態でも焦点が残る」は、「そのとき焦点があった要素（別のタブのボタンなど）が、描き直しのあとも同じ要素に戻る」と読む。** 隠れた表の枠は、本物のブラウザでは焦点を持てない。枠の焦点は見えている間だけ残す。
 - **既存のテストの直しは、承認した 4 ファイルに加えて 2 つ**（下の「既存のテストを変えた理由」）。`panelsOf` の重複も、テスト先行の段の確認のときに人が承認して import に替えた。
-- **D0039-AC-11 の合計の上限を 17,800 字から 18,000 字に置き換える。** main に入った D0046（確認待ちの知らせ。上限を 17,500 字から 17,800 字に上げた）で、/pipe-in のスキルと補助ファイルの合計が 17,758 字になり、この機能で足す 3 か所（`screen-check.md` の確認用ページの 2 行と `record.md` の `begin` の行の追記。合わせて 228 字）が入らなかった。手順を削るより上限を上げると人が決め、`tests/test_skill_tidy.py` の上限を 18,000 字にした（合計 17,986 字）。D0039・D0046 の記録は書き換えない。
+- **D0039-AC-11 の合計の上限を 17,800 字から 18,000 字に置き換える。** main に入った D0046（確認待ちの知らせ。上限を 17,500 字から 17,800 字に上げた）で、/pipe-in のスキルと補助ファイルの合計が 17,758 字になり、この機能で足す 3 か所（`screen-check.md` の確認用ページの 2 行と `record.md` の `begin` の行の追記。合わせて 228 字）が入らなかった。手順を削るより上限を上げると人が決め、`tests/test_skill_tidy.py` の上限を 18,000 字にした（そのときの合計は 17,986 字。あとから main に入った D0048 で `SKILL.md` が短くなり、main を取り込んだあとは 17,959 字）。D0039・D0046 の記録は書き換えない。
 - **画面の確認で見つけた不具合（列見出し「回数」が 2 行に折れる）は、テスト先行と実装に戻して直した（attempt 2）。** `.tools-table th` に `white-space: nowrap` を足した。
 - **main の作業途中のテスト（#79。イシュー #85）が落ちていたあいだは、それと一字違わず同じ失敗はベースの赤とする**と人が決めた（そのあと #84 で main が緑に戻ったので、最後の検証ではベースの赤は無い）。
 
@@ -132,13 +132,13 @@
 - 結果の成否は見ない（呼んだ回数）。行は 100 まで、使った段は 3 つまで（`title` は 200 文字まで）。並びは種類 → 回数の多い順 → 名前のコードポイントの順 → 読める・指定なし・読めないの順。
 - 段の表示名と受け持ちの決め方は、時系列と同じ関数を使う（`gantt.ts` の `labelOf`・`firstLogBySeq`・`ownerOf` を共有）。共有するときに、`labelOf` を `Object.hasOwn` で引く形に直した（段の名前が `constructor` のような記録で、表示名の代わりに関数が入る穴が時系列にもあった）。
 - 時間の列を出すかは、表に出す先頭 100 行で決める（01 の AC-16 の文言から少し狭めた読み）。縦のスクロールの場所は、実物の CSS に合わせて 1101px 以上はパネル・801〜1100px は詳細の枠・800px 以下はページ全体と読んだ（01 の AC-58 は「1100px 以下は詳細の枠」と書いていた）。AC-45 の伸びの比は、揺れを避けるため、表を作る部品だけを測る形にした（テスト先行の読み手が、全体の時間の比が 30 回に 1 回ほど揺れることを見つけた）。
-- 番号は D0040 → D0042 → D0043 → D0044 → D0046 → D0047 と振り直した（作業のあいだに main に D0040〜D0046 が入った。D0045 はプラグインの eval、D0046 は確認待ちの知らせ）。
+- 番号は D0040 → D0042 → D0043 → D0044 → D0046 → D0047 → D0049 と振り直した（作業のあいだに main に D0040〜D0048 が入った。D0045 はプラグインの eval、D0046 は確認待ちの知らせ、D0047 は仕様書レビューのひな形、D0048 は worktree を自動で切る仕組み。PR を立てたあとに D0047・D0048 が先に入ったので、main を取り込んで付け替えた）。
 
 ### 既存のテストを変えた理由
 
 タブが 3 つから 4 つになったので、タブ・パネルの数や位置を固定した既存のテストを、意味を変えずに件数と位置だけ直した（D0025 と同じ扱い）。
 
-- `vscode/src/view/shellHtml.test.ts`：D0019-AC-62 のタブ 3 つの並びの 2 件を、タブ 4 つの D0047-AC-28 に置き換える。パネルを番号で取る補助を、`data-detail-panel` の値で取る形（`vscode/src/test/panelParts.ts`）に替えた。
+- `vscode/src/view/shellHtml.test.ts`：D0019-AC-62 のタブ 3 つの並びの 2 件を、タブ 4 つの D0049-AC-28 に置き換える。パネルを番号で取る補助を、`data-detail-panel` の値で取る形（`vscode/src/test/panelParts.ts`）に替えた。
 - `vscode/src/view/artifactsPanel.test.ts`：D0025-AC-70 の隠れているパネルの配列を 3 つから 4 つにした。パネルを取る補助は同じく `panelParts.ts` から。
 - `vscode/src/view/panelScriptUi.test.ts`：見えているパネルを番号でなく名前で見る形にした（使用量は 2 番目から 3 番目へ）。
 - `vscode/src/previewPagesArtifacts.test.ts`：D0025-AC-73 の「`PANEL_PAGES` の 13 件目以降は成果物の 2 件だけ」を、成果物の 2 件とエージェント・スキルの 2 件に置き換える。文字を読む補助を `vscode/src/test/previewText.ts` へ中身を変えずに移し、新しいテストと共有した。
@@ -173,6 +173,7 @@
   - Python：`pytest -q -p no:cacheprovider` の失敗は、この記録の本体を待つ 13 件だけだった（この記録を書いて 0 件）。main（`5d258f1`）のベースは失敗 0。
   - 1 回目は、画面の確認で列見出しの折れを見つけて不合格にした。
   - main（`91ad7f8`。D0045・D0046 が入った）に載せ直したあと：拡張の 4913 件と Python の 11510 件（飛ばす 6 件を除く）がすべて通り、型検査とビルドも通る。
+  - main（`51c2346`。D0047・D0048 が入った）を取り込み、番号を D0049 に付け替えたあと：拡張の 4913 件と Python の 11583 件（飛ばす 6 件を除く）がすべて通り、型検査とビルドも通る。
 - 画面（AC-52〜59）と手で（AC-60）は、上の AC の行のとおり。
 - 公開してよいか：変えたファイルに、秘密・ユーザー名の入った絶対パス・メールアドレス・`docs/pipeline/` の中身は無い。
 - 文書係（検証のあと）：`docs/guide/vscode.md`（並び・`m:ss`・時間の列が出る条件）・`vscode/README.md`（タブの節）・`docs/guide/usage.md`（`--agent`・`driver`）・`docs/guide/records.md`（`agent`）を直した。案にした `/pipe-help` の一覧の行と `record.md` の `--agent` の行は、人が承認してメインが直した。

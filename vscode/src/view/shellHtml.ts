@@ -4,7 +4,7 @@
 // 選んでいる run の行（一覧の rows のうち selected）があればそこから、無ければ図の状態（view）から詳細の上の部分を作る。
 // 選んだ行が動いていて段のログが目安の時間動かないとき（D0021）は、見出しに「⚠ 止まっているかも」のバッジ、メタの下に知らせを足す（どちらも行の quietSec から作る）。
 // 「成果物」のタブの中身（一覧＋プレビュー、D0025）は artifactsHtml.ts。その幅の規則は、ここの既存の 2 つの @media（1100px・800px）の中に書く。
-// 「エージェント・スキル」のタブの中身（使ったエージェント・スキル・道具の表、D0047）は toolsHtml.ts。タブが増えても切れないよう、.detail-tabs は折り返す（@media は足さない）。
+// 「エージェント・スキル」のタブの中身（使ったエージェント・スキル・道具の表、D0049）は toolsHtml.ts。タブが増えても切れないよう、.detail-tabs は折り返す（@media は足さない）。
 // 実際にスクロールする外側の枠（<main class="detail">・「成果物」と「エージェント・スキル」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
 import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
@@ -227,7 +227,7 @@ function renderHead(row: RunRow | null, stale: string): string {
 
 // ---- 詳細のタブとパネル ----
 
-// 詳細のタブ（図と出力・成果物・エージェント・スキル・使用量）。「エージェント・スキル」は D0047。
+// 詳細のタブ（図と出力・成果物・エージェント・スキル・使用量）。「エージェント・スキル」は D0049。
 const DETAIL_TABS: readonly [string, string][] = [
   ['diagram', '図と出力'],
   ['artifacts', '成果物'],

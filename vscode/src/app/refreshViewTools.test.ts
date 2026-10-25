@@ -1,4 +1,4 @@
-// 選んだ実行の写し → 図の状態（refreshView）で、表（エージェント・スキル・道具）が同じ作りでできる（D0047）。
+// 選んだ実行の写し → 図の状態（refreshView）で、表（エージェント・スキル・道具）が同じ作りでできる（D0049）。
 //   AC-03：表のために、読むファイルも読み取りの口も増やさない（写しのキーは workDir・stateJson・stageLogs・artifacts のまま。previous は渡したときだけ）。
 //   AC-04：別の worktree・archive/ の実行を選んだときも、いまの work_dir の実行と同じ作り方で、同じ段のログの写しからは同じ表になる。
 //   AC-41：選んだ実行の描き直し（refreshView）で作った図の状態には表がある（一覧の行のための図の状態には無い。それは pipelineViewTools.test.ts）。
@@ -50,7 +50,7 @@ async function putRun(dir: string): Promise<void> {
 
 // ---- AC-03：読むファイル・口を増やさない ----
 
-test('D0047-AC-03: createFsWorkDirSource().read() の写しのキーは workDir・stateJson・stageLogs・artifacts のまま。previous は渡したときだけ増える（表のために項目を足さない。今のまま通る。守る）', async () => {
+test('D0049-AC-03: createFsWorkDirSource().read() の写しのキーは workDir・stateJson・stageLogs・artifacts のまま。previous は渡したときだけ増える（表のために項目を足さない。今のまま通る。守る）', async () => {
   await withTempDir(async (dir) => {
     await putRun(dir);
     const plain = await createFsWorkDirSource(dir, 'docs/pipeline').read();
@@ -60,7 +60,7 @@ test('D0047-AC-03: createFsWorkDirSource().read() の写しのキーは workDir�
   });
 });
 
-test('D0047-AC-03: 表は、写しにすでにある段のログの中身から作る：同じ写しを何度 refreshView しても同じ表で、写しの口（read）は 1 回ずつしか呼ばない', async () => {
+test('D0049-AC-03: 表は、写しにすでにある段のログの中身から作る：同じ写しを何度 refreshView しても同じ表で、写しの口（read）は 1 回ずつしか呼ばない', async () => {
   await withTempDir(async (dir) => {
     await putRun(dir);
     const real = createFsWorkDirSource(dir, 'docs/pipeline');
@@ -82,7 +82,7 @@ test('D0047-AC-03: 表は、写しにすでにある段のログの中身から�
 
 // ---- AC-04：いまの work_dir・archive/・別の worktree で同じ表 ----
 
-test('D0047-AC-04: いまの work_dir・archive/<日時>（previous）・別の worktree に置いた同じ段のログの写しからは、同じ表になる', async () => {
+test('D0049-AC-04: いまの work_dir・archive/<日時>（previous）・別の worktree に置いた同じ段のログの写しからは、同じ表になる', async () => {
   await withTempDir(async (base) => {
     const repo = await makeRepo(base, [{ name: 'feat-x', branch: 'feat/x', state: STATE }], { mainState: STATE });
     const here = path.join(repo.mainRoot, 'docs', 'pipeline');
@@ -118,7 +118,7 @@ test('D0047-AC-04: いまの work_dir・archive/<日時>（previous）・別の 
 
 // ---- AC-41：選んだ実行の描き直しで作った図の状態には表がある ----
 
-test('D0047-AC-41: refreshView で作った図の状態の tools は null でなく、行を持つ（一覧の行のための図の状態とは違う）', async () => {
+test('D0049-AC-41: refreshView で作った図の状態の tools は null でなく、行を持つ（一覧の行のための図の状態とは違う）', async () => {
   await withTempDir(async (dir) => {
     await putRun(dir);
     const view = await refreshView(createFsWorkDirSource(dir, 'docs/pipeline'), 'docs/pipeline', clockAt(0));
@@ -126,7 +126,7 @@ test('D0047-AC-41: refreshView で作った図の状態の tools は null でな
   });
 });
 
-test('D0047-AC-41: 口が例外を投げて空の写しで組み立てても、表は null でなく、行 0 で例外なし（記録なしの表示）', async () => {
+test('D0049-AC-41: 口が例外を投げて空の写しで組み立てても、表は null でなく、行 0 で例外なし（記録なしの表示）', async () => {
   const view = await refreshView({ read: () => Promise.reject(new Error('boom')) }, '/ws/docs/pipeline');
   const t = toolsOf(view);
   assert.deepEqual(t.rows, []);

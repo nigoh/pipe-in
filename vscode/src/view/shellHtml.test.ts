@@ -29,8 +29,8 @@ function between(text: string, from: string, to: string): string {
 const detailTop = (out: string): string => between(out, 'class="crumbs"', 'data-detail-tab=');
 const headOf = (out: string): string => between(out, 'class="head"', 'class="detail-meta"');
 const metaOf = (out: string): string => between(out, 'class="detail-meta"', 'data-detail-tab=');
-// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0047 で test/panelParts.ts へ移した（関数の中身は変えていない）。
-// 番号でなく名前で取るので、タブが 3 つから 4 つになっても、中身を見るテストが位置に左右されない。個数は決め打ちしない（個数は D0047-AC-28 の 2 件が見る）。
+// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0049 で test/panelParts.ts へ移した（関数の中身は変えていない）。
+// 番号でなく名前で取るので、タブが 3 つから 4 つになっても、中身を見るテストが位置に左右されない。個数は決め打ちしない（個数は D0049-AC-28 の 2 件が見る）。
 
 const WAITING_LIST = (selected = 'here|') => listView(sampleRows(), { selected });
 
@@ -228,7 +228,7 @@ test('D0019-AC-61: パイプの確認待ちは、段の label で「○○の確
 
 // ---- AC-62・AC-63・AC-64：詳細のタブと「図と出力」の枠 ----
 
-test('D0047-AC-28: 詳細のタブ「図と出力」「成果物」「エージェント・スキル」「使用量」が role="tablist" で並び、初めに選ばれているのは「図と出力」だけ（aria-selected）（D0019-AC-62 の「タブ 3 つ」を置き換える）', async () => {
+test('D0049-AC-28: 詳細のタブ「図と出力」「成果物」「エージェント・スキル」「使用量」が role="tablist" で並び、初めに選ばれているのは「図と出力」だけ（aria-selected）（D0019-AC-62 の「タブ 3 つ」を置き換える）', async () => {
   const out = await render(waitingView(40), WAITING_LIST());
   const tabs = [...out.matchAll(/<button\b[^>]*data-detail-tab="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
   assert.deepEqual(tabs.map((t) => t[1]), ['diagram', 'artifacts', 'tools', 'usage']);
@@ -239,7 +239,7 @@ test('D0047-AC-28: 詳細のタブ「図と出力」「成果物」「エージ�
   assert.ok(out.lastIndexOf('role="tablist"', out.indexOf('data-detail-tab="diagram"')) > out.indexOf('class="detail"'), '詳細のタブは詳細の中の role="tablist"');
 });
 
-test('D0047-AC-28: タブパネルは 4 つ（role="tabpanel"。図と出力・成果物・エージェント・スキル・使用量の順）で、初めに見えるのは「図と出力」だけ（ほかは hidden）（D0019-AC-62 の「タブパネルは 3 つ」を置き換える）', async () => {
+test('D0049-AC-28: タブパネルは 4 つ（role="tabpanel"。図と出力・成果物・エージェント・スキル・使用量の順）で、初めに見えるのは「図と出力」だけ（ほかは hidden）（D0019-AC-62 の「タブパネルは 3 つ」を置き換える）', async () => {
   const out = await render(waitingView(40), WAITING_LIST());
   const tags = [...out.matchAll(/<[a-z]+\b[^>]*role="tabpanel"[^>]*>/g)].map((m) => m[0]);
   assert.equal(tags.length, 4);

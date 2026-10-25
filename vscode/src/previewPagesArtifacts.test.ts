@@ -40,7 +40,7 @@ import {
   startOfLiveness,
 } from '../scripts/previewPages.ts';
 import type { Theme } from '../scripts/previewPages.ts';
-// ページの文字を読む補助（fingerprint・between・panelsOf・runStub など）は、D0047 で test/previewText.ts へ移した（関数の中身は変えていない）
+// ページの文字を読む補助（fingerprint・between・panelsOf・runStub など）は、D0049 で test/previewText.ts へ移した（関数の中身は変えていない）
 import {
   bodiesOf,
   between,
@@ -256,8 +256,8 @@ test('D0025-AC-73: PANEL_PAGES の先頭 12 件は今のまま（名前・順・
   assert.deepEqual(PANEL_PAGES.slice(0, 12).map(([name, theme]) => [name, theme]), EXISTING_PAGES.map(([name, theme]) => [name, theme]));
 });
 
-// D0047-AC-29：エージェント・スキルのタブの確認用ページが 2 件足されるので、成果物の 2 件は 13・14 件目（slice(12, 14)）として見る。
-// 14 件目より後ろが tools の 2 件だけであることは previewPagesTools.test.ts（D0047-AC-46）が見る。
+// D0049-AC-29：エージェント・スキルのタブの確認用ページが 2 件足されるので、成果物の 2 件は 13・14 件目（slice(12, 14)）として見る。
+// 14 件目より後ろが tools の 2 件だけであることは previewPagesTools.test.ts（D0049-AC-46）が見る。
 test('D0025-AC-73: PANEL_PAGES は先頭 12 件のあとに run-panel-artifacts-light（明るい）・run-panel-artifacts-dark（暗い）の 2 件だけが足される', () => {
   assert.deepEqual(PANEL_PAGES.slice(12, 14).map(([name, theme]) => [name, theme]), [
     ['run-panel-artifacts-light', 'light'],

@@ -1,4 +1,4 @@
-// 図の状態 PipelineView の tools（D0047）：記録の写し（state.json と段のログの文字）から、エージェント・スキル・道具の表ができる。
+// 図の状態 PipelineView の tools（D0049）：記録の写し（state.json と段のログの文字）から、エージェント・スキル・道具の表ができる。
 // buildPipelineView(snapshot, clock, { tools }) の tools は既定で真（表を作る）。{ tools: false } は null（一覧の行の組み立てが使う）。
 // 項目 tools・第 3 引数・renderTools は実装の段で足される。呼ぶ前に、tools が非 null・非 undefined であることを確かめて落とす
 // （undefined どうしが deepStrictEqual で等しくなって、赤にならないのを避ける）。
@@ -59,7 +59,7 @@ const REQ = (lines: readonly string[]) => toolsSnapshot({ runs: [{ seq: 1, stage
 
 // ---- AC-05：表の行の種類 ----
 
-test('D0047-AC-05: 同じ入力から、エージェント a（Agent と Task）・スキル s・道具 Read の行ができ、鍵の取り違えは「（指定なし）」の行になる', () => {
+test('D0049-AC-05: 同じ入力から、エージェント a（Agent と Task）・スキル s・道具 Read の行ができ、鍵の取り違えは「（指定なし）」の行になる', () => {
   const t = tableOf(
     REQ(
       uniqueCalls([
@@ -75,7 +75,7 @@ test('D0047-AC-05: 同じ入力から、エージェント a（Agent と Task）
   assert.deepEqual(brief(t), ['agent:a:2', `agent:${UNSPECIFIED}:1`, 'skill:s:1', `skill:${UNSPECIFIED}:1`, 'tool:Read:1']);
 });
 
-test('D0047-AC-02: 実物の形のログ（tests/fixtures/showcase。SystemMessage・RateLimitEvent・ResultMessage 入りで、発言に parent_tool_use_id: null が付く）を表にすると、回数の合計は各ログの出力の道具の行の数の合計（21）と同じで、表は Write 7・Bash 5・Edit 4・Read 4・Grep 1', () => {
+test('D0049-AC-02: 実物の形のログ（tests/fixtures/showcase。SystemMessage・RateLimitEvent・ResultMessage 入りで、発言に parent_tool_use_id: null が付く）を表にすると、回数の合計は各ログの出力の道具の行の数の合計（21）と同じで、表は Write 7・Bash 5・Edit 4・Read 4・Grep 1', () => {
   const snap = fixtureSnapshot('showcase');
   const outputRows = snap.stageLogs.reduce((sum, file) => sum + parseStageLog(file.text).items.filter((i) => i.kind === 'tool').length, 0);
   assert.equal(outputRows, 21, '出力の道具の行の合計（見本が変わっていない）');
@@ -110,20 +110,20 @@ const MARKED = REQ(
   ]),
 );
 
-test('D0047-AC-08: 表の図の状態の項目を JSON にした文字に、prompt・description・command・file_path・pattern・args・content の値が出ない。subagent_type と skill の値は出る', () => {
+test('D0049-AC-08: 表の図の状態の項目を JSON にした文字に、prompt・description・command・file_path・pattern・args・content の値が出ない。subagent_type と skill の値は出る', () => {
   const json = JSON.stringify(toolsOf(viewOf(MARKED)));
   for (const [key, marker] of Object.entries(MARKERS)) assert.ok(!json.includes(marker), `${key} の値が表に出ている`);
   assert.ok(json.includes('agent-a'), 'subagent_type の値は出る');
   assert.ok(json.includes('skill-s'), 'skill の値は出る');
 });
 
-test('D0047-AC-08: 新しいタブのパネルの HTML にも、ほかの入力の値が出ない。subagent_type と skill の値は出る', async () => {
+test('D0049-AC-08: 新しいタブのパネルの HTML にも、ほかの入力の値が出ない。subagent_type と skill の値は出る', async () => {
   const out = await html(toolsOf(viewOf(MARKED)));
   for (const [key, marker] of Object.entries(MARKERS)) assert.ok(!out.includes(marker), `${key} の値がパネルに出ている`);
   assert.ok(out.includes('agent-a') && out.includes('skill-s'));
 });
 
-test('D0047-AC-08: 既存の「出力」の欄は対象外で、入力の一部（command・file_path）が今までどおり出る（今のまま通る。守る）', () => {
+test('D0049-AC-08: 既存の「出力」の欄は対象外で、入力の一部（command・file_path）が今までどおり出る（今のまま通る。守る）', () => {
   const view = viewOf(REQ(uniqueCalls([{ name: 'Bash', input: { command: MARKERS.command } }, { name: 'Read', input: { file_path: MARKERS.file_path } }])));
   const targets = view.terminal.items.flatMap((i) => (i.kind === 'tool' ? [i.target] : []));
   assert.ok(targets.includes(MARKERS.command), 'Bash の command が出力に出る');
@@ -132,7 +132,7 @@ test('D0047-AC-08: 既存の「出力」の欄は対象外で、入力の一部�
 
 // ---- AC-09・AC-10：サブエージェントの中の呼び出し ----
 
-test('D0047-AC-09: 発言の行の parent_tool_use_id が 文字・null・項目なし・数・{} の 5 通りでも、表の行は同じ（内訳を分けない）', () => {
+test('D0049-AC-09: 発言の行の parent_tool_use_id が 文字・null・項目なし・数・{} の 5 通りでも、表の行は同じ（内訳を分けない）', () => {
   const rows = [undefined, null, 'toolu_parent', 5, {}].map((parent) =>
     tableOf(REQ([assistantParts([toolPart('Read', {}, 'r1'), toolPart('Agent', { subagent_type: 'a' }, 'a1')], parent)])).rows,
   );
@@ -141,7 +141,7 @@ test('D0047-AC-09: 発言の行の parent_tool_use_id が 文字・null・項目
   for (const row of rows[0]!) assert.deepEqual(Object.keys(row).sort(), ['count', 'durationSec', 'kind', 'name', 'stages']);
 });
 
-test('D0047-AC-10: Agent（subagent_type が a）を 1 回呼び、その中（parent_tool_use_id が呼んだ Agent の id）で Read を 3 回呼ぶと、エージェント a が 1 回・道具 Read が 3 回', () => {
+test('D0049-AC-10: Agent（subagent_type が a）を 1 回呼び、その中（parent_tool_use_id が呼んだ Agent の id）で Read を 3 回呼ぶと、エージェント a が 1 回・道具 Read が 3 回', () => {
   const t = tableOf(
     REQ([
       assistantParts([toolPart('Agent', { subagent_type: 'a' }, 'A1')]),
@@ -151,7 +151,7 @@ test('D0047-AC-10: Agent（subagent_type が a）を 1 回呼び、その中（p
   assert.deepEqual(brief(t), ['agent:a:1', 'tool:Read:3']);
 });
 
-test('D0047-AC-10: 入れ子の中の Agent・Task も同じ規則で数え、エージェントの行に足す（入れ子を止めるのは本体の守りで、拡張は止めない）', () => {
+test('D0049-AC-10: 入れ子の中の Agent・Task も同じ規則で数え、エージェントの行に足す（入れ子を止めるのは本体の守りで、拡張は止めない）', () => {
   const t = tableOf(
     REQ([
       assistantParts([toolPart('Agent', { subagent_type: 'a' }, 'A1')]),
@@ -164,14 +164,14 @@ test('D0047-AC-10: 入れ子の中の Agent・Task も同じ規則で数え、�
 
 // ---- AC-11：回数は呼んだ数 ----
 
-test('D0047-AC-11: 結果の行（失敗の結果）が有っても、結果が無くても、回数は同じ', () => {
+test('D0049-AC-11: 結果の行（失敗の結果）が有っても、結果が無くても、回数は同じ', () => {
   const call = assistantTool('Read', {}, 'r1');
   const result = JSON.stringify({ _type: 'UserMessage', content: [resultPart('r1', true)] });
   assert.deepEqual(brief(tableOf(REQ([call, result]))), ['tool:Read:1']);
   assert.deepEqual(brief(tableOf(REQ([call]))), ['tool:Read:1']);
 });
 
-test('D0047-AC-11: runs[].denials に止めた記録の文が有る記録でも、回数は同じ（止められた呼び出しも、モデルが出した時点でログにあるので数える）', () => {
+test('D0049-AC-11: runs[].denials に止めた記録の文が有る記録でも、回数は同じ（止められた呼び出しも、モデルが出した時点でログにあるので数える）', () => {
   const snap = toolsSnapshot({
     runs: [{ seq: 1, stage: 'requirements', denials: ['入れ子の Agent を止めた', 'Agent の回数の上限を超えた'] }],
     logs: [{ seq: 1, stage: 'requirements', lines: uniqueCalls([{ name: 'Agent', input: { subagent_type: 'a' }, count: 3 }]) }],
@@ -179,12 +179,12 @@ test('D0047-AC-11: runs[].denials に止めた記録の文が有る記録でも�
   assert.deepEqual(brief(tableOf(snap)), ['agent:a:3']);
 });
 
-test('D0047-AC-11: 同じ id の部品が 2 つあれば、それぞれ数える（id で重複を除かない）', () => {
+test('D0049-AC-11: 同じ id の部品が 2 つあれば、それぞれ数える（id で重複を除かない）', () => {
   const t = tableOf(REQ([assistantParts([toolPart('Read', {}, 'dup'), toolPart('Read', {}, 'dup')]), assistantTool('Read', {}, 'dup')]));
   assert.deepEqual(brief(t), ['tool:Read:3']);
 });
 
-test('D0047-AC-11: Agent を 25 回（max_agent_calls の既定 20 を超える）呼んだ記録は 25 と数える', () => {
+test('D0049-AC-11: Agent を 25 回（max_agent_calls の既定 20 を超える）呼んだ記録は 25 と数える', () => {
   const t = tableOf(REQ(uniqueCalls([{ name: 'Agent', input: { subagent_type: 'a' }, count: 25 }])));
   assert.deepEqual(brief(t), ['agent:a:25']);
 });
@@ -193,7 +193,7 @@ test('D0047-AC-11: Agent を 25 回（max_agent_calls の既定 20 を超える�
 
 const read1 = (): string[] => uniqueCalls([{ name: 'Read', input: {} }]);
 
-test('D0047-AC-13: 開発フローの記録（state.json に stages が無い）は STAGE_LABELS の表示名で、回はログのファイル名の回', () => {
+test('D0049-AC-13: 開発フローの記録（state.json に stages が無い）は STAGE_LABELS の表示名で、回はログのファイル名の回', () => {
   const snap = toolsSnapshot({
     runs: [{ seq: 1, stage: 'requirements' }, { seq: 2, stage: 'design' }, { seq: 3, stage: 'implement', attempt: 1 }],
     logs: [{ seq: 1, stage: 'requirements', lines: read1() }, { seq: 2, stage: 'design', lines: read1() }, { seq: 3, stage: 'implement', attempt: 1, lines: read1() }],
@@ -201,7 +201,7 @@ test('D0047-AC-13: 開発フローの記録（state.json に stages が無い）
   assert.deepEqual(rowOf(tableOf(snap), 'tool', 'Read').stages, ['要件定義', '設計', '実装 1 回目']);
 });
 
-test('D0047-AC-13: パイプの記録は state.json の stages の label を使う。label の無い段名は、ログの名前の段そのまま', () => {
+test('D0049-AC-13: パイプの記録は state.json の stages の label を使う。label の無い段名は、ログの名前の段そのまま', () => {
   const snap = toolsSnapshot({
     pipe: 'diagrams',
     stages: DIAGRAMS_STAGES,
@@ -215,7 +215,7 @@ test('D0047-AC-13: パイプの記録は state.json の stages の label を使�
   assert.deepEqual(rowOf(tableOf(snap), 'tool', 'Read').stages, ['ソースの調査', '図を描く 2 回目', 'extra']);
 });
 
-test('D0047-AC-13: state.json が壊れていても表は出て、ログの名前が開発の段ならその表示名、そうでなければ名前のまま', () => {
+test('D0049-AC-13: state.json が壊れていても表は出て、ログの名前が開発の段ならその表示名、そうでなければ名前のまま', () => {
   const snap = toolsSnapshot({
     stateText: '{"壊れた',
     logs: [{ seq: 1, stage: 'requirements', lines: read1() }, { seq: 2, stage: 'zzz', lines: read1() }],
@@ -223,14 +223,14 @@ test('D0047-AC-13: state.json が壊れていても表は出て、ログの名�
   assert.deepEqual(rowOf(tableOf(snap), 'tool', 'Read').stages, ['要件定義', 'zzz']);
 });
 
-test('D0047-AC-13: 段の名前が constructor（Object のプロパティ名）のログでも、使った段の文字は段の名前そのもの（関数にならない）', () => {
+test('D0049-AC-13: 段の名前が constructor（Object のプロパティ名）のログでも、使った段の文字は段の名前そのもの（関数にならない）', () => {
   const snap = toolsSnapshot({ logs: [{ seq: 3, stage: 'constructor', lines: read1() }] });
   const stages = rowOf(tableOf(snap), 'tool', 'Read').stages;
   assert.deepEqual(stages, ['constructor']);
   assert.equal(typeof stages[0], 'string');
 });
 
-test('D0047-AC-13: 時系列の行がある記録（見本）では、使った段の文字が時系列の行の label と同じ書き方（通し番号 8 つの順）', () => {
+test('D0049-AC-13: 時系列の行がある記録（見本）では、使った段の文字が時系列の行の label と同じ書き方（通し番号 8 つの順）', () => {
   const run = (seq: number, stage: string, attempt?: number, agent?: string) => ({ seq, stage, ...(attempt === undefined ? {} : { attempt }), ...(agent === undefined ? {} : { agent }), start: seq * 10, durationSec: 5, lines: read1() });
   const snap = ganttSnapshot({
     runs: [run(1, 'requirements'), run(2, 'requirements'), run(3, 'design'), run(4, 'red'), run(5, 'implement', 1), run(6, 'test', 1), run(7, 'implement', 2), run(8, 'test', 2)],
@@ -241,7 +241,7 @@ test('D0047-AC-13: 時系列の行がある記録（見本）では、使った�
   assert.deepEqual(rowOf(toolsOf(view), 'tool', 'Read').stages, view.gantt.rows.map((r) => r.label));
 });
 
-test('D0047-AC-13: パイプの記録（見本）でも、使った段の文字が時系列の行の label と同じ書き方', () => {
+test('D0049-AC-13: パイプの記録（見本）でも、使った段の文字が時系列の行の label と同じ書き方', () => {
   const run = (seq: number, stage: string, attempt?: number) => ({ seq, stage, ...(attempt === undefined ? {} : { attempt }), start: seq * 10, durationSec: 5, lines: read1() });
   const snap = ganttSnapshot({ pipe: 'diagrams', stages: DIAGRAMS_STAGES, runs: [run(1, 'survey'), run(2, 'draw', 1), run(3, 'verify'), run(4, 'draw', 2), run(5, 'verify', 2)] });
   const view = viewOf(snap);
@@ -249,7 +249,7 @@ test('D0047-AC-13: パイプの記録（見本）でも、使った段の文字�
   assert.ok(view.gantt.rows.some((r) => r.label === '図を描く 2 回目'), '見本が回つきの label を含む（検査が空振りでない）');
 });
 
-test('D0047-AC-13: 段の名前が constructor のとき、時系列の行の label も段の名前そのまま（labelOf の穴を直す。今は関数が入る。設計の「意味が変わるもの」(2)）', () => {
+test('D0049-AC-13: 段の名前が constructor のとき、時系列の行の label も段の名前そのまま（labelOf の穴を直す。今は関数が入る。設計の「意味が変わるもの」(2)）', () => {
   const snap = toolsSnapshot({
     pipe: 'diagrams',
     stages: DIAGRAMS_STAGES,
@@ -261,7 +261,7 @@ test('D0047-AC-13: 段の名前が constructor のとき、時系列の行の la
   assert.deepEqual(labels, ['ソースの調査', 'constructor']);
 });
 
-test('D0047-AC-13: 段の名前が constructor のログでも、表の使った段の文字は時系列の行の label と同じ（表と時系列が同じ元）', () => {
+test('D0049-AC-13: 段の名前が constructor のログでも、表の使った段の文字は時系列の行の label と同じ（表と時系列が同じ元）', () => {
   const snap = toolsSnapshot({
     pipe: 'diagrams',
     stages: DIAGRAMS_STAGES,
@@ -276,7 +276,7 @@ test('D0047-AC-13: 段の名前が constructor のログでも、表の使った
 
 // ---- AC-12：「N 回目」はログのファイル名の回 ----
 
-test('D0047-AC-12: 「N 回目」の元はログのファイル名の回：runs[].attempt が 3 でも、ログが _2 なら使った段は「実装 2 回目」（時系列の行は runs[] に従って「3 回目」で、ここだけ食い違うのが要件の決めた動き）', () => {
+test('D0049-AC-12: 「N 回目」の元はログのファイル名の回：runs[].attempt が 3 でも、ログが _2 なら使った段は「実装 2 回目」（時系列の行は runs[] に従って「3 回目」で、ここだけ食い違うのが要件の決めた動き）', () => {
   const snap = toolsSnapshot({
     runs: [{ seq: 1, stage: 'implement', attempt: 3 }],
     logs: [{ seq: 1, stage: 'implement', attempt: 2, lines: read1() }],
@@ -286,7 +286,7 @@ test('D0047-AC-12: 「N 回目」の元はログのファイル名の回：runs[
   assert.deepEqual(view.gantt.rows.map((r) => r.label), ['実装 3 回目'], '時系列の行は runs[].attempt の回のまま（今のまま。表はこれに合わせない）');
 });
 
-test('D0047-AC-12: 動いている段のログ（06_implement_2.jsonl。結果の行なし）でも、受け持ちの行も SDK のエージェント呼び出しの行も、使った段は「実装 2 回目」（動いているログの回もログのファイル名から）', () => {
+test('D0049-AC-12: 動いている段のログ（06_implement_2.jsonl。結果の行なし）でも、受け持ちの行も SDK のエージェント呼び出しの行も、使った段は「実装 2 回目」（動いているログの回もログのファイル名から）', () => {
   const t = tableOf(
     toolsSnapshot({
       driver: 'pipe-dev',
@@ -303,7 +303,7 @@ test('D0047-AC-12: 動いている段のログ（06_implement_2.jsonl。結果�
 
 // ---- AC-14：道具ごとの時間は出さない ----
 
-test('D0047-AC-14: TaskNotificationMessage（usage.duration_ms）の行が有っても、SDK の Agent の行の durationSec は null で、数も変わらない', () => {
+test('D0049-AC-14: TaskNotificationMessage（usage.duration_ms）の行が有っても、SDK の Agent の行の durationSec は null で、数も変わらない', () => {
   const agentCall = assistantTool('Agent', { subagent_type: 'a' }, 'a1');
   const note = JSON.stringify({ _type: 'TaskNotificationMessage', tool_use_id: 'a1', usage: { duration_ms: 5000 } });
   const withNote = tableOf(toolsSnapshot({ runs: [{ seq: 1, stage: 'requirements', durationSec: 300 }], logs: [{ seq: 1, stage: 'requirements', lines: [agentCall, note] }] }));
@@ -318,7 +318,7 @@ test('D0047-AC-14: TaskNotificationMessage（usage.duration_ms）の行が有っ
 
 const PIPE_IN = { driver: 'pipe-dev', pipe: 'dev', stages: DEV_STAGES } as const;
 
-test('D0047-AC-16: /pipe-in の begin のあと（動いているログに agent があり、runs[] が空）は時間の列が無く、done のあと（runs[] に duration_sec）は列が出る', () => {
+test('D0049-AC-16: /pipe-in の begin のあと（動いているログに agent があり、runs[] が空）は時間の列が無く、done のあと（runs[] に duration_sec）は列が出る', () => {
   const begin = tableOf(toolsSnapshot({ ...PIPE_IN, running: { seq: 1, stage: 'requirements', agent: 'pipe-in-analyst' } }));
   assert.deepEqual(brief(begin), ['agent:pipe-in-analyst:1']);
   assert.equal(begin.showTime, false);
@@ -336,7 +336,7 @@ test('D0047-AC-16: /pipe-in の begin のあと（動いているログに agent
 const analystLog = (agents: readonly (string | undefined)[], extra?: string) =>
   logText([...agents.map((a) => promptLine('requirements', undefined, a)), ...(extra === undefined ? [] : [extra]), resultLine()]);
 
-test('D0047-AC-17: Prompt が 2 つあるログは、後ろの Prompt の agent を受け持ちにする（runs[].agent が無いとき）', () => {
+test('D0049-AC-17: Prompt が 2 つあるログは、後ろの Prompt の agent を受け持ちにする（runs[].agent が無いとき）', () => {
   const snap = snapshot({
     stateJson: stateJson({ ...PIPE_IN, runs: [stageRunEntry({ stage: 'requirements', seq: 1 })] }),
     stageLogs: [{ fileName: '01_requirements.jsonl', text: analystLog(['first', 'second']) }],
@@ -344,14 +344,14 @@ test('D0047-AC-17: Prompt が 2 つあるログは、後ろの Prompt の agent 
   assert.deepEqual(brief(tableOf(snap)), ['agent:second:1']);
 });
 
-test('D0047-AC-17: runs[].agent が読めない値（数・空白入り）のときは、ログの agent を使う', () => {
+test('D0049-AC-17: runs[].agent が読めない値（数・空白入り）のときは、ログの agent を使う', () => {
   for (const bad of [5, 'a b', '']) {
     const t = tableOf(toolsSnapshot({ ...PIPE_IN, runs: [{ seq: 1, stage: 'requirements', agent: bad }], logs: [{ seq: 1, stage: 'requirements', agent: 'from-log' }] }));
     assert.deepEqual(brief(t), ['agent:from-log:1'], JSON.stringify(bad));
   }
 });
 
-test('D0047-AC-17: runs[] の review・verdict の要素（seq を持たない）は無視する', () => {
+test('D0049-AC-17: runs[] の review・verdict の要素（seq を持たない）は無視する', () => {
   const t = tableOf(
     toolsSnapshot({
       ...PIPE_IN,
@@ -367,7 +367,7 @@ test('D0047-AC-17: runs[] の review・verdict の要素（seq を持たない�
   assert.deepEqual(brief(t), ['agent:pipe-in-analyst:1']);
 });
 
-test('D0047-AC-17: runs[] に無い終わったログの agent は数えない。動いているログの agent は数える', () => {
+test('D0049-AC-17: runs[] に無い終わったログの agent は数えない。動いているログの agent は数える', () => {
   const t = tableOf(
     toolsSnapshot({
       ...PIPE_IN,
@@ -379,7 +379,7 @@ test('D0047-AC-17: runs[] に無い終わったログの agent は数えない�
   assert.deepEqual(brief(t).sort(), ['agent:a:1', 'agent:w:1']);
 });
 
-test('D0047-AC-17: 時系列との突き合わせ：同じ記録から作った view.gantt.rows の agent と、表の受け持ちの行（回数・使った段）が、通し番号ごとに同じ', () => {
+test('D0049-AC-17: 時系列との突き合わせ：同じ記録から作った view.gantt.rows の agent と、表の受け持ちの行（回数・使った段）が、通し番号ごとに同じ', () => {
   const plan: [number, string, number | undefined, string][] = [
     [1, 'requirements', undefined, 'pipe-in-analyst'],
     [2, 'requirements', undefined, 'pipe-in-analyst'],
@@ -414,24 +414,24 @@ test('D0047-AC-17: 時系列との突き合わせ：同じ記録から作った 
 const withRun = (driver: unknown, agent: string | undefined) =>
   toolsSnapshot({ ...(driver === undefined ? {} : { driver }), pipe: 'dev', stages: DEV_STAGES, runs: [{ seq: 1, stage: 'requirements', ...(agent === undefined ? {} : { agent }) }], logs: [{ seq: 1, stage: 'requirements', agent }] });
 
-test('D0047-AC-21: driver があり、数えた行が 1 つ以上 → 案内 A（受け持ちの行だけでも）', () => {
+test('D0049-AC-21: driver があり、数えた行が 1 つ以上 → 案内 A（受け持ちの行だけでも）', () => {
   assert.equal(tableOf(withRun('pipe-dev', 'pipe-in-analyst')).notice, 'A');
   assert.equal(tableOf(withRun('', 'pipe-in-analyst')).notice, 'A', '空の文字でも「あり」');
   assert.equal(tableOf(toolsSnapshot({ driver: 'pipe-dev', logs: [{ seq: 1, stage: 'requirements', lines: read1() }] })).notice, 'A', '呼び出しの行だけでも');
 });
 
-test('D0047-AC-21: driver が無く（項目なし・null）、数えた行が 1 つ以上 → 案内なし（表だけ）', () => {
+test('D0049-AC-21: driver が無く（項目なし・null）、数えた行が 1 つ以上 → 案内なし（表だけ）', () => {
   assert.equal(tableOf(withRun(undefined, 'pipe-in-analyst')).notice, null);
   assert.equal(tableOf(withRun(null, 'pipe-in-analyst')).notice, null);
 });
 
-test('D0047-AC-22: driver があり、数えた行が 0（--agent を付けなかった・古い記録）→ 案内 B だけ', () => {
+test('D0049-AC-22: driver があり、数えた行が 0（--agent を付けなかった・古い記録）→ 案内 B だけ', () => {
   const t = tableOf(withRun('pipe-dev', undefined));
   assert.equal(t.notice, 'B');
   assert.deepEqual(t.rows, []);
 });
 
-test('D0047-AC-21: driver が無く、数えた行が 0 → 案内なし（空の文）', () => {
+test('D0049-AC-21: driver が無く、数えた行が 0 → 案内なし（空の文）', () => {
   const t = tableOf(withRun(undefined, undefined));
   assert.equal(t.notice, null);
   assert.deepEqual(t.rows, []);
@@ -446,7 +446,7 @@ const EMPTY_INPUTS: [string, WorkDirSnapshot][] = [
   ['記録は有るがログが無い', toolsSnapshot({ runs: [{ seq: 1, stage: 'requirements' }] })],
 ];
 for (const [label, snap] of EMPTY_INPUTS) {
-  test(`D0047-AC-26: ${label}とき（driver なし）は、行 0・案内なしで、空の文だけが出る`, async () => {
+  test(`D0049-AC-26: ${label}とき（driver なし）は、行 0・案内なしで、空の文だけが出る`, async () => {
     const t = tableOf(snap);
     assert.deepEqual(t.rows, []);
     assert.equal(t.notice, null);
@@ -456,7 +456,7 @@ for (const [label, snap] of EMPTY_INPUTS) {
   });
 }
 
-test('D0047-AC-26: noRecords の図の状態は、表も空の文の側（記録が無いことを案内 B などにしない）', () => {
+test('D0049-AC-26: noRecords の図の状態は、表も空の文の側（記録が無いことを案内 B などにしない）', () => {
   const view = viewOf(snapshot());
   assert.ok(view.noRecords !== null);
   assert.equal(toolsOf(view).notice, null);
@@ -464,7 +464,7 @@ test('D0047-AC-26: noRecords の図の状態は、表も空の文の側（記録
 
 // ---- AC-33：同じ写しからは同じ HTML（時計を読まない） ----
 
-test('D0047-AC-33: 同じ写しを clockAt(0)・clockAt(99999)・時計なしで組み立てても、表も、表の HTML も同じ', async () => {
+test('D0049-AC-33: 同じ写しを clockAt(0)・clockAt(99999)・時計なしで組み立てても、表も、表の HTML も同じ', async () => {
   const snap = toolsSnapshot({
     ...PIPE_IN,
     runs: [{ seq: 1, stage: 'requirements', agent: 'pipe-in-analyst', durationSec: 12 }],
@@ -479,7 +479,7 @@ test('D0047-AC-33: 同じ写しを clockAt(0)・clockAt(99999)・時計なしで
   assert.equal(outs[2], outs[0]);
 });
 
-test('D0047-AC-33: Date.now を投げる関数に替えても、表と HTML ができて、同じ結果になる（表を作る部品が時計を読まない）', async () => {
+test('D0049-AC-33: Date.now を投げる関数に替えても、表と HTML ができて、同じ結果になる（表を作る部品が時計を読まない）', async () => {
   const snap = toolsSnapshot({ ...PIPE_IN, runs: [{ seq: 1, stage: 'requirements', agent: 'x', durationSec: 5 }], logs: [{ seq: 1, stage: 'requirements', agent: 'x', lines: read1() }] });
   const normal = tableOf(snap, clockAt(0));
   const tools = await needModule<HtmlMod>(import.meta.url, '../view/toolsHtml.ts');
@@ -501,7 +501,7 @@ test('D0047-AC-33: Date.now を投げる関数に替えても、表と HTML が�
 
 // ---- AC-34：動いている実行は描き直しで増える ----
 
-test('D0047-AC-34: 動いている段のログに呼び出しが増えた写しは、回数が増え・行が増え・並びが入れ替わった表になる（HTML も変わる）', async () => {
+test('D0049-AC-34: 動いている段のログに呼び出しが増えた写しは、回数が増え・行が増え・並びが入れ替わった表になる（HTML も変わる）', async () => {
   const lines = (extra: readonly string[]) => [...uniqueCalls([{ name: 'Read', count: 3 }, { name: 'Grep', count: 1 }]), ...extra];
   const snapBefore = toolsSnapshot({ running: { seq: 1, stage: 'requirements', lines: lines([]) } });
   const snapAfter = toolsSnapshot({ running: { seq: 1, stage: 'requirements', lines: lines(uniqueCalls([{ name: 'Grep', count: 3 }, { name: 'NewTool' }], 'x')) } });
@@ -515,7 +515,7 @@ test('D0047-AC-34: 動いている段のログに呼び出しが増えた写し�
 
 // ---- AC-41：一覧の行のための図の状態には表が無い ----
 
-test('D0047-AC-41: { tools: false } の図の状態は tools が null。既定（オプションなし）は表があって行を持つ。2 つは tools 以外が同じ', () => {
+test('D0049-AC-41: { tools: false } の図の状態は tools が null。既定（オプションなし）は表があって行を持つ。2 つは tools 以外が同じ', () => {
   const snap = REQ(uniqueCalls([{ name: 'Read', count: 2 }, { name: 'Skill', input: { skill: 's' } }]));
   const clock = clockAt(0);
   const without = build(snap, clock, { tools: false });
@@ -530,14 +530,14 @@ test('D0047-AC-41: { tools: false } の図の状態は tools が null。既定�
   assert.deepStrictEqual(strip(without), strip(withTools), '表の有る無しで、ほかの項目（節・時系列・使用量・成果物）は変わらない');
 });
 
-test('D0047-AC-41: { tools: true } を渡しても、既定と同じ表ができる', () => {
+test('D0049-AC-41: { tools: true } を渡しても、既定と同じ表ができる', () => {
   const snap = REQ(uniqueCalls([{ name: 'Read', count: 2 }]));
   assert.deepEqual(toolsOf(build(snap, clockAt(0), { tools: true })), toolsOf(build(snap, clockAt(0))));
 });
 
 // ---- AC-43：古い記録・壊れた state.json でも読める ----
 
-test('D0047-AC-43: state.json が無い・壊れている・stages が無い古い形でも、ログが有れば表が出る（段の表示名は AC-13 のとおり）', () => {
+test('D0049-AC-43: state.json が無い・壊れている・stages が無い古い形でも、ログが有れば表が出る（段の表示名は AC-13 のとおり）', () => {
   const logs = [{ seq: 1, stage: 'requirements', lines: uniqueCalls([{ name: 'Read' }, { name: 'Skill', input: { skill: 's' } }]) }];
   for (const [label, stateText] of [['無い', null], ['壊れた JSON', '{"runs": ['], ['配列の JSON', '[1]'], ['空のオブジェクト', '{}']] as [string, string | null][]) {
     const t = tableOf(toolsSnapshot({ stateText, logs }));
@@ -547,7 +547,7 @@ test('D0047-AC-43: state.json が無い・壊れている・stages が無い古�
   assert.deepEqual(brief(old), ['skill:s:1', 'tool:Read:1'], 'stages の無い古い形');
 });
 
-test('D0047-AC-43: runs[].agent が壊れている（数・空白入り）記録でも、例外なく呼び出しの表が出る', () => {
+test('D0049-AC-43: runs[].agent が壊れている（数・空白入り）記録でも、例外なく呼び出しの表が出る', () => {
   const t = tableOf(
     toolsSnapshot({
       runs: [{ seq: 1, stage: 'requirements', agent: 5 }, { seq: 2, stage: 'design', agent: 'a b' }],
@@ -557,7 +557,7 @@ test('D0047-AC-43: runs[].agent が壊れている（数・空白入り）記録
   assert.deepEqual(brief(t), ['tool:Read:2']);
 });
 
-test('D0047-AC-43: state.json が壊れた /pipe-in の記録（Prompt に agent・ResultMessage で終わる）は、受け持ちの行も案内も出ず、行 0・案内なし（空の文）', () => {
+test('D0049-AC-43: state.json が壊れた /pipe-in の記録（Prompt に agent・ResultMessage で終わる）は、受け持ちの行も案内も出ず、行 0・案内なし（空の文）', () => {
   const snap = snapshot({ stateJson: '{"壊れた', stageLogs: [{ fileName: '01_requirements.jsonl', text: analystLog(['pipe-in-analyst']) }] });
   const t = tableOf(snap);
   assert.deepEqual(t.rows, []);
@@ -573,7 +573,7 @@ const FIXTURE_RUNS: [string, string][] = [
   ['pipe_in', 'waiting'],
 ];
 for (const [dir, name] of FIXTURE_RUNS) {
-  test(`D0047-AC-43: 見本の記録 tests/fixtures/${dir}/${name} を読んでも例外なく、agent が無いので行 0・案内 B（driver はあるが数えた行が無い）`, () => {
+  test(`D0049-AC-43: 見本の記録 tests/fixtures/${dir}/${name} を読んでも例外なく、agent が無いので行 0・案内 B（driver はあるが数えた行が無い）`, () => {
     const t = tableOf(fixtureSnapshot(dir, name));
     assert.deepEqual(t.rows, []);
     assert.equal(t.notice, 'B');
@@ -582,14 +582,14 @@ for (const [dir, name] of FIXTURE_RUNS) {
 
 // ---- AC-44：__proto__ などの名前（記録の文字から） ----
 
-test('D0047-AC-44: 道具の名前が __proto__・constructor・toString でも、記録の文字から読んで、それぞれ 1 行（ほかの行を壊さない）', () => {
+test('D0049-AC-44: 道具の名前が __proto__・constructor・toString でも、記録の文字から読んで、それぞれ 1 行（ほかの行を壊さない）', () => {
   const t = tableOf(REQ([...PROTO_NAMES.flatMap((n) => uniqueCalls([{ name: n }], `p${n}`)), ...uniqueCalls([{ name: 'Read', count: 2 }])]));
   for (const name of PROTO_NAMES) assert.equal(rowOf(t, 'tool', name).count, 1, name);
   assert.equal(rowOf(t, 'tool', 'Read').count, 2);
   assert.equal(t.kinds, 4);
 });
 
-test('D0047-AC-44: subagent_type・skill に __proto__ などを入れても、それぞれ 1 行。input の自分の鍵 __proto__（JSON.parse）は「（指定なし）」', () => {
+test('D0049-AC-44: subagent_type・skill に __proto__ などを入れても、それぞれ 1 行。input の自分の鍵 __proto__（JSON.parse）は「（指定なし）」', () => {
   const nasty = `{"_type":"AssistantMessage","content":[{"id":"z1","name":"Agent","input":{"__proto__":{"subagent_type":"polluted"}}}]}`;
   const t = tableOf(
     REQ([
@@ -605,7 +605,7 @@ test('D0047-AC-44: subagent_type・skill に __proto__ などを入れても、�
   assert.ok(!t.rows.some((r) => r.name === 'polluted'));
 });
 
-test('D0047-AC-44: Object.prototype に subagent_type・skill が（一時的に）あっても、鍵を省いた Agent・Skill は「（指定なし）」の行で、継承された値の名前の行はできない（自分の鍵だけを読む）', () => {
+test('D0049-AC-44: Object.prototype に subagent_type・skill が（一時的に）あっても、鍵を省いた Agent・Skill は「（指定なし）」の行で、継承された値の名前の行はできない（自分の鍵だけを読む）', () => {
   const snap = REQ(uniqueCalls([{ name: 'Agent', input: {} }, { name: 'Skill', input: {} }, { name: 'Task', input: { skill: 'x' } }]));
   const t = withPollutedPrototype({ subagent_type: 'polluted', skill: 'polluted' }, () => tableOf(snap));
   assert.deepEqual(brief(t), [`agent:${UNSPECIFIED}:2`, `skill:${UNSPECIFIED}:1`]);
@@ -614,7 +614,7 @@ test('D0047-AC-44: Object.prototype に subagent_type・skill が（一時的に
 
 // ---- 外から来た文字（図の状態は生の文字を持ち、escape は view） ----
 
-test('D0047-AC-35: 図の状態の表は生の文字を持つ（escape は view で 1 回だけ）：外から来た名前・段の表示名がそのまま入る', () => {
+test('D0049-AC-35: 図の状態の表は生の文字を持つ（escape は view で 1 回だけ）：外から来た名前・段の表示名がそのまま入る', () => {
   const stages = [{ name: 'draw', label: HOSTILE[0]!, output: 'a.md', review: false }];
   const snap = toolsSnapshot({
     pipe: 'p',
@@ -639,7 +639,7 @@ const bigSnapshot = (calls: number, names: number, hugeInputBytes = 0): WorkDirS
     artifacts: { '00_input.md': 'メモ' },
   });
 
-test('D0047-AC-45: 呼び出し 10 万回・名前 1 万種類・入力が 1 MiB の 1 行でも、例外なく、5000ms 未満で表と HTML ができる（先に行が 100 有ることを確かめる）', () => {
+test('D0049-AC-45: 呼び出し 10 万回・名前 1 万種類・入力が 1 MiB の 1 行でも、例外なく、5000ms 未満で表と HTML ができる（先に行が 100 有ることを確かめる）', () => {
   const snap = bigSnapshot(100_000, 10_000, 1024 * 1024);
   const started = performance.now();
   const view = viewOf(snap, clockAt(0));
@@ -655,9 +655,9 @@ test('D0047-AC-45: 呼び出し 10 万回・名前 1 万種類・入力が 1 MiB
 
 // 呼び出しの数を 2 倍にしたときの時間の伸び（2.5 倍以内）は、ここでは測らない。この全体（parse → 表 → renderViewBody）の時間は、
 // 既存の「出力」の欄の 10 万項目の組み立てと GC が支配し、正しい実装でも負荷しだいで比が 2.5 倍を超える（読み手の確かめで、並列 6 の 36 回中 2 回落ち、比だけを 48 回取ると最大 3.17 だった）。
-// 比は、新しく足した表を作る部品だけを測る（domain/toolsTable.test.ts の D0047-AC-45）。ここは、絶対の上限と、HTML の長さの頭打ちだけを見る。
+// 比は、新しく足した表を作る部品だけを測る（domain/toolsTable.test.ts の D0049-AC-45）。ここは、絶対の上限と、HTML の長さの頭打ちだけを見る。
 
-test('D0047-AC-45: 同じ 120 名で呼び出しだけを 10 倍にしても、tools の HTML の長さは 1.1 倍以内（行の上限 100 で頭打ちで、呼び出しの数に比例しない）', async () => {
+test('D0049-AC-45: 同じ 120 名で呼び出しだけを 10 倍にしても、tools の HTML の長さは 1.1 倍以内（行の上限 100 で頭打ちで、呼び出しの数に比例しない）', async () => {
   const lengths: number[] = [];
   for (const calls of [1_200, 12_000]) {
     const t = toolsOf(viewOf(bigSnapshot(calls, 120), clockAt(0)));

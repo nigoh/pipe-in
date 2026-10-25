@@ -1,4 +1,4 @@
-// テストの補助：本体の HTML から、詳細のタブパネルを data-detail-panel の値をキーにして取り出す（D0047）。
+// テストの補助：本体の HTML から、詳細のタブパネルを data-detail-panel の値をキーにして取り出す（D0049）。
 // 個数は決め打ちしない。
 // 使う側：新しい view/shellHtmlTools.test.ts と、既存の view/shellHtml.test.ts・view/artifactsPanel.test.ts（この 2 つは、それぞれにあった同じ本体の panelsOf を、ここからの import に替えた。関数の中身は変えていない）。
 // 切り出しの本体はここの 1 か所だけ。previewPagesArtifacts.test.ts の補助を previewText.ts へ移したのと同じ形。

@@ -1,5 +1,5 @@
 // 段のログ：logs/NN_<段>[_回].jsonl の名前と中身を読む。記録の形の知識はここに閉じる。
-// 道具の呼び出しの見分け（部品の判定 partOf）は 1 つだけで、出力の道具の行と、頼んだときだけ返す呼び出しの記録 calls（D0047）の両方がそこから出る。
+// 道具の呼び出しの見分け（部品の判定 partOf）は 1 つだけで、出力の道具の行と、頼んだときだけ返す呼び出しの記録 calls（D0049）の両方がそこから出る。
 // Agent・Task・Skill の見分けと、入力の鍵 subagent_type・skill の読み（入力自身が持つ鍵だけ）もここに閉じる。表を作る側は、名前の決まりだけを持つ。
 // 読むのは本体（Python の SDK）がメッセージを dataclasses.asdict で書いた形（_type・content）だけ。TypeScript の SDK の形（type・message.content）は読まない。
 import { isJsonObject } from './json.ts';
@@ -30,7 +30,7 @@ export function parseStageLogName(fileName: string): StageLogName | null {
 
 export type OutputItem = { kind: 'tool'; tool: string; target: string | null } | { kind: 'text'; text: string };
 
-/** 呼び出しの種類（D0047）：エージェント（Agent・Task）・スキル（Skill）・それ以外の道具。 */
+/** 呼び出しの種類（D0049）：エージェント（Agent・Task）・スキル（Skill）・それ以外の道具。 */
 export type ToolKind = 'agent' | 'skill' | 'tool';
 
 /** 道具の呼び出し 1 つの小さな記録。入力のうち持ち出すのは名前に使う 1 つの値だけ（プロンプトやコマンドは持ち出さない）。 */

@@ -22,13 +22,14 @@
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
 | プラグインの採点の計算（総合点・合否・`--runs` のばらつき。標準ライブラリだけ） | `generator/judge_score.py` |
-| 仕様書レビューの指摘の検査（指摘の形 v1。形・出典・引用の一致・役割の決まりを LLM なしで調べる `pipe-in-gen findings-check`。標準ライブラリだけ。Schema は他の道具に渡す契約で、実行時には読まない） | `generator/findings_check.py`・`generator/schemas/` |
+| 仕様書レビューの指摘の検査（指摘の形 v1。形・出典・引用の一致・役割の決まりを LLM なしで調べる `pipe-in-gen findings-check`。標準ライブラリだけ。Schema は他の道具に渡す契約で、実行時には読まない。ひな形 `generator/templates/spec-review/` の `verify` 段が呼ぶ） | `generator/findings_check.py`・`generator/schemas/` |
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
 | このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`（必ず守る決まりは `SKILL.md` の冒頭に置き、長い手順は補助ファイルに分けた：記録のコマンド `.claude/skills/pipe-in/record.md`・`--artifact` の手順 `.claude/skills/pipe-in/artifact.md`・画面の確認の手順 `.claude/skills/pipe-in/screen-check.md`）・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/`・計画ボード `.claude/skills/pipe-plan/`（ページのひな形 `board.html`） |
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` と、文字列でない `agent_type` は読むだけにする。判断の途中で例外が出ても止める） |
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
+| 機能ごとの worktree を切る・main に入ったものを片付ける（pipe-in worktree new・clean。D0048） | `pipe_in/dev/worktree.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
@@ -96,7 +97,7 @@ pipe_in.usage
 - D0025 は記録の形（`state.json`・`logs/*.jsonl`・`99_summary.md`）を変えません。拡張の内側の記録の写しの成果物の項目を、文字だけの形から `{ text, mtimeMs, cut }`（中身・更新時刻・先頭 256 KiB で切れた印）に広げ、HTML に成果物のタブ（一覧とプレビュー）を足しました。文字だけの形の写しも読みます（時刻は「—」、切れた印なし）。意味が変わるのは次の 3 つです。(1) symlink の成果物：今まで辿って読めたものを読まなくなり、「まだない」と同じ見た目にします（理由は画面に出しません。外のファイルを画面に出さないためで、読めるようにはしません。確かめてから開くまでのあいだの差し替えは塞いでいません）。`00_input.md` が symlink だと、図の依頼メモ（開発フローでは要件メモ）の節が「まだ」になり、`state.json` もログも無い実行は「記録がありません」にもなります。(2) 「ある」かどうかを、全文でなく読んだ範囲（先頭 256 KiB）で決めるので、先頭 256 KiB が空白だけで後ろに文字がある成果物は「まだない」になります。(3) 1 回の読みの合計が 4 MiB に届くと、一覧の後ろの成果物は読まず「まだない」と同じ見た目になります（今までは全部読んでいました。開発フローの 7 つでは届きません）。
 - D0026 で `pipeline.toml` の `[pipeline]` に `max_buffer_mb` を足しました。無ければ 32（MB）として読みます。足すだけで、ほかの項目の意味は変えません。
 - D0035 で `pipe.toml` の `[[stages]]` に `max_agent_calls` を足しました。無ければ 20 として読みます。拡張の作業台は知らない項目として、書き出すときに落とします（上限は既定の 20 に戻ります）。
-- D0047 は記録の形（`state.json`・`logs/*.jsonl`・`99_summary.md`）を変えません。拡張の内側の写しに、図の状態の表の項目 `tools`（省ける。無い写しは表が空として読み、一覧の行の組み立ては作らない `null`）・段のログの呼び出し `calls`（頼んだときだけ。頼まない読み方は今までと同じ）・`RunRecord` の `driver` の有無 `hasDriver`（`driver` が項目として有り null でないこと。無い・読めない写しは false）を足し、HTML に詳細のタブ「エージェント・スキル」とパネルを足しただけです。意味が変わるのは次の 2 つです。(1) 詳細のタブが 3 つから 4 つになり、D0019-AC-62 のタブ 3 つ（図と出力・成果物・使用量）の並びを置き換えます。(2) 段の名前が `constructor` のような `Object` のプロパティ名と同じ記録で、時系列の行の表示名が、段の名前そのままになります（今までは関数の文字が入っていました。ふつうの記録の出力は同じです）。
+- D0049 は記録の形（`state.json`・`logs/*.jsonl`・`99_summary.md`）を変えません。拡張の内側の写しに、図の状態の表の項目 `tools`（省ける。無い写しは表が空として読み、一覧の行の組み立ては作らない `null`）・段のログの呼び出し `calls`（頼んだときだけ。頼まない読み方は今までと同じ）・`RunRecord` の `driver` の有無 `hasDriver`（`driver` が項目として有り null でないこと。無い・読めない写しは false）を足し、HTML に詳細のタブ「エージェント・スキル」とパネルを足しただけです。意味が変わるのは次の 2 つです。(1) 詳細のタブが 3 つから 4 つになり、D0019-AC-62 のタブ 3 つ（図と出力・成果物・使用量）の並びを置き換えます。(2) 段の名前が `constructor` のような `Object` のプロパティ名と同じ記録で、時系列の行の表示名が、段の名前そのままになります（今までは関数の文字が入っていました。ふつうの記録の出力は同じです）。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

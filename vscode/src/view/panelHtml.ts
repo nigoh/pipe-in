@@ -3,7 +3,7 @@
 // このファイルは CSP・style・script の束ねと、図（.flow）・動きの基本の CSS を持つ。パネルの本体（上のバー・左の一覧・右の詳細）は shellHtml.ts、
 // 左の一覧は runListHtml.ts、時系列は ganttHtml.ts、「成果物」のタブ（一覧＋プレビュー、D0025）とその CSS は artifactsHtml.ts、
 // パネルの中のスクリプトは panelScript.ts、止まっているかも（D0021）の印の共通部品は staleMark.ts。
-// 「エージェント・スキル」のタブの表の CSS（TOOLS_STYLE、D0047）は、使用量の表の CSS（USAGE_STYLE）の次に束ねる（@media は持たない）。
+// 「エージェント・スキル」のタブの表の CSS（TOOLS_STYLE、D0049）は、使用量の表の CSS（USAGE_STYLE）の次に束ねる（@media は持たない）。
 // 成果物の CSS（ARTIFACTS_STYLE）は SHELL_STYLE より前に束ねる（SHELL_STYLE の既存の 2 つの @media の中の規則が、基本の規則を上書きできるように。幅の @media はここに足さない）。
 // 図の印（.node-stale・点線の枠・矢印の点を止める）の CSS はここ。動き（animation）は no-preference の中だけで、見える・見えない・点線・色は外（動きを減らす設定でも印は出る）。
 import type { PipelineView } from '../domain/pipelineView.ts';

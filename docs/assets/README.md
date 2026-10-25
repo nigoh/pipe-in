@@ -42,7 +42,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | `run-panel-stale-light.html`・`run-panel-stale-dark.html`（`run-panel-stale-*`） | 止まっているかもしれない実行の印（D0021）。動いている実行の最後の更新が、目安の10分を12秒過ぎた見本 | 撮らない |
 | `run-panel-stale-soon-dark.html` | 目安の5秒手前の見本。数秒待つと印が出て、`window.__previewNext()` で更新後の本体を送ると消える | 撮らない |
 | `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html`（`run-panel-artifacts-*`） | 成果物のタブ（D0025）。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。成果物の一覧・プレビュー・選び・描き直しのあとの動きと内容を見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
-| `run-panel-tools-light.html`・`run-panel-tools-dark.html`（`run-panel-tools-*`） | エージェント・スキルのタブ（D0047）。実行の一覧つきで、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`window.__previewNext()` で動いている実行が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。表・案内・空の文・描き直しのあとの動きを見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
+| `run-panel-tools-light.html`・`run-panel-tools-dark.html`（`run-panel-tools-*`） | エージェント・スキルのタブ（D0049）。実行の一覧つきで、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`window.__previewNext()` で動いている実行が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。表・案内・空の文・描き直しのあとの動きを見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 
 見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が、エージェント・スキルのタブの見本の記録（ログと `state.json`）は `vscode/scripts/toolsSamples.ts` が作ります。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
 

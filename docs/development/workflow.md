@@ -5,14 +5,16 @@
 機能ごとに、ブランチを切って、別の作業フォルダ（worktree）で進めます。いくつかの会話や人が同時に作業しても、変更が混ざらないようにするためです。
 
 ```bash
-git worktree add ../pipe-in-<名前> -b feat/<名前>     # 文書だけなら docs/<名前>、直しなら fix/<名前>
-cd ../pipe-in-<名前>
+python -m pipe_in worktree new <名前>     # .claude/worktrees/<名前> に feat/<名前> を切る。文書だけなら --kind docs、直しなら --kind fix
+cd .claude/worktrees/<名前>
 ```
+
+`/pipe-in` は、会話が main の作業フォルダで始まっていれば、これを人に聞かずに流して、`EnterWorktree` でその worktree に移ります（D0048）。
 
 - このリポジトリでは、複数の会話を同時に動かすのがふつうです。1人で1つだけ進めるときも、worktree を切ります。
 - 切る前に、main の作業フォルダの `git status` を見ます。まだコミットされていない変更（ほかの会話の作業）があれば、それがどのファイルかを覚えておきます（あとで main に入れるときに重なりを確かめるため）。
 - 同じファイルを大きく触る機能は、同時に進めません（あとで合わせるのが難しくなる）。
-- 終わったら、main に入れたあとで `git worktree remove ../pipe-in-<名前>` と `git branch -d <ブランチ>` で片付けます。
+- 終わったら、main に入れたあとで、main の作業フォルダで `python -m pipe_in worktree clean` を流して片付けます（`/pipe-in` は人に聞かずに流します）。消すのは `.claude/worktrees/` の下で、main に入った・まだコミットしていない変更が無い・一度はコミットしたものだけで、worktree とブランチを一緒に消します。ほかは理由を出して残します。消す前に見るなら `--dry-run`。GitHub で merge したなら、`git fetch` してから `--base origin/main` を付けます。squash で入れたものは残るので、手で消します。
 - Claude Code で `/pipe-in` を進めるときは、始める前に `python --version` で `python` が動くことを確かめます。段のサブエージェントを絞るフック（`.claude/hooks/pipe_in_guard.py`）は `python` で動き、動かないとフックが効かず、絞りが外れて通るためです（[D0032](../decisions/D0032-guard-fail-closed.md)。くわしくは [docs/guide/develop.md](../guide/develop.md) の「フックが働く条件」）。
 
 ### worktree で気をつけること

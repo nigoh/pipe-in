@@ -1,4 +1,4 @@
-// 段のログの呼び出しの数え上げ（D0047）：parseStageLog(text, { calls: true }) が返す calls（{ kind, name }）。
+// 段のログの呼び出しの数え上げ（D0049）：parseStageLog(text, { calls: true }) が返す calls（{ kind, name }）。
 // 出力の道具の行と同じ判定（partOf 1 つ）から出ること、エージェント・スキル・道具の見分け、入力の中身を持ち出さないこと、
 // サブエージェントの中の発言も同じ規則で数えること、壊れた部品・行でも例外を出さないことを確かめる。
 // parseStageLog の第 2 引数と戻りの calls は、実装の段で足される。呼び出しの前に型を緩めた形（parse）で受け、calls が返らなければ落とす。
@@ -102,12 +102,12 @@ const AC01: Case[] = [
   },
 ];
 for (const c of AC01) {
-  test(`D0047-AC-01: ${c.label}`, () => {
+  test(`D0049-AC-01: ${c.label}`, () => {
     assert.deepEqual(tags(callsOf(c.text)), c.want);
   });
 }
 
-test('D0047-AC-01: 判定は stageLog.ts の 1 か所だけ（コメントを除いたソースに tool_use_id・thinking が各 1 回）（今のまま通る。守る）', () => {
+test('D0049-AC-01: 判定は stageLog.ts の 1 か所だけ（コメントを除いたソースに tool_use_id・thinking が各 1 回）（今のまま通る。守る）', () => {
   const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'stageLog.ts'), 'utf8');
   assert.equal(mentions(source, 'tool_use_id'), 1, 'tool_use_id を弾く判定は 1 か所');
   assert.equal(mentions(source, 'thinking'), 1, 'thinking を弾く判定は 1 か所');
@@ -118,7 +118,7 @@ function mentions(source: string, word: string): number {
   return withoutComments(source).split(word).length - 1;
 }
 
-test('D0047-AC-01: 検査そのもの：mentions は、2 回のソースは 2、1 回＋行頭のコメントでの言及は 1、0 回は 0、行の後ろのコメントでの言及は数える（今のまま通る。守る）', () => {
+test('D0049-AC-01: 検査そのもの：mentions は、2 回のソースは 2、1 回＋行頭のコメントでの言及は 1、0 回は 0、行の後ろのコメントでの言及は数える（今のまま通る。守る）', () => {
   assert.equal(mentions("if ('tool_use_id' in a) return null;\nif ('tool_use_id' in b) return null;", 'tool_use_id'), 2);
   assert.equal(mentions("// tool_use_id は結果の部品\nif ('tool_use_id' in a) return null;", 'tool_use_id'), 1);
   assert.equal(mentions("/** tool_use_id を弾く */\nif ('tool_use_id' in a) return null;", 'tool_use_id'), 1);
@@ -126,7 +126,7 @@ test('D0047-AC-01: 検査そのもの：mentions は、2 回のソースは 2、
   assert.equal(mentions("if ('tool_use_id' in a) return null; // tool_use_id", 'tool_use_id'), 2, '行の後ろのコメントは数える');
 });
 
-test('D0047-AC-01: calls を頼まなければ、これまでと同じ読みで、calls の項目ごと無い（{} や { calls: false } を渡しても）（今のまま通る。守る）', () => {
+test('D0049-AC-01: calls を頼まなければ、これまでと同じ読みで、calls の項目ごと無い（{} や { calls: false } を渡しても）（今のまま通る。守る）', () => {
   const text = log(assistantParts([READ]), assistantText('文章'));
   for (const options of [undefined, {}, { calls: false }]) {
     const read = parse(text, options);
@@ -135,7 +135,7 @@ test('D0047-AC-01: calls を頼まなければ、これまでと同じ読みで�
   }
 });
 
-test('D0047-AC-01: calls を頼んでも、出力の項目・Prompt の有無・終わり・始まりの時刻・受け持ちは、頼まないときと同じ（今のまま通る。守る）', () => {
+test('D0049-AC-01: calls を頼んでも、出力の項目・Prompt の有無・終わり・始まりの時刻・受け持ちは、頼まないときと同じ（今のまま通る。守る）', () => {
   const text = logText([promptLine('x', '2026-10-17T10:00:00+00:00', 'pipe-in-analyst'), assistantParts([READ]), assistantText('文章')]);
   const without = parse(text);
   const withCalls = parse(text, { calls: true });
@@ -171,7 +171,7 @@ const AC02: { label: string; text: string; count: number }[] = [
   { label: '空のログ', text: '', count: 0 },
 ];
 for (const c of AC02) {
-  test(`D0047-AC-02: ${c.label}で、calls の数は出力の道具の行の数と同じ（名前の並びも同じ）`, () => {
+  test(`D0049-AC-02: ${c.label}で、calls の数は出力の道具の行の数と同じ（名前の並びも同じ）`, () => {
     const read = parse(c.text, { calls: true });
     assert.ok(Array.isArray(read.calls), 'calls が返る（まだ作っていない）');
     assert.equal(toolItems(read).length, c.count, '出力の道具の行の数（見本の数が合っている）');
@@ -183,7 +183,7 @@ for (const c of AC02) {
   });
 }
 
-test('D0047-AC-02: Agent・Task・Skill・MCP の道具を混ぜたログでも、calls の数は出力の道具の行の数と同じで、出力の項目は calls を頼まないときと同じ（頼んだときだけ行を落とさない）', () => {
+test('D0049-AC-02: Agent・Task・Skill・MCP の道具を混ぜたログでも、calls の数は出力の道具の行の数と同じで、出力の項目は calls を頼まないときと同じ（頼んだときだけ行を落とさない）', () => {
   const text = log(
     assistantParts([READ, toolPart('Agent', { subagent_type: 'a' }, 'a1'), toolPart('Task', {}, 't1')]),
     assistantParts([toolPart('Skill', { skill: 's' }, 's1'), toolPart('mcp__jira__get_issue', {}, 'm1')], 'a1'),
@@ -197,7 +197,7 @@ test('D0047-AC-02: Agent・Task・Skill・MCP の道具を混ぜたログでも�
   assert.deepEqual(tags(withCalls.calls), ['tool:Read', 'agent:a', 'agent:undefined', 'skill:s', 'tool:mcp__jira__get_issue']);
 });
 
-test('D0047-AC-02: 実物の形のログ（tests/fixtures/showcase の 8 つ。SystemMessage・RateLimitEvent・ResultMessage 入りで、発言に parent_tool_use_id: null が付く）でも、ログごとに calls の数と名前の並びは出力の道具の行と同じ（合計 21）', () => {
+test('D0049-AC-02: 実物の形のログ（tests/fixtures/showcase の 8 つ。SystemMessage・RateLimitEvent・ResultMessage 入りで、発言に parent_tool_use_id: null が付く）でも、ログごとに calls の数と名前の並びは出力の道具の行と同じ（合計 21）', () => {
   const files = fixtureSnapshot('showcase').stageLogs;
   assert.equal(files.length, 8, '見本のログが 8 つ読めている（検査が空振りでない）');
   let total = 0;
@@ -235,12 +235,12 @@ const AC05:{ label: string; part: unknown; want: [string, unknown] }[] = [
   { label: 'subagent_type が空の文字 → 生の値のまま渡す', part: toolPart('Agent', { subagent_type: '' }, 'p1'), want: ['agent', ''] },
 ];
 for (const c of AC05) {
-  test(`D0047-AC-05: ${c.label}`, () => {
+  test(`D0049-AC-05: ${c.label}`, () => {
     assert.deepEqual(pairs(callsOf(log(assistantParts([c.part])))), [c.want]);
   });
 }
 
-test('D0047-AC-05: input に自分の鍵 __proto__ があっても、中の subagent_type・skill とは読まない（名前の取り違えを見る補助。JSON.parse は __proto__ を自分の鍵として作るだけで、プロトタイプは替わらない）', () => {
+test('D0049-AC-05: input に自分の鍵 __proto__ があっても、中の subagent_type・skill とは読まない（名前の取り違えを見る補助。JSON.parse は __proto__ を自分の鍵として作るだけで、プロトタイプは替わらない）', () => {
   const agent = `{"_type":"AssistantMessage","content":[{"id":"a1","name":"Agent","input":{"__proto__":{"subagent_type":"polluted"}}}]}`;
   const skill = `{"_type":"AssistantMessage","content":[{"id":"s1","name":"Skill","input":{"__proto__":{"skill":"polluted"}}}]}`;
   assert.deepEqual(pairs(callsOf(log(agent, skill))), [
@@ -249,7 +249,7 @@ test('D0047-AC-05: input に自分の鍵 __proto__ があっても、中の suba
   ]);
 });
 
-test('D0047-AC-05: 入力の自分の鍵だけを読む：Object.prototype に subagent_type・skill が（一時的に）あっても、鍵を省いた Agent・Task・Skill の名前は undefined（継承された値を名前にしない）', () => {
+test('D0049-AC-05: 入力の自分の鍵だけを読む：Object.prototype に subagent_type・skill が（一時的に）あっても、鍵を省いた Agent・Task・Skill の名前は undefined（継承された値を名前にしない）', () => {
   const text = log(assistantParts([toolPart('Agent', {}, 'a1'), toolPart('Task', { skill: 'x' }, 't1'), toolPart('Skill', {}, 's1')]));
   const calls = withPollutedPrototype({ subagent_type: 'polluted', skill: 'polluted' }, () => callsOf(text));
   assert.deepEqual(pairs(calls), [
@@ -262,7 +262,7 @@ test('D0047-AC-05: 入力の自分の鍵だけを読む：Object.prototype に s
 
 // ---- AC-08：calls に入る入力は名前だけ（プロンプトなどを持ち出さない） ----
 
-test('D0047-AC-08: calls の要素のキーは kind と name だけ（prompt・description・command・file_path・pattern・args・content は持ち出さない）', () => {
+test('D0049-AC-08: calls の要素のキーは kind と name だけ（prompt・description・command・file_path・pattern・args・content は持ち出さない）', () => {
   const markers = {
     prompt: 'M-prompt',
     description: 'M-description',
@@ -310,7 +310,7 @@ const PARENTS: [string, unknown][] = [
   ['オブジェクト', {}],
 ];
 for (const [label, parent] of PARENTS) {
-  test(`D0047-AC-09: 発言の行の parent_tool_use_id が ${label} でも、その行の呼び出しは同じ規則で数える`, () => {
+  test(`D0049-AC-09: 発言の行の parent_tool_use_id が ${label} でも、その行の呼び出しは同じ規則で数える`, () => {
     const calls = callsOf(log(assistantParts([toolPart('Read', {}, 'r1'), toolPart('Agent', { subagent_type: 'a' }, 'a1')], parent)));
     assert.deepEqual(pairs(calls), [
       ['tool', 'Read'],
@@ -319,21 +319,21 @@ for (const [label, parent] of PARENTS) {
   });
 }
 
-test('D0047-AC-09: parent_tool_use_id を部品の項目に置いても（部品の項目ではない）、数え方は変わらない', () => {
+test('D0049-AC-09: parent_tool_use_id を部品の項目に置いても（部品の項目ではない）、数え方は変わらない', () => {
   const calls = callsOf(log(assistantParts([{ id: 'r1', name: 'Read', input: {}, parent_tool_use_id: 'x' }])));
   assert.deepEqual(pairs(calls), [['tool', 'Read']]);
 });
 
 // ---- AC-11：回数は呼んだ数（結果・成否・重複を見ない） ----
 
-test('D0047-AC-11: 同じ id の部品が 2 つあっても、それぞれ数える（同じ行の中でも、別の行でも）', () => {
+test('D0049-AC-11: 同じ id の部品が 2 つあっても、それぞれ数える（同じ行の中でも、別の行でも）', () => {
   const sameLine = callsOf(log(assistantParts([toolPart('Read', {}, 'dup'), toolPart('Read', {}, 'dup')])));
   const twoLines = callsOf(log(assistantTool('Read', {}, 'dup'), assistantTool('Read', {}, 'dup')));
   assert.equal(sameLine.length, 2);
   assert.equal(twoLines.length, 2);
 });
 
-test('D0047-AC-11: 結果の行（失敗の結果も）があっても、結果が無くても、数は同じ', () => {
+test('D0049-AC-11: 結果の行（失敗の結果も）があっても、結果が無くても、数は同じ', () => {
   const call = assistantTool('Read', {}, 'r1');
   const withResult = callsOf(log(call, user(resultPart('r1', true))));
   const withoutResult = callsOf(log(call));
@@ -341,14 +341,14 @@ test('D0047-AC-11: 結果の行（失敗の結果も）があっても、結果�
   assert.equal(withResult.length, 1);
 });
 
-test('D0047-AC-11: Agent を 25 回（max_agent_calls の既定 20 を超える）呼んだログは 25 回と数える（止められた呼び出しも、モデルが出した時点でログにある）', () => {
+test('D0049-AC-11: Agent を 25 回（max_agent_calls の既定 20 を超える）呼んだログは 25 回と数える（止められた呼び出しも、モデルが出した時点でログにある）', () => {
   const lines = Array.from({ length: 25 }, (_, i) => assistantTool('Agent', { subagent_type: 'a' }, `a${i}`));
   assert.equal(callsOf(log(...lines)).length, 25);
 });
 
 // ---- AC-14：TaskNotificationMessage は読まない ----
 
-test('D0047-AC-14: TaskNotificationMessage（tool_use_id・usage.duration_ms）の行を足しても、calls は増えず、中身も変わらない', () => {
+test('D0049-AC-14: TaskNotificationMessage（tool_use_id・usage.duration_ms）の行を足しても、calls は増えず、中身も変わらない', () => {
   const base = log(assistantTool('Agent', { subagent_type: 'a' }, 'a1'), assistantTool('Read', {}, 'r1'));
   const note = raw({ _type: 'TaskNotificationMessage', tool_use_id: 'a1', usage: { duration_ms: 5000 }, status: 'completed' });
   const withNote = log(assistantTool('Agent', { subagent_type: 'a' }, 'a1'), note, assistantTool('Read', {}, 'r1'));
@@ -388,7 +388,7 @@ const AC42: { label: string; text: string; want: string[] }[] = [
   { label: 'CRLF の改行のログも読める', text: `${promptLine('x')}\r\n${assistantParts([GOOD])}\r\n`, want: ['tool:Read'] },
 ];
 for (const c of AC42) {
-  test(`D0047-AC-42: ${c.label}（例外を出さない）`, () => {
+  test(`D0049-AC-42: ${c.label}（例外を出さない）`, () => {
     assert.deepEqual(tags(callsOf(c.text)), c.want);
   });
 }
