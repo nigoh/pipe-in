@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from ..engine.config import budget_error, positive_budget
 from ..engine.guard import DANGEROUS_BASH
 
 PIPE_FILE = "pipe.toml"
@@ -269,10 +270,6 @@ def _opt_int(value: Any) -> int | None:
     return int(value) if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def _opt_float(value: Any) -> float | None:
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
-
-
 def _opt_str(value: Any) -> str | None:
     return value if isinstance(value, str) else None
 
@@ -403,6 +400,11 @@ def _load_stage(s: dict[str, Any], pipe_dir: Path) -> PipeStage:
     max_agent_calls = _opt_int(s.get("max_agent_calls"))
     if "max_agent_calls" in s and max_agent_calls is None:
         problems.append(MAX_AGENT_CALLS_ERROR)
+    max_budget_usd: float | None = None
+    if "max_budget_usd" in s:
+        max_budget_usd = positive_budget(s["max_budget_usd"])
+        if max_budget_usd is None:
+            problems.append(budget_error("pipe.toml の", s["max_budget_usd"]))
     return PipeStage(
         name=str(s.get("name", "")),
         label=str(s.get("label") or s.get("name", "")),
@@ -415,7 +417,7 @@ def _load_stage(s: dict[str, Any], pipe_dir: Path) -> PipeStage:
         review=s.get("review") is True,
         model=_opt_str(s.get("model")),
         max_turns=_opt_int(s.get("max_turns")),
-        max_budget_usd=_opt_float(s.get("max_budget_usd")),
+        max_budget_usd=max_budget_usd,
         check=_load_check(s.get("check"), problems),
         routes=routes,
         next=_opt_str(s.get("next")),

@@ -128,6 +128,7 @@ prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短け
 - 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
 - Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。
 - MCP のサーバーは、Claude Code の設定から読みます。対象の `pipeline.toml` の `setting_sources` に `"project"`（`.mcp.json`）か `"user"` を入れてください。
+- 段の `max_budget_usd`（ドル）は 0 より大きい数で書きます。`pipeline.toml` と違い、`0` は未設定にならず誤りです。負の数・文字・真偽も誤りで、保存した `pipe.toml` は、`pipe-in --pipe` と `pipe-in-gen check` が流す前に止まって直し方を出します（パイプ作業台は `0` を書き出せますが、保存したあとにここで止まります）。書かなければ上限なしです。効いた上限は実行の記録に残り、図に出ます（くわしくは[設定](config.md)の `max_budget_usd`）。
 - `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。
 
 ## 検証と差し戻し

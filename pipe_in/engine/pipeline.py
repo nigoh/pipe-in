@@ -21,7 +21,7 @@ from .checkpoint import Decision, ask_human
 from .config import Config
 from .runner import StageRun, StageRunner, run_stage_sdk
 from .session import name_from_memo
-from .spec import StageSpec
+from .spec import StageSpec, stage_budget_usd
 
 # どのパイプでも本体が書くファイル
 INPUT = "00_input.md"
@@ -171,9 +171,15 @@ class BasePipeline:
         suffix = f"（{attempt} 回目）" if attempt else ""
         print(f"\n▶ {label}{suffix}{' ' + note if note else ''}", flush=True)
         log_name = f"{self.seq:02d}_{stage}" + (f"_{attempt}" if attempt else "")
+        # 効いた上限は、runner を呼ぶ前に決める（SDK に渡す値と記録の値を同じ関数から取る）
+        budget = stage_budget_usd(self.specs[stage], self.cfg)
         run = await self.runner(self.specs[stage], prompt, self.cfg, resume=resume, log_name=log_name)
         entry = {k: v for k, v in asdict(run).items() if k not in ("structured",)}
         entry.update({"seq": self.seq, "attempt": attempt, "note": note, "metrics": run.metrics.to_dict()})
+        if budget is not None:
+            entry["max_budget_usd"] = budget
+            if resume:
+                entry["resumed"] = True
         self.history.append(entry)
         self._save_state()
         status = "失敗" if run.is_error else "完了"

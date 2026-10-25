@@ -20,6 +20,7 @@ import { HERE, makeRunKey } from '../src/domain/runs.ts';
 import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
+import { budgetStateJson } from './budgetSamples.ts';
 import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
 import { bareRecordSample, freshSample, sdkSample, skillRecordSample } from './toolsSamples.ts';
 import type { SampleRun, ToolsVariant } from './toolsSamples.ts';
@@ -51,8 +52,9 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）、
  * 「成果物」タブの見本（artifacts。実行の一覧つき。更新後の本体を送る補助と、送ったメッセージを貯める window.__posted つき）、
  * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
+ * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -72,11 +74,14 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-artifacts-dark', 'dark'],
   ['run-panel-tools-light', 'light'],
   ['run-panel-tools-dark', 'dark'],
+  ['run-panel-budget-light', 'light'],
+  ['run-panel-budget-dark', 'dark'],
 ];
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
   if (page.includes('-tools-')) return 'tools';
+  if (page.includes('-budget-')) return 'budget';
   if (page.includes('-artifacts-')) return 'artifacts';
   if (page.includes('-stale-soon-')) return 'stale-soon';
   if (page.includes('-stale-')) return 'stale';
@@ -219,6 +224,25 @@ export function panelPreviewHtml(view: PipelineView, theme: Theme, next?: Pipeli
 function previewNextScript(body: string): string {
   const json = JSON.stringify(body).replace(/</g, '\\u003c');
   return `\n<script nonce="${NONCE}">window.__previewNext=()=>window.postMessage({type:'render',html:${json}},'*');</script>`;
+}
+
+// ---- 上限と費用の表の見本（D0051）-------------------------------------------------------------
+// 10 個の段を持つパイプの記録（budgetSamples.ts）を、一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。
+// tests/fixtures/ には見本の記録を足さない・書かない。
+
+/** 上限と費用の表の見本の記録を dest の中に書き、その docs/pipeline の絶対パスを返す。 */
+export async function buildBudgetDir(dest: string): Promise<string> {
+  const dir = path.join(dest, 'docs', 'pipeline');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, 'state.json'), budgetStateJson(), 'utf8');
+  await writeFile(path.join(dir, '00_input.md'), '段ごとの費用を上限と比べて図に出す見本\n', 'utf8');
+  return dir;
+}
+
+/** 上限と費用の表の確認用ページ。一時フォルダ（dest）に書いた見本の記録を、本物の読み取りで読んで HTML にする。 */
+export async function budgetPageHtml(dest: string, theme: Theme): Promise<string> {
+  const view = await readShowcaseView(await buildBudgetDir(dest));
+  return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
 }
 
 // ---- 実行の一覧の見本（D0019）----------------------------------------------------------------

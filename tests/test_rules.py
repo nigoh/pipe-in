@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DECISIONS = ROOT / "docs" / "decisions"
 DEVELOPMENT = ROOT / "docs" / "development"
 
-AC_ID = re.compile(r"\bD\d{4}-AC-\d{2}\b")
+# D0051 で 3 桁（AC-100 以上）まで拾えるように広げた（厳しくする側。広げないと AC-100〜111 は、記録とテストの突き合わせから外れる）
+AC_ID = re.compile(r"\bD\d{4}-AC-\d{2,3}\b")
 
 
 def tracked_files() -> list[Path]:
@@ -137,6 +138,14 @@ def test_ac_ids_in_tests_exist_in_records():
             if ac not in defined:
                 missing.append(f"{src.relative_to(ROOT).as_posix()}: {ac}")
     assert sorted(missing) == []
+
+
+def test_ac_id_pattern():
+    """D0002-AC-03: 受け入れ基準の ID の拾い方そのものの確かめ。2 桁（D0051-AC-26）と 3 桁（D0051-AC-100）の番号は拾い、
+    1 桁（D0051-AC-1）と 4 桁（D0051-AC-1000）は拾わない。前の 2 桁だけの拾い方は D0051-AC-100 に当てはまらず、AC-100 以上が検査から外れていた。"""
+    assert AC_ID.findall("D0051-AC-26 と D0051-AC-100 と D0002-AC-03") == ["D0051-AC-26", "D0051-AC-100", "D0002-AC-03"]
+    assert AC_ID.findall("D0051-AC-1 と D0051-AC-1000 と Dnnnn-AC-xx") == []
+    assert re.findall(r"\bD\d{4}-AC-\d{2}\b", "D0051-AC-100") == [], "前の拾い方は 3 桁を拾えなかった（広げた理由）"
 
 
 # ---- D0002-AC-04: 置き場所の表と実物が食い違わない ----------------------------------------

@@ -1,9 +1,12 @@
 // 使用量の図の状態 → パネルの「使用量」の節の HTML（純粋）。ログから来た文字は escapeHtml を通す。
 import type { UsageRow, UsageView } from '../domain/pipelineView.ts';
 import type { RateWindow, TokenCounts } from '../domain/runRecord.ts';
+import type { StageCostsView } from '../domain/stageCosts.ts';
 import { escapeHtml } from './escape.ts';
+import { formatUsd } from './money.ts';
 
 export const USAGE_STYLE = `
+.stage-costs { margin: 0 0 16px; }
 .usage-summary { margin: 0 0 6px; color: var(--vscode-descriptionForeground); }
 .usage-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.92em; }
 .usage-table th, .usage-table td { padding: 2px 6px; border-bottom: 1px solid var(--vscode-panel-border); text-align: right; white-space: nowrap; }
@@ -67,6 +70,20 @@ function renderRateLimits(usage: UsageView): string {
     return `<li${cls}>${escapeHtml(`${w.label}：${formatRateSpan(w)}`)}</li>`;
   });
   return `<h3 class="terminal-title">利用枠</h3><ul class="usage-list">${items.join('')}</ul>`;
+}
+
+/**
+ * 段ごとの費用の節（D0051）：費用の多い順の表。null なら何も出さない。
+ * 段の名前は外から来た文字なので escapeHtml を通す。節の中に別の <section> は入れない。見出しに「使用量」の語は入れない。
+ */
+export function renderStageCosts(costs: StageCostsView | null): string {
+  if (costs == null) return '';
+  const rows = costs.rows.map((r) => {
+    const name = r.runs >= 2 ? `${r.label}（${r.runs} 回）` : r.label;
+    return `<tr><td>${escapeHtml(name)}</td><td>${formatUsd(r.costUsd)}</td><td>${r.percent}%</td></tr>`;
+  });
+  rows.push(`<tr class="is-total"><td>合計</td><td>${formatUsd(costs.totalUsd)}</td><td></td></tr>`);
+  return `<section class="stage-costs" data-stage-costs><h2 class="terminal-title">段ごとの費用</h2><div class="usage-scroll"><table class="usage-table"><thead><tr><th>段</th><th>費用</th><th>割合</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></section>`;
 }
 
 /** 使用量の節。usage が null なら何も出さない。 */
