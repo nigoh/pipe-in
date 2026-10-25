@@ -72,7 +72,7 @@ def with_runs(runs, **over):
     return ls.base_state(runs=runs, **over)
 
 
-EMPTY_FORM = {"schema": 1, "generated_at": "2026-10-17T12:00:00+00:00", "empty": True, "name": None, "final": None, "stages": []}
+EMPTY_FORM = {"schema": 1, "generated_at": "2026-10-17T12:00:00+00:00", "empty": True, "name": None, "final": None, "stages": [], "review": None}
 
 _OPENED: list[str] = []
 _WATCH = {"on": False}
@@ -366,6 +366,7 @@ def test_d0027_ac06_shape_is_frozen():
     s = snap(state, "2026-10-17T10:00:00+09:00")
     assert [(k, type(v).__name__) for k, v in s.items()] == [
         ("schema", "int"), ("generated_at", "str"), ("empty", "bool"), ("name", "str"), ("final", "NoneType"), ("stages", "list"),
+        ("review", "dict"),
     ]
     shape = {x["name"]: [(k, type(v).__name__) for k, v in x.items()] for x in s["stages"]}
     assert shape["requirements"] == [
