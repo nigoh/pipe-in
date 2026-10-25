@@ -54,6 +54,7 @@
 | [D0048](D0048-worktree-auto.md) | worktree を自動で切って、main に入ったら自動で片付ける（pipe-in worktree new・clean） |
 | [D0049](D0049-skill-shell.md) | /pipe-in が打つシェルのコマンドを、確認なしで通る形にまとめる（pipe-in skill・worktree sync） |
 | [D0050](D0050-run-tools.md) | 実行の詳細に「エージェント・スキル」のタブを足し、選んだ実行で使ったエージェント・スキル・道具の名前・種類・回数・使った段を表で見られるようにする（拡張が段のログを数えるだけ。本体と記録の形は変えない） |
+| [D0052](D0052-ci-check.md) | main への PR と main への push で、GitHub Actions の CI が Python と拡張のテスト・型検査・ビルドを流す（権限は読むだけ・秘密なし・アクションは SHA で固定。D0002 の「CI は足さない」を改める） |
 
 ## ひな形
 
