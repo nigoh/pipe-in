@@ -10,7 +10,7 @@
 //   hidden   始めに document.hidden にするか（既定 false）
 //   initial  購読した直後に（非同期で）届ける値。{"value": ...} | {"missing": true}。省くと何も届かない
 //   steps    順に行う操作（下）
-//   comments D0039：偽の claude.use("comments")。省くと use("comments") は null（前の版と同じ）。次のキーを持つ（すべて省ける）
+//   comments D0044：偽の claude.use("comments")。省くと use("comments") は null（前の版と同じ）。次のキーを持つ（すべて省ける）
 //              use     "ok"（既定）| "null" | "rejects" | "throws" | "undefined"
 //              can     "available"（既定）| "writers_only" | "no_session" | "off" | 任意の JSON 値 | {"$":"reject"} | {"$":"throw"} |
 //                      {"$":"undefined"} | "pending"（settle_can で終わらせるまで返さない）
@@ -933,7 +933,7 @@ async function main() {
   sandbox.parent = sandbox;
   sandbox.frames = sandbox;
 
-  // ---- D0039：偽の comments ----
+  // ---- D0044：偽の comments ----
   const cfg = scene.comments && typeof scene.comments === "object" ? scene.comments : null;
   const comm = {
     useCalls: 0,

@@ -636,7 +636,8 @@ ORIGINAL_BACKTICK_WORDS: tuple[str, ...] = (
     "python -m pipe_in record finish PASSED", "TEST_FAILED", "STOPPED_BY_HUMAN", "STAGE_ERROR", "BLOCKED",
     "requirements", "design", "red", "implement", "test", "start", "finish STOPPED_BY_HUMAN", "docs/pipeline/archive/",
     "--artifact", "-p", "record start", "python -m pipe_in live page --out <一時フォルダ>/pipe-in-live.html", "capabilities",
-    '{"db": {}}', "icon", "chart", "begin", "done", "wait", "review", "verdict", "finish",
+    # '{"db": {}}' は、ページのボタン（D0044）で公開の宣言を {"db": {}, "comments": {}} に替えたので外した
+    "icon", "chart", "begin", "done", "wait", "review", "verdict", "finish",
     "python -m pipe_in live snapshot --out <一時フォルダ>/pipe-in-live.json", "--out", "set", "url", "collection", "runs", "doc_id",
     "current", "file_path", "if_version", "version", "get", "docs/guide/records.md", "/pipe-in", "review <段> revise",
     "review <段> quit", "review <段> approved", "--yes", "pipe_in/engine/guard.py", "/pipe-help",
