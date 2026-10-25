@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATES = ["dev", "diagrams", "spec-qa"]
+TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review"]
 
 
 def lint():
@@ -199,7 +199,7 @@ def isolate_pipes(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("name", TEMPLATES)
 def test_templates_have_no_warnings(tmp_path, isolate_pipes, name):
-    """D0038-AC-09: ひな形 dev・diagrams・spec-qa は警告 0 件。"""
+    """D0038-AC-09: ひな形 dev・diagrams・spec-qa・spec-review は警告 0 件。"""
     from pipe_in.pipe.definition import load_pipe
     from pipe_in_generator import cli
 

@@ -27,7 +27,7 @@ def definition():
     return definition
 
 
-TEMPLATES = ["dev", "diagrams", "spec-qa"]
+TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review"]
 
 
 def python_project(tmp_path: Path) -> Path:

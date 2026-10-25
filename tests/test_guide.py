@@ -250,7 +250,7 @@ OLD_CODE_LINES = [
     "└─ README.md         何をするパイプか・流し方",
     "pipe-in のリポジトリ",
     "├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）",
-    "│  └─ templates/           ひな形（dev / diagrams / spec-qa）",
+    "│  └─ templates/           ひな形（dev / diagrams / spec-qa / spec-review）",
     "└─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）",
     # パイプ（コマンド）
     "pipe-in-gen list --project ~/src/myapp                          # ひな形と、作ったパイプの一覧",
@@ -423,7 +423,7 @@ TABLE_ITEMS = [
     # プラグインで入るもの
     "スキル `/pipe-in:pipe-build`", "エージェント `pipe-builder`", "フック（`pipe-in-gen guard-hook`）",
     # ひな形
-    "`dev`", "`diagrams`", "`spec-qa`",
+    "`dev`", "`diagrams`", "`spec-qa`", "`spec-review`",
     # 中身を直したいとき
     "開発フローの各段への指示（文書の構成、守ること）",
     "開発フローの段の順番、確認、差し戻しの流れ",
