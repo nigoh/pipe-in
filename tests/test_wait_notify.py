@@ -197,6 +197,9 @@ def test_D0046_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_n
         "Bash(npm --prefix vscode run build)",
         "Bash(npm --prefix vscode run preview)",
         "Bash(python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview)",
+        "Bash(python -m pipe_in skill:*)",  # D0049 で足した
+        "Bash(python --version)",  # D0049 で足した
+        "Bash(npm --prefix vscode ci)",  # D0049 で足した
         "Agent(pipe-in-analyst)",
         "Agent(pipe-in-tester)",
         "Agent(pipe-in-coder)",

@@ -448,7 +448,11 @@ def _read_feedback_file(path: Path) -> str:
 
 
 def main(argv: list[str]) -> int:
-    args = _parse(argv)
+    return run(_parse(argv))
+
+
+def run(args: argparse.Namespace) -> int:
+    """読んだ引数で記録を書く（pipe-in skill record も、旗を検めてからここを呼ぶ）。"""
     r = Recorder(load_config(args.project, args.config))
     try:
         if args.action == "start":
