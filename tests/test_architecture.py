@@ -160,6 +160,17 @@ def test_judge_score_uses_only_stdlib():
     assert outside == []
 
 
+def test_findings_check_uses_only_stdlib():
+    """D0043-AC-22: 指摘の検査（pipe-in-gen findings-check）も、本体や SDK を読み込まない（標準ライブラリだけ）。"""
+    import sys
+
+    path = ROOT / "generator" / "findings_check.py"
+    assert path.is_file()
+    targets = {t.split(".")[0] for t in _imports(path, "pipe_in_generator.findings_check") if t}
+    outside = sorted(t for t in targets if t not in sys.stdlib_module_names and t != "__future__")
+    assert outside == []
+
+
 def _outside_stdlib(path: Path, module: str) -> list[str]:
     import sys
 
