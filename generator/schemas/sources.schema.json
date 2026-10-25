@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "仕様書レビューの出典の台帳（指摘の形 v1）",
+  "description": "他の道具に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まない。id の重なりと、spec の件の file と --spec の結びは、検査コード（generator/findings_check.py）が確かめる。文字列の欄で空白だけの値と、/ や \\ を含む file は、検査コードが落とす（Schema より厳しい）。",
+  "type": "object",
+  "required": ["v", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "v": { "const": 1 },
+    "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "title", "version", "where"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^SRC-[0-9]{3,}$" },
+        "kind": { "enum": ["spec", "customer", "law", "standard", "public_spec", "past_case"] },
+        "title": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "where": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1, "description": "仕様書の本文のファイル名（フォルダを含めない）。kind が spec の件にだけ付ける。" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "spec" } }, "required": ["kind"] },
+          "then": { "required": ["file"] },
+          "else": { "properties": { "file": false } }
+        }
+      ]
+    }
+  }
+}

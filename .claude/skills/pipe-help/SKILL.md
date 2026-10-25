@@ -77,6 +77,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | ひな形から作る（dev / diagrams / spec-qa） | `pipe-in-gen new <名前> --from <ひな形> --project <対象>` |
 | 目的から段を組ませる（Claude が設計する。利用料がかかる） | `pipe-in-gen design <名前> --purpose "…" --project <対象>` |
 | 定義の誤りを調べる | `pipe-in-gen check <名前> --project <対象>` |
+| 仕様書レビューの指摘の誤りを調べる（LLM は呼ばない） | `pipe-in-gen findings-check <指摘のファイル> --sources <台帳> --spec <仕様書> [--spec …]`（終了コード 0＝誤りなし・1＝誤りあり・2＝入力を受け取れない。くわしくは `docs/guide/pipes.md` の「指摘の検査」） |
 
 作ったパイプは対象の `.pipe-in/pipes/pipe-in-<名前>/`（pipe.toml・prompts/・README.md）に置かれる（`--pipes-dir` か `PIPE_IN_PIPES_DIR` で変えられる。前の版の置き場所も読む。`docs/guide/migrate.md` を参照）。
 

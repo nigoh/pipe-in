@@ -28,7 +28,7 @@ package-dir = { "pipe_in_generator" = "generator" }
 [tool.setuptools.package-data]
 "pipe_in.dev" = ["prompts/*.md"]
 "pipe_in.pipe" = ["*.md"]
-"pipe_in_generator" = ["*.md", "templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md"]
+"pipe_in_generator" = ["*.md", "templates/*/*.toml", "templates/*/*.md", "templates/*/prompts/*.md", "schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

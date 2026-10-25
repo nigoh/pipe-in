@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "仕様書レビューの指摘のファイル（指摘の形 v1）",
+  "description": "他の道具（エディタ・他の言語）に渡す契約。pipe-in-gen findings-check は実行時にこのファイルを読まず、決まりをコードに持つ（食い違わないことはテストが守る）。台帳との照らし合わせ・引用の一致・guess と sources の対・id の重なり・naive の出典は Schema では書けず、検査コード（generator/findings_check.py）が確かめる。文字列の欄で空白だけの値は、検査コードが「欄がありません」として落とす（Schema の minLength より厳しい）。",
+  "type": "object",
+  "required": ["v", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "v": { "const": 1 },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "location", "kind", "statement", "rationale", "sources", "guess", "confidence", "severity", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F-[0-9]{3,}$", "description": "同じファイルの中で重ならない（検査コードが確かめる）。" },
+        "role": { "enum": ["quality", "gap", "perspective", "naive"] },
+        "perspective": { "enum": ["user", "tester", "designer", "operations", "security", "legal"] },
+        "location": { "$ref": "#/$defs/location" },
+        "kind": { "enum": ["missing", "ambiguous", "inconsistent", "unverifiable", "excess", "risk"] },
+        "statement": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^SRC-[0-9]{3,}$" },
+          "description": "台帳にある ID だけ。role が naive のときは kind が spec の件だけ（検査コードが確かめる）。"
+        },
+        "guess": { "type": "boolean", "description": "sources が空のときだけ真（検査コードが確かめる）。" },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "severity": { "enum": ["critical", "major", "minor"] },
+        "question": { "$ref": "#/$defs/question" },
+        "risk": { "$ref": "#/$defs/risk" },
+        "verification": { "$ref": "#/$defs/verification" },
+        "status": { "enum": ["open", "confirmed", "rejected"] },
+        "links": { "$ref": "#/$defs/links" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "role": { "const": "perspective" } }, "required": ["role"] },
+          "then": { "required": ["perspective"] },
+          "else": { "properties": { "perspective": false } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "risk" } }, "required": ["kind"] },
+          "then": { "required": ["risk"] },
+          "else": { "properties": { "risk": false } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "confirmed" } }, "required": ["status"] },
+          "then": { "required": ["links"] },
+          "else": { "properties": { "links": false } }
+        }
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "section", "quote"],
+      "properties": {
+        "source": { "type": "string", "pattern": "^SRC-[0-9]{3,}$" },
+        "section": { "type": "string", "minLength": 1 },
+        "quote": { "type": "string", "description": "kind が missing のときだけ空にできる。空でないときは、source が指す仕様書の本文にあること（検査コードが確かめる）。" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "type"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["yes_no", "choice", "free"] },
+        "choices": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "choice" } }, "required": ["type"] },
+          "then": { "required": ["choices"] },
+          "else": { "properties": { "choices": false } }
+        }
+      ]
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "impact", "estimate"],
+      "properties": {
+        "condition": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "minLength": 1 },
+        "estimate": { "type": "string", "minLength": 1 }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "reason"],
+      "properties": {
+        "verdict": { "enum": ["supported", "rejected", "needs_human"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirements", "acceptance"],
+      "properties": {
+        "requirements": { "type": "array", "items": { "type": "string", "pattern": "^FR-[0-9]+$" } },
+        "acceptance": { "type": "array", "items": { "type": "string", "pattern": "^(AC-[0-9]+|D[0-9]{4}-AC-[0-9]+)$" } }
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-// 入口 extension.ts の配線の検査（D0045：確認待ちの知らせ）。AC-10・13〜16・18・19。
+// 入口 extension.ts の配線の検査（D0046：確認待ちの知らせ）。AC-10・13〜16・18・19。
 // extension.ts は vscode を import するので単体では動かせない。呼び出しの形を、ソースを文字で読んで確かめる
 // （extensionCounts.test.ts と同じ作り。文字で読む部品は test/sourceText.ts）。
 // ここで見るのは配線だけ：何を呼ぶか・どの順に呼ぶか・どこに書くか。判断（新しく確認待ちになったか）は domain/、文は view/、絞り込みは app/ のテスト。
@@ -107,29 +107,29 @@ const WIRING: readonly { id: NotifyWiringId; ac: string; what: string }[] = [
 ];
 
 for (const w of WIRING) {
-  test(`D0045-AC-${w.ac}: ${w.what}`, () => {
+  test(`D0046-AC-${w.ac}: ${w.what}`, () => {
     assert.ok(!problems(EXTENSION).includes(w.id), `extension.ts で守られていない：${w.id}`);
   });
 }
 
-test('D0045-AC-16: render() の本体の postMessage( は 1 回のまま（知らせはパネルのメッセージの種類を増やさない）', () => {
+test('D0046-AC-16: render() の本体の postMessage( は 1 回のまま（知らせはパネルのメッセージの種類を増やさない）', () => {
   const render = functionBody(withoutComments(EXTENSION), 'render');
   assert.notEqual(render, null);
   assert.equal(callArgs(render!, 'postMessage').length, 1);
 });
 
-test('D0045-AC-16: 知らせのために ステータスバーの色（backgroundColor・color）への代入が増えない', () => {
+test('D0046-AC-16: 知らせのために ステータスバーの色（backgroundColor・color）への代入が増えない', () => {
   const code = withoutComments(EXTENSION);
   assert.ok(!/\.(?:backgroundColor|color)\s*=(?![=>])/.test(code));
   assert.ok(!/\bMarkdownString\b/.test(code));
 });
 
-test('D0045-AC-14: extension.ts が app/notifyWaiting.ts・view/waitNotice.ts から読んでいる', () => {
+test('D0046-AC-14: extension.ts が app/notifyWaiting.ts・view/waitNotice.ts から読んでいる', () => {
   assert.match(EXTENSION, /from '\.\/app\/notifyWaiting\.ts'/);
   assert.match(EXTENSION, /from '\.\/view\/waitNotice\.ts'/);
 });
 
-test('D0045-AC-14: extension.ts に確認待ちの文字（\'waiting\'）や .state の比べを新しく書かない', () => {
+test('D0046-AC-14: extension.ts に確認待ちの文字（\'waiting\'）や .state の比べを新しく書かない', () => {
   const code = withoutComments(EXTENSION);
   assert.ok(!/(['"])waiting\1/.test(code));
   assert.ok(!/\.state\s*[!=]==?/.test(code));
@@ -167,7 +167,7 @@ function readNotifySetting(): unknown {
 }
 `;
 
-test('D0045-AC-14: 検査の見本：守っている見本は問題なし', () => {
+test('D0046-AC-14: 検査の見本：守っている見本は問題なし', () => {
   assert.deepEqual(problems(GOOD), []);
 });
 
@@ -183,7 +183,7 @@ const BROKEN: readonly [string, string, NotifyWiringId][] = [
 ];
 
 for (const [label, source, id] of BROKEN) {
-  test(`D0045-AC-14: 検査の見本：${label}と、${id} が見つける`, () => {
+  test(`D0046-AC-14: 検査の見本：${label}と、${id} が見つける`, () => {
     assert.notEqual(source, GOOD, '見本を壊せていない');
     assert.ok(problems(source).includes(id), `${id} が見つけられない（見つけたもの：${problems(source).join(', ')}）`);
   });

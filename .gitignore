@@ -33,5 +33,8 @@ Thumbs.db
 /.pipe-in/
 /.devpipe/
 
+# プラグインの eval の結果（claude plugin eval の出力。利用料のかかる実行の記録）
+/plugin/evals/results/
+
 # Playwright（MCP）で画面を確かめたときのスクリーンショット
 .playwright-mcp/
