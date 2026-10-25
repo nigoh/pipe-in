@@ -2683,5 +2683,5 @@ def test_d0039_ac28_the_five_commands_are_the_ones_in_settings_allow():
     上の総当たりに使う 5 つのコマンドと同じ（食い違うと、総当たりが実物と別のコマンドを見てしまう）。"""
     allow = real_settings()["permissions"]["allow"]
     exact = {m.group(1) for rule in allow if (m := re.fullmatch(r"Bash\((.+)\)", rule)) and not m.group(1).endswith("*")}
-    taken = {c for c in exact if c.startswith(("npm --prefix vscode ", "python -m http.server"))}
+    taken = {c for c in exact if c.startswith(("npm --prefix vscode ", "python -m http.server"))} - {"npm --prefix vscode ci"}  # ci は D0049 で足した
     assert taken == set(D0039_COMMANDS), f"allow から取った完全一致の規則：{sorted(taken)}（総当たりのコマンド：{sorted(D0039_COMMANDS)}）"

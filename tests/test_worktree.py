@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from pipe_in import cli
-from pipe_in.dev.worktree import WorktreeError, clean, new
+from pipe_in.dev.worktree import WorktreeError, clean, new, sync
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -171,3 +171,57 @@ def test_repository_ignores_claude_worktrees() -> None:
     root = Path(__file__).resolve().parents[1]
     lines = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert "/.claude/worktrees/" in lines
+
+
+# ---- D0049：段の区切りの載せ直しを1つのコマンドに（worktree sync） ----
+
+
+def test_sync_does_nothing_when_main_has_not_moved(repo: Path) -> None:
+    """D0049-AC-01: main が進んでいなければ、何もしないで「進んでいない」を返す。"""
+    path = new(repo, "calm")
+    commit_in(path, "calm.txt")
+    before = git(path, "rev-parse", "HEAD")
+    assert sync(path).commits == []
+    assert git(path, "rev-parse", "HEAD") == before
+
+
+def test_sync_rebases_onto_main_and_keeps_uncommitted_changes(repo: Path) -> None:
+    """D0049-AC-02: main が進んでいれば、入ったコミットの一覧を返し、--autostash で載せ直す（まだコミットしていない変更も残る）。"""
+    path = new(repo, "moving")
+    commit_in(path, "mine.txt")
+    commit_in(repo, "theirs.txt")
+    (path / "a.txt").write_text("wip\n", encoding="utf-8")
+    result = sync(path)
+    assert [c.split(" ", 1)[1] for c in result.commits] == ["theirs.txt"]
+    assert (path / "theirs.txt").exists() and (path / "mine.txt").exists()
+    assert (path / "a.txt").read_text(encoding="utf-8") == "wip\n"
+    assert git(path, "merge-base", "--is-ancestor", "main", "HEAD") == ""
+
+
+def test_sync_stops_on_conflict_and_leaves_rebase_for_a_person(repo: Path) -> None:
+    """D0049-AC-03: ぶつかったら、合わせ方を書いた WorktreeError で止まる（載せ直しの途中のまま残し、人かメインが合わせる）。"""
+    path = new(repo, "clash")
+    (path / "a.txt").write_text("mine\n", encoding="utf-8")
+    git(path, "commit", "-q", "-am", "mine")
+    (repo / "a.txt").write_text("theirs\n", encoding="utf-8")
+    git(repo, "commit", "-q", "-am", "theirs")
+    with pytest.raises(WorktreeError, match="rebase --continue"):
+        sync(path)
+    assert "rebase" in git(path, "status")
+
+
+def test_sync_refuses_main_checkout(repo: Path) -> None:
+    """D0049-AC-04: 主の checkout では載せ直さない（main を main に載せ直すことになる）。"""
+    with pytest.raises(WorktreeError, match="worktree"):
+        sync(repo)
+
+
+def test_cli_sync(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """D0049-AC-05: python -m pipe_in worktree sync は、入ったコミットと載せ直したことを出す。"""
+    path = new(repo, "cli-sync")
+    commit_in(repo, "theirs.txt")
+    assert cli.main(["worktree", "sync", "--project", str(path)]) == 0
+    out = capsys.readouterr().out
+    assert "theirs.txt" in out and "載せ直しました" in out
+    assert cli.main(["worktree", "sync", "--project", str(path)]) == 0
+    assert "進んでいません" in capsys.readouterr().out

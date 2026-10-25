@@ -1,4 +1,4 @@
-// 確認用ページの素材のテスト（D0049-AC-46）：scripts/previewPages.ts と scripts/preview.ts と scripts/toolsSamples.ts が作る、エージェント・スキルのタブの見本ページ。
+// 確認用ページの素材のテスト（D0050-AC-46）：scripts/previewPages.ts と scripts/preview.ts と scripts/toolsSamples.ts が作る、エージェント・スキルのタブの見本ページ。
 //   run-panel-tools-light・run-panel-tools-dark（実行の一覧つき。実行は 4 つ：(a) 動いている SDK の実行・(b) /pipe-in の記録・(c) --agent を付けなかった /pipe-in の記録・(d) 呼び出しがまだ無い SDK の実行）。
 // 画面そのもの（AC-52〜59）は Playwright で見る。ここで確かめるのは、画面で見る前の素材：ページの一覧・見本の木・ページの文字・preview.ts の呼び方・tests/fixtures/ に書かないこと。
 // 新しい関数（buildToolsTree・toolsPageHtml）と toolsSamples.ts は、テスト先行のときに「まだ無い」で落ちるようにしたため、動的に読んでから呼ぶ
@@ -148,23 +148,23 @@ const EXISTING_14: readonly (readonly [string, string])[] = [
   ['run-panel-artifacts-dark', 'dark'],
 ];
 
-test('D0049-AC-46: PANEL_PAGES の先頭 14 件は今のまま（既存 12 件＋成果物の 2 件。名前・順・テーマ。今のまま通る。守る）', () => {
+test('D0050-AC-46: PANEL_PAGES の先頭 14 件は今のまま（既存 12 件＋成果物の 2 件。名前・順・テーマ。今のまま通る。守る）', () => {
   assert.deepEqual(PANEL_PAGES.slice(0, 14).map(([name, theme]) => [name, theme]), EXISTING_14.map(([name, theme]) => [name, theme]));
 });
 
-test('D0049-AC-46: PANEL_PAGES は先頭 14 件のあとに run-panel-tools-light（明るい）・run-panel-tools-dark（暗い）の 2 件だけが足される', () => {
+test('D0050-AC-46: PANEL_PAGES は先頭 14 件のあとに run-panel-tools-light（明るい）・run-panel-tools-dark（暗い）の 2 件だけが足される', () => {
   assert.deepEqual(PANEL_PAGES.slice(14).map(([name, theme]) => [name, theme]), [
     ['run-panel-tools-light', 'light'],
     ['run-panel-tools-dark', 'dark'],
   ]);
 });
 
-test('D0049-AC-46: panelKind は run-panel-tools-light・run-panel-tools-dark に tools を返す', () => {
+test('D0050-AC-46: panelKind は run-panel-tools-light・run-panel-tools-dark に tools を返す', () => {
   assert.equal(panelKind('run-panel-tools-light'), 'tools');
   assert.equal(panelKind('run-panel-tools-dark'), 'tools');
 });
 
-test('D0049-AC-46: 既存の 14 ページの種類は変わらない（今のまま通る。守る）', () => {
+test('D0050-AC-46: 既存の 14 ページの種類は変わらない（今のまま通る。守る）', () => {
   const expected: Record<string, string> = {
     'run-panel-light': 'done',
     'run-panel-dark': 'done',
@@ -186,51 +186,51 @@ test('D0049-AC-46: 既存の 14 ページの種類は変わらない（今のま
 
 // ======== 見本の木：4 つの実行 ========
 
-test('D0049-AC-46: 見本の木は 4 つの実行を持つ：(a) tools-sdk・(b) 直下の /pipe-in の記録・(c) archive/ の --agent なしの /pipe-in の記録・(d) tools-fresh', async () => {
+test('D0050-AC-46: 見本の木は 4 つの実行を持つ：(a) tools-sdk・(b) 直下の /pipe-in の記録・(c) archive/ の --agent なしの /pipe-in の記録・(d) tools-fresh', async () => {
   const entries = await tree('current');
   assert.deepEqual(entries.map((e) => e.key).sort(), [SDK_KEY, SKILL_KEY, BARE_KEY, FRESH_KEY].sort());
 });
 
 const sdkTools = async (): Promise<Tools> => toolsOf(await entryOf('current', SDK_KEY), '(a)');
 
-test('D0049-AC-46: (a) 動いている SDK の実行：表の行は 100（上限）で、100 を超える種類があって省略の文が出る', async () => {
+test('D0050-AC-46: (a) 動いている SDK の実行：表の行は 100（上限）で、100 を超える種類があって省略の文が出る', async () => {
   const t = await sdkTools();
   assert.equal(t.rows.length, 100, '行は上限の 100');
   assert.ok(t.kinds > 100 && t.omitted === t.kinds - 100 && t.omitted > 0, `100 を超える種類があり、省略がある（種類 ${t.kinds}・省略 ${t.omitted}）`);
 });
 
-test('D0049-AC-46: (a) 空白のない 100 文字の名前の行が、先頭 100 行の中にある', async () => {
+test('D0050-AC-46: (a) 空白のない 100 文字の名前の行が、先頭 100 行の中にある', async () => {
   const t = await sdkTools();
   assert.ok(t.rows.some((r) => Array.from(r.name).length === 100 && !/\s/.test(r.name)), '空白のない 100 文字の名前の行がある');
 });
 
-test('D0049-AC-46: (a) 外から来た文字（<script>・"・& を含む名前）の行が、先頭 100 行の中にある（AC-53 の画面で見る文字）', async () => {
+test('D0050-AC-46: (a) 外から来た文字（<script>・"・& を含む名前）の行が、先頭 100 行の中にある（AC-53 の画面で見る文字）', async () => {
   const t = await sdkTools();
   assert.ok(t.rows.some((r) => r.name.includes('<script>')), '<script> を含む名前の行がある');
   assert.ok(t.rows.some((r) => r.name.includes('"')), '" を含む名前の行がある');
   assert.ok(t.rows.some((r) => r.name.includes('&')), '& を含む名前の行がある');
 });
 
-test('D0049-AC-46: (a) 3 つの種類（エージェント・スキル・道具）がそろい、MCP の道具（mcp__…）と Bash の行が先頭 100 行の中にある', async () => {
+test('D0050-AC-46: (a) 3 つの種類（エージェント・スキル・道具）がそろい、MCP の道具（mcp__…）と Bash の行が先頭 100 行の中にある', async () => {
   const t = await sdkTools();
   assert.deepEqual([...new Set(t.rows.map((r) => r.kind))].sort(), ['agent', 'skill', 'tool'], '3 つの種類がそろう');
   assert.ok(t.rows.some((r) => r.kind === 'tool' && r.name.startsWith('mcp__')), 'MCP の道具（mcp__…）の行がある');
   assert.ok(t.rows.some((r) => r.kind === 'tool' && r.name === 'Bash'), 'Bash の行がある');
 });
 
-test('D0049-AC-46: (a) 使った段が 3 つを超える行がある（Read は 6 つの実行で使う）', async () => {
+test('D0050-AC-46: (a) 使った段が 3 つを超える行がある（Read は 6 つの実行で使う）', async () => {
   const t = await sdkTools();
   assert.ok(t.rows.some((r) => r.stages.length > 3), '使った段が 3 つを超える行がある');
   assert.equal(t.rows.find((r) => r.kind === 'tool' && r.name === 'Read')?.stages.length, 6, 'Read は 6 つの実行で使う');
 });
 
-test('D0049-AC-46: (a) 時間の列は無く（agent を入れない）、案内も無い（driver を入れない）', async () => {
+test('D0050-AC-46: (a) 時間の列は無く（agent を入れない）、案内も無い（driver を入れない）', async () => {
   const t = await sdkTools();
   assert.equal(t.showTime, false, '時間の列は無い（agent を入れない）');
   assert.equal(t.notice, null, 'driver を入れないので案内は無い');
 });
 
-test('D0049-AC-46: (a) のエージェントの行に、鍵の無い呼び出し（指定なし）・空白を含む名前（読めない名前）・module-reader・source-checker がある', async () => {
+test('D0050-AC-46: (a) のエージェントの行に、鍵の無い呼び出し（指定なし）・空白を含む名前（読めない名前）・module-reader・source-checker がある', async () => {
   const t = toolsOf(await entryOf('current', SDK_KEY), '(a)');
   const agents = t.rows.filter((r) => r.kind === 'agent').map((r) => r.name);
   for (const name of ['module-reader', 'source-checker', '（指定なし）', '（読めない名前）']) assert.ok(agents.includes(name), `エージェント ${name}：${agents.join(' | ')}`);
@@ -250,7 +250,7 @@ function sortExpected(rows: readonly Expected[]): Expected[] {
 }
 
 for (const variant of ['current', 'next'] as const) {
-  test(`D0049-AC-46: (a) の表（${variant}）は、見本を生成する側で数えた expected（種類・名前・回数）と一致する（先頭 100 行。種類の数と回数の合計も）`, async () => {
+  test(`D0050-AC-46: (a) の表（${variant}）は、見本を生成する側で数えた expected（種類・名前・回数）と一致する（先頭 100 行。種類の数と回数の合計も）`, async () => {
     const { sdkSample } = await samples();
     const now = (await previewNow()).nowMs;
     const expected = sortExpected(sdkSample(now, variant).expected);
@@ -265,7 +265,7 @@ for (const variant of ['current', 'next'] as const) {
   });
 }
 
-test('D0049-AC-46: toolsSamples.ts の sdkSample は純粋：同じ引数からは同じ結果で、Date.now を投げる関数に替えても動く（時計を読まない。「今」は引数）', async () => {
+test('D0050-AC-46: toolsSamples.ts の sdkSample は純粋：同じ引数からは同じ結果で、Date.now を投げる関数に替えても動く（時計を読まない。「今」は引数）', async () => {
   const { sdkSample } = await samples();
   const now = (await previewNow()).nowMs;
   const a = sdkSample(now, 'current');
@@ -283,7 +283,7 @@ test('D0049-AC-46: toolsSamples.ts の sdkSample は純粋：同じ引数から�
   assert.deepEqual(made.value, a);
 });
 
-test('D0049-AC-46: (a) の next は更新後の本体：Grep が 15 回増えて Read を抜き、module-reader が 2 回増え、新しい道具が 1 種増える', async () => {
+test('D0050-AC-46: (a) の next は更新後の本体：Grep が 15 回増えて Read を抜き、module-reader が 2 回増え、新しい道具が 1 種増える', async () => {
   const current = toolsOf(await entryOf('current', SDK_KEY), '(a) current');
   const next = toolsOf(await entryOf('next', SDK_KEY), '(a) next');
   const count = (t: Tools, name: string): number => t.rows.find((r) => r.kind === 'tool' && r.name === name)?.count ?? 0;
@@ -297,7 +297,7 @@ test('D0049-AC-46: (a) の next は更新後の本体：Grep が 15 回増えて
   assert.ok(next.total - current.total >= 15 + 2 + 1, `回数の合計は Grep 15・module-reader 2・新しい道具 1 以上増える（${current.total} → ${next.total}）`);
 });
 
-test('D0049-AC-46: (b) /pipe-in の記録（driver あり）：案内 A・受け持ち pipe-in-analyst（3 実行）と pipe-in-tester（1 実行）の行・時間の列が出る（時間は runs[].duration_sec の合計）', async () => {
+test('D0050-AC-46: (b) /pipe-in の記録（driver あり）：案内 A・受け持ち pipe-in-analyst（3 実行）と pipe-in-tester（1 実行）の行・時間の列が出る（時間は runs[].duration_sec の合計）', async () => {
   const t = toolsOf(await entryOf('current', SKILL_KEY), '(b)');
   assert.equal(t.notice, 'A');
   assert.equal(t.showTime, true);
@@ -311,14 +311,14 @@ test('D0049-AC-46: (b) /pipe-in の記録（driver あり）：案内 A・受け
   assert.equal(analyst.stages.length, 3, '使った段は 3 つ（要件定義・要件定義 2 回目・設計の通し番号 3 つ）');
 });
 
-test('D0049-AC-46: (c) --agent を付けなかった /pipe-in の記録（driver あり・受け持ち無し）：案内 B だけ（行 0）。前の実行（archive/）として一覧に出る', async () => {
+test('D0050-AC-46: (c) --agent を付けなかった /pipe-in の記録（driver あり・受け持ち無し）：案内 B だけ（行 0）。前の実行（archive/）として一覧に出る', async () => {
   const entry = await entryOf('current', BARE_KEY);
   const t = toolsOf(entry, '(c)');
   assert.equal(t.notice, 'B');
   assert.deepEqual(t.rows, []);
 });
 
-test('D0049-AC-46: (d) 呼び出しがまだ無い SDK の実行（driver なし・ログは Prompt だけ）：行 0・案内なし（空の文）。動いている実行', async () => {
+test('D0050-AC-46: (d) 呼び出しがまだ無い SDK の実行（driver なし・ログは Prompt だけ）：行 0・案内なし（空の文）。動いている実行', async () => {
   const t = toolsOf(await entryOf('current', FRESH_KEY), '(d)');
   assert.equal(t.notice, null);
   assert.deepEqual(t.rows, []);
@@ -352,44 +352,44 @@ function readSdkFiles(): Promise<SdkFiles> {
 }
 const allLogText = async (): Promise<string> => [...(await readSdkFiles()).texts.values()].join('\n');
 
-test('D0049-AC-46: (a) のログは 6 つ：01_survey・02_draw_1・03_verify_1・04_draw_2・05_verify_2・06_rubric', async () => {
+test('D0050-AC-46: (a) のログは 6 つ：01_survey・02_draw_1・03_verify_1・04_draw_2・05_verify_2・06_rubric', async () => {
   assert.deepEqual([...(await readSdkFiles()).texts.keys()], ['01_survey.jsonl', '02_draw_1.jsonl', '03_verify_1.jsonl', '04_draw_2.jsonl', '05_verify_2.jsonl', '06_rubric.jsonl']);
 });
 
-test('D0049-AC-46: (a) のログのうち、終わっている（結果の行がある）のは 06_rubric 以外で、06_rubric が動いている', async () => {
+test('D0050-AC-46: (a) のログのうち、終わっている（結果の行がある）のは 06_rubric 以外で、06_rubric が動いている', async () => {
   for (const [name, text] of (await readSdkFiles()).texts) {
     assert.equal(text.includes('"ResultMessage"'), name !== '06_rubric.jsonl', `${name}：終わっているのは 06_rubric 以外`);
   }
 });
 
-test('D0049-AC-46: (a) のログに、サブエージェントの中の発言（parent_tool_use_id）・Task（旧名）と Agent の呼び出しがある', async () => {
+test('D0050-AC-46: (a) のログに、サブエージェントの中の発言（parent_tool_use_id）・Task（旧名）と Agent の呼び出しがある', async () => {
   const all = await allLogText();
   assert.match(all, /"parent_tool_use_id":\s*"[^"]+"/, 'サブエージェントの中の発言がある');
   assert.match(all, /"name":\s*"Task"/, 'Task（旧名）の呼び出しがある');
   assert.match(all, /"name":\s*"Agent"/);
 });
 
-test('D0049-AC-46: (a) のログに、文章の部品と考え中の部品がある', async () => {
+test('D0050-AC-46: (a) のログに、文章の部品と考え中の部品がある', async () => {
   const all = await allLogText();
   assert.match(all, /"thinking"/, '考え中の部品がある');
   assert.match(all, /"text"/, '文章の部品がある');
 });
 
-test('D0049-AC-46: (a) の state.json はパイプ tools-sdk で、段は survey・draw・verify・rubric。driver を入れない', async () => {
+test('D0050-AC-46: (a) の state.json はパイプ tools-sdk で、段は survey・draw・verify・rubric。driver を入れない', async () => {
   const { state } = await readSdkFiles();
   assert.equal(state.pipe, 'tools-sdk');
   assert.equal('driver' in state, false, 'state.json に driver を入れない');
   assert.deepEqual((state.stages as { name: string }[]).map((s) => s.name), ['survey', 'draw', 'verify', 'rubric']);
 });
 
-test('D0049-AC-46: (a) の段のログにも state.json にも agent を入れない（時間の列を出さない）', async () => {
+test('D0050-AC-46: (a) の段のログにも state.json にも agent を入れない（時間の列を出さない）', async () => {
   const { state } = await readSdkFiles();
   assert.ok(!/"agent"/.test(await allLogText()) && !/"agent"/.test(JSON.stringify(state)), '段のログにも state.json にも agent を入れない');
 });
 
 // ======== 見本の木・ページを作っても、tests/fixtures/ は変わらない ========
 
-test('D0049-AC-46: 見本の木・ページを作っても（4 つの実行・current/next・明るい/暗い）、tests/fixtures/ の全体の内容と更新時刻は変わらない', async () => {
+test('D0050-AC-46: 見本の木・ページを作っても（4 つの実行・current/next・明るい/暗い）、tests/fixtures/ の全体の内容と更新時刻は変わらない', async () => {
   const before = await fingerprint(FIXTURES_DIR);
   assert.ok(before.length > 0, 'tests/fixtures/ の指紋が取れている（検査が空振りでない）');
   await withTempDir(async (dest) => void (await buildToolsTree(dest, 'current')));
@@ -401,7 +401,7 @@ test('D0049-AC-46: 見本の木・ページを作っても（4 つの実行・cu
 
 // ======== ページの文字 ========
 
-test('D0049-AC-46: ページは実行の一覧つきで、実行は 4 つ（行の key は (a)〜(d)）。初めに見ているのは (a)。初めの本体は (a) の行の本体', async () => {
+test('D0050-AC-46: ページは実行の一覧つきで、実行は 4 つ（行の key は (a)〜(d)）。初めに見ているのは (a)。初めの本体は (a) の行の本体', async () => {
   const { html } = await toolsPage('dark');
   const bodies = bodiesOf(html);
   assert.deepEqual(Object.keys(bodies).sort(), [SDK_KEY, SKILL_KEY, BARE_KEY, FRESH_KEY].sort());
@@ -409,7 +409,7 @@ test('D0049-AC-46: ページは実行の一覧つきで、実行は 4 つ（行�
   assert.equal(rootBody(html), bodies[SDK_KEY]);
 });
 
-test('D0049-AC-46: 本体の「エージェント・スキル」のパネルに、(a) は表（枠 data-scroll="tools-table"）、(b) は案内 A と表、(c) は案内 B、(d) は空の文が出る', async () => {
+test('D0050-AC-46: 本体の「エージェント・スキル」のパネルに、(a) は表（枠 data-scroll="tools-table"）、(b) は案内 A と表、(c) は案内 B、(d) は空の文が出る', async () => {
   const { html } = await toolsPage('light');
   const bodies = bodiesOf(html);
   const toolsPanel = (body: string): string => {
@@ -427,7 +427,7 @@ test('D0049-AC-46: 本体の「エージェント・スキル」のパネルに�
   assert.match(toolsPanel(bodies[FRESH_KEY]!), /エージェント・スキル・道具の呼び出しは、まだ記録にありません。/);
 });
 
-test('D0049-AC-46: window.__previewNext は (a) の更新後の本体を送り、window.__posted にメッセージの種類が貯まる。更新後の本体の Grep の回数は今より多い', async () => {
+test('D0050-AC-46: window.__previewNext は (a) の更新後の本体を送り、window.__posted にメッセージの種類が貯まる。更新後の本体の Grep の回数は今より多い', async () => {
   const { html } = await toolsPage('dark');
   assert.match(html, /<script nonce="preview">window\.__previewNext=/);
   const { win } = runStub(html);
@@ -440,7 +440,7 @@ test('D0049-AC-46: window.__previewNext は (a) の更新後の本体を送り�
   assert.ok(grep(now) >= 0 && grep(next) === grep(now) + 15, `Grep の回数が 15 増える（${grep(now)} → ${grep(next)}）`);
 });
 
-test('D0049-AC-46: ページの script と style のタグはすべて nonce="preview" を持ち、style 属性を使わない。CSP をそのまま持ち、使う --vscode-* の色をすべて THEMES が決めている', async () => {
+test('D0050-AC-46: ページの script と style のタグはすべて nonce="preview" を持ち、style 属性を使わない。CSP をそのまま持ち、使う --vscode-* の色をすべて THEMES が決めている', async () => {
   for (const theme of THEME_NAMES) {
     const { html } = await toolsPage(theme);
     const tags = [...html.matchAll(/<(script|style)\b[^>]*>/g)].map((m) => m[0]);
@@ -454,7 +454,7 @@ test('D0049-AC-46: ページの script と style のタグはすべて nonce="pr
   }
 });
 
-test('D0049-AC-46: ページに入っている本体すべて（初めの本体・行ごとの本体・次の本体）に、タグの属性として style・on…・src・href が無い。外から来た文字は文字のまま（生の <script> を作らない）', async () => {
+test('D0050-AC-46: ページに入っている本体すべて（初めの本体・行ごとの本体・次の本体）に、タグの属性として style・on…・src・href が無い。外から来た文字は文字のまま（生の <script> を作らない）', async () => {
   const { html } = await toolsPage('dark');
   const bodies = [rootBody(html), ...pageBodies(html)];
   assert.equal(bodies.length, 6, '初めの本体 + 行ごとの本体 4 + 次の本体');
@@ -466,14 +466,14 @@ test('D0049-AC-46: ページに入っている本体すべて（初めの本体�
   assert.ok(bodiesOf(html)[SDK_KEY]!.includes('&lt;script&gt;'), 'エスケープされた形で出ている');
 });
 
-test('D0049-AC-46: 明るいページと暗いページは、テーマの色の <style> 以外が同じ。同じ見本から 2 回作ると、ページの文字が同じ', async () => {
+test('D0050-AC-46: 明るいページと暗いページは、テーマの色の <style> 以外が同じ。同じ見本から 2 回作ると、ページの文字が同じ', async () => {
   const strip = (html: string, theme: Theme): string => html.replace(`:root{${THEMES[theme]}}`, '');
   assert.equal(strip((await toolsPage('light')).html, 'light'), strip((await toolsPage('dark')).html, 'dark'));
   const again = await withTempDir((dest) => toolsPageHtmlOf(dest, 'dark'));
   assert.equal(again, (await toolsPage('dark')).html, '一時フォルダの名前・時刻に左右されない');
 });
 
-test('D0049-AC-46: ページに手元の情報（ユーザー名の入ったパス・メールアドレス）や、一時フォルダ・リポジトリの絶対パスが出ていない', async () => {
+test('D0050-AC-46: ページに手元の情報（ユーザー名の入ったパス・メールアドレス）や、一時フォルダ・リポジトリの絶対パスが出ていない', async () => {
   for (const theme of THEME_NAMES) {
     const { html, dest } = await toolsPage(theme);
     assert.deepEqual(LOCAL_INFO.filter((re) => re.test(html)).map(String), [], theme);
@@ -494,7 +494,7 @@ function toolsWiringProblems(source: string): string[] {
   return problems;
 }
 
-test('D0049-AC-46: scripts/preview.ts は kind === tools で、toolsPageHtml( を inTempDir( の中で呼ぶ', () => {
+test('D0050-AC-46: scripts/preview.ts は kind === tools で、toolsPageHtml( を inTempDir( の中で呼ぶ', () => {
   assert.deepEqual(toolsWiringProblems(readFileSync(path.join(REPO, 'vscode', 'scripts', 'preview.ts'), 'utf8')), []);
 });
 
@@ -514,12 +514,12 @@ const BROKEN_WIRINGS: readonly (readonly [string, string, string])[] = [
   ['一時フォルダの外で作る', CLEAN_WIRING.replace("await inTempDir('tools', (dest) => toolsPageHtml(dest, theme))", 'await toolsPageHtml(OUT, theme)'), 'inTempDir( の中で呼んでいない'],
 ];
 for (const [label, source, word] of BROKEN_WIRINGS) {
-  test(`D0049-AC-46: 検査そのもの：${label} preview.ts の見本の文字は見つける（今のまま通る。守る）`, () => {
+  test(`D0050-AC-46: 検査そのもの：${label} preview.ts の見本の文字は見つける（今のまま通る。守る）`, () => {
     assert.notEqual(source, CLEAN_WIRING, '見本の文字を壊せている');
     assert.ok(toolsWiringProblems(source).some((p) => p.includes(word)), toolsWiringProblems(source).join(' / '));
   });
 }
-test('D0049-AC-46: 検査そのもの：きれいな preview.ts の見本の文字は見逃す（コメントの中の toolsPageHtml( は数えない）（今のまま通る。守る）', () => {
+test('D0050-AC-46: 検査そのもの：きれいな preview.ts の見本の文字は見逃す（コメントの中の toolsPageHtml( は数えない）（今のまま通る。守る）', () => {
   assert.deepEqual(toolsWiringProblems(CLEAN_WIRING), []);
   const commentOnly = CLEAN_WIRING.replace(/await inTempDir\([^\n]*\), 'utf8'\);/, "'', 'utf8');").replace('continue;', "continue;\n  // toolsPageHtml(dest, theme) は後で呼ぶ\n  /* inTempDir(toolsPageHtml(x)) */");
   assert.ok(toolsWiringProblems(commentOnly).includes('toolsPageHtml( を呼んでいない'), 'コメントの中の呼び出しは数えない');

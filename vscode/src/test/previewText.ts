@@ -1,4 +1,4 @@
-// テストの補助：確認用ページの文字を読む部品（D0049 で previewPagesArtifacts.test.ts から移した。関数の中身は変えていない）。
+// テストの補助：確認用ページの文字を読む部品（D0050 で previewPagesArtifacts.test.ts から移した。関数の中身は変えていない）。
 // 移した理由：D0025-AC-75 の「同じ切り出し」（panelsOf）を 1 つの定義で守り、新しい previewPagesTools.test.ts と shellHtmlTools.test.ts も同じ切り出しを使うため。
 // 元のファイルに残したもの：FIXTURE_DIRS と fixturePrints（見本のフォルダの定数に依る）。
 // この補助は読むだけ。ファイルを書くものは無い（fingerprint は読むだけ）。

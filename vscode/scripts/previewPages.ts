@@ -5,7 +5,7 @@
 // 足す script タグ・style タグにはすべて nonce を付ける。
 // 「止まっているかもしれない実行の印」（D0021）の見本も、ここで作る。tests/fixtures/ の見本は読むだけで書かない。
 // 「成果物」タブの見本（D0025）も、ここで作る。長い Markdown などの見本の文章は artifactSamples.ts にある。
-// 「エージェント・スキル」タブの見本（D0049）も、ここで作る。見本の記録（ログ・state.json）の中身は toolsSamples.ts にある。
+// 「エージェント・スキル」タブの見本（D0050）も、ここで作る。見本の記録（ログ・state.json）の中身は toolsSamples.ts にある。
 // ログと成果物の更新時刻（utimes）をそろえるのは、呼ぶ側が作った一時フォルダの中の写しだけ（拡張の src/ は更新時刻を読むだけ）。
 import { cp, mkdir, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -596,7 +596,7 @@ export async function buildArtifactsTree(dest: string, variant: ArtifactsVariant
   return { workspace };
 }
 
-// ---- 「エージェント・スキル」タブの見本（D0049）---------------------------------------------------
+// ---- 「エージェント・スキル」タブの見本（D0050）---------------------------------------------------
 // 実行は 4 つ。(a) 動いている SDK の実行（tools-sdk。初めに見る）・(b) /pipe-in の記録（直下。受け持ちと時間が出る）・
 // (c) --agent を付けなかった /pipe-in の記録（archive/ の前の実行）・(d) 呼び出しがまだ無い SDK の実行（tools-fresh）。
 // 見本の中身は toolsSamples.ts が全部生成する。木は呼ぶ側が作った一時フォルダ（dest）の中だけに作り、tests/fixtures/ には何も足さない・書かない。

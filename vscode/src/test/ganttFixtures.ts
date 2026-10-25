@@ -24,7 +24,7 @@ export function logName(seq: number, stage: string, attempt?: number): string {
 
 /**
  * 段のログ 1 つ。finished なら結果の行を持つ（動いていない）。at は文字でも壊れた値でもよい。
- * lines（D0049）は、文章の行のあと・結果の行の前に足す行（呼び出しの行など。呼び出しごとに別の id を持たせた行を渡す）。
+ * lines（D0050）は、文章の行のあと・結果の行の前に足す行（呼び出しの行など。呼び出しごとに別の id を持たせた行を渡す）。
  */
 export function stageLog(p: {
   seq: number;
@@ -50,7 +50,7 @@ export interface RunSpec {
   durationSec?: number;
   agent?: unknown;
   isError?: boolean;
-  /** 段のログに足す行（D0049。呼び出しの行など）。省くと足さない */
+  /** 段のログに足す行（D0050。呼び出しの行など）。省くと足さない */
   lines?: readonly string[];
 }
 

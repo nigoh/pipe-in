@@ -216,7 +216,7 @@ for (const [page, theme] of PANEL_PAGES) {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('artifacts', (dest) => artifactsPageHtml(dest, theme)), 'utf8');
     continue;
   }
-  // 「エージェント・スキル」タブの見本（D0049）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
+  // 「エージェント・スキル」タブの見本（D0050）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
   if (kind === 'tools') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('tools', (dest) => toolsPageHtml(dest, theme)), 'utf8');
     continue;

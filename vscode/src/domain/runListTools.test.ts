@@ -1,4 +1,4 @@
-// 実行の一覧の行（RunRow）の項目を増やさない（D0049-AC-40）：summarizeRun の戻りのキーの集合を、固定のキー一覧と突き合わせる。
+// 実行の一覧の行（RunRow）の項目を増やさない（D0050-AC-40）：summarizeRun の戻りのキーの集合を、固定のキー一覧と突き合わせる。
 // 表（エージェント・スキル・道具）は選んだ実行の描き直しだけで作り、一覧の行の組み立てには入れない。
 // 今の作りのまま通る（守る）。実装で表を一覧の行に持ち込むと（RunRow に tools などを足すと）落ちる。
 import { test } from 'node:test';
@@ -84,13 +84,13 @@ const STATES: [string, SummarizeInput][] = [
   ['AssistantMessage だけの大きな呼び出し（Agent を 25 回）', input({ stateJson: base.stateJson, stageLogs: [{ fileName: '01_requirements.jsonl', text: logOf('requirements', Array.from({ length: 25 }, (_, i) => assistantTool('Agent', { subagent_type: 'a' }, `a${i}`)), { finished: false }) }] })],
 ];
 for (const [label, given] of STATES) {
-  test(`D0049-AC-40: summarizeRun の戻りのキーは固定の 17 個のまま（${label}。Agent・Skill・入れ子の呼び出しを含む記録でも。今のまま通る。守る）`, () => {
+  test(`D0050-AC-40: summarizeRun の戻りのキーは固定の 17 個のまま（${label}。Agent・Skill・入れ子の呼び出しを含む記録でも。今のまま通る。守る）`, () => {
     const row = summarizeRun(given, clockAt(0));
     assert.deepEqual(Object.keys(row).sort(), ROW_KEYS);
   });
 }
 
-test('D0049-AC-40: 一覧の行に、表（tools）やその数え上げの項目が入っていない（今のまま通る。守る）', () => {
+test('D0050-AC-40: 一覧の行に、表（tools）やその数え上げの項目が入っていない（今のまま通る。守る）', () => {
   const row = summarizeRun(STATES[0]![1], clockAt(0)) as unknown as Record<string, unknown>;
   for (const key of ['tools', 'toolsTable', 'calls', 'agents', 'skills', 'toolCount']) assert.equal(key in row, false, key);
   assert.ok(!JSON.stringify(row).includes('module-reader'), '呼び出しの名前が一覧の行に出ない');

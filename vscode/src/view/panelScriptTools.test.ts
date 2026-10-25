@@ -1,4 +1,4 @@
-// 「エージェント・スキル」のタブのパネルのスクリプトの動き（D0049）：タブの切り替え（メッセージを送らない）と、描き直しをまたぐ保持
+// 「エージェント・スキル」のタブのパネルのスクリプトの動き（D0050）：タブの切り替え（メッセージを送らない）と、描き直しをまたぐ保持
 // （タブの選び・縦のスクロール位置（パネル）・横のスクロール位置（表の枠）・焦点）、見る実行が替わったときの先頭への戻り。
 // panelScript.ts の PANEL_SCRIPT を node:vm で、偽の DOM（src/test/fakeDom.ts）の上で動かす。本物の時間は使わない（sleep しない）。
 // 偽の DOM は、hidden の中では大きさが 0・スクロール位置は残らず、focus() も効かない。横のスクロールは範囲に収めないので、値を書いて読み戻すだけにする
@@ -84,7 +84,7 @@ function openToolsAndScroll(h: PanelHarness): void {
 
 // ---- AC-30：タブを押すと、そのパネルだけが見える。送るメッセージは増えない ----
 
-test('D0049-AC-30: 「エージェント・スキル」のタブを押すと、選ばれているのは tools だけ、見えるパネルは tools だけ。ほかのタブへ移って「図と出力」へも戻せる', () => {
+test('D0050-AC-30: 「エージェント・スキル」のタブを押すと、選ばれているのは tools だけ、見えるパネルは tools だけ。ほかのタブへ移って「図と出力」へも戻せる', () => {
   const h = boot();
   assert.deepEqual(selectedTabs(h), ['diagram']);
   assert.deepEqual(shownPanels(h), ['diagram']);
@@ -100,7 +100,7 @@ test('D0049-AC-30: 「エージェント・スキル」のタブを押すと、�
   assert.deepEqual(shownPanels(h), ['diagram']);
 });
 
-test('D0049-AC-30: タブを押しても、表の枠を押しても、描き直しを受けても、拡張へ送るのは ready だけ（切り替えでは何も送らない）', () => {
+test('D0050-AC-30: タブを押しても、表の枠を押しても、描き直しを受けても、拡張へ送るのは ready だけ（切り替えでは何も送らない）', () => {
   const h = boot();
   detailTab(h, 'tools').dispatch('click');
   one(h.doc, '[data-keep="tools-table"]').dispatch('click');
@@ -111,7 +111,7 @@ test('D0049-AC-30: タブを押しても、表の枠を押しても、描き直�
   assert.deepEqual(h.posted, [{ type: 'ready' }]);
 });
 
-test('D0049-AC-30: PANEL_SCRIPT が postMessage で送る type は ready・openArtifact・selectRun の 3 つだけ（新しい種類を足さない）（今のまま通る。守る）', () => {
+test('D0050-AC-30: PANEL_SCRIPT が postMessage で送る type は ready・openArtifact・selectRun の 3 つだけ（新しい種類を足さない）（今のまま通る。守る）', () => {
   const source = readFileSync(path.join(HERE_DIR, 'panelScript.ts'), 'utf8');
   const sent = callArgs(withoutComments(source), 'postMessage').map((args) => /\btype\s*:\s*'([^']+)'/.exec(args)?.[1] ?? null);
   assert.ok(sent.length >= 3, `postMessage の呼び出しが読めている（${sent.length} 件）`);
@@ -131,14 +131,14 @@ function rerenderVisible(): { h: PanelHarness; before: FakeNode } {
   return { h, before };
 }
 
-test('D0049-AC-31: (a) 見えているとき：描き直しのあとも、タブの選びと見えるパネルは tools のまま。表の枠は作り直されている', () => {
+test('D0050-AC-31: (a) 見えているとき：描き直しのあとも、タブの選びと見えるパネルは tools のまま。表の枠は作り直されている', () => {
   const { h, before } = rerenderVisible();
   assert.deepEqual(selectedTabs(h), ['tools']);
   assert.deepEqual(shownPanels(h), ['tools']);
   assert.ok(scroller(h, 'tools-table') !== before, '枠は作り直されている');
 });
 
-test('D0049-AC-31: (a) 見えているとき：描き直しのあとも、縦の位置（パネル）80・横の位置（表の枠）40 が残る。中身が替わる描き直しを重ねても残る', () => {
+test('D0050-AC-31: (a) 見えているとき：描き直しのあとも、縦の位置（パネル）80・横の位置（表の枠）40 が残る。中身が替わる描き直しを重ねても残る', () => {
   const { h } = rerenderVisible();
   assert.equal(scroller(h, 'panel-tools').scrollTop, 80);
   assert.equal(scroller(h, 'tools-table').scrollLeft, 40);
@@ -147,7 +147,7 @@ test('D0049-AC-31: (a) 見えているとき：描き直しのあとも、縦の
   assert.equal(scroller(h, 'tools-table').scrollLeft, 40);
 });
 
-test('D0049-AC-31: (a) 見えているとき：描き直しのあとも、焦点が新しい枠（同じ data-keep="tools-table"）に戻る', () => {
+test('D0050-AC-31: (a) 見えているとき：描き直しのあとも、焦点が新しい枠（同じ data-keep="tools-table"）に戻る', () => {
   const { h, before } = rerenderVisible();
   const after = scroller(h, 'tools-table');
   assert.ok(after !== before, '枠は作り直されている');
@@ -168,14 +168,14 @@ function rerenderHidden(): { h: PanelHarness; usageButton: FakeNode } {
   return { h, usageButton };
 }
 
-test('D0049-AC-31: (b) 隠れているとき：描き直しのあとも、タブの選びは別のタブ（使用量）のまま、見えるパネルも使用量だけで、tools は hidden のまま', () => {
+test('D0050-AC-31: (b) 隠れているとき：描き直しのあとも、タブの選びは別のタブ（使用量）のまま、見えるパネルも使用量だけで、tools は hidden のまま', () => {
   const { h } = rerenderHidden();
   assert.deepEqual(selectedTabs(h), ['usage']);
   assert.deepEqual(shownPanels(h), ['usage']);
   assert.ok(hiddenNow(scroller(h, 'panel-tools')), 'tools のパネルは hidden のまま');
 });
 
-test('D0049-AC-31: (b) 隠れているとき：描き直しのあとも、焦点があった要素（別のタブのボタン）が新しい同じ要素（data-keep="detail-tab:usage"）に戻る', () => {
+test('D0050-AC-31: (b) 隠れているとき：描き直しのあとも、焦点があった要素（別のタブのボタン）が新しい同じ要素（data-keep="detail-tab:usage"）に戻る', () => {
   const { h, usageButton } = rerenderHidden();
   const active = h.doc.activeElement;
   assert.ok(active !== null && active !== usageButton, '焦点は新しい要素にある');
@@ -183,7 +183,7 @@ test('D0049-AC-31: (b) 隠れているとき：描き直しのあとも、焦点
   assert.ok(active === detailTab(h, 'usage'));
 });
 
-test('D0049-AC-31: (b) 隠れているとき：描き直しのあと tools のタブへ戻ると、縦の位置 80・横の位置 40 が戻る', () => {
+test('D0050-AC-31: (b) 隠れているとき：描き直しのあと tools のタブへ戻ると、縦の位置 80・横の位置 40 が戻る', () => {
   const { h } = rerenderHidden();
   detailTab(h, 'tools').dispatch('click');
   assert.deepEqual(shownPanels(h), ['tools']);
@@ -192,7 +192,7 @@ test('D0049-AC-31: (b) 隠れているとき：描き直しのあと tools の�
 });
 
 for (const mode of ['render', 'click'] as const) {
-  test(`D0049-AC-31: (c) 見る実行が替わる描き直し（${mode === 'render' ? 'aria-pressed が移った HTML だけが届く' : '実行の一覧の行を押して selectRun を送ったあと'}）で、panel-tools・tools-table の位置が 0 に戻る。タブの選び・実行の一覧の位置は残る`, () => {
+  test(`D0050-AC-31: (c) 見る実行が替わる描き直し（${mode === 'render' ? 'aria-pressed が移った HTML だけが届く' : '実行の一覧の行を押して selectRun を送ったあと'}）で、panel-tools・tools-table の位置が 0 に戻る。タブの選び・実行の一覧の位置は残る`, () => {
     const h = boot();
     openToolsAndScroll(h);
     scroller(h, 'list').scrollTop = 150;
@@ -210,7 +210,7 @@ for (const mode of ['render', 'click'] as const) {
   });
 }
 
-test('D0049-AC-31: (c2) tools のタブを隠しているあいだに見る実行が替わっても、tools のタブへ戻ったとき縦・横の位置は 0（隠れた枠の位置は記憶にしか無いので、記憶を消し忘れると戻ってしまう）', () => {
+test('D0050-AC-31: (c2) tools のタブを隠しているあいだに見る実行が替わっても、tools のタブへ戻ったとき縦・横の位置は 0（隠れた枠の位置は記憶にしか無いので、記憶を消し忘れると戻ってしまう）', () => {
   const h = boot();
   openToolsAndScroll(h);
   detailTab(h, 'usage').dispatch('click');
@@ -221,7 +221,7 @@ test('D0049-AC-31: (c2) tools のタブを隠しているあいだに見る実�
   assert.equal(scroller(h, 'tools-table').scrollLeft, 0);
 });
 
-test('D0049-AC-31: (d) 同じ実行のままの描き直し（行の選びが替わらない）では先頭に戻らない：何度描き直しても位置が残る', () => {
+test('D0050-AC-31: (d) 同じ実行のままの描き直し（行の選びが替わらない）では先頭に戻らない：何度描き直しても位置が残る', () => {
   const h = boot();
   openToolsAndScroll(h);
   for (let i = 0; i < 3; i++) send(h, i % 2 === 0 ? FOUR : THREE);
@@ -229,7 +229,7 @@ test('D0049-AC-31: (d) 同じ実行のままの描き直し（行の選びが替
   assert.equal(scroller(h, 'tools-table').scrollLeft, 40);
 });
 
-test('D0049-AC-31: (e) tools のパネルが隠れているあいだの描き直し（表が空になる描き直しも）で、例外が出ない', () => {
+test('D0050-AC-31: (e) tools のパネルが隠れているあいだの描き直し（表が空になる描き直しも）で、例外が出ない', () => {
   const h = boot();
   openToolsAndScroll(h);
   scroller(h, 'tools-table').focus();
@@ -240,7 +240,7 @@ test('D0049-AC-31: (e) tools のパネルが隠れているあいだの描き直
   assert.deepEqual(selectedTabs(h), ['diagram']);
 });
 
-test('D0049-AC-31: (f) 表が空になる（枠が消える）描き直しで例外を出さず、枠が戻れば焦点・位置の復元がまた働く', () => {
+test('D0050-AC-31: (f) 表が空になる（枠が消える）描き直しで例外を出さず、枠が戻れば焦点・位置の復元がまた働く', () => {
   const h = boot();
   detailTab(h, 'tools').dispatch('click');
   scroller(h, 'tools-table').focus();
@@ -253,7 +253,7 @@ test('D0049-AC-31: (f) 表が空になる（枠が消える）描き直しで例
   assert.ok(h.doc.activeElement === scroller(h, 'tools-table') && h.doc.activeElement !== frame, '枠が戻ったあとの描き直しでは、また焦点が戻る');
 });
 
-test('D0049-AC-27: 表の枠は Tab で焦点を取れる枠（tabindex="0"）で、矢印キーなどのキー操作をスクリプトが横取りしない（キーボードだけで枠が自分で横にスクロールできる）', () => {
+test('D0050-AC-27: 表の枠は Tab で焦点を取れる枠（tabindex="0"）で、矢印キーなどのキー操作をスクリプトが横取りしない（キーボードだけで枠が自分で横にスクロールできる）', () => {
   const h = boot();
   detailTab(h, 'tools').dispatch('click');
   const frame = scroller(h, 'tools-table');

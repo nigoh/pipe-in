@@ -33,7 +33,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - Read で読み直した SKILL.md では、引数とセッション ID は置き換わらない。要件メモは `docs/pipeline/00_input.md` から取る。
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
   - いちばん確かなのは、会話を worktree のフォルダで始めること（main で始めて移ると、フックは main の版が動く）。会話を worktree の中で始めたとき、または下の EnterWorktree で移ったあとは、そのまま進める。
-  - 会話が main の作業フォルダで始まっていたら、人に聞かずに、先に下の `git status` を見てから `python -m pipe_in worktree new <名前>`（文書だけなら `--kind docs`、直しなら `--kind fix`）で `.claude/worktrees/<名前>` に `feat/<名前>` を切り、`EnterWorktree` に `path`（出た絶対パス）を渡して会話ごと移る（切ったこと・移ったことを伝える）。`cd` では移れない（人が打つ `/cd <パス>` なら移れる）。`EnterWorktree` の `name` の形はブランチ名が決まりと合わないので使わない（D0048）。
+  - 会話が main の作業フォルダで始まっていたら、人に聞かずに、下の `git status` を見てから `python -m pipe_in skill worktree new <名前>`（`--kind docs`・`fix` も）で `.claude/worktrees/<名前>` に `feat/<名前>` を切り、`EnterWorktree` の `path`（出たパス）で会話ごと移る（そのことを伝える）。`cd` では移れない（人の `/cd <パス>` なら移れる）。`EnterWorktree` の `name` はブランチ名が合わないので使わない（D0048）。
   - 移るのは、段のサブエージェントが会話のその時の作業フォルダから始まり、フック（`.claude/hooks/pipe_in_guard.py`）がその `cwd` を基準に書ける場所を決めるため。
   - `docs/pipeline/` の記録も、その worktree の中にできる。
 - main の作業フォルダの `git status` で、ほかの会話のまだコミットしていない変更がないかを見る（EnterWorktree で移る前に見る。移ったあとは main の作業フォルダを指す git のコマンドが止められる）。あれば、どのファイルかを人に伝える（あとで main に入れるときに重なりを確かめる）。
@@ -44,7 +44,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 
 並列で動かしているので、作業のあいだに main が進む。やり方は `docs/development/workflow.md` の「3. 載せ直す」。
 
-- **段の区切り**（各段が終わって、人に確認を取る前）に `git log --oneline HEAD..main` を見る。コミットがあれば、何が入ったかを会話に書き、`git rebase --autostash main` で載せ直す。
+- **段の区切り**（各段が終わって、人に確認を取る前）に `python -m pipe_in skill worktree sync` を流す（`git log --oneline HEAD..main` を見て `git rebase --autostash main` をする）。入ったコミットを書く。
 - **検証の段の前**と、**main に入れる直前**には、必ず載せ直す。
 - ぶつかったら、worktree の中で両方の意図を残すように合わせる。迷うときは人に聞く（`--auto` でも聞く）。
 - 載せ直したら、触った側のテストを流し直す。テスト先行より後なら、承認されたテストが新しい main の上でも同じ理由で赤（または緑）のままかを確かめ、意味が変わっていたらその段に戻る。
@@ -177,4 +177,4 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(pipe-in): …` / `feat(pipe-in-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
   **コミット・main に入れる・push は、人に言われるまでしない。**
-- main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら、人に聞かずに `python -m pipe_in worktree clean` で片付け、消したもの・残したものを伝える（main に入った・変更が無い・一度はコミットした `.claude/worktrees/` の下のものだけが消える）。
+- main に入れるよう言われたら：もう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら、人に聞かずに `python -m pipe_in skill worktree clean` で片付け、消したもの・残したものを伝える。

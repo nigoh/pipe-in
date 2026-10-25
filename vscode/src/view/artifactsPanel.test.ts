@@ -92,7 +92,7 @@ const shownNames = (doc: FakeDocument): string[] =>
     .filter((p) => !p.hasAttribute('hidden'))
     .map((p) => p.getAttribute('data-art-preview')!);
 const count = (text: string, re: RegExp): number => (text.match(re) ?? []).length;
-// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0049 で test/panelParts.ts へ移した（関数の中身は変えていない）。
+// 詳細のタブパネルを data-detail-panel の値で取る補助（panelsByName）は、D0050 で test/panelParts.ts へ移した（関数の中身は変えていない）。
 // 番号でなく名前で取るので、タブが 4 つになっても位置に左右されない。個数は決め打ちしない。
 
 // ---- タグだけを取り出して属性名を調べる（AC-32・AC-38：成果物の文字（text ノード）は調べない） ----

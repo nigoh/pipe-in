@@ -110,6 +110,25 @@ def clean(where: Path, base: str = "main", dry_run: bool = False) -> CleanResult
     return result
 
 
+@dataclass
+class SyncResult:
+    commits: list[str] = field(default_factory=list)
+
+
+def sync(where: Path, base: str = "main") -> SyncResult:
+    """worktree を base に載せ直す（git rebase --autostash）。base が進んでいなければ何もしない。入ったコミット（1行ずつ）を返す。"""
+    top = Path(_git(where, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
+    if top == main_checkout(where):
+        raise WorktreeError("主の checkout では載せ直しません。worktree の中で流してください")
+    commits = _git(top, "log", "--oneline", f"HEAD..{base}").stdout.splitlines()
+    if commits and _git(top, "rebase", "--autostash", base, check=False).returncode != 0:
+        raise WorktreeError(
+            f"{base} に載せ直す途中でぶつかりました。git status でぶつかったファイルを見て、両方の意図を残すように合わせ、"
+            "git add してから git rebase --continue で続けてください"
+        )
+    return SyncResult(commits)
+
+
 def _parse(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="pipe-in worktree", description="機能ごとの worktree を切る・片付ける")
     sub = p.add_subparsers(dest="action", required=True)
@@ -120,14 +139,30 @@ def _parse(argv: list[str]) -> argparse.Namespace:
     c = sub.add_parser("clean", help="main に入った worktree をブランチごと消す")
     c.add_argument("--base", default="main")
     c.add_argument("--dry-run", action="store_true")
-    for s in (n, c):
+    y = sub.add_parser("sync", help="いまの worktree を main に載せ直す（main が進んでいなければ何もしない）")
+    y.add_argument("--base", default="main")
+    for s in (n, c, y):
         s.add_argument("--project", type=Path, default=Path("."))
     return p.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
-    args = _parse(argv)
+    return run(_parse(argv))
+
+
+def run(args: argparse.Namespace) -> int:
+    """読んだ引数で切る・片付ける・載せ直す（pipe-in skill worktree も、旗を検めてからここを呼ぶ）。"""
     try:
+        if args.action == "sync":
+            commits = sync(args.project, base=args.base).commits
+            if not commits:
+                print(f"{args.base} は進んでいません")
+                return 0
+            print(f"{args.base} に入ったコミット:")
+            for line in commits:
+                print(f"  {line}")
+            print(f"載せ直しました（{args.base}）")
+            return 0
         if args.action == "new":
             path = new(args.project, args.name, kind=args.kind, base=args.base)
             print(f"切りました: {path}（ブランチ {args.kind}/{args.name}）")

@@ -1,4 +1,4 @@
-// 使ったエージェント・スキル・道具の表（ToolsTable）→ パネルの「エージェント・スキル」のタブの中身の HTML（純粋。D0049）。
+// 使ったエージェント・スキル・道具の表（ToolsTable）→ パネルの「エージェント・スキル」のタブの中身の HTML（純粋。D0050）。
 // 外から来た文字（名前・段の表示名）は escapeHtml を、表示と属性（title）にそれぞれ 1 回だけ通す。style=・on…=・src・href は出さない。
 // 表を包む枠は、キーボードだけで横にスクロールできるよう tabindex="0"・role="region"。位置を覚える印（data-scroll）と焦点を戻す印（data-keep）はパネルのスクリプトが使う。
 // 並べ替えは表を作る側（domain/toolsTable.ts）が済ませてある。ここは渡された順に出す。色は var(--vscode-*) だけ、CSS に @media は書かない（幅の規則は shellHtml.ts の既存の 2 つ）。

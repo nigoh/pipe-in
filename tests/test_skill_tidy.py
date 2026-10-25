@@ -585,7 +585,7 @@ SKILL_LIMIT = 12_300
 # 設計 12 の 2：収まらないときは合計の上限を 17,500 字に上げてよい、と設計の段で人が決めた（決定の記録 D0039）。
 # 実装では 17,100 字に収まったが、検証のあとの監査と助言で人が承認した直しで超えたので、17,500 字に上げた。
 # D0046：main の --artifact の追加（D0044）と確認待ちの知らせの決まりで、ほぼ同時に枠を使い切ったので、人が決めて 17,800 字に上げた。
-# D0049：main の確認待ちの知らせ（D0046）で合計が 17,758 字になり、エージェント・スキルのタブの確認の手順（228 字）が入らなかったので、人が決めて 18,000 字に上げた。
+# D0050：main の確認待ちの知らせ（D0046）で合計が 17,758 字になり、エージェント・スキルのタブの確認の手順（228 字）が入らなかったので、人が決めて 18,000 字に上げた。
 TOTAL_LIMIT = 18_000
 
 
@@ -596,7 +596,7 @@ def test_D0039_AC_11_SKILLは12300字以下():
 
 
 def test_D0039_AC_11_SKILLと3つの補助ファイルの合計は18000字以下():
-    """D0039-AC-11: SKILL.md と 3 つの補助ファイルの合計は 18,000 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に、D0049 で 18,000 字に上げた）。
+    """D0039-AC-11: SKILL.md と 3 つの補助ファイルの合計は 18,000 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に、D0050 で 18,000 字に上げた）。
     3 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。"""
     total = len(skill()) + sum(len(read_doc(SKILL_DIR / n)) for n in HELPERS)
     assert total <= TOTAL_LIMIT, f"合計が {total} 字（上限 {TOTAL_LIMIT}）"
@@ -953,7 +953,9 @@ NEW_COMMANDS = [
     "python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview",
 ]
 NEW_BASH_RULES = [f"Bash({c})" for c in NEW_COMMANDS]
-EXPECTED_BASH_RULES = OLD_BASH_RULES + NEW_BASH_RULES
+# D0049 で足した 3 つ（今のフォルダだけを相手にする入口と、2 つの完全一致）
+D0049_BASH_RULES = ["Bash(python -m pipe_in skill:*)", "Bash(python --version)", "Bash(npm --prefix vscode ci)"]
+EXPECTED_BASH_RULES = OLD_BASH_RULES + NEW_BASH_RULES + D0049_BASH_RULES
 AGENT_RULES = [f"Agent(pipe-in-{n})" for n in ("analyst", "tester", "coder", "verifier", "auditor", "advisor", "judge", "documenter")]
 
 
@@ -992,11 +994,11 @@ def test_D0039_AC_25_見本_規則の当たり方の判定は前方一致と完�
     assert not rule_matches("Agent(pipe-in-judge)", "git commit")
 
 
-# ---- AC-27：allow の Bash の規則は 14 個ちょうど -----------------------------------------------------------
+# ---- AC-27：allow の Bash の規則は 17 個ちょうど（D0049 で 14 → 17） -----------------------------------------------------------
 
 
 def rule_diff(allow: list[str]) -> dict[str, list[str]]:
-    """allow の Bash の規則と、あるべき 14 個の差。"""
+    """allow の Bash の規則と、あるべき 17 個の差。"""
     bash = [r for r in allow if r == "Bash" or r.startswith("Bash(")]
     return {"足りない": sorted(set(EXPECTED_BASH_RULES) - set(bash)), "多い": sorted(set(bash) - set(EXPECTED_BASH_RULES))}
 
@@ -1004,7 +1006,8 @@ def rule_diff(allow: list[str]) -> dict[str, list[str]]:
 def test_D0039_AC_27_allowのBashの規則は既存の9つに足す5つを加えた14個ちょうど():
     """D0039-AC-27: permissions.allow の Bash の規則は、既存の 9 つ（pytest・python -m pytest・npm test・npm run typecheck・npm run build・
     git status・git diff・git log・git show）に、完全一致の 5 つ（npm --prefix vscode の test・run typecheck・run build・run preview と、
-    python -m http.server …）を足した 14 個とちょうど同じ。Agent(pipe-in-*) の 8 行は今のまま。python -m pipe_in に当たる規則は無い。
+    python -m http.server …）を足した 14 個に、D0049 の 3 つ（python -m pipe_in skill:*・python --version・npm --prefix vscode ci）を足した 17 個とちょうど同じ。
+    Agent(pipe-in-*) の 8 行は今のまま。python -m pipe_in record に当たる規則は無い（D0049 の skill の入口は record に当たらない）。
     （設定の検査。一覧を固定する検査で、一覧の外の規則が増えると落ちる）"""
     allow = permissions()["allow"]
     assert rule_diff(allow) == {"足りない": [], "多い": []}
@@ -1014,14 +1017,14 @@ def test_D0039_AC_27_allowのBashの規則は既存の9つに足す5つを加え
 
 
 def test_D0039_AC_27_見本_15個目の規則を足した一覧と欠けた一覧は差を返す_守る():
-    """D0039-AC-27: 検査そのものの確かめ。14 個ちょうどの一覧は差が無く、15 個目（record の幅広い規則）を足した一覧は「多い」に、
+    """D0039-AC-27: 検査そのものの確かめ。17 個ちょうどの一覧は差が無く、18 個目（record の幅広い規則）を足した一覧は「多い」に、
     1 つ欠けた一覧は「足りない」に出る。Agent の規則は数えない。（今のまま通る。守る）"""
     assert rule_diff([*EXPECTED_BASH_RULES, *AGENT_RULES]) == {"足りない": [], "多い": []}
     more = rule_diff([*EXPECTED_BASH_RULES, "Bash(python -m pipe_in record:*)"])
     assert more == {"足りない": [], "多い": ["Bash(python -m pipe_in record:*)"]}
     less = rule_diff(EXPECTED_BASH_RULES[:-1])
-    assert less == {"足りない": [NEW_BASH_RULES[-1]], "多い": []}
-    assert rule_diff(OLD_BASH_RULES)["足りない"] == sorted(NEW_BASH_RULES)
+    assert less == {"足りない": [EXPECTED_BASH_RULES[-1]], "多い": []}
+    assert rule_diff(OLD_BASH_RULES)["足りない"] == sorted(NEW_BASH_RULES + D0049_BASH_RULES)
 
 
 def test_D0039_AC_27_screen_check_md_は許可の規則と一字違わないコマンドを1つずつ別の行に書く():
@@ -1075,7 +1078,7 @@ def deny_diff(deny: list[str]) -> dict[str, list[str]]:
 
 def test_D0039_AC_29_allowにBashとAgent以外の規則を足していない_守る():
     """D0039-AC-29: permissions.allow は、Bash の規則と Agent(pipe-in-*) の 8 行だけ（PowerShell・MCP・WebFetch・Write・Edit などの規則が無い）。
-    AC-27 の Bash の 14 個ちょうど・Agent の 8 行ちょうどと合わせて、allow の全体が 22 個ちょうどになる。（設定の検査。今のまま通る。守る）"""
+    AC-27 の Bash の 17 個ちょうど・Agent の 8 行ちょうどと合わせて、allow の全体が 25 個ちょうどになる。（設定の検査。今のまま通る。守る）"""
     foreign = foreign_allow_rules(permissions()["allow"])
     assert foreign == [], f"Bash でも Agent(pipe-in-*) でもない allow の規則：{foreign}"
 
@@ -1088,9 +1091,9 @@ def test_D0039_AC_29_denyの12行は今のまま_守る():
 
 def test_D0039_AC_29_見本_Bash以外の規則を足した一覧とdenyを減らした一覧を見つける_守る():
     """D0039-AC-29: 検査そのものの確かめ。allow に PowerShell(*)・PowerShell・MCP・WebFetch・Write(**)・Edit を 1 つ足すと、そのたびにその 1 つだけが「Bash でも Agent でもない規則」に出る。
-    22 個ちょうどの allow は 0 件。deny を 1 行消すと「足りない」に、1 行足すと「多い」に出る。（今のまま通る。守る）"""
+    25 個ちょうどの allow は 0 件。deny を 1 行消すと「足りない」に、1 行足すと「多い」に出る。（今のまま通る。守る）"""
     allow = [*EXPECTED_BASH_RULES, *AGENT_RULES]
-    assert len(allow) == 22 and foreign_allow_rules(allow) == []
+    assert len(allow) == 25 and foreign_allow_rules(allow) == []
     for extra in ("PowerShell(*)", "PowerShell", "mcp__example__send", "WebFetch", "Write(**)", "Edit"):
         assert foreign_allow_rules([*allow, extra]) == [extra]
     assert foreign_allow_rules([*allow, "Agent(pipe-in-other)"]) == ["Agent(pipe-in-other)"]

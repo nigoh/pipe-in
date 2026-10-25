@@ -239,7 +239,7 @@ test('D0024-AC-42: 時計の検査そのものが、使うファイルだけを�
   assert.deepEqual(found, ['domain/a.ts', 'view/c.ts']);
 });
 
-// ---- D0049：エージェント・スキル・道具の表の部品（domain/toolsTable.ts・view/toolsHtml.ts）の構造 ----
+// ---- D0050：エージェント・スキル・道具の表の部品（domain/toolsTable.ts・view/toolsHtml.ts）の構造 ----
 // AC-33：表を作る部品は「今」を使わない（時計を読まず、引数にも取らない）。AC-38：層の向きを守る。
 // AC-41(2)：一覧の行の組み立て（domain/runList.ts）・app/runList.ts・infra/ は、表を作る部品を値として import しない。buildPipelineView の呼び出し元は 2 か所だけ。
 // 新しいファイルが無いあいだは「まだ作っていない」で落とす（無いファイルを readFileSync で読んで ENOENT で落ちると、赤の理由が読み取りにくい）。
@@ -259,7 +259,7 @@ function specifiersOf(source: string): string[] {
   return Array.from(withoutComments(source).matchAll(/(?:\bfrom|\bimport)\s*\(?\s*['"]([^'"]+)['"]/g), (m) => m[1]!);
 }
 
-test('D0049-AC-33: domain/toolsTable.ts と view/toolsHtml.ts は時計を読まない（Date・setTimeout・setInterval・setImmediate・乱数・node: の読み込みが無い）', () => {
+test('D0050-AC-33: domain/toolsTable.ts と view/toolsHtml.ts は時計を読まない（Date・setTimeout・setInterval・setImmediate・乱数・node: の読み込みが無い）', () => {
   const files = TOOLS_PARTS.map((rel) => ({ rel: rel as string, source: needSource(rel) }));
   assert.deepEqual(clockUsers(files), []);
   for (const f of files) assert.deepEqual(findClockOrNode(f.source), [], `${f.rel}: 時計・乱数・node: の読み込み`);
@@ -272,11 +272,11 @@ export function toolsInputProblems(source: string): string[] {
   return Array.from(body.matchAll(/\b(?:clock|nowMs|now)\b/g), (m) => `ToolsInput に ${m[0]} がある`);
 }
 
-test('D0049-AC-33: 表を作る入力 ToolsInput は「今」（clock・now・nowMs）を引数に取らない（ToolsInput が見つからなければ落とす）', () => {
+test('D0050-AC-33: 表を作る入力 ToolsInput は「今」（clock・now・nowMs）を引数に取らない（ToolsInput が見つからなければ落とす）', () => {
   assert.deepEqual(toolsInputProblems(needSource('domain/toolsTable.ts')), []);
 });
 
-test('D0049-AC-33: 検査そのもの：ToolsInput に clock・now・nowMs を持つ見本は見つけ、持たない見本は見逃す。行頭のコメントだけに書いた clock は見逃し、ToolsInput の無いソースは問題にする（今のまま通る。守る）', () => {
+test('D0050-AC-33: 検査そのもの：ToolsInput に clock・now・nowMs を持つ見本は見つけ、持たない見本は見逃す。行頭のコメントだけに書いた clock は見逃し、ToolsInput の無いソースは問題にする（今のまま通る。守る）', () => {
   const clean = 'export interface ToolsInput {\n  logs: readonly ToolsLog[];\n  driver: boolean;\n}\n';
   assert.deepEqual(toolsInputProblems(clean), []);
   assert.deepEqual(toolsInputProblems(clean.replace('driver: boolean;', 'driver: boolean;\n  clock: ViewClock;')), ['ToolsInput に clock がある']);
@@ -291,7 +291,7 @@ test('D0049-AC-33: 検査そのもの：ToolsInput に clock・now・nowMs を�
 
 // ---- AC-38：層の向き ----
 
-test('D0049-AC-38: domain/toolsTable.ts と view/toolsHtml.ts が、構造の検査の対象（targets()）に入っている（vscode を import しない・層ごとの node: の決まり）', () => {
+test('D0050-AC-38: domain/toolsTable.ts と view/toolsHtml.ts が、構造の検査の対象（targets()）に入っている（vscode を import しない・層ごとの node: の決まり）', () => {
   const rels = targets().map(relOf);
   for (const rel of TOOLS_PARTS) assert.ok(rels.includes(rel), `${rel} が検査の対象にある（まだ作っていない）`);
 });
@@ -309,12 +309,12 @@ export function htmlDirectionProblems(source: string): string[] {
     .map((s) => `view/toolsHtml.ts が ${s} を読んでいる`);
 }
 
-test('D0049-AC-38: toolsTable.ts は ./ の読み込みだけ（../view・../app・../infra を読まない）、toolsHtml.ts は ../app・../infra を読まない', () => {
+test('D0050-AC-38: toolsTable.ts は ./ の読み込みだけ（../view・../app・../infra を読まない）、toolsHtml.ts は ../app・../infra を読まない', () => {
   assert.deepEqual(tableDirectionProblems(needSource('domain/toolsTable.ts')), []);
   assert.deepEqual(htmlDirectionProblems(needSource('view/toolsHtml.ts')), []);
 });
 
-test('D0049-AC-38: 検査そのもの：向きを破る import の見本を見つけ、./ や ../domain の読み込みは見逃す（今のまま通る。守る）', () => {
+test('D0050-AC-38: 検査そのもの：向きを破る import の見本を見つけ、./ や ../domain の読み込みは見逃す（今のまま通る。守る）', () => {
   assert.deepEqual(tableDirectionProblems("import { a } from './gantt.ts';\nimport type { b } from './stageLog.ts';"), []);
   assert.deepEqual(tableDirectionProblems("import { escapeHtml } from '../view/escape.ts';"), ['domain/toolsTable.ts が ../view/escape.ts を読んでいる']);
   assert.deepEqual(tableDirectionProblems("import x from '../app/refreshView.ts';\nimport y from '../infra/fsPresence.ts';").length, 2);
@@ -338,14 +338,14 @@ export function toolsTableValueImports(source: string): string[] {
   return hits;
 }
 
-test('D0049-AC-41: domain/runList.ts・app/runList.ts・infra/ の製品のコードは、toolsTable.ts を値として import しない（import type は可。今のまま通る。守る）', () => {
+test('D0050-AC-41: domain/runList.ts・app/runList.ts・infra/ の製品のコードは、toolsTable.ts を値として import しない（import type は可。今のまま通る。守る）', () => {
   const infra = listTsFiles(path.join(SRC, 'infra')).filter((f) => !f.endsWith('.test.ts'));
   assert.ok(infra.length > 0, 'infra/ のファイルが読めている（検査が空振りでない）');
   const files = [path.join(SRC, 'domain', 'runList.ts'), path.join(SRC, 'app', 'runList.ts'), ...infra];
   for (const file of files) assert.deepEqual(toolsTableValueImports(readFileSync(file, 'utf8')), [], relOf(file));
 });
 
-test('D0049-AC-41: 検査そのもの：値の import・export … from・副作用の import・動的 import は見つけ、import type・export type は見逃す（今のまま通る。守る）', () => {
+test('D0050-AC-41: 検査そのもの：値の import・export … from・副作用の import・動的 import は見つけ、import type・export type は見逃す（今のまま通る。守る）', () => {
   const found: [string, string][] = [
     ['値の import', "import { buildToolsTable } from './toolsTable.ts';"],
     ['全部を読む import', "import * as t from '../domain/toolsTable.ts';"],
@@ -389,13 +389,13 @@ export function viewCallerProblems(files: { rel: string; source: string }[]): st
   return problems;
 }
 
-test('D0049-AC-41: buildPipelineView( の呼び出し元は domain/runList.ts（引数に tools: false）と app/refreshView.ts（引数に tools が無い）の 2 か所だけ（製品のコード。入口の extension.ts も含む）', () => {
+test('D0050-AC-41: buildPipelineView( の呼び出し元は domain/runList.ts（引数に tools: false）と app/refreshView.ts（引数に tools が無い）の 2 か所だけ（製品のコード。入口の extension.ts も含む）', () => {
   const files = [...targets(), path.join(SRC, 'extension.ts')].map((file) => ({ rel: relOf(file), source: readFileSync(file, 'utf8') }));
   assert.ok(files.some((f) => f.rel === 'domain/runList.ts') && files.some((f) => f.rel === 'extension.ts'), '検査の対象に入っている');
   assert.deepEqual(viewCallerProblems(files), []);
 });
 
-test('D0049-AC-41: 検査そのもの：呼び出し元が 3 か所の見本・tools: false の無い summarizeRun の見本・tools を渡す refreshView の見本を見つけ、そろった見本は見逃す（今のまま通る。守る）', () => {
+test('D0050-AC-41: 検査そのもの：呼び出し元が 3 か所の見本・tools: false の無い summarizeRun の見本・tools を渡す refreshView の見本を見つけ、そろった見本は見逃す（今のまま通る。守る）', () => {
   const runList = { rel: 'domain/runList.ts', source: "const view = buildPipelineView({ workDir: '', stateJson, stageLogs, artifacts: {} }, clock, { tools: false });" };
   const refresh = { rel: 'app/refreshView.ts', source: 'return buildPipelineView(snapshot, clock);' };
   const definition = { rel: 'domain/pipelineView.ts', source: 'export function buildPipelineView(snapshot: WorkDirSnapshot): PipelineView {}' };

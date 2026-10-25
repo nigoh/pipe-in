@@ -22,13 +22,13 @@ export function assistantText(text: string): string {
   return JSON.stringify({ _type: 'AssistantMessage', content: [{ text }], model: 'x' });
 }
 
-/** ツールの呼び出しの部品を1つ持つ発言。id（呼び出しの ID）は既定 't'。呼び出しごとに別の id を渡せる（D0049）。 */
+/** ツールの呼び出しの部品を1つ持つ発言。id（呼び出しの ID）は既定 't'。呼び出しごとに別の id を渡せる（D0050）。 */
 export function assistantTool(name: string, input: object, id = 't'): string {
   return JSON.stringify({ _type: 'AssistantMessage', content: [{ id, name, input }], model: 'x' });
 }
 
 /**
- * 部品を複数持つ発言（D0049）。parentToolUseId は発言の行の項目（部品の項目ではない。サブエージェントの中の発言が、呼んだ Agent の id を持つ）。
+ * 部品を複数持つ発言（D0050）。parentToolUseId は発言の行の項目（部品の項目ではない。サブエージェントの中の発言が、呼んだ Agent の id を持つ）。
  * 渡さない（undefined）と項目ごと無い。文字・null・数・オブジェクトも渡せる（壊れた値を試すため）。
  */
 export function assistantParts(parts: readonly unknown[], parentToolUseId?: unknown): string {
@@ -40,7 +40,7 @@ export function assistantParts(parts: readonly unknown[], parentToolUseId?: unkn
   });
 }
 
-/** 道具の呼び出しの部品 { id, name, input }（D0049。assistantParts に渡す）。 */
+/** 道具の呼び出しの部品 { id, name, input }（D0050。assistantParts に渡す）。 */
 export function toolPart(name: string, input: unknown, id: string): { id: string; name: string; input: unknown } {
   return { id, name, input };
 }
@@ -189,7 +189,7 @@ export function stateJson(p: {
   name?: unknown;
   /** セッション ID（D0019。record start --session-id が書く session_id）。省くと持たない */
   sessionId?: unknown;
-  /** 外の会話で進めた記録の印（本体が書く driver。D0049）。省くと持たない。null・''・0・false・{} も渡せる（null でなければ「ある」） */
+  /** 外の会話で進めた記録の印（本体が書く driver。D0050）。省くと持たない。null・''・0・false・{} も渡せる（null でなければ「ある」） */
   driver?: unknown;
 }): string {
   return JSON.stringify({
