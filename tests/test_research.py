@@ -1,4 +1,4 @@
-"""調べた結果（docs/research/）の検査。D0018。
+"""調べた結果（docs/research/）の検査。D0018。D0053（harness-compare の中身と目次の行）も見る。
 
 - 目次 docs/research/README.md が、すべての調査のフォルダを指す
 - eval と審査の比較（docs/research/eval-vs-judge/）の本文に決めた節があり、集計の結果と数が合う
@@ -80,3 +80,57 @@ def test_d0018_ac04_eval_counts_rules(evalcheck):
     assert any(k.startswith("文字数") for k in failed(GOOD.replace("既定で", "")))
     assert any(k.startswith("数字") for k in failed(GOOD.replace("最大3回", "最大4回")))
     assert any(k.startswith("英字") for k in failed(GOOD.replace("VSCodeで", "VSCodeやWebで")))
+
+
+# ---- D0053: 段の組み方（ハーネス）の比較（docs/research/harness-compare/） ----
+
+HARNESS = RESEARCH / "harness-compare"
+STUDY_SECTIONS = ["問い", "結論", "方法", "結果", "限界", "pipe-in への示唆", "やり直し方"]
+# 今あるフォルダに、この機能で足す harness-compare を加える（まだ無くても、無いことで赤になるように）
+STUDIES = sorted({p.name for p in RESEARCH.iterdir() if p.is_dir() and not p.name.startswith((".", "__"))} | {"harness-compare"})
+
+
+@pytest.mark.parametrize("study", STUDIES)
+def test_d0053_ac21_every_study_has_sections(study):
+    """D0053-AC-21: docs/research/ の下のどの調査の本文（README.md）にも、問い・結論・方法・結果・限界・pipe-in への示唆・やり直し方の節がある。"""
+    path = RESEARCH / study / "README.md"
+    assert path.is_file(), f"{study}/README.md が無い"
+    heads = re.findall(r"^## (.+)$", path.read_text(encoding="utf-8"), re.M)
+    missing = [w for w in STUDY_SECTIONS if not any(h.startswith(w) for h in heads)]
+    assert missing == []
+
+
+def _harness_text() -> str:
+    path = HARNESS / "README.md"
+    assert path.is_file(), "docs/research/harness-compare/README.md が無い"
+    return path.read_text(encoding="utf-8")
+
+
+# （pytest の id, 探す言葉）。実験のあらまし・重ねがけの比べ方の基準・スクリプトが外にあること
+D0053_HARNESS_FACTS = [
+    ("haiku", "Haiku"),
+    ("tasks-20-30", "20〜30"),
+    ("holm", "Holm"),
+    ("vote-5-runs", "同じ課題を5回解かせ"),
+    ("vote-4-or-more", "4回以上出た指摘を残す"),
+    ("outside", "pipe-in の外"),
+]
+
+
+@pytest.mark.parametrize("word", [w for _, w in D0053_HARNESS_FACTS], ids=[i for i, _ in D0053_HARNESS_FACTS])
+def test_d0053_ac21_harness_compare_facts(word):
+    """D0053-AC-21: 比較実験の本文に、実験のあらまし（Haiku・20〜30 課題・Holm の補正）、重ねがけの比べ方の基準（同じ課題を5回解かせ、4回以上出た指摘を残す）、
+    実験のスクリプトが pipe-in の外にあることが書いてある。"""
+    assert word in _harness_text()
+
+
+def test_d0053_ac21_harness_compare_marks_unbuilt():
+    """D0053-AC-21: 比較実験の本文で、4（票）と 8（教訓のメモ）について「仕組みが無い」と書いてある（2回以上）。"""
+    assert _harness_text().count("仕組みが無い") >= 2
+
+
+def test_d0053_ac21_index_row_for_harness_compare():
+    """D0053-AC-21: 目次 docs/research/README.md の表に harness-compare の行があり、日付は「2026年10月」（実験を行った月）。"""
+    rows = [line for line in (RESEARCH / "README.md").read_text(encoding="utf-8").splitlines() if "](harness-compare/README.md)" in line]
+    assert len(rows) == 1, "目次の表に harness-compare/README.md を指す行が無い"
+    assert "2026年10月" in rows[0]

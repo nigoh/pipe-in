@@ -63,4 +63,4 @@ pipe-builder が差し戻してきたら、理由を人に見せ、表を直し�
   対象が公開リポジトリなら、`docs/pipeline/` を `.gitignore` に入れることと、`.pipe-in/pipes/` の指示文に社内の事情が入っていないかを見てからコミットすることを勧める。
 - **流すのは、人に言われてから。** pipe-in を流すと Claude の利用料がかかる。
 
-段ごとの決め方・検査と審査の組み方・流すときの注意は [references/stage-rules.md](references/stage-rules.md) にあります。2a の3・2b の2で表を作るときに読む。
+段ごとの決め方・検査と審査の組み方・比較実験から分かった組み方の目安・流すときの注意は [references/stage-rules.md](references/stage-rules.md) にあります。2a の3・2b の2で表を作るときに読む。
