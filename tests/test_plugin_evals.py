@@ -889,9 +889,9 @@ def test_D0045_AC_14_skills_and_hooks_do_not_depend_on_evals():
 
 
 def test_D0045_AC_14_plugin_version_stays_0_5_0():
-    """D0045-AC-14: プラグインの版は 0.5.0 のまま（evals/ を足しても動きは変わらない）。"""
+    """D0045-AC-14: evals/ を足しても版は上げなかった（0.5.0）。D0053 で references/ の中身を変えたので 0.5.1 に上げた（evals/ によるものではない）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.5.0"
+    assert manifest["version"] == "0.5.1"
 
 
 def test_D0045_AC_14_guide_update_notes_still_say_0_5_0():
