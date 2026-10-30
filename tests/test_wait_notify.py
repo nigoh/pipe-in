@@ -154,7 +154,7 @@ def test_D0046_AC_28_通知ではありませんの古い文が残っていな�
 
 
 def test_D0046_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_notify_py_が無い():
-    """D0046-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は今のまま、.claude/hooks/notify.py が無い。今のまま通る。守る。"""
+    """D0046-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は今のまま（D0056 で ask に gh issue create を足した）、.claude/hooks/notify.py が無い。今のまま通る。守る。"""
     data = json.loads(read(SETTINGS))
     assert set(data["hooks"]) == {"PreToolUse", "Stop"}
     assert not (ROOT / ".claude" / "hooks" / "notify.py").exists()
@@ -167,6 +167,7 @@ def test_D0046_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_n
         "Bash(npm publish:*)",
         "Bash(npx vsce publish:*)",
         "Bash(twine upload:*)",
+        "Bash(gh issue create:*)",  # D0056 で足した
     ]
     assert perms["deny"] == [
         "Read(./.env)",
