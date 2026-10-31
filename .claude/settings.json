@@ -34,7 +34,8 @@
       "Bash(git merge:*)",
       "Bash(npm publish:*)",
       "Bash(npx vsce publish:*)",
-      "Bash(twine upload:*)"
+      "Bash(twine upload:*)",
+      "Bash(gh issue create:*)"
     ],
     "deny": [
       "Read(./.env)",
