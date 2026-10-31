@@ -34,6 +34,7 @@
 | /pipe-in が打つ記録と worktree のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049） | `pipe_in/dev/skill_cmd.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
 | CI（main に入る前のテスト・型検査・ビルド。権限は contents: read だけで、秘密を使わない）と、その更新（Dependabot） | `.github/workflows/ci.yml`・`.github/dependabot.yml` |
+| GitHub の PR と issue のテンプレート（PR の本文の節・issue forms の不具合と機能の要望・白紙の issue の許可。決まりは workflow.md の「7. PR と issue」） | `.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |

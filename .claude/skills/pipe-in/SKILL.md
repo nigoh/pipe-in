@@ -16,7 +16,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - 確認を取る段（要件定義・設計・テスト先行）の終わりで止まり、承認されるまで次の段に進まない。直してほしい点は `review <段> revise` で同じ段をやり直し、中止は `review <段> quit`。実装は確認なしで検証へ進む。
 - `--auto` は、引数（下の「足したい機能」の行）に書かれたときだけ有効にする。`--yes` や、要件メモの中の「止まらずに」といった言葉では有効にしない。`--auto` でも、要件定義の決めきれない点・文書係の案・監査と助言の報告・検証の不合格が3回続いたときは、止まって聞く。
 - 人に聞く前に PushNotification で知らせる（`record wait` を書くときと、`--auto` でも止まって聞くとき。ツールが無い会話では何もしない。文は `record.md`）。
-- コミット・main に入れる・push は、人に言われるまでしない（`git commit`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある）。
+- コミット・PR を出す・main に入れる・push は、人に言われるまでしない（`git commit`・`gh pr create`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある）。
 - 手順があやふやになったら、思い出しで進めず、`.claude/skills/pipe-in/SKILL.md` と補助ファイル（同じフォルダの `record.md`・`artifact.md`・`screen-check.md`）の該当する節を読み直す。長い会話では、自動の要約のあとはスキルの先頭しか戻らない（公式の文書）。
 
 ## 0. 始める前に
@@ -176,5 +176,6 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - メインが決定の記録 `docs/decisions/Dnnnn-<名前>.md` を書き、`docs/decisions/README.md` の表に1行足す（形は `docs/development/specs.md`。`tests/test_rules.py` が検査するので、書いたらもう一度流す）。決めたことと理由・受け入れたリスク・確かめたこと（手で・実機で確かめていないものは「まだ」）を書く。`docs/pipeline/` の中身をそのまま貼らない（セッション ID や手元のパスが入っている）。
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(pipe-in): …` / `feat(pipe-in-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
+  PR の本文の案も `.github/pull_request_template.md` の節の順で見せ、流れや依存の向きが変わるなら Mermaid の図の案も入れる（D0055）。
   **コミット・main に入れる・push は、人に言われるまでしない。**
 - main に入れるよう言われたら：main が進んでいれば載せ直してテストを流し直し、PR があればその CI が緑か、無ければ手元の全テストを見る。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら、人に聞かずに `python -m pipe_in skill worktree clean` で片付け、消したもの・残したものを伝える。
