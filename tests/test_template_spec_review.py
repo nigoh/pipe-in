@@ -203,6 +203,24 @@ def perspective_re(value: str) -> re.Pattern:
     return re.compile(r"perspective[`\"']*\s*(?:は|=|:)\s*[`\"']*" + re.escape(value) + r"(?![A-Za-z])")
 
 
+KIND_SECTION = "kind に使える値"
+
+
+def listed_kinds(text: str) -> list[str]:
+    """「## kind に使える値」の下の箇条書き（- で始まる行）から、各行の最初の `値` を順に取り出す。節が無ければ空。"""
+    out = []
+    for line in section_of(text, KIND_SECTION).splitlines():
+        m = re.match(r"- `([^`]+)`", line)
+        if m:
+            out.append(m.group(1))
+    return out
+
+
+def kinds_differences(listed, kinds) -> list[str]:
+    """指示文の一覧と SOURCE_KINDS の食い違い（片方にしか無い値）を並べて返す。同じなら空。"""
+    return sorted(set(listed) ^ set(kinds))
+
+
 # ---- 部品そのものの確かめ（今の作りのままで通る。検査の関数が効いていることを守る） ----------------
 
 
@@ -586,6 +604,129 @@ def test_d0047_ac15_knowledge_prompt(tmp_path):
         prompt(folder, "knowledge"),
         ["glossary.md", "domain-model.md", "issues.md", "sources.json", "docs/spec-review/knowledge/", "SRC-001", "spec", "spec.md", '"v": 1', "作らない"],
     )
+
+
+# ---- D0054: knowledge の指示文の kind の値と振り分け ----------------------------------------------
+
+KINDS = ["spec", "customer", "law", "standard", "public_spec", "past_case"]
+
+
+def knowledge_prompt_text(tmp_path: Path) -> str:
+    _, folder, _ = new_pipe(tmp_path)
+    return prompt(folder, "knowledge")
+
+
+def schema_kind_enum() -> list[str]:
+    from pipe_in_generator import findings_check
+
+    path = Path(findings_check.__file__).parent / "schemas" / "sources.schema.json"
+    schema = json.loads(path.read_text(encoding="utf-8"))
+    return schema["$defs"]["source"]["properties"]["kind"]["enum"]
+
+
+def test_d0053_helper_listed_kinds_reads_only_bullets_under_heading():
+    """D0054-AC-01: 今の作りのままで通る。listed_kinds は、見出しの下の箇条書きの最初の値だけを順に取り出す。見出しが無ければ空。"""
+    text = (
+        "# 題\n\n上の `x` は拾わない。\n\n- `above`：見出しの上\n\n"
+        f"## {KIND_SECTION}\n\n本文の `y` も拾わない。\n\n"
+        "- `a`：説明の中の `b` は拾わない\n- `c`：説明\n  - `nested` は先頭が - ではない\n\n"
+        "## 次\n\n- `after`：節の外\n"
+    )
+    assert listed_kinds(text) == ["a", "c"]
+    assert listed_kinds("# 題\n\n- `a`：見出しなし\n") == []
+
+
+def test_d0053_ac01_prompt_lists_all_six_kinds(tmp_path):
+    """D0054-AC-01: knowledge の指示文の「kind に使える値」の節に、6つの値が全部入り、重ならない。"""
+    kinds = listed_kinds(knowledge_prompt_text(tmp_path))
+    assert len(kinds) == 6, f"値の一覧が6つではありません: {kinds}"
+    assert sorted(kinds) == sorted(KINDS)
+
+
+def test_d0053_ac02_prompt_has_routing_examples(tmp_path):
+    """D0054-AC-02: 振り分けの例が、語と値の組（語のあとの同じ文の中で、ほかの値より先にその値が来る）で入っている。"""
+    section = section_of(knowledge_prompt_text(tmp_path), KIND_SECTION)
+    assert section, f"指示文に「## {KIND_SECTION}」の節がありません"
+    pairs = [
+        ("法令", "law"),
+        ("ガイドライン", "standard"),
+        ("標準", "standard"),
+        ("計画", "standard"),
+        ("公開の仕様書", "public_spec"),
+        ("社内規程", "customer"),
+        ("業界団体の指針", "standard"),
+        ("過去の議事録", "past_case"),
+        ("事例", "past_case"),
+    ]
+    missing = [f"{w}→{v}" for w, v in pairs if not re.search(rf"{w}[^。\n`]*`{v}`", section)]
+    assert missing == [], f"振り分けの例が足りません: {missing}"
+    assert "`issues.md` の論点" in section
+
+
+def test_d0053_ac03_listed_kinds_match_source_kinds(tmp_path):
+    """D0054-AC-03: 指示文の一覧の集合が SOURCE_KINDS と同じ。"""
+    from pipe_in_generator import findings_check
+
+    listed = listed_kinds(knowledge_prompt_text(tmp_path))
+    assert listed, f"指示文に「## {KIND_SECTION}」の一覧がありません"
+    assert kinds_differences(listed, findings_check.SOURCE_KINDS) == []
+
+
+def test_d0053_ac03_listed_kinds_test_fails_when_source_kinds_changes(monkeypatch):
+    """D0054-AC-03: 今の作りのままで通る。SOURCE_KINDS に仮の値を足しても、1つ消しても、比べる関数が差を返す（検査が効いている）。"""
+    from pipe_in_generator import findings_check
+
+    listed = list(findings_check.SOURCE_KINDS)
+    assert kinds_differences(listed, findings_check.SOURCE_KINDS) == []
+    monkeypatch.setattr(findings_check, "SOURCE_KINDS", (*listed, "extra"))
+    assert kinds_differences(listed, findings_check.SOURCE_KINDS) == ["extra"]
+    monkeypatch.setattr(findings_check, "SOURCE_KINDS", tuple(listed[1:]))
+    assert kinds_differences(listed, findings_check.SOURCE_KINDS) == [listed[0]]
+
+
+def test_d0053_ac04_listed_kinds_match_schema_enum(tmp_path):
+    """D0054-AC-04: schema の kind の enum は SOURCE_KINDS と同じで、指示文の一覧もその集合と同じ（三者がそろう）。"""
+    from pipe_in_generator import findings_check
+
+    enum = schema_kind_enum()
+    assert set(enum) == set(findings_check.SOURCE_KINDS)
+    listed = listed_kinds(knowledge_prompt_text(tmp_path))
+    assert listed, f"指示文に「## {KIND_SECTION}」の一覧がありません"
+    assert set(listed) == set(enum)
+
+
+def test_d0053_ac05_guideline_and_plan_are_not_listed_values(tmp_path):
+    """D0054-AC-05: guideline・plan は使える値の一覧に入らない。指示文のどこかに出るなら、「作らない」と同じ行にある。"""
+    text = knowledge_prompt_text(tmp_path)
+    assert listed_kinds(text), f"指示文に「## {KIND_SECTION}」の一覧がありません"
+    assert not {"guideline", "plan"} & set(listed_kinds(text))
+    for line in text.splitlines():
+        if "guideline" in line or "plan" in line:
+            assert "作らない" in line, f"使える値のように読める行: {line}"
+
+
+def test_d0053_ac06_other_prompts_and_files_unchanged(tmp_path):
+    """D0054-AC-06: 今の作りのままで通る。01・03〜09 と README・pipe.toml は、kind の節も値の一覧も持たない（足す先を間違えていない）。"""
+    _, folder, _ = new_pipe(tmp_path)
+    others = [folder / "prompts" / PROMPT_FILES[n] for n in STAGES if n not in ("knowledge", "report")]
+    others += [folder / "README.md", folder / "pipe.toml"]
+    for p in others:
+        text = p.read_text(encoding="utf-8")
+        assert f"## {KIND_SECTION}" not in text, p.name
+        assert "`spec`：" not in text and "`public_spec`：" not in text, p.name
+
+
+def test_d0053_ac07_copied_prompt_is_not_rewritten(tmp_path, capsys):
+    """D0054-AC-07: 今の作りのままで通る。写した先の指示文を書き換えると、check のあとも書き換えた文が残る（写した後は読み直さない）。"""
+    project, folder, _ = new_pipe(tmp_path)
+    path = folder / "prompts" / PROMPT_FILES["knowledge"]
+    mine = "自分で書き換えた指示文です。\n"
+    path.write_text(mine, encoding="utf-8")
+    capsys.readouterr()
+    gen(tmp_path, "check", NAME, "--project", str(project))
+    assert path.read_text(encoding="utf-8") == mine
+    assert gen(tmp_path, "new", NAME, "--from", TEMPLATE_NAME, "--project", str(project)) != 0
+    assert path.read_text(encoding="utf-8") == mine
 
 
 def test_d0047_ac16_verify_prompt(tmp_path):
