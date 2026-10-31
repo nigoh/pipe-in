@@ -58,6 +58,7 @@
 | [D0052](D0052-ci-check.md) | main への PR と main への push で、GitHub Actions の CI が Python と拡張のテスト・型検査・ビルドを流す（権限は読むだけ・秘密なし・アクションは SHA で固定。D0002 の「CI は足さない」を改める） |
 | [D0053](D0053-harness-lessons.md) | 段の組み方（ハーネス）の比較実験で分かった目安を、pipe-in-gen design の設計の決まり・pipe-build の stage-rules.md・パイプのガイドに入れ、指摘を出す段に引用の指示も findings-check も無いときの警告 W6 を足す（プラグインは 0.5.1） |
 | [D0054](D0054-spec-review-source-kinds.md) | ひな形 spec-review の知識の段に、出典の台帳の `kind` に使える6つの値と振り分けを書き、`SOURCE_KINDS`・Schema と食い違わないことをテストで守る（D0047 の実機で見つかった不具合の直し） |
+| [D0056](D0056-pipe-talk.md) | 壁打ちのスキル `/pipe-talk` を足す。区切りで要点（決まったこと・残った問い・やりたいこと）をまとめ、次の作業（issue・デザイン・`/pipe-in`・計画ボード）の候補を出す。外へ出す操作は中身を見せて承認を得てから。要約は手元だけの `docs/talk/`。`ask` に `gh issue create` を足す |
 
 ## ひな形
 
