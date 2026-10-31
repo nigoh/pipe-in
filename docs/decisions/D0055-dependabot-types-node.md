@@ -1,4 +1,4 @@
-# D0054 Dependabot に `@types/node` の大きい版の上げを出させない
+# D0055 Dependabot に `@types/node` の大きい版の上げを出させない
 
 ## 目的
 
@@ -12,7 +12,7 @@ Dependabot が `@types/node` を 22 から 26 に上げる PR（#2）を出し�
 
 ### 受け入れ基準
 
-- D0054-AC-01：npm の `ignore` に `@types/node` があり、`update-types` に `version-update:semver-major` がある。（tests/test_ci_workflow.py）
+- D0055-AC-01：npm の `ignore` に `@types/node` があり、`update-types` に `version-update:semver-major` がある。（tests/test_ci_workflow.py）
 
 ## 決めたことと理由
 
@@ -25,5 +25,5 @@ Dependabot が `@types/node` を 22 から 26 に上げる PR（#2）を出し�
 
 ## 確かめたこと
 
-- テスト先行で D0054-AC-01 が「`@types/node` が ignore に無い」ことで落ちるのを確かめた。
+- テスト先行で D0055-AC-01 が「`@types/node` が ignore に無い」ことで落ちるのを確かめた。
 - #2 の枝で、型検査・ビルド・拡張のテスト（349 件）が通ることは確かめた。そのうえで入れないと決めた。

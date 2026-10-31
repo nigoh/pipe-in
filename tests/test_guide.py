@@ -2325,3 +2325,46 @@ def test_D0038_AC_14_パイプの文書に警告の3つが書いてある(label,
     assert part, "pipes.md に「警告」の節が無い"
     found = word in part  # 節の本文を assert の失敗の表示に出さない
     assert found, f"pipes.md の「警告」の節に、{label} の説明が無い（探した言葉：{word}）"
+
+
+# ---- D0053: W6 の説明と、組み方の目安（比較実験から） ----
+
+# （pytest の id, 何を書くか, 探す言葉）。W6：指摘を出す段に、引用の指示も findings-check も無い
+D0053_W6_WORDS = [
+    ("w6-finding", "W6：指摘を出す段", "指摘"),
+    ("w6-quote", "W6：引用の指示", "引用"),
+    ("w6-findings-check", "W6：findings-check の照合", "findings-check"),
+]
+
+
+@pytest.mark.parametrize("label,word", [(label, word) for _, label, word in D0053_W6_WORDS], ids=[i for i, _, _ in D0053_W6_WORDS])
+def test_D0053_AC_19_警告の節にW6がある(label, word):
+    """D0053-AC-19: docs/guide/pipes.md の「警告」の節に、W6 の説明（「指摘」「引用」「findings-check」）がある。"""
+    part = heading_part(read_doc(GUIDE / "pipes.md"), "警告")
+    assert part, "pipes.md に「警告」の節が無い"
+    found = word in part  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"pipes.md の「警告」の節に、{label} の説明が無い（探した言葉：{word}）"
+
+
+# （pytest の id, 何を書くか, 探す言葉の正規表現）。分かったこと 1・2・3・5・7・限界の目印と、調査の本文へのリンク
+D0053_GUIDE_MARKS = [
+    ("1-external-check", "1：土台は作る段1つと外の検査", r"外の検査"),
+    ("2-verbatim", "2：指摘ごとに原文を逐語で引用させる", r"逐語"),
+    ("3-only-one", "3：精度を上げる確かめは1つだけ", r"1つだけ"),
+    ("5-no-narrowing", "5：下見の点数で調べる範囲を絞らない", r"範囲を絞らない"),
+    ("7-separate-tests", "7：テストを書く段と実装の段を分ける", r"テストを書く段と実装の段を分ける"),
+    ("limit-haiku", "限界：Claude Haiku だけ", r"Haiku"),
+    ("limit-unchecked", "限界：ほかのモデルや実際のプロジェクトでは確かめていない", r"確かめてい(ない|ません)"),
+    ("link", "調査の本文へのリンク", r"\]\(\.\./research/harness-compare/README\.md\)"),
+]
+
+
+@pytest.mark.parametrize("label,pattern", [(label, p) for _, label, p in D0053_GUIDE_MARKS], ids=[i for i, _, _ in D0053_GUIDE_MARKS])
+def test_D0053_AC_20_組み方の目安の節がある(label, pattern):
+    """D0053-AC-20: docs/guide/pipes.md に見出しに「組み方の目安」を含む節（見出しに「警告」は無い）があり、1・2・3・5・7・限界の目印と、
+    ../research/harness-compare/README.md へのリンクがある。"""
+    part = heading_part(read_doc(GUIDE / "pipes.md"), "組み方の目安")
+    assert part, "pipes.md に「組み方の目安」の節が無い"
+    assert "警告" not in part.splitlines()[0], "「組み方の目安」の見出しに「警告」を入れない（「検査の警告」の節の拾い方が変わる）"
+    found = re.search(pattern, part) is not None  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"pipes.md の「組み方の目安」の節に、{label} が無い（探した言葉：{pattern}）"

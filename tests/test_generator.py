@@ -863,3 +863,77 @@ def test_legacy_named_pipe_gets_same_warnings(tmp_path, capsys):
     assert gen_cli().main(["check", "oldwarn", "--project", str(project)]) == 0
     out = capsys.readouterr().out
     assert len([x for x in out.splitlines() if "⚠" in x]) == 1 and "probe" in out
+
+
+# ---- D0053: W6 の出力と、組み方の目安（design_rules.md） ----------------------------------------------
+
+# W6 だけが出る定義（read の段・「指摘にします」・引用の言葉も findings-check も無い。bash なしなので W1 は出ない）
+W6_ONLY_PIPE = (
+    '[pipe]\nkind = "linear"\nlabel = "x"\n\n'
+    '[[stages]]\nname = "find"\nlabel = "find"\noutput = "find.md"\naccess = "read"\n'
+    'prompt = "仕様書を読んで、問題を1つずつ指摘にします。"\n'
+)
+
+
+def test_d0053_ac13_check_prints_w6_and_passes(tmp_path, capsys):
+    """D0053-AC-13: pipe-in-gen check で W6 だけが出るとき、終了コード 0 で「誤りはありません（注意 1 件）」の行と、findings-check を含む ⚠ の行を1つ出す。"""
+    project = python_project(tmp_path)
+    d = tmp_path / "pipes" / "pipe-in-findy"
+    d.mkdir(parents=True)
+    (d / "pipe.toml").write_text(W6_ONLY_PIPE, encoding="utf-8")
+    assert gen(tmp_path, "check", "findy", "--project", str(project)) == 0
+    out = capsys.readouterr().out
+    assert "✓ パイプ「findy」: 誤りはありません（注意 1 件）" in out.splitlines()
+    marks = [x for x in out.splitlines() if "⚠" in x]
+    assert len(marks) == 1 and "findings-check" in marks[0]
+    assert "問題ありません" not in out and "✗" not in out
+
+
+def test_d0053_ac14_legacy_named_pipe_gets_w6(tmp_path, capsys):
+    """D0053-AC-14: 前の版の名前（.devpipe/pipes/devpipe-<名前>/）のパイプも、W6 の検査を同じに受け、終了コードは 0（⚠ の行が1つ）。"""
+    project = python_project(tmp_path)
+    d = project / ".devpipe" / "pipes" / "devpipe-oldfind"
+    d.mkdir(parents=True)
+    (d / "pipe.toml").write_text(W6_ONLY_PIPE, encoding="utf-8")
+    assert gen_cli().main(["check", "oldfind", "--project", str(project)]) == 0
+    out = capsys.readouterr().out
+    marks = [x for x in out.splitlines() if "⚠" in x]
+    assert len(marks) == 1 and "findings-check" in marks[0] and "find" in marks[0]
+
+
+def md_section(text: str, heading_word: str) -> str:
+    """「## …」の節（見出しに heading_word を含むもの）の本文。次の「## 」の前まで。無ければ空。"""
+    out: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside = heading_word in line
+            continue
+        if inside:
+            out.append(line)
+    return "\n".join(out)
+
+
+# （pytest の id, 何を書くか, 探す言葉の正規表現）。分かったこと 1・2・3・5・7 と限界の目印（D0053 の設計で決めた）
+D0053_LESSON_MARKS = [
+    ("1-external-check", "1：土台は作る段1つと外の検査", "外の検査"),
+    ("2-verbatim", "2：指摘ごとに原文を逐語で引用させる", "逐語"),
+    ("3-only-one", "3：精度を上げる確かめは1つだけ", "1つだけ"),
+    ("5-no-narrowing", "5：下見の点数で調べる範囲を絞らない", "範囲を絞らない"),
+    ("7-separate-tests", "7：テストを書く段と実装の段を分ける", "テストを書く段と実装の段を分ける"),
+    ("limit-haiku", "限界：Claude Haiku だけ", "Haiku"),
+    ("limit-unchecked", "限界：ほかのモデルや実際のプロジェクトでは確かめていない", "確かめてい(ない|ません)"),
+]
+
+
+@pytest.mark.parametrize("label,pattern", [(label, p) for _, label, p in D0053_LESSON_MARKS], ids=[i for i, _, _ in D0053_LESSON_MARKS])
+def test_d0053_ac16_design_rules_has_harness_lessons(label, pattern):
+    """D0053-AC-16: generator/design_rules.md の、見出しに「組み方の目安」を含む節に、分かったこと 1・2・3・5・7 と限界の目印がある。"""
+    import re
+    from importlib import resources
+
+    rules = resources.files("pipe_in_generator").joinpath("design_rules.md").read_text(encoding="utf-8")
+    part = md_section(rules, "組み方の目安")
+    assert part, "design_rules.md に「組み方の目安」の節が無い"
+    found = re.search(pattern, part) is not None  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"「組み方の目安」に、{label} が無い（探した言葉：{pattern}）"

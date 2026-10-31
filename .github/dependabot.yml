@@ -33,7 +33,7 @@ updates:
       # 拡張が動く VSCode の下限（engines.vscode）と揃えておく型なので、勝手に上げない
       - dependency-name: "@types/vscode"
         update-types: [version-update:semver-major, version-update:semver-minor]
-      # 拡張が動く Node の版（engines.node・devDependencies の ^22）と揃えておく型なので、大きい版は上げない（D0054）
+      # 拡張が動く Node の版（engines.node・devDependencies の ^22）と揃えておく型なので、大きい版は上げない（D0055）
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]
 

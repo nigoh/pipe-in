@@ -306,8 +306,8 @@ def test_D0052_AC_06_dependabotにgithub_actionsがある():
 
 
 
-def test_D0054_AC_01_dependabotはtypes_nodeのメジャーを上げない():
-    """D0054-AC-01: npm の ignore に @types/node のメジャーの上げがある（拡張が動く Node の版に合わせておく型）。"""
+def test_D0055_AC_01_dependabotはtypes_nodeのメジャーを上げない():
+    """D0055-AC-01: npm の ignore に @types/node のメジャーの上げがある（拡張が動く Node の版に合わせておく型）。"""
     data = parse_yaml(read_doc(DEPENDABOT))
     npm = next(u for u in data.get("updates", []) if u.get("package-ecosystem") == "npm")
     ignored = {i.get("dependency-name"): i.get("update-types", []) for i in npm.get("ignore", [])}
