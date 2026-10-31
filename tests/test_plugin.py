@@ -39,9 +39,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.5.0"
+    assert manifest["version"] == "0.5.1"
 
 
 PLUGIN_TEXTS = [
@@ -621,3 +621,41 @@ def test_pipe_build_skill_has_running_section(label, word):
     assert found, f"「流すとき」に、{label} が無い（探した言葉：{word}）"
     body = (PLUGIN / "skills/pipe-build/references/stage-rules.md").read_text(encoding="utf-8")
     assert [l for l in body.splitlines() if l.startswith("## ")][-1].find("流すとき") >= 0, "「流すとき」は末尾の節にする"
+
+
+# ---- D0053: 比較実験から分かった組み方の目安 ----------------------------------------------------------------
+
+# （pytest の id, 何を書くか, 探す言葉の正規表現）。分かったこと 1・2・3・5・7・限界の目印と、W6 の照合・テスト先行との違い
+D0053_STAGE_RULES_MARKS = [
+    ("1-external-check", "1：土台は作る段1つと外の検査", "外の検査"),
+    ("2-verbatim", "2：指摘ごとに原文を逐語で引用させる", "逐語"),
+    ("2-findings-check", "2：照合に pipe-in-gen findings-check を組む", "findings-check"),
+    ("3-only-one", "3：精度を上げる確かめは1つだけ", "1つだけ"),
+    ("5-no-narrowing", "5：下見の点数で調べる範囲を絞らない", "範囲を絞らない"),
+    ("7-separate-tests", "7：テストを書く段と実装の段を分ける", "テストを書く段と実装の段を分ける"),
+    ("7-test-first", "7：pipe-in の開発フローのテスト先行とは条件が違う", "テスト先行"),
+    ("limit-haiku", "限界：Claude Haiku だけ", "Haiku"),
+    ("limit-unchecked", "限界：ほかのモデルや実際のプロジェクトでは確かめていない", "確かめてい(ない|ません)"),
+]
+
+
+@pytest.mark.parametrize("label,pattern", [(label, p) for _, label, p in D0053_STAGE_RULES_MARKS], ids=[i for i, _, _ in D0053_STAGE_RULES_MARKS])
+def test_d0053_ac17_stage_rules_has_harness_section(label, pattern):
+    """D0053-AC-17: references/stage-rules.md に見出しに「比較実験」を含む節があり、分かったこと 1・2・3・5・7・限界の目印と findings-check・「テスト先行」がある。"""
+    part = rules_section("比較実験")
+    assert part, "references/stage-rules.md に「比較実験」の節が無い"
+    found = re.search(pattern, part) is not None  # 節の本文を assert の失敗の表示に出さない
+    assert found, f"「比較実験」の節に、{label} が無い（探した言葉：{pattern}）"
+
+
+D0053_RULE_FILES = ["plugin/skills/pipe-build/references/stage-rules.md", "generator/design_rules.md"]
+# 分かったこと 4（票）・6（3体の実装）・8（教訓のメモ）は、仕組みが無いので組む人の文書に書かない
+D0053_UNBUILT_WORDS = ["票", "3体", "教訓"]
+
+
+@pytest.mark.parametrize("rel", D0053_RULE_FILES)
+@pytest.mark.parametrize("word", D0053_UNBUILT_WORDS)
+def test_d0053_ac18_rules_do_not_teach_unbuilt_methods(rel, word):
+    """D0053-AC-18: stage-rules.md と design_rules.md の全文に、まだ仕組みの無い組み方の目印（「票」「3体」「教訓」）が無い。（今の作りのままで通る。守る）"""
+    found = word in _read(rel)
+    assert not found, f"{rel} に「{word}」がある（仕組みの無い組み方を教えない）"
