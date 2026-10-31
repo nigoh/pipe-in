@@ -61,6 +61,7 @@
 | [D0055](D0055-dependabot-types-node.md) | Dependabot に `@types/node` の大きい版の上げを出させない（拡張が動く Node の版に合わせておく型。小さい版は出す） |
 | [D0056](D0056-pipe-talk.md) | 壁打ちのスキル `/pipe-talk` を足す。区切りで要点（決まったこと・残った問い・やりたいこと）をまとめ、次の作業（issue・デザイン・`/pipe-in`・計画ボード）の候補を出す。外へ出す操作は中身を見せて承認を得てから。要約は手元だけの `docs/talk/`。`ask` に `gh issue create` を足す |
 | [D0057](D0057-ask-question.md) | 人に確認・質問・承認を求めるときは、質問欄（AskUserQuestion）で聞く決まりを CLAUDE.md の「必ず守ること」に足し、開発用の7つのスキルの人に聞く所から指す。質問欄が使えない会話では、番号つきの選択肢と推しを添えて会話の文で聞く |
+| [D0058](D0058-pr-issue-format.md) | PR と issue の形をそろえる。PR のテンプレート（6つの節と Mermaid の図の見本）と、不具合・機能の要望の issue forms を `.github/` に置き、決まりを workflow.md の「7. PR と issue」に書き、/pipe-in の仕上げで PR の本文の案を見せる |
 
 ## ひな形
 

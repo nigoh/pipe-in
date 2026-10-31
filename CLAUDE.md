@@ -23,6 +23,7 @@ npm run preview               # 画面の確認用のページ（out/preview/ �
 ```
 
 変更したら、触った側のテストを流してから終える。Python と拡張の両方に触れたら両方流す。main 向けの PR と main への push では、CI（`.github/workflows/ci.yml`）が同じテスト・型検査・ビルドを流す。main に入れる前に、CI か手元の全テストを確かめる（`docs/development/workflow.md` の「6. CI」）。
+GitHub の PR と issue は `.github/` のテンプレートで書く。PR のタイトルはコミットの1行目と同じ形、図は Mermaid で任意（`docs/development/workflow.md` の「7. PR と issue」）。
 
 機能を足す・直すときは `/pipe-in <要件メモ>` を使う（`.claude/skills/pipe-in/`）。スキルは、必ず守る決まりを冒頭の「必ず守ること」に置き、長い手順（記録・`--artifact`・画面の確認）を同じフォルダの補助ファイル（`record.md`・`artifact.md`・`screen-check.md`）に分けてある。始めに `feat/<名前>` のブランチを worktree で切る（`python -m pipe_in worktree new <名前>` で `.claude/worktrees/` に切り、main に入れたら `python -m pipe_in worktree clean` で片付ける。どちらも人に聞かずに流す。`docs/development/workflow.md`・D0048）。要件定義 → 設計 → テスト先行 → 実装 → 検証 を、段ごとにサブエージェント（`.claude/agents/pipe-in-*`）へ任せて順に進め、段の区切りで止まって確認を取る。サブエージェントの書ける範囲は `.claude/hooks/pipe_in_guard.py` が止める。進み具合は `python -m pipe_in record` で `docs/pipeline/`（手元の作業の記録。`.gitignore` 済み）に書かれ、VSCode の拡張で見られる。追跡して残すのは決定の記録（`docs/decisions/`）だけ。止まらずに最後まで進めるのは `/pipe-in --auto <要件メモ>` のときだけ。`/pipe-in --artifact <要件メモ>` なら、進み具合を Claude のアーティファクトでも見られ、確認待ちはページのボタンでも答えられる（`pipe-in live`。ボタンの文は会話が `pipe-in live answer` で読んでから記録する。D0044）。確認待ちで止まるときは、スキルが PushNotification で知らせ、VSCode の拡張も知らせる（設定 `pipe-in.notifyWhenWaiting`。D0046）。
 検証で合格したあと、決定の記録の前に、`pipe-in-auditor`（文書・定義・コードの食い違いを探す矛盾監査）と `pipe-in-advisor`（公式の文書と照らした助言）を流す。助言を流したとき（助言が1件以上のとき）は、続けて `pipe-in-judge`（助言の報告をルーブリックで採点する審査役）も流し、採点を報告と一緒に見せて止まる。審査の合否は人が読む材料で、fail でも自動で直さない。直すのはメインで、人が承認した項目だけ。3つとも読むだけで書けない（Web はアドバイザーと審査役だけ、公式の文書の場所だけ。審査役は WebFetch だけ）。手で呼ぶときは `/pipe-audit`・`/pipe-advise`・`/pipe-judge`（`.claude/skills/`）。
@@ -40,7 +41,7 @@ pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせ
 | `docs/development/specs.md` | 要件定義の形、決定の記録（`docs/decisions/Dnnnn-<名前>.md`）、AC の ID `Dnnnn-AC-xx` |
 | `docs/development/design.md` | 置き場所の表、本体の依存の向き、拡張の層、形を変えるときの互換、依存を足す基準 |
 | `docs/development/testing.md` | テストの種類、偽物、やってはいけないこと、赤の確かめ方、名前と粒度 |
-| `docs/development/workflow.md` | ブランチと worktree、5つの段、文書をそろえる範囲、コミット |
+| `docs/development/workflow.md` | ブランチと worktree、5つの段、文書をそろえる範囲、コミット、PR と issue |
 
 ## 必ず守ること
 
@@ -51,7 +52,7 @@ pipe-in で流すパイプ（図を作る・仕様とソースの突き合わせ
 - 拡張は work_dir を読むだけで書かない。書いてよいのは作業台の「保存」での、パイプの置き場所の中の決まったファイルだけ（`vscode/src/infra/fsPipes.ts` が絞る）と、拡張の保存場所（storageUri）の保存した版だけ（`fsVersions.ts` が絞る）と、VSCode が拡張に用意する `workspaceState` の選んだ実行の目印だけ（`app/selection.ts`）。同じ git リポジトリの別の worktree の記録と `.git` の中の登録も読むだけで書かず、子プロセスは起こさない（`fsWorktrees.ts`）。外から来た文字は必ず `escapeHtml` を通し、外部から何も読み込まない。
 - 依存を足すときは、必要な理由を決定の記録に書く。`package-lock.json` も一緒にコミットする。
 - 機能ごとに決定の記録（`docs/decisions/`）を書く。置き場所が変わったら `docs/development/design.md` の表を直す。
-- 1つの機能を1つのコミットにする。コミット・main に入れる・push は人に言われるまでしない（`git commit`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある。公式の文書では、個人の許可があっても確認が出る。実機では確かめていない）。
+- 1つの機能を1つのコミットにする。コミット・PR を出す・main に入れる・push は人に言われるまでしない（`git commit`・`gh pr create`・`gh pr merge`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある。公式の文書では、個人の許可があっても確認が出る。実機では確かめていない）。
 - 人に確認・質問・承認を求めるときは、質問欄（AskUserQuestion）で聞く。会話の文だけで聞くと見落とされるし、選ぶ形のほうが答えやすい。1回に1〜4問、1問に2〜4択にして、推しを添える。自由に書く答えは「その他」で受ける。`--auto` でも、止まって聞く所は同じ。質問欄が使えない会話（`claude -p`・SDK など）では、会話の文で、番号つきの選択肢と推しを添えて聞く。`pipe_in/` 本体の段の確認（端末の入力）と、人に質問できない段のサブエージェント（決めきれない点は成果物に書いて返す）は、この決まりの対象外。
 - 文書・コメント・コミットの文は日本語で、平易に書く（既存の文に合わせる）。
 

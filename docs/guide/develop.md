@@ -35,6 +35,10 @@ cd vscode && npm ci && npm test && npm run typecheck && npm run build
 
 落ちたときは、PR の Checks で `python` か `extension` を開き、落ちた手順のログを見て、手元で同じものを流して直します。ブランチの保護の設定など、くわしくは [docs/development/workflow.md](../development/workflow.md) の「6. CI」にあります。
 
+## PR と issue
+
+PR と issue は、`.github/` のテンプレートに沿って書きます。PR を開くと本文に節が入り、issue は「不具合」か「機能の要望」の form で書けます（どちらにも当たらなければ白紙の issue で）。PR のタイトルはコミットの1行目と同じ形にして決定の記録の番号を後ろに付け、流れや依存の向きを示したいときは Mermaid の図を添えられます（任意）。秘密やユーザー名の入ったパスは書かないでください。決まりは [docs/development/workflow.md](../development/workflow.md) の「7. PR と issue」にあります。
+
 ## Claude Code で開発するとき
 
 何かを直した・足したら、文書もそろえます。`/pipe-docs [要点か範囲]` が、変えたファイルを集めて文書係のサブエージェント `pipe-in-documenter` に README.md・`docs/guide/`・`docs/development/` などを直させます（CLAUDE.md・`/pipe-help`・決定の記録は案を見せ、承認したものだけを直します）。コードを変えたのに文書が変わっていないまま止まろうとすると、一度だけ知らせが出ます。くわしくは [docs/development/workflow.md](../development/workflow.md) の「4. そろえる」にあります。
@@ -64,7 +68,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 
 - 手順があやふやになったら、思い出しで進めず、`SKILL.md` と補助ファイルの該当する節を読み直します。補助ファイルが読めないときは、止まって人に伝えます。機能の枝が補助ファイルを持たない古い worktree なら、`git rebase --autostash main` で載せ直してから読み直します。
 - `.claude/settings.json` の `allow` に、手元のテスト・型検査・ビルド・確認用ページの作成と配信の 5 つのコマンドを、完全に一致する形で足しました（`npm --prefix vscode test`・`npm --prefix vscode run typecheck`・`npm --prefix vscode run build`・`npm --prefix vscode run preview`・`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview`）。コマンドは 1 つずつ流します（つないだときは、どの部分も規則に当たらないと確認が出ます）。
-- `ask`（確認を出す一覧）に `git commit`・`git merge` を足しました（`git push` は前から入っています）。公式の文書では、規則は deny → ask → allow の順に当てはめ、個人の設定（`.claude/settings.local.json`）の `allow` は共有の `ask` より上になりません（実機では確かめていません）。確認そのものを飛ばすモード（`bypassPermissions`）では、出ないことがあります。また `ask` は守りの境目ではありません。つないだコマンドはどれか 1 つが当たれば確認が出ますが、`git -C . commit` のような別の書き方には当たりません。
+- `ask`（確認を出す一覧）に `git commit`・`git merge` を足しました（`git push` は前から入っています。PR を作る `gh pr create`・まとめる `gh pr merge` も D0058 で足しました）。公式の文書では、規則は deny → ask → allow の順に当てはめ、個人の設定（`.claude/settings.local.json`）の `allow` は共有の `ask` より上になりません（実機では確かめていません）。確認そのものを飛ばすモード（`bypassPermissions`）では、出ないことがあります。また `ask` は守りの境目ではありません。つないだコマンドはどれか 1 つが当たれば確認が出ますが、`git -C . commit` のような別の書き方には当たりません。
 - `record` の規則（`python -m pipe_in record …`）は足していません。`--input` で任意のファイルを読め、`--project` で別のフォルダに書けるためです。
 - 代わりに、`python -m pipe_in skill record …`・`python -m pipe_in skill worktree …` の入口を許しています（`Bash(python -m pipe_in skill:*)`）。今のフォルダだけを相手にし、`--input`・`--feedback-file`・`--project`・`--config` を断る入口です。あわせて `python --version` と `npm --prefix vscode ci` も、完全に一致する形で許しています（[D0049](../decisions/D0049-skill-shell.md)）。
 - 個人の許可は、`.claude/settings.local.json` に書きます（`.gitignore` 済みで、リポジトリには入りません）。worktree で作業するときも、main の作業フォルダのこのファイルが読まれ、すべての worktree に効きます（公式の文書。v2.1.211 以降）。
