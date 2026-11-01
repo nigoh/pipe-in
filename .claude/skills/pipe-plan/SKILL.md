@@ -10,6 +10,7 @@ disable-model-invocation: true
 引数: $ARGUMENTS
 
 CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」を守る。ボードの URL は手元の事情なので、リポジトリのファイルに書かない（会話の中で見せるのはよい）。
+人に承認を求めるときは、質問欄で聞く（CLAUDE.md の「必ず守ること」）。
 
 Artifact と ArtifactData のツールがある会話でだけ使える。無ければ「この会話ではボードを開けない（claude.ai の Claude Code で開く）」と書いて止まる。ArtifactData が後から読み込む道具なら、ToolSearch で読み込んでから使う。
 

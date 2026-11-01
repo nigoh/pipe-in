@@ -2,7 +2,7 @@
 
 引数に `--artifact` があるときに読む（迷ったら読み直す）。
 
-進み具合を claude.ai のアーティファクトでも見られるようにする（D0027）。`--auto` と一緒に使える。Artifact と ArtifactData のツールがある会話でだけ使える（claude.ai にログインした Claude Code だけ。API キー・Bedrock・Vertex・`-p`・Agent SDK では使えない）。確認待ちはページのボタン（承認・差し戻し・中止）でも答えられ、押すと決まった形の文がコメントで届く（編集者だけ）。ほかは会話で聞く。
+進み具合を claude.ai のアーティファクトでも見られるようにする（D0027）。`--auto` と一緒に使える。Artifact と ArtifactData のツールがある会話でだけ使える（claude.ai にログインした Claude Code だけ。API キー・Bedrock・Vertex・`-p`・Agent SDK では使えない）。確認待ちはページのボタン（承認・差し戻し・中止）でも答えられ、押すと決まった形の文がコメントで届く（編集者だけ）。ほかは質問欄で聞く。
 
 1. `record start` の直後に、ページの HTML を作る：`python -m pipe_in live page --out <一時フォルダ>/pipe-in-live.html`。一時フォルダはリポジトリの外に置く。
 2. その HTML を Artifact で1回だけ公開する。`capabilities` は `{"db": {}, "comments": {}}`、`icon` は `chart`。HTML は書き換えない。URL は人に伝える（持ち主だけが見られる、と添える）。公開し直さない（ページが描き直す）。

@@ -60,6 +60,7 @@
 | [D0054](D0054-spec-review-source-kinds.md) | ひな形 spec-review の知識の段に、出典の台帳の `kind` に使える6つの値と振り分けを書き、`SOURCE_KINDS`・Schema と食い違わないことをテストで守る（D0047 の実機で見つかった不具合の直し） |
 | [D0055](D0055-dependabot-types-node.md) | Dependabot に `@types/node` の大きい版の上げを出させない（拡張が動く Node の版に合わせておく型。小さい版は出す） |
 | [D0056](D0056-pipe-talk.md) | 壁打ちのスキル `/pipe-talk` を足す。区切りで要点（決まったこと・残った問い・やりたいこと）をまとめ、次の作業（issue・デザイン・`/pipe-in`・計画ボード）の候補を出す。外へ出す操作は中身を見せて承認を得てから。要約は手元だけの `docs/talk/`。`ask` に `gh issue create` を足す |
+| [D0057](D0057-ask-question.md) | 人に確認・質問・承認を求めるときは、質問欄（AskUserQuestion）で聞く決まりを CLAUDE.md の「必ず守ること」に足し、開発用の7つのスキルの人に聞く所から指す。質問欄が使えない会話では、番号つきの選択肢と推しを添えて会話の文で聞く |
 
 ## ひな形
 
