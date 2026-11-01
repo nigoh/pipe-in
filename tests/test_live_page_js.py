@@ -11,6 +11,7 @@ Node が無い環境では全部 skip する（skip は成功に見えるので�
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -19,7 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from pipe_in.engine import live_page
+import live_support as ls
+from pipe_in.engine import live, live_page
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "tests" / "fixtures" / "live_page_harness.mjs"
@@ -67,8 +69,10 @@ def ms(text: str) -> int:
 
 def run_scene(node_path: str, page_html: str, **scene) -> dict:
     scene["html"] = page_html
+    # D0059：時刻帯の指定は、台の中の代入（process.env.TZ）と子プロセスの環境の両方に入れる（どちらかが効けばよい）
+    env = {**os.environ, "TZ": scene["tz"]} if "tz" in scene else None
     proc = subprocess.run(
-        [node_path, str(HARNESS)], input=json.dumps(scene).encode("utf-8"), capture_output=True, timeout=120, cwd=str(ROOT),
+        [node_path, str(HARNESS)], input=json.dumps(scene).encode("utf-8"), capture_output=True, timeout=120, cwd=str(ROOT), env=env,
     )
     try:
         result = json.loads(proc.stdout.decode("utf-8"))
@@ -513,9 +517,9 @@ def test_d0027_ac59_renders_name_labels_and_status_marks(node, html):
     assert GOOD_MARK in text
     for name in "abcdef":
         assert f"LABEL-{name}" in text
-    for mark in "✓✕↩":  # 待ち・動いている・確認待ちの印は CSS の形（文字を持たない。AC-86）
+    for mark in "✓✕↩":  # まだ・動いている・確認待ちの印は CSS の形（文字を持たない。AC-86）
         assert mark in text, mark
-    for word in ("待ち", "実行中", "確認待ち"):
+    for word in ("まだ", "実行中", "確認待ち"):  # D0059：まだ始まっていない段の語は「待ち」から「まだ」に変えた（FR-05）
         assert word in text, word
 
 
@@ -802,7 +806,7 @@ def test_d0027_ac50_body_skeleton_is_found_by_the_script(node, html):
 
 # ---- AC-86 状態の印（文字を持つ・持たない） -----------------------------------------------------------------
 
-CSS_DRAWN = {"waiting": "待ち", "running": "実行中", "review": "確認待ち"}
+CSS_DRAWN = {"waiting": "まだ", "running": "実行中", "review": "確認待ち"}  # D0059：waiting の語は「まだ」（FR-05）
 TEXT_MARKS = {"done": "✓", "failed": "✕", "revised": "↩", "unknown": "？"}
 
 
@@ -819,7 +823,7 @@ def query(node, html, snap, selector):
 
 @pytest.mark.parametrize("status,word", list(CSS_DRAWN.items()))
 def test_d0027_ac86_css_drawn_marks_have_no_text_but_the_word_stays(node, html, status, word):
-    """D0027-AC-86: 待ち・動いている・確認待ちの印の要素は文字を持たず（textContent が空）、aria-hidden のまま。意味は隣の言葉が伝える。"""
+    """D0027-AC-86: まだ・動いている・確認待ちの印の要素は文字を持たず（textContent が空）、aria-hidden のまま。意味は隣の言葉が伝える。"""
     marks = query(node, html, one_stage(status), ".mark")
     assert len(marks) == 1
     assert marks[0]["text"] == "", f"印に字形が残っている: {marks[0]['text']!r}"
@@ -979,3 +983,510 @@ def test_d0027_ac88_stage_time_does_not_change_the_running_elapsed(node, html):
     r = go(node, html, steps=sending(counting_snapshot(83, 40)))
     text = r["steps"][0]["view"]["text"]
     assert shows(text, "1:23") and shows(text, "0:40") and "0:12" in text and "秒" not in text
+
+
+# ================================================================================================
+# D0059：上に更新の時刻・確認待ちの札・合計・進みの帯を出す。まだの語・回数の出し方
+# ================================================================================================
+
+AT_0340 = "2026-10-17T03:40:00+00:00"
+UPDATED_WORD = "更新"
+TOTAL_WORD = "合計"
+BADGE_WORD = "確認待ち："
+BAR_KINDS = {"bar-done", "bar-gap", "bar-pending"}
+REMOVE = object()
+
+
+def q(selector: str) -> dict:
+    return {"op": "query", "selector": selector}
+
+
+def look(node, html, snap, *selectors, steps=(), **opts):
+    """写し snap を届け、steps を行ってから selectors の要素を調べる。（台の結果, {selector: 要素の一覧}）。"""
+    r = go(node, html, steps=[*sending(snap), *steps, *[q(s) for s in selectors]], **opts)
+    n = 1 + len(steps)
+    for st in r["steps"]:
+        assert st["threw"] is None, st["threw"]
+    return r, {s: r["steps"][n + i]["result"] for i, s in enumerate(selectors)}
+
+
+def texts(items: list) -> list[str]:
+    return [i["text"] for i in items]
+
+
+def classes(items: list) -> list[str]:
+    return [i["attrs"].get("class", "") for i in items]
+
+
+def widths(items: list) -> list[str]:
+    return [i["style"].get("width", "") for i in items]
+
+
+def with_review(*statuses: str, **kw) -> dict:
+    """statuses の順に段を並べた写し（review の段には pending_since、running の段には started_at を入れる）。"""
+    rows = []
+    for i, st in enumerate(statuses):
+        extra = {"started_at": iso(5)} if st == "running" else {"pending_since": iso(5)} if st == "review" else {}
+        rows.append(stage(f"s{i}", st, **extra))
+    return snapshot(rows, **kw)
+
+
+# ---- 台の自己検査（台を直したあとは、ページの出来に関係なく通る） --------------------------------------------------
+
+STYLE_PAGE = """<!doctype html><html><body><div id="d"></div><script>
+document.getElementById("d").style.width = "20%";
+</script></body></html>"""
+
+
+@pytest.mark.parametrize("tz,offset", [("Asia/Tokyo", -540), ("UTC", 0), (None, 0)], ids=["Asia/Tokyo", "UTC", "omitted"])
+def test_d0059_harness_sets_the_time_zone(node, tz, offset):
+    """D0059: 台の自己検査。場面の tz（省くと UTC）が Date の時刻帯になり、結果の tz.offset_min で確かめられる。"""
+    scene = {} if tz is None else {"tz": tz}
+    r = run_scene(node, REFERENCE_PAGE, **scene)
+    assert r["tz"]["name"] == (tz or "UTC")
+    assert r["tz"]["offset_min"] == offset
+
+
+def test_d0059_harness_reports_inline_style_set_by_the_script(node):
+    """D0059: 台の自己検査。JS が el.style.width = "20%" で入れた値は query の style に出て、attrs には style の属性ができない。"""
+    r = run_scene(node, STYLE_PAGE, steps=[q("#d")])
+    assert r["load_error"] is None
+    found = r["steps"][0]["result"]
+    assert len(found) == 1 and found[0]["style"] == {"width": "20%"}
+    assert "style" not in found[0]["attrs"]
+
+
+# ---- AC-01〜05 更新の時刻 -------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("tz,shown", [("Asia/Tokyo", "12:40 更新"), ("UTC", "03:40 更新")])
+def test_d0059_ac01_updated_time_is_shown_in_the_viewer_time_zone(node, html, tz, shown):
+    """D0059-AC-01: generated_at が 2026-10-17T03:40:00+00:00 の写しは、Asia/Tokyo で「12:40 更新」、UTC で「03:40 更新」になる（見ている人の時刻帯）。"""
+    r, got = look(node, html, snapshot([stage("a", "done")], generated_at=AT_0340), ".updated", tz=tz)
+    assert r["tz"]["name"] == tz, "台の時刻帯が効いていない"
+    assert texts(got[".updated"]) == [shown]
+
+
+def test_d0059_ac02_updated_time_is_zero_padded(node, html):
+    """D0059-AC-02: 時と分が1桁のとき（UTC で 09:05）は「09:05 更新」と0で埋める。updatedText を直接呼んでも同じ。"""
+    _r, got = look(node, html, snapshot([stage("a", "done")], generated_at="2026-10-17T09:05:00+00:00"), ".updated", tz="UTC")
+    assert texts(got[".updated"]) == ["09:05 更新"]
+    assert call(node, html, "updatedText", "2026-10-17T09:05:00+00:00") == "09:05 更新"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [REMOVE, 5, None, "2026-13-01T00:00:00Z", "2026-10-17T03:40:00", "2026-10-17T03:40:00." + "0" * 15 + "+00:00"],
+    ids=["no_key", "number", "null", "month_13", "no_offset", "41_chars"],
+)
+def test_d0059_ac03_unreadable_generated_at_shows_no_time(node, html, bad):
+    """D0059-AC-03: generated_at が無い・数・null・読めない形（13月・ずれなし・41 文字）のときは、更新の時刻（「更新」の語も）を出さず、段の行は描く。NaN・Invalid・undefined が出ない。"""
+    _ctl, control = look(node, html, snapshot([stage("a", "done")], generated_at=AT_0340), ".updated")
+    assert texts(control[".updated"]) == ["03:40 更新"], "対の確認：読める generated_at なら時刻が出る"
+    snap = snapshot([stage("a", "done")])
+    if bad is REMOVE:
+        del snap["generated_at"]
+    else:
+        snap["generated_at"] = bad
+    r, got = look(node, html, snap, ".updated")
+    text = r["steps"][0]["view"]["text"]
+    assert UPDATED_WORD not in text, text
+    assert all(t == "" for t in texts(got[".updated"]))
+    assert "LABEL-a" in text
+    for word in ("NaN", "Invalid", "undefined"):
+        assert word not in text, word
+
+
+def test_d0059_ac03_41_characters_is_really_41(node, html):
+    """D0059-AC-03: 上の「41 文字」の見本がちょうど 41 文字で、40 文字の同じ形は時刻として読める（上限の境目を確かめる）。"""
+    long_text = "2026-10-17T03:40:00." + "0" * 15 + "+00:00"
+    assert len(long_text) == 41
+    assert call(node, html, "parseTime", long_text) is None
+    assert call(node, html, "parseTime", "2026-10-17T03:40:00." + "0" * 14 + "+00:00") is not None
+
+
+def test_d0059_ac04_empty_snapshot_shows_the_time_with_the_message(node, html):
+    """D0059-AC-04: empty が true の写しでは「まだ記録がありません」と並んで、読める generated_at の「HH:MM 更新」が出る。"""
+    empty = {"schema": 1, "generated_at": AT_0340, "empty": True, "name": None, "final": None, "stages": []}
+    r, got = look(node, html, empty, ".updated", tz="UTC")
+    text = r["steps"][0]["view"]["text"]
+    assert EMPTY_MSG in text
+    assert texts(got[".updated"]) == ["03:40 更新"]
+
+
+def test_d0059_ac04_time_is_cleared_when_there_is_no_usable_snapshot(node, html):
+    """D0059-AC-04: schema が 1 でない写し・写しが無い（exists が false）・壊れた値を受けると、前に出ていた更新の時刻が消える。db が使えないときも出ない。"""
+    empty = {"schema": 1, "generated_at": AT_0340, "empty": True, "name": None, "final": None, "stages": []}
+    newer = snapshot([stage("a", "done")], generated_at=AT_0340, schema=2)
+    r = go(node, html, steps=[
+        *sending(empty), *sending(newer),
+        *sending(empty), {"op": "send", "missing": True},
+        *sending(empty), *sending(None),
+    ])
+    shown = [UPDATED_WORD in s["view"]["text"] for s in r["steps"]]
+    assert shown == [True, False, True, False, True, False], shown
+    off = go(node, html, claude="null")
+    assert UNREADABLE_MSG in off["loaded"]["text"] and UPDATED_WORD not in off["loaded"]["text"]
+
+
+def test_d0059_ac05_updated_time_changes_only_with_a_new_snapshot(node, html):
+    """D0059-AC-05: 更新の時刻は写しが届いたときだけ変わる。1秒ごとの tick（10 秒進める）では変わらず、新しい写しで新しい時刻になる。"""
+    first = counting_snapshot()
+    first["generated_at"] = AT_0340
+    second = counting_snapshot()
+    second["generated_at"] = "2026-10-17T03:41:00+00:00"
+    r = go(node, html, steps=[*sending(first), q(".updated"), {"op": "advance", "ms": 10000}, q(".updated"), *sending(second), q(".updated")])
+    assert texts(r["steps"][1]["result"]) == ["03:40 更新"]
+    assert texts(r["steps"][3]["result"]) == ["03:40 更新"]
+    assert texts(r["steps"][5]["result"]) == ["03:41 更新"]
+
+
+# ---- AC-06〜10 合計 -------------------------------------------------------------------------------------------
+
+
+def test_d0059_ac06_total_adds_cost_turns_and_time(node, html):
+    """D0059-AC-06: 「0.42・9 ターン・190 秒」「0.38・7 ターン・168 秒」「どれも null」の3段で「合計 $0.8 ・ 16ターン ・ 5:58」。"""
+    snap = snapshot([stage("a", "done", cost_usd=0.42, turns=9, duration_sec=190), stage("b", "done", cost_usd=0.38, turns=7, duration_sec=168), stage("c")])
+    _r, got = look(node, html, snap, ".total")
+    assert texts(got[".total"]) == ["合計 $0.8 ・ 16ターン ・ 5:58"]
+
+
+def test_d0059_ac07_total_of_a_record_run_shows_only_the_time(node, html):
+    """D0059-AC-07: 費用とターンがどの段も 0 か null で時間だけがある写し（/pipe-in の記録）は「合計 1:09」だけ。「$0」「0ターン」が出ない。"""
+    snap = snapshot([stage("a", "done", cost_usd=0, turns=0, duration_sec=40), stage("b", "done", cost_usd=None, turns=None, duration_sec=29.4), stage("c")])
+    r, got = look(node, html, snap, ".total")
+    assert texts(got[".total"]) == ["合計 1:09"]
+    text = r["steps"][0]["view"]["text"]
+    assert "$0" not in text and "0ターン" not in text
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [stage("a"), stage("b"), stage("c")],
+        [stage("a", "done", cost_usd=0, turns=0, duration_sec=0), stage("b", "done", cost_usd=None, turns=None, duration_sec=None)],
+    ],
+    ids=["all_waiting", "all_zero_or_null"],
+)
+def test_d0059_ac08_no_total_element_without_anything_to_add(node, html, rows):
+    """D0059-AC-08: どの段も費用・ターン・時間が 0 か null のとき（全部まだを含む）は、合計の要素を作らない（「合計」の語が出ない）。"""
+    _ctl, control = look(node, html, snapshot([stage("a", "done", duration_sec=60)]), ".total")
+    assert texts(control[".total"]) == ["合計 1:00"], "対の確認：足すものがあれば合計が出る"
+    r, got = look(node, html, snapshot(rows), ".total")
+    assert got[".total"] == []
+    assert TOTAL_WORD not in r["steps"][0]["view"]["text"]
+
+
+@pytest.mark.parametrize("bad", [-1, NAN, INF, 1e9 + 1, "5", True], ids=["negative", "NaN", "Infinity", "over_1e9", "string", "bool"])
+def test_d0059_ac09_bad_numbers_are_not_added(node, html, bad):
+    """D0059-AC-09: 段の値が負・NaN・Infinity・1e9 を超える・文字・真偽のときは足さない。合計に NaN・Infinity・undefined・null が出ない。"""
+    snap = snapshot([stage("a", "done", cost_usd=bad, turns=bad, duration_sec=bad), stage("b", "done", cost_usd=0.5, turns=3, duration_sec=60)])
+    _r, got = look(node, html, snap, ".total")
+    assert texts(got[".total"]) == ["合計 $0.5 ・ 3ターン ・ 1:00"]
+    for word in ("NaN", "Infinity", "undefined", "null"):
+        assert word not in got[".total"][0]["text"], word
+
+
+def test_d0059_ac09_total_time_is_capped(node, html):
+    """D0059-AC-09: 合計の時間が 99:59:59 を超えるとき（300000 秒 × 2）は 99:59:59 で止まる。"""
+    snap = snapshot([stage("a", "done", duration_sec=300000), stage("b", "done", duration_sec=300000)])
+    _r, got = look(node, html, snap, ".total")
+    assert texts(got[".total"]) == ["合計 99:59:59"]
+
+
+def test_d0059_ac10_total_does_not_count_the_running_elapsed(node, html):
+    """D0059-AC-10: 合計は写しの duration_sec の和だけ。完了 60 秒・動いている（30 秒前から）・確認待ち（45 秒前から）で「合計 1:00」、10 秒進めても同じ（行の経過は進む）。"""
+    snap = snapshot([stage("a", "done", duration_sec=60), stage("b", "running", started_at=iso(30)), stage("c", "review", pending_since=iso(45))])
+    r = go(node, html, steps=[*sending(snap), q(".total"), q(".elapsed"), {"op": "advance", "ms": 10000}, q(".total"), q(".elapsed")])
+    assert texts(r["steps"][1]["result"]) == ["合計 1:00"]
+    assert texts(r["steps"][2]["result"]) == ["0:30", "0:45"]
+    assert texts(r["steps"][4]["result"]) == ["合計 1:00"]
+    assert texts(r["steps"][5]["result"]) == ["0:40", "0:55"]
+
+
+# ---- AC-11〜15・AC-40 進みの帯 -----------------------------------------------------------------------------------
+
+
+def test_d0059_ac11_bar_widths_for_done_and_review(node, html):
+    """D0059-AC-11: 5段のうち完了1・確認待ち1・まだ3では、帯の部分が順に 完了（20%）・すき間・確認待ち（20%）。"""
+    _r, got = look(node, html, with_review("done", "review", "waiting", "waiting", "waiting"), ".bar > span")
+    parts = got[".bar > span"]
+    assert classes(parts) == ["bar-done", "bar-gap", "bar-pending"]
+    assert parts[0]["style"].get("width") == "20%" and parts[2]["style"].get("width") == "20%"
+    assert parts[1]["style"].get("width", "") == "", "すき間の幅は CSS（2px）で決め、JS で入れない"
+
+
+@pytest.mark.parametrize(
+    "statuses,expected",
+    [
+        (("done", "waiting", "waiting", "waiting", "waiting"), [("bar-done", "20%")]),
+        (("review", "waiting", "waiting", "waiting", "waiting"), [("bar-pending", "20%")]),
+        (("waiting", "waiting", "waiting", "waiting", "waiting"), []),
+    ],
+    ids=["done_only", "review_only", "neither"],
+)
+def test_d0059_ac12_bar_parts_are_made_only_when_needed(node, html, statuses, expected):
+    """D0059-AC-12: 完了が0段なら完了の部分を、確認待ちが0段なら確認待ちの部分を作らない。片方だけならすき間も無い。どちらも無ければ地の帯だけ。"""
+    _r, got = look(node, html, with_review(*statuses), ".bar", ".bar > span")
+    assert len(got[".bar"]) == 1, "帯（地）がある"
+    parts = got[".bar > span"]
+    assert list(zip(classes(parts), widths(parts))) == expected
+
+
+def test_d0059_ac13_other_statuses_are_counted_but_not_painted(node, html):
+    """D0059-AC-13: 動いている・失敗・差し戻し・不明の段は分母に入り（6 段なら 1 段が 16.6667%）、塗る部分には入らない。"""
+    _r, got = look(node, html, with_review("done", "review", "running", "failed", "revised", "weird"), ".bar > span", ".bar *")
+    parts = got[".bar > span"]
+    assert classes(parts) == ["bar-done", "bar-gap", "bar-pending"]
+    assert widths(parts) == ["16.6667%", "", "16.6667%"]
+    assert len(got[".bar *"]) == 3
+
+
+def test_d0059_ac40_running_stage_is_not_in_the_bar(node, html):
+    """D0059-AC-40: 完了1・動いている1・まだ3では、帯の中は完了の1つだけ（20%）。すき間・動いている段の部分・模様を作らない。部分の種類は3つだけ。"""
+    _r, got = look(node, html, with_review("done", "running", "waiting", "waiting", "waiting"), ".bar > span", ".bar *")
+    parts = got[".bar > span"]
+    assert list(zip(classes(parts), widths(parts))) == [("bar-done", "20%")]
+    assert len(got[".bar *"]) == 1
+    assert set(classes(got[".bar *"])) <= BAR_KINDS
+
+
+def test_d0059_ac14_bar_is_hidden_from_readers(node, html):
+    """D0059-AC-14: 帯は aria-hidden="true"（同じことは行の言葉と札で伝わる）。"""
+    _r, got = look(node, html, with_review("done", "review", "waiting"), ".bar")
+    assert len(got[".bar"]) == 1 and got[".bar"][0]["attrs"].get("aria-hidden") == "true"
+
+
+def test_d0059_ac15_bar_uses_the_drawn_stages_as_denominator(node, html):
+    """D0059-AC-15: 段の幅の分母は、ページが描く段（24 まで）の数。30 段（S01〜S06 と S25〜S30 が完了）なら、描く 24 段のうち完了 6 段で 25%。"""
+    rows = [stage(f"S{i:02d}", "done" if i <= 6 or i >= 25 else "waiting") for i in range(1, 31)]
+    _r, got = look(node, html, snapshot(rows), ".bar > span")
+    assert list(zip(classes(got[".bar > span"]), widths(got[".bar > span"]))) == [("bar-done", "25%")]
+
+
+def test_d0059_ac15_bar_is_cleared_without_stages(node, html):
+    """D0059-AC-15: 段が 0 の写し・empty・schema が 1 でない写しを受けると、前に出ていた帯が消える。db が使えないときも帯は無い。"""
+    good = with_review("done", "review", "waiting")
+    empty = {"schema": 1, "generated_at": AT_0340, "empty": True, "name": None, "final": None, "stages": []}
+    newer = with_review("done", schema=2)
+    r = go(node, html, steps=[
+        *sending(good), q(".bar"), *sending(snapshot([])), q(".bar"),
+        *sending(good), q(".bar"), *sending(empty), q(".bar"),
+        *sending(good), q(".bar"), *sending(newer), q(".bar"),
+    ])
+    counts = [len(r["steps"][i]["result"]) for i in (1, 3, 5, 7, 9, 11)]
+    assert counts == [1, 0, 1, 0, 1, 0], counts
+    off = go(node, html, claude="null", steps=[q(".bar")])
+    assert off["steps"][0]["result"] == []
+
+
+# ---- AC-16〜20・AC-41 確認待ちの札 ----------------------------------------------------------------------------
+
+
+def test_d0059_ac16_badge_names_the_review_stage(node, html):
+    """D0059-AC-16: 設計の段（表示名「設計」）が確認待ちの写しでは、札が1つ出て「確認待ち：設計」。"""
+    snap = snapshot([stage("requirements", "done", label="要件定義"), stage("design", "review", label="設計", pending_since=iso(5)), stage("red", label="テスト先行")])
+    _r, got = look(node, html, snap, ".badge")
+    assert texts(got[".badge"]) == ["確認待ち：設計"]
+
+
+@pytest.mark.parametrize("review", [None, REMOVE], ids=["review_null", "no_review_key"])
+def test_d0059_ac17_badge_comes_from_the_status_not_the_review_key(node, html, review):
+    """D0059-AC-17: 札は段の status が review であることで決める。写しの review が null・キーが無いときでも出る。"""
+    snap = snapshot([stage("a", "done"), stage("b", "review", label="設計")])
+    if review is REMOVE:
+        snap.pop("review", None)
+    else:
+        snap["review"] = review
+    _r, got = look(node, html, snap, ".badge")
+    assert texts(got[".badge"]) == ["確認待ち：設計"]
+
+
+def test_d0059_ac17_badge_shows_only_the_first_review_stage(node, html):
+    """D0059-AC-17: 確認待ちの段が2つあるときは、並びの最初の段だけを出す。"""
+    snap = snapshot([stage("a", "done"), stage("b", "review", label="FIRST"), stage("c", "review", label="SECOND")])
+    _r, got = look(node, html, snap, ".badge")
+    assert texts(got[".badge"]) == ["確認待ち：FIRST"]
+
+
+def test_d0059_ac18_badge_is_removed_without_review_or_with_final(node, html):
+    """D0059-AC-18: 確認待ちの段の無い写し・final の入った写しを受けると、前に出ていた札が消える。最後の結果は今の「結果: 合格」のまま。"""
+    waiting = snapshot([stage("a", "done"), stage("b", "review", label="設計")])
+    running = snapshot([stage("a", "done"), stage("b", "running", started_at=iso(5))])
+    final = snapshot([stage("a", "done"), stage("b", "review", label="設計")], final="PASSED")
+    r = go(node, html, steps=[*sending(waiting), q(".badge"), *sending(running), q(".badge"), *sending(waiting), q(".badge"), *sending(final), q(".badge")])
+    assert [len(r["steps"][i]["result"]) for i in (1, 3, 5, 7)] == [1, 0, 1, 0]
+    assert "結果: 合格" in r["steps"][6]["view"]["text"]
+
+
+def test_d0059_ac41_no_badge_while_only_running(node, html):
+    """D0059-AC-41: 確認待ちの段が無く動いている段があるとき（完了・まだ・失敗・差し戻しもある）、札を作らず「実行中：」「結果：」も出ない。上に出るのは時刻・合計・帯だけ。"""
+    snap = snapshot([stage("a", "done", duration_sec=60), stage("b", "running", started_at=iso(5)), stage("c"), stage("d", "failed"), stage("e", "revised")])
+    r, got = look(node, html, snap, ".badge", ".summary > *", ".updated")
+    assert got[".badge"] == []
+    text = r["steps"][0]["view"]["text"]
+    assert "実行中：" not in text and "結果：" not in text
+    assert classes(got[".summary > *"]) == ["total", "bar"]
+    assert texts(got[".updated"]) == ["02:00 更新"]
+
+
+@pytest.mark.parametrize("label", ["<b>X</b>", "<img src=x onerror=alert(1)>"])
+def test_d0059_ac19_badge_text_is_plain_text(node, html, label):
+    """D0059-AC-19: 表示名に HTML の形を入れても、札にその文字がそのまま出て、札の中に b・img の要素ができない（textContent で出す）。"""
+    r, got = look(node, html, snapshot([stage("a", "review", label=label)]), ".badge", ".badge *")
+    assert texts(got[".badge"]) == [BADGE_WORD + label]
+    assert got[".badge *"] == []
+    tags = r["steps"][0]["view"]["tags"]
+    assert "b" not in tags and "img" not in tags
+    assert r["steps"][0]["view"]["html_insertions"] == 0 and r["alerts"] == []
+
+
+def test_d0059_ac19_badge_label_is_cut_at_80(node, html):
+    """D0059-AC-19: 札の表示名は段の行と同じく 80 文字で切る（100 文字なら 79 文字＋…）。"""
+    label = "あ" * 100
+    _r, got = look(node, html, snapshot([stage("a", "review", label=label)]), ".badge", ".stage .label")
+    assert texts(got[".badge"]) == [BADGE_WORD + "あ" * 79 + "…"]
+    assert texts(got[".stage .label"]) == ["あ" * 79 + "…"]
+
+
+# ---- AC-21 まだの語 ---------------------------------------------------------------------------------------------
+
+
+def test_d0059_ac21_waiting_word_is_mada(node, html):
+    """D0059-AC-21: status が waiting の段の語は「まだ」。「待ち」だけの語の行が無い。確認待ちは「確認待ち」、ほかの状態の語も今のまま。"""
+    _r, got = look(node, html, with_review("waiting", "running", "review", "done", "failed", "revised"), ".word", ".s-waiting .word", ".s-review .word")
+    words = texts(got[".word"])
+    assert "待ち" not in words, words
+    assert texts(got[".s-waiting .word"]) == ["まだ"]
+    assert texts(got[".s-review .word"]) == ["確認待ち"]
+    assert words == ["まだ", "実行中", "確認待ち", "完了", "失敗", "差し戻し"]
+
+
+# ---- AC-23〜26 回数 ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("status", ["done", "running", "review"])
+def test_d0059_ac23_first_attempt_is_not_shown(node, html, status):
+    """D0059-AC-23: attempt が 1 の段（完了・動いている・確認待ち）の行に「回目」が出ない（.attempt の要素を作らない）。"""
+    r, got = look(node, html, one_stage(status, attempt=1), ".attempt")
+    assert got[".attempt"] == []
+    assert "回目" not in r["steps"][0]["view"]["text"]
+
+
+@pytest.mark.parametrize("attempt,shown", [(2, "2回目"), (999, "999回目")])
+def test_d0059_ac24_second_attempt_and_later_are_shown(node, html, attempt, shown):
+    """D0059-AC-24: attempt が 2 の段に「2回目」、999 の段に「999回目」が出る。"""
+    _r, got = look(node, html, one_stage("done", attempt=attempt), ".attempt")
+    assert texts(got[".attempt"]) == [shown]
+
+
+@pytest.mark.parametrize("attempt", [None, 0, -1, 1000, 1.5, "2", True], ids=lambda v: repr(v))
+def test_d0059_ac25_odd_attempts_are_not_shown(node, html, attempt):
+    """D0059-AC-25: attempt が null・0・負・1000 以上・小数・文字・真偽の段では「回目」を出さない（okAttempt の扱いのまま）。"""
+    r, got = look(node, html, one_stage("done", attempt=attempt), ".attempt")
+    assert got[".attempt"] == []
+    assert "回目" not in r["steps"][0]["view"]["text"]
+
+
+def _approve_upto_red(rec) -> None:
+    rec.start("足したい機能のメモ", name="回数のセッション")
+    for name in ("requirements", "design", "red"):
+        rec.begin(name, agent="pipe-in-analyst")
+        rec.done(name, summary="段を終えた")
+        rec.wait(name)
+        rec.review(name, "approved")
+
+
+def _snapshot_of(work: Path) -> dict:
+    state = live.read_state(work)
+    assert state is not None, "記録が読めない"
+    return live.build_snapshot(state, live.read_open_at(work, state), now=ls.NOW, local_tz=ls.UTC)
+
+
+def test_d0059_ac26_real_recorder_attempt_one_shows_no_count(node, html, tmp_path):
+    """D0059-AC-26: 本物の Recorder で実装を --attempt 1 で始めて閉じ、検証を --attempt 1 で動かしている記録の写しを描くと、どの行にも「1回目」が出ない。"""
+    rec = ls.recorder(tmp_path, datetime(2026, 10, 17, 10, 0, 0))
+    _approve_upto_red(rec)
+    rec.begin("implement", attempt=1, agent="pipe-in-implementer")
+    rec.done("implement", summary="実装した")
+    rec.begin("test", attempt=1, agent="pipe-in-verifier")
+    snap = _snapshot_of(ls.work_of(tmp_path))
+    by_name = {s["name"]: s for s in snap["stages"]}
+    assert by_name["implement"]["attempt"] == 1 and by_name["test"]["attempt"] == 1, "前提：写しの attempt が 1"
+    assert by_name["test"]["status"] == "running"
+    r, got = look(node, html, snap, ".attempt")
+    assert got[".attempt"] == []
+    assert "1回目" not in r["steps"][0]["view"]["text"]
+
+
+def test_d0059_ac26_real_recorder_second_attempt_shows_two(node, html, tmp_path):
+    """D0059-AC-26: 同じ記録で実装を --attempt 2 でやり直すと、実装の行に「2回目」が出る（ほかの行には回数が出ない）。"""
+    rec = ls.recorder(tmp_path, datetime(2026, 10, 17, 10, 0, 0))
+    _approve_upto_red(rec)
+    rec.begin("implement", attempt=1, agent="pipe-in-implementer")
+    rec.done("implement", summary="実装した")
+    rec.begin("implement", attempt=2, agent="pipe-in-implementer")
+    snap = _snapshot_of(ls.work_of(tmp_path))
+    assert {s["name"]: s for s in snap["stages"]}["implement"]["attempt"] == 2, "前提：写しの attempt が 2"
+    _r, got = look(node, html, snap, ".attempt", ".s-running .attempt")
+    assert texts(got[".attempt"]) == ["2回目"]
+    assert texts(got[".s-running .attempt"]) == ["2回目"]
+
+
+# ---- AC-27・29 守りと前の版 -----------------------------------------------------------------------------------
+
+
+def test_d0059_ac27_new_parts_add_no_style_attribute_or_html(node, html):
+    """D0059-AC-27: 新しい部品（時刻・札・合計・帯）を描いたあとも、style の属性ができず（幅は CSSOM の style.width だけ）、HTML の差し込みが 0。"""
+    r, got = look(node, html, with_review("done", "review", "waiting"), ".bar > span", ".summary > *", ".updated")
+    view = r["steps"][0]["view"]
+    assert "style" not in view["attrs"], view["attrs"]
+    assert view["html_insertions"] == 0
+    assert widths(got[".bar > span"]) == ["33.3333%", "", "33.3333%"], "幅は style.width で入っている"
+    assert len(got[".summary > *"]) >= 2 and len(got[".updated"]) == 1
+
+
+@pytest.mark.parametrize("shape", ["no_review_key", "minimal"])
+def test_d0059_ac29_old_snapshots_render_with_the_new_parts(node, html, shape):
+    """D0059-AC-29: 前の版の写し（review のキーが無い・attempt が 1 の段・empty/name/final の無い最小の形）でも例外が無く、札・合計・帯・時刻が決まりどおりに出る。"""
+    rows = [stage("requirements", "done", attempt=1, duration_sec=60), stage("design", "review", label="設計", attempt=1, pending_since=iso(5)), stage("red")]
+    snap = snapshot(rows, generated_at=AT_0340)
+    snap.pop("review", None)
+    if shape == "minimal":
+        snap = {"schema": 1, "generated_at": AT_0340, "stages": rows}
+    r, got = look(node, html, snap, ".badge", ".total", ".bar > span", ".updated", ".attempt")
+    assert r["listener_errors"] == [] and r["console_errors"] == []
+    assert texts(got[".badge"]) == ["確認待ち：設計"]
+    assert texts(got[".total"]) == ["合計 1:00"]
+    assert list(zip(classes(got[".bar > span"]), widths(got[".bar > span"]))) == [("bar-done", "33.3333%"), ("bar-gap", ""), ("bar-pending", "33.3333%")]
+    assert texts(got[".updated"]) == ["03:40 更新"]
+    assert got[".attempt"] == []
+
+
+# ---- 並び・tick の守り ----------------------------------------------------------------------------------------
+
+
+def _ident(e: dict) -> str:
+    a = e["attrs"]
+    if a.get("id"):
+        return f"{e['tag']}#{a['id']}"
+    return f"{e['tag']}.{a['class']}" if a.get("class") else e["tag"]
+
+
+def test_d0059_page_order_after_render(node, html):
+    """D0059: 描いたあとの並びは h1 → p.updated → #name → #final → #msg → div.summary → #stages。.summary の子は badge・total・bar の順。"""
+    snap = snapshot([stage("a", "done", duration_sec=60), stage("b", "review", label="設計", pending_since=iso(5)), stage("c")])
+    _r, got = look(node, html, snap, "main > *", ".summary > *")
+    assert [_ident(e) for e in got["main > *"]] == ["h1", "p.updated", "p#name", "p#final", "p#msg", "div.summary", "ol#stages"]
+    assert classes(got[".summary > *"]) == ["badge", "total", "bar"]
+
+
+def test_d0059_tick_does_not_rebuild_the_top(node, html):
+    """D0059: 1秒ごとの tick では、上の部品を作り直さない（作った要素の数が増えない。D0027-AC-60 の形）。合計と時刻の文字も変わらない。"""
+    r = go(node, html, steps=[*sending(counting_snapshot()), q(".summary > *"), q(".total"), {"op": "advance", "ms": 1000}, {"op": "advance", "ms": 30000},
+                              q(".total"), q(".updated")])
+    assert classes(r["steps"][1]["result"]) == ["badge", "total", "bar"]
+    created = [len(r["steps"][i]["view"]["created"]) for i in (0, 3, 4)]
+    assert created[0] == created[1] == created[2], created
+    assert texts(r["steps"][5]["result"]) == texts(r["steps"][2]["result"]) == ["合計 $0.5 ・ 3ターン ・ 0:12"]
+    assert texts(r["steps"][6]["result"]) == ["02:00 更新"]

@@ -4,6 +4,7 @@ build_page() の HTML の前に、偽の `claude`（use("db") が写しを1回�
 ページ本体は変えない。出力先は引数で、リポジトリの中には書かない（書こうとしたら断る）。
 
   python tests/live_page_preview.py <出力先フォルダ>      ← 一覧は PREVIEWS。ライト・ダークの2つずつ
+                                                          （ほかに answer-long-names-*・answer-no-review-*・D0059 の answer-progress-*）
 
 偽の comments の動き（window に目印を残す。Playwright の evaluate で読める）:
   window.__sent       sendToClaude に渡された {text, anchor} の一覧
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "showcase_waiting"
 NOW = ls.NOW
 
-# 画面の確認の項目（03_red_tests.md の「画面の確認の手順」）。名前 → 偽の comments の設定
+# 画面の確認の項目（決定の記録 D0044・D0059 の画面の AC）。名前 → 偽の comments の設定
 PREVIEWS: dict[str, dict[str, Any]] = {
     "available": {"can": "available", "send": "resolve"},
     "send-pending": {"can": "available", "send": "pending"},
@@ -64,6 +66,32 @@ def long_name_snapshot() -> dict[str, Any]:
     snap = showcase_snapshot()
     snap["name"] = "とても長いセッション名" * 5 + "ABCDEFGHIJ"
     snap["stages"][0]["label"] = "長い段の表示名" * 6
+    return snap
+
+
+def progress_snapshot() -> dict[str, Any]:
+    """D0059：帯の塗り分けと確認待ちの色の確認用。完了・差し戻し・確認待ち・失敗（2回目）・まだの段がある写し（review は null）。
+    帯は完了 20%・すき間・確認待ち 20% になり、差し戻しの印と失敗の印が並ぶ（AC-33・AC-42）。"""
+    base = showcase_snapshot()
+    since = ls.utc_text(NOW - timedelta(minutes=3))
+
+    def row(name: str, status: str, **kw: Any) -> dict[str, Any]:
+        r: dict[str, Any] = {"name": name, "label": ls.LABELS[name], "status": status, "attempt": None, "started_at": None, "pending_since": None,
+                             "verdict": None, "cost_usd": None, "turns": None, "duration_sec": None}
+        r.update(kw)
+        return r
+
+    snap = dict(base)
+    snap["name"] = "進みの帯の確認"
+    snap["final"] = None
+    snap["review"] = None
+    snap["stages"] = [
+        row("requirements", "done", cost_usd=0.42, turns=9, duration_sec=190),
+        row("design", "revised", duration_sec=168),
+        row("red", "review", pending_since=since),
+        row("implement", "failed", attempt=2, duration_sec=300),
+        row("test", "waiting"),
+    ]
     return snap
 
 
@@ -169,6 +197,9 @@ def write_previews(out_dir: Path) -> list[Path]:
         written.append(path)
         path = out / f"answer-no-review-{theme}.html"
         path.write_text(preview_html(next_snapshot(), theme=theme), encoding="utf-8")
+        written.append(path)
+        path = out / f"answer-progress-{theme}.html"
+        path.write_text(preview_html(progress_snapshot(), theme=theme), encoding="utf-8")
         written.append(path)
     return written
 

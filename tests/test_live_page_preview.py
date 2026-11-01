@@ -64,11 +64,26 @@ def test_d0044_ac54_preview_files_are_written_outside_the_repository(tmp_path):
     """D0044-AC-54: 確認用ページは指定した出力先に、項目ごとにライト・ダークで書く。リポジトリの中には書かない（書こうとすると断る）。"""
     written = pv.write_previews(tmp_path / "out")
     names = {p.name for p in written}
-    assert len(written) == len(pv.PREVIEWS) * 2 + 4
+    assert len(written) == len(pv.PREVIEWS) * 2 + 6  # D0059：answer-progress-* の2つを足した
     assert "answer-available-light.html" in names and "answer-can-writers_only-dark.html" in names and "answer-comments-null-light.html" in names
+    assert "answer-progress-light.html" in names and "answer-progress-dark.html" in names
     assert all(p.is_file() and p.parent == (tmp_path / "out").resolve() for p in written)
     with pytest.raises(SystemExit):
         pv.write_previews(ROOT / "docs" / "not-here")
     with pytest.raises(SystemExit):
         pv.write_previews(ROOT)
     assert not (ROOT / "docs" / "not-here").exists()
+
+
+def test_d0059_ac42_progress_preview_has_done_revised_failed_review_and_waiting():
+    """D0059-AC-42: 帯と確認待ちの色の確認用の写し（progress_snapshot）は、完了・差し戻し・失敗・確認待ち・まだの段と、attempt が 2 の段を持つ。review は null、schema は 1。今のままで通る（補助の自己検査）。"""
+    snap = pv.progress_snapshot()
+    statuses = [s["status"] for s in snap["stages"]]
+    assert {"done", "revised", "failed", "review", "waiting"} <= set(statuses), statuses
+    assert any(s["attempt"] == 2 for s in snap["stages"])
+    assert statuses.count("done") == 1 and statuses.count("review") == 1 and len(statuses) == 5, "帯が 完了 20%・確認待ち 20% になる形"
+    assert snap["schema"] == 1 and snap["review"] is None and snap["final"] is None
+    review_row = next(s for s in snap["stages"] if s["status"] == "review")
+    assert isinstance(review_row["pending_since"], str), "確認待ちの経過が出る"
+    html = pv.preview_html(snap, theme="dark")
+    assert html.count("<script>") == 2

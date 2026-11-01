@@ -7,6 +7,8 @@
 - D0044：確認待ちの行に、承認・差し戻し・中止のボタンを出す（`claude.use("comments")` が使えて、写しの review が有効なときだけ）。
   押すと決まった形の文を `sendToClaude` でコメントとして送る。ボタンの部品は JS が確認待ちが現れたときに作る（_BODY は変えない）。
   画面に出す文は固定の定数だけで、段の表示名・セッション名・パスは使わない。
+- D0059：上に更新の時刻・確認待ちの札・合計・進みの帯を出す。部品は JS が作る（_BODY は変えない）。色は既存のトークンだけ。
+  帯の幅だけは CSSOM の style.width で入れる（写しの文字ではなく、段の数から計算した割合）。
 標準ライブラリだけを使う（依存の向きは docs/development/design.md）。
 """
 
@@ -19,7 +21,7 @@ _CSS = r"""
   --muted: #59636e;
   --line: #d1d9e0;
   --run: #0969da;
-  --review: #9a6700;
+  --review: #c2471f;
   --ok: #1a7f37;
   --ng: #cf222e;
   color-scheme: light;
@@ -31,7 +33,7 @@ _CSS = r"""
     --muted: #8b949e;
     --line: #30363d;
     --run: #58a6ff;
-    --review: #d29922;
+    --review: #ff8a65;
     --ok: #3fb950;
     --ng: #f85149;
     color-scheme: dark;
@@ -43,7 +45,7 @@ _CSS = r"""
   --muted: #59636e;
   --line: #d1d9e0;
   --run: #0969da;
-  --review: #9a6700;
+  --review: #c2471f;
   --ok: #1a7f37;
   --ng: #cf222e;
   color-scheme: light;
@@ -54,7 +56,7 @@ _CSS = r"""
   --muted: #8b949e;
   --line: #30363d;
   --run: #58a6ff;
-  --review: #d29922;
+  --review: #ff8a65;
   --ok: #3fb950;
   --ng: #f85149;
   color-scheme: dark;
@@ -164,6 +166,58 @@ h1 {
   border: 2px solid var(--review);
   background: linear-gradient(90deg, var(--review) 50%, transparent 50%);
 }
+.updated {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.updated:empty {
+  display: none;
+}
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0;
+}
+.summary:empty {
+  display: none;
+}
+.badge {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--review);
+  border-radius: 6px;
+  color: var(--review);
+  font-weight: 600;
+}
+.total {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.bar {
+  flex: 1 1 100%;
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.bar > span {
+  flex: 0 1 auto;
+}
+.bar-gap {
+  flex: 0 0 2px;
+  width: 2px;
+}
+.bar-done {
+  background: var(--ok);
+}
+.bar-pending {
+  background: var(--review);
+}
 [hidden] {
   display: none;
 }
@@ -263,6 +317,9 @@ var UNREADABLE_MSG = "この画面では読めません";
 var UNSUPPORTED_MSG = "この写しの版には対応していません";
 var LOADING_MSG = "読み込み中…";
 var NO_NAME = "（名前なし）";
+var UPDATED_WORD = " 更新";
+var TOTAL_WORD = "合計 ";
+var BADGE_WORD = "確認待ち：";
 
 var MAX_FEEDBACK = 1000;
 var STAGE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
@@ -293,7 +350,7 @@ var FAILED_MSG = "送れませんでした。もう一度押すか、会話で�
 var ANCHOR_FAILED = "場所を取れませんでした。会話で答えてください。";
 
 var STATUS = {
-  waiting: { mark: "", word: "待ち" },
+  waiting: { mark: "", word: "まだ" },
   running: { mark: "", word: "実行中" },
   review: { mark: "", word: "確認待ち" },
   done: { mark: "✓", word: "完了" },
@@ -429,7 +486,8 @@ function checkSnapshot(value) {
     name: clip(value.name),
     final: final,
     stages: stages,
-    review: final === null ? checkReview(value.review, stages) : null
+    review: final === null ? checkReview(value.review, stages) : null,
+    generatedAt: typeof value.generated_at === "string" ? value.generated_at : null
   };
 }
 
@@ -477,7 +535,7 @@ function buildRow(stage, found) {
   li.appendChild(mark);
   li.appendChild(el("span", "label", stage.label));
   li.appendChild(el("span", "word", info.word));
-  if (stage.attempt !== null) li.appendChild(el("span", "attempt", stage.attempt + "回目"));
+  if (stage.attempt !== null && stage.attempt >= 2) li.appendChild(el("span", "attempt", stage.attempt + "回目"));
   var since = stage.status === "running" ? stage.startedAt : stage.status === "review" ? stage.pendingSince : null;
   if (since !== null && parseTime(since) !== null) {
     var span = el("span", "elapsed", "0:00");
@@ -494,12 +552,113 @@ function byId(id) {
   return document.getElementById(id);
 }
 
-function show(message) {
+function updatedText(text) {
+  try {
+    var ms = parseTime(text);
+    if (ms === null) return "";
+    var dt = new Date(ms);
+    var h = dt.getHours();
+    var m = dt.getMinutes();
+    if (!isFinite(h) || !isFinite(m)) return "";
+    return pad2(h) + ":" + pad2(m) + UPDATED_WORD;
+  } catch (e) {
+    return "";
+  }
+}
+
+function totalText(stages) {
+  if (!Array.isArray(stages)) return "";
+  var cost = 0;
+  var turns = 0;
+  var sec = 0;
+  for (var i = 0; i < stages.length; i++) {
+    var s = stages[i];
+    if (isPositive(s.cost)) cost += s.cost;
+    if (isPositive(s.turns)) turns += Math.floor(s.turns);
+    if (s.duration !== null) sec += s.duration;
+  }
+  var parts = [];
+  if (isPositive(cost)) parts.push("$" + Number(cost.toFixed(4)));
+  if (isPositive(turns)) parts.push(turns + "ターン");
+  if (isPositive(sec)) parts.push(fmtElapsed(sec));
+  return parts.length === 0 ? "" : TOTAL_WORD + parts.join(" ・ ");
+}
+
+function pct(k, n) {
+  return Number((k * 100 / n).toFixed(4)) + "%";
+}
+
+function barParts(stages) {
+  var n = Array.isArray(stages) ? stages.length : 0;
+  if (n === 0) return [];
+  var done = 0;
+  var pend = 0;
+  for (var i = 0; i < n; i++) {
+    if (stages[i].status === "done") done += 1;
+    else if (stages[i].status === "review") pend += 1;
+  }
+  var list = [];
+  if (done > 0) list.push({ kind: "done", width: pct(done, n) });
+  if (done > 0 && pend > 0) list.push({ kind: "gap", width: null });
+  if (pend > 0) list.push({ kind: "pending", width: pct(pend, n) });
+  return list;
+}
+
+function badgeText(snap) {
+  if (!isObject(snap) || snap.final !== null || !Array.isArray(snap.stages)) return "";
+  for (var i = 0; i < snap.stages.length; i++) {
+    if (snap.stages[i].status === "review") return BADGE_WORD + snap.stages[i].label;
+  }
+  return "";
+}
+
+var topParts = null;
+
+function ensureTop() {
+  if (topParts !== null) return topParts;
+  var name = byId("name");
+  var list = byId("stages");
+  if (!name || !list) return null;
+  topParts = { updated: el("p", "updated"), summary: el("div", "summary") };
+  name.before(topParts.updated);
+  list.before(topParts.summary);
+  return topParts;
+}
+
+function drawTop(snap, generatedAt) {
+  try {
+    var parts = ensureTop();
+    if (parts === null) return;
+    parts.updated.textContent = updatedText(generatedAt);
+    var items = [];
+    if (snap !== null && snap.stages.length > 0) {
+      var badge = badgeText(snap);
+      if (badge !== "") items.push(el("span", "badge", badge));
+      var total = totalText(snap.stages);
+      if (total !== "") items.push(el("span", "total", total));
+      var bar = el("div", "bar");
+      bar.setAttribute("aria-hidden", "true");
+      var pieces = barParts(snap.stages);
+      for (var i = 0; i < pieces.length; i++) {
+        var node = el("span", "bar-" + pieces[i].kind);
+        if (pieces[i].width !== null) node.style.width = pieces[i].width;
+        bar.appendChild(node);
+      }
+      items.push(bar);
+    }
+    parts.summary.replaceChildren.apply(parts.summary, items);
+  } catch (e) {
+    /* 上の部品を描けなくても、段の行は残す */
+  }
+}
+
+function show(message, generatedAt) {
   counters = [];
   byId("name").textContent = "";
   byId("final").textContent = "";
   byId("stages").replaceChildren();
   byId("msg").textContent = message;
+  drawTop(null, generatedAt);
   reviewRow = null;
   setReview(null);
   syncPanel();
@@ -515,7 +674,7 @@ function render(value) {
       return;
     }
     if (snap.empty) {
-      show(EMPTY_MSG);
+      show(EMPTY_MSG, snap.generatedAt);
       return;
     }
     var found = [];
@@ -531,6 +690,7 @@ function render(value) {
     byId("stages").replaceChildren.apply(byId("stages"), rows);
     byId("name").textContent = snap.name;
     byId("final").textContent = snap.final === null ? "" : "結果: " + FINALS[snap.final];
+    drawTop(snap, snap.generatedAt);
     byId("msg").textContent = "";
     counters = found;
     reviewRow = mine;
