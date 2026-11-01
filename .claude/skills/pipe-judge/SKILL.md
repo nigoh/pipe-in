@@ -29,3 +29,4 @@ CLAUDE.md の決まり、とくに「公開リポジトリとしての注意」�
    - 作業フォルダ（今の worktree）
 3. 返ってきた前置きと JSON（scores・overall・threshold・verdict・reasons・unverified）を、会話にそのまま見せて止まる。
 4. 直さない。合否は人が読む材料で、`fail` でも報告を作り直させない・審査役もメインも何も変えない。報告の項目を直すかどうかは、今までどおり `/pipe-advise` の ID で人が選ぶ。
+   - 項目を選んでもらうときは、質問欄で聞く（CLAUDE.md の「必ず守ること」）。

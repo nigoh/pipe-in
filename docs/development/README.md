@@ -26,6 +26,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | パイプの段の Bash の書き込みが、段の書き込み範囲に収まること（決まった形で先が読めるもの） | `tests/test_bash_write_guard.py` |
 | /pipe-in のサブエージェント用のフックが、内側で例外が出ても `pipe-in-*` の呼び出しを止める（読むだけの道具と報告は通す）こと。deny の JSON を書けないときは終了コード 2 で止めること（D0032） | `tests/test_pipe_in_guard.py` |
 | /pipe-in のスキルの形（冒頭に「必ず守ること」、長い手順は補助ファイル）、`.claude/settings.json` の `ask`・`allow` の形、確認用のページの一覧の持ち場（`docs/assets/README.md`）、それに合わせた文書と決定の記録（D0039）。フックの判断が変わらないことの総当たりは `tests/test_pipe_in_guard.py` の末尾 | `tests/test_skill_tidy.py`・`tests/test_skill_tidy_docs.py` |
+| 人に確認・質問・承認を求めるときは質問欄（AskUserQuestion）で聞く決まりが、CLAUDE.md の「必ず守ること」にあり、7つの開発用のスキルがそれを指していること（D0057） | `tests/test_ask_question.py` |
 | 審査の総合点・合否・ばらつきの計算 | `tests/test_judge_score.py` |
 | 段の検証の審査（`[stages.check.judge]`）の合否の計算と、プラグインの計算との一致・差し戻し | `tests/test_judge_calc.py`・`tests/test_check_judge.py` |
 | pipe-build が検査と審査の組み方（`references/stage-rules.md`）を持ち、pipe-builder がそれを読めて書き換えられないこと。`pipe-in-gen design` が審査（judge）を知ること。ひな形 diagrams の検証の段が command と judge を組んでいること（D0037） | `tests/test_plugin.py`・`tests/test_guard_hook.py`・`tests/test_generator.py` |
