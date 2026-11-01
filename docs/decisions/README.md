@@ -59,6 +59,7 @@
 | [D0053](D0053-harness-lessons.md) | 段の組み方（ハーネス）の比較実験で分かった目安を、pipe-in-gen design の設計の決まり・pipe-build の stage-rules.md・パイプのガイドに入れ、指摘を出す段に引用の指示も findings-check も無いときの警告 W6 を足す（プラグインは 0.5.1） |
 | [D0054](D0054-spec-review-source-kinds.md) | ひな形 spec-review の知識の段に、出典の台帳の `kind` に使える6つの値と振り分けを書き、`SOURCE_KINDS`・Schema と食い違わないことをテストで守る（D0047 の実機で見つかった不具合の直し） |
 | [D0055](D0055-dependabot-types-node.md) | Dependabot に `@types/node` の大きい版の上げを出させない（拡張が動く Node の版に合わせておく型。小さい版は出す） |
+| [D0056](D0056-pipe-talk.md) | 壁打ちのスキル `/pipe-talk` を足す。区切りで要点（決まったこと・残った問い・やりたいこと）をまとめ、次の作業（issue・デザイン・`/pipe-in`・計画ボード）の候補を出す。外へ出す操作は中身を見せて承認を得てから。要約は手元だけの `docs/talk/`。`ask` に `gh issue create` を足す |
 
 ## ひな形
 

@@ -39,6 +39,8 @@ cd vscode && npm ci && npm test && npm run typecheck && npm run build
 
 何かを直した・足したら、文書もそろえます。`/pipe-docs [要点か範囲]` が、変えたファイルを集めて文書係のサブエージェント `pipe-in-documenter` に README.md・`docs/guide/`・`docs/development/` などを直させます（CLAUDE.md・`/pipe-help`・決定の記録は案を見せ、承認したものだけを直します）。コードを変えたのに文書が変わっていないまま止まろうとすると、一度だけ知らせが出ます。くわしくは [docs/development/workflow.md](../development/workflow.md) の「4. そろえる」にあります。
 
+考えがまだ固まっていないときは、`/pipe-talk [話したいこと]` で壁打ちができます。区切りで「決まったこと・残った問い・やりたいこと」の要約を作り、手元だけの `docs/talk/<日時>-<名前>.md`（`.gitignore` 済み。書く前に `git check-ignore` で確かめます）に残します。そのうえで次の作業の候補（GitHub の issue・デザイン・`/pipe-in`・計画ボード）を出し、人が選ぶまでどれも行いません。issue を作る・Figma に書くなど外へ出す操作は、中身を全文見せて承認を得てからだけです（`gh issue create` は `.claude/settings.json` の `ask` にも入れてあります）。`/pipe-in` と `/pipe-plan add` は Claude からは始めず、人が貼って流す1行を示します。決めたことと理由は [D0056](../decisions/D0056-pipe-talk.md) にあります。
+
 このリポジトリの開発用スキル `/pipe-audit`（文書・定義・コードの食い違いの監査）と `/pipe-advise`（公式の文書と照らした助言）は、会話を開かずに `claude -p` でも流せます。プロンプトの先頭を `/pipe-audit` か `/pipe-advise` にして、このリポジトリ（または worktree）の中で呼びます。
 
 ```bash
