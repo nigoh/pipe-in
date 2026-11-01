@@ -305,6 +305,16 @@ def test_D0052_AC_06_dependabotにgithub_actionsがある():
     assert {"pip", "npm"} <= set(eco), f"pip・npm が消えている: {list(eco)}"
 
 
+
+def test_D0055_AC_01_dependabotはtypes_nodeのメジャーを上げない():
+    """D0055-AC-01: npm の ignore に @types/node のメジャーの上げがある（拡張が動く Node の版に合わせておく型）。"""
+    data = parse_yaml(read_doc(DEPENDABOT))
+    npm = next(u for u in data.get("updates", []) if u.get("package-ecosystem") == "npm")
+    ignored = {i.get("dependency-name"): i.get("update-types", []) for i in npm.get("ignore", [])}
+    assert "@types/node" in ignored, f"@types/node が ignore に無い（今：{list(ignored)}）"
+    assert "version-update:semver-major" in ignored["@types/node"], f"メジャーの上げを止めていない: {ignored['@types/node']}"
+
+
 # ---- AC-07 ------------------------------------------------------------------
 
 
