@@ -439,7 +439,7 @@ def test_d0027_ac55_page_is_valid_utf8_text_without_control_characters(html):
 @pytest.mark.parametrize("symbol", ["✓", "✕", "↩"])
 def test_d0027_ac55_status_symbols_are_in_the_script(html, symbol):
     """D0027-AC-55: 状態は色だけで伝えない。文字の記号（終わり ✓・失敗 ✕・差し戻し ↩）が JS にある。
-    待ち・動いている・確認待ちの印は書体の字形に頼らず CSS の形で描く（AC-86）ので、○ ● ◐ は JS に無い。"""
+    まだ・動いている・確認待ちの印は書体の字形に頼らず CSS の形で描く（AC-86）ので、○ ● ◐ は JS に無い。"""
     assert symbol in parts(html)[1]
 
 
@@ -538,7 +538,7 @@ def test_d0027_ac86_states_do_not_change_the_mark_size(html, status):
 
 @pytest.mark.parametrize("status", CSS_DRAWN_STATES)
 def test_d0027_ac86_waiting_running_review_marks_are_drawn_by_css_shapes(html, status):
-    """D0027-AC-86: 待ち・動いている・確認待ちの印は、書体の字形に頼らず CSS の形（枠線・塗り・半分の塗りなど）で描く。
+    """D0027-AC-86: まだ・動いている・確認待ちの印は、書体の字形に頼らず CSS の形（枠線・塗り・半分の塗りなど）で描く。
     .s-<状態> .mark（に疑似要素がついたもの）が border・background・box-shadow・clip-path などを持つ。content に字形（空でない文字）を入れない。"""
     css = css_of(html)
     state = decls_for(css, f".s-{status} .mark")
@@ -549,7 +549,7 @@ def test_d0027_ac86_waiting_running_review_marks_are_drawn_by_css_shapes(html, s
 
 
 def test_d0027_ac86_waiting_running_review_shapes_differ(html):
-    """D0027-AC-86: 待ち・動いている・確認待ちの形は、互いに違う（色だけでなく形でも見分けられる）。"""
+    """D0027-AC-86: まだ・動いている・確認待ちの形は、互いに違う（色だけでなく形でも見分けられる）。"""
     css = css_of(html)
     shapes = []
     for status in CSS_DRAWN_STATES:
@@ -575,7 +575,7 @@ def test_d0027_ac86_pulse_stays_on_the_running_mark(html):
 
 
 def test_d0027_ac86_script_does_not_use_glyph_marks_for_css_drawn_states(html):
-    """D0027-AC-86: JS の STATUS に、待ち・動いている・確認待ちの字形（○ ● ◐）を置かない。"""
+    """D0027-AC-86: JS の STATUS に、まだ・動いている・確認待ちの字形（○ ● ◐）を置かない。"""
     script = parts(html)[1]
     for glyph in "○●◐":
         assert glyph not in script, glyph
@@ -888,3 +888,161 @@ def test_d0044_ac43_build_page_is_deterministic_and_takes_no_arguments(html):
         live_page.build_page("x")  # type: ignore[call-arg]
     assert live_page.build_page() == live_page.build_page() == html
     assert "HOSTILE" not in html and str(ROOT) not in html
+
+
+# ---- D0059：上の部品（更新の時刻・確認待ちの札・合計・進みの帯）と確認待ちの色 ------------------------------------------
+#
+# 部品の動きは tests/test_live_page_js.py（Node の台）。ここは CSS と HTML の文字の検査。
+
+NEW_TOP_SELECTORS = [".updated", ".summary", ".badge", ".total", ".bar", ".bar-gap", ".bar-done", ".bar-pending"]
+NEW_TOP_CLASSES = ["updated", "summary", "badge", "total", "bar", "bar-gap", "bar-done", "bar-pending"]
+REVIEW_LIGHT = "#c2471f"
+REVIEW_DARK = "#ff8a65"
+
+
+def vars_in(value: str) -> set[str]:
+    return set(re.findall(r"var\(\s*(--[\w-]+)", value))
+
+
+def test_d0059_new_parts_are_not_in_the_static_markup(html):
+    """D0059: 新しい部品は _BODY に置かず JS が作る（1.1）。マークアップにそのクラスが無く、JS に el(…, "<クラス>") で付ける形がある。"""
+    _style, script, markup = parts(html)
+    for cls in NEW_TOP_CLASSES:
+        assert not re.search(r"""class\s*=\s*["'][^"']*\b%s\b""" % re.escape(cls), markup), cls
+    for cls in ("updated", "summary", "badge", "total", "bar"):
+        assert re.search(r"""\bel\(\s*["'][a-z]+["']\s*,\s*["']%s["']""" % re.escape(cls), script), f"JS で {cls} の要素を作っていない"
+
+
+def test_d0059_ac11_bar_is_8px_high_and_gap_is_2px(html):
+    """D0059-AC-11: 帯（.bar）の高さは 8px、すき間（.bar-gap）の幅は 2px。"""
+    css = css_of(html)
+    assert rule(css, ".bar").get("height") == "8px", rule(css, ".bar")
+    assert rule(css, ".bar-gap").get("width") == "2px", rule(css, ".bar-gap")
+
+
+def test_d0059_ac13_bar_colors_use_tokens(html):
+    """D0059-AC-13: 帯の完了は var(--ok)、確認待ちは var(--review)、地は線の色 var(--line) で塗る（色をじかに書かない）。"""
+    css = css_of(html)
+    assert rule(css, ".bar-done").get("background") == "var(--ok)"
+    assert rule(css, ".bar-pending").get("background") == "var(--review)"
+    assert rule(css, ".bar").get("background") == "var(--line)"
+
+
+def test_d0059_ac40_bar_css_has_no_running_pattern(html):
+    """D0059-AC-40: 帯に動いている段の模様を作らない：CSS に radial-gradient が無く、帯の規則（.bar で始まるセレクタ）に --run が無い。"""
+    css = css_of(html)
+    assert rule(css, ".bar"), "帯の規則が無い"
+    assert "radial-gradient" not in css
+    for selectors, decls in css_rules(css):
+        if any(s.startswith(".bar") for s in selectors):
+            assert not any("--run" in v for v in decls.values()), (selectors, decls)
+
+
+def test_d0059_ac20_badge_uses_the_review_color(html):
+    """D0059-AC-20: 札（.badge）の文字の色と枠線は var(--review)。"""
+    decl = rule(css_of(html), ".badge")
+    assert decl.get("color") == "var(--review)", decl
+    assert "var(--review)" in decl.get("border", ""), decl
+
+
+def test_d0059_ac27_script_sets_style_only_through_style_width(html):
+    """D0059-AC-27: スクリプトがスタイルに触れるのは .style.width = だけ（帯の幅）。setAttribute("style"・cssText・setProperty が無い。"""
+    _style, script, _markup = parts(html)
+    assert re.search(r"\.style\.width\s*=", script), "帯の幅を .style.width で入れていない"
+    assert len(re.findall(r"\.style\b", script)) == len(re.findall(r"\.style\.width\s*=", script)), re.findall(r"\.style\S{0,20}", script)
+    assert not re.search(r"""setAttribute\(\s*["']style""", script)
+    assert "cssText" not in script and "setProperty" not in script
+
+
+def test_d0059_ac27_style_check_finds_the_forbidden_forms():
+    """D0059-AC-27: 上の検査そのものが、.style.cssText・.style.setProperty・.style.color = を見つける（.style.width = だけが通る）。"""
+    def ok(script: str) -> bool:
+        return len(re.findall(r"\.style\b", script)) == len(re.findall(r"\.style\.width\s*=", script)) and "cssText" not in script and "setProperty" not in script
+    assert ok('node.style.width = part.width;')
+    for bad in ('node.style.cssText = "x";', 'node.style.setProperty("width", "1px");', 'node.style.color = "red";', 'node.style["width"] = "1px";'):
+        assert not ok(bad), bad
+
+
+def test_d0059_ac31_new_rules_use_only_tokens(html):
+    """D0059-AC-31: 新しいセレクタ（.updated・.summary・.badge・.total・.bar・.bar-gap・.bar-done・.bar-pending）の規則があり、値に色の直書きが無く、var() は既存のトークンだけ。"""
+    css = css_of(html)
+    for sel in NEW_TOP_SELECTORS:
+        decl = rule(css, sel)
+        assert decl, f"{sel} の規則が無い"
+        for prop, value in decl.items():
+            assert not COLOR_LITERAL.search(value), (sel, prop, value)
+            assert not (set(re.findall(r"[a-z]+", re.sub(r"var\([^)]*\)", "", value).lower())) & NAMED_COLORS), (sel, prop, value)
+            assert vars_in(value) <= set(TOKENS), (sel, prop, value)
+
+
+def test_d0059_ac32_new_rules_have_no_wide_fixed_width(html):
+    """D0059-AC-32: 新しいセレクタの width・min-width の px が 360 以下。全体の overflow-wrap: anywhere が残り、overflow-x を隠さない。"""
+    css = css_of(html)
+    assert rule(css, ".summary") and rule(css, ".bar"), "上の部品の規則が無い"
+    for sel in NEW_TOP_SELECTORS:
+        for prop in ("width", "min-width", "flex", "flex-basis"):
+            value = rule(css, sel).get(prop, "")
+            for px in re.findall(r"(\d+(?:\.\d+)?)\s*px", value):
+                assert float(px) <= 360, (sel, prop, value)
+    assert re.search(r"(?:^|[}\s])\*[^{]*\{[^}]*overflow-wrap\s*:\s*anywhere", css)
+    assert not re.search(r"overflow-x\s*:\s*(?:hidden|clip)", css)
+
+
+def test_d0059_ac36_review_token_is_coral_in_all_four_places(html):
+    """D0059-AC-36: --review は :root と [data-theme="light"] で #c2471f、prefers-color-scheme: dark の中と [data-theme="dark"] で #ff8a65（4 か所すべて）。#9a6700・#d29922 がページに無い。"""
+    css = css_of(html)
+    places = {
+        ":root": declarations(root_block(css)),
+        "light(forced)": declarations(data_theme_block(css, "light")),
+        "dark(media)": declarations(dark_media_block(css)),
+        "dark(forced)": declarations(data_theme_block(css, "dark")),
+    }
+    got = {name: block.get("--review", "").lower() for name, block in places.items()}
+    assert got == {":root": REVIEW_LIGHT, "light(forced)": REVIEW_LIGHT, "dark(media)": REVIEW_DARK, "dark(forced)": REVIEW_DARK}, got
+    low = html.lower()
+    assert "#9a6700" not in low and "#d29922" not in low
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_d0059_ac37_review_color_is_readable_as_text(html, theme):
+    """D0059-AC-37: --review は、その画面の地 --bg に対してコントラスト 4.5 以上（確認待ちの経過は文字なので、文字の基準で見る）。"""
+    css = css_of(html)
+    tokens = declarations(root_block(css)) if theme == "light" else declarations(data_theme_block(css, "dark"))
+    assert contrast(tokens["--review"], tokens["--bg"]) >= 4.5, (tokens["--review"], tokens["--bg"])
+
+
+def test_d0059_ac37_coral_values_pass_the_text_contrast():
+    """D0059-AC-37: 設計の板のコーラルそのものが、明るい地 #ffffff と暗い地 #0d1117 に対して 4.5 以上（測る補助の確かめ）。"""
+    assert contrast(REVIEW_LIGHT, "#ffffff") >= 4.5
+    assert contrast(REVIEW_DARK, "#0d1117") >= 4.5
+
+
+def test_d0059_ac38_token_names_are_unchanged(html):
+    """D0059-AC-38: 4 か所それぞれの色のトークンの名前の集まりが、前と同じ 8 つ（--review を消さず、--coral などを足さない）。var() の集まりもその中。"""
+    css = css_of(html)
+    for name, block in (
+        (":root", root_block(css)),
+        ("light(forced)", data_theme_block(css, "light")),
+        ("dark(media)", dark_media_block(css)),
+        ("dark(forced)", data_theme_block(css, "dark")),
+    ):
+        assert set(declarations(block)) == set(TOKENS), (name, set(declarations(block)) ^ set(TOKENS))
+    assert vars_in(css) <= set(TOKENS)
+
+
+def test_d0059_ac39_review_is_painted_only_with_the_review_token(html):
+    """D0059-AC-39: 確認待ちの行の印と経過・印の半分の塗り・差し戻しの印・帯の確認待ち・札は var(--review) で塗り、確認待ちを塗る規則にほかのトークンが無い。"""
+    css = css_of(html)
+    assert decls_for(css, ".s-review .mark").get("color") == "var(--review)"
+    assert decls_for(css, ".s-review .elapsed").get("color") == "var(--review)"
+    assert decls_for(css, ".s-revised .mark").get("color") == "var(--review)"
+    review_mark = decls_for(css, ".s-review .mark")
+    assert "var(--review)" in review_mark.get("border", "")
+    half = review_mark.get("background", "")
+    assert "linear-gradient" in half and vars_in(half) == {"--review"} and "transparent" in half, half
+    assert rule(css, ".badge").get("color") == "var(--review)"
+    assert rule(css, ".bar-pending").get("background") == "var(--review)"
+    for selectors, decls in css_rules(css):
+        if any(re.search(r"\.s-review\b|\.badge\b|\.bar-pending\b", s) for s in selectors):
+            used = set().union(*(vars_in(v) for v in decls.values())) if decls else set()
+            assert used <= {"--review"}, (selectors, decls)

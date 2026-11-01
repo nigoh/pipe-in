@@ -1749,3 +1749,19 @@ def test_d0044_ac32_build_answer_text_matches_build_answer(node, html):
     for (action, stage_name, ident, feedback), step in zip(cases, r["steps"]):
         assert step["threw"] is None
         assert step["result"] == la.build_answer(WIRE[action], stage_name, ident, feedback if action == "revise" else None)
+
+
+# ================================================================================================
+# D0059：上の部品（札・合計・帯・更新の時刻）があっても、確認待ちの行の中は前の版と同じ
+# ================================================================================================
+
+
+def test_d0059_ac30_review_row_order_is_unchanged(node, html):
+    """D0059-AC-30: 上に札・合計・帯・更新の時刻があっても、確認待ちの行の子の並びは 印・表示名・言葉・経過・使用量・答えのパネル のまま。上の部品は行の中に入らない。"""
+    rows = [stage("requirements", "done", duration_sec=60), stage("red", "review", pending_since=iso(30), cost_usd=0.1), stage("implement")]
+    run = play(node, html, [query("li.s-review > *"), query(".summary .badge"), query("li.stage .badge, li.stage .total, li.stage .bar, li.stage .updated")],
+               snap=snapshot(rows, review={"stage": "red", "id": ID1}))
+    assert_idle(run.frames[0])
+    assert [e["attrs"]["class"] for e in run.result(0)] == ["mark", "label", "word", "elapsed", "usage", "review"]
+    assert len(run.result(1)) == 1, "札が上（.summary の中）に出ていない"
+    assert run.result(2) == []

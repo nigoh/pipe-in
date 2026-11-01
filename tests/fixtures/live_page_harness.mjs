@@ -5,6 +5,7 @@
 // 場面（入力）:
 //   html     build_page() の HTML 全体（<body> の骨組みを偽の DOM にし、最初の <script> の中身を動かす）
 //   now      仮想の時計の始まり（ISO 8601。省くと 2026-10-17T02:00:00+00:00）
+//   tz       D0059：時刻帯（例 "Asia/Tokyo"。省くと "UTC"）。Date を使う前に process.env.TZ に入れる。結果の最上位 tz に {name, offset_min} を返す
 //   claude   "db"（既定）| "null"（claude.use("db") が null）| "undefined"（claude 自体が無い）| "use_rejects" | "use_throws" |
 //            "use_undefined" | "doc_throws" | "onsnapshot_throws"
 //   hidden   始めに document.hidden にするか（既定 false）
@@ -29,8 +30,9 @@
 //   {"op":"set_now","at":ISO}          時計をその時刻にする（タイマーは動かさない。時計が戻る場面）
 //   {"op":"hidden","value":B}          document.hidden を B にして visibilitychange を送る
 //   {"op":"call","fn":NAME,"args":[…]} トップレベルの関数 NAME を呼ぶ（結果は result）
-//   {"op":"query","selector":S}        S に合う要素の {tag, text, attrs, value, selection, disabled, shown, focused} を result に返す
-//                                      （shown = 文書に付いていて、自分も祖先も hidden でない）
+//   {"op":"query","selector":S}        S に合う要素の {tag, text, attrs, style, value, selection, disabled, shown, focused} を result に返す
+//                                      （shown = 文書に付いていて、自分も祖先も hidden でない。style = D0059：JS が el.style.<名前> = … で入れた値。
+//                                      attrs には属性だけが入る）
 //   {"op":"click","selector":S,"times":1,"force":false}  S に合う最初の要素を times 回、続けて（同じ操作の中で）押す。force が偽なら、
 //                                      disabled か hidden（自分か祖先）の要素には押さない（ブラウザと同じ）。押している間 gesture の旗が立つ。
 //                                      result = {found, dispatched, skipped}。click は親へ伝わる（bubbles）
@@ -752,6 +754,9 @@ function errText(e) {
 
 async function main() {
   const scene = JSON.parse(fs.readFileSync(0, "utf8"));
+  // D0059：時刻帯は Date を使う前に決める（vm の中の Date も同じ isolate なので同じ時刻帯になる）
+  process.env.TZ = scene.tz ?? "UTC";
+  const tzInfo = { name: process.env.TZ, offset_min: new Date(Date.UTC(2026, 9, 17, 3, 40)).getTimezoneOffset() };
   const html = String(scene.html ?? "");
   const mode = scene.claude ?? "db";
   const startMs = Date.parse(scene.now ?? "2026-10-17T02:00:00+00:00");
@@ -1208,6 +1213,7 @@ async function main() {
           tag: e.localName,
           text: e.textContent,
           attrs: Object.fromEntries(e._attrs),
+          style: Object.assign({}, e._style),
           value: e._value === undefined ? null : e._value,
           selection: e.localName === "textarea" ? [e.selectionStart, e.selectionEnd] : null,
           disabled: e.disabled,
@@ -1288,6 +1294,7 @@ async function main() {
   }
 
   const out = {
+    tz: tzInfo,
     load_error: loadError,
     loaded,
     steps,
