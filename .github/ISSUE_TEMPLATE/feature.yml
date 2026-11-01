@@ -1,0 +1,47 @@
+name: 機能の要望
+description: できるようになってほしいことを伝える
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        このリポジトリは公開しています。秘密（API キー・トークン・.env・鍵）と、ユーザー名の入った絶対パス・社内や私的なプロジェクトの名前・メールアドレスは書かないでください。ログやパスは消してから貼ってください。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること（目的）
+      description: 何をしたいのに、何ができなくて困っているか
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: してほしいこと
+      description: どうなれば困らなくなるか
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: 対象外にしてよいこと
+      description: 今回はしなくてよいこと
+  - type: dropdown
+    id: area
+    attributes:
+      label: 触る側
+      description: どこを変える話か。分からなければ「分からない」を選ぶ
+      multiple: true
+      options:
+        - 本体（pipe_in/）
+        - ジェネレーター（generator/）
+        - プラグイン（plugin/）
+        - 拡張（vscode/）
+        - 文書（docs/・README）
+        - 分からない
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: ほかに
+      description: 図を添えるなら、mermaid のコードブロックで書ける（任意）

@@ -1,0 +1,57 @@
+name: 不具合
+description: 思ったとおりに動かないことを知らせる
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        このリポジトリは公開しています。秘密（API キー・トークン・.env・鍵）と、ユーザー名の入った絶対パス・社内や私的なプロジェクトの名前・メールアドレスは書かないでください。ログやパスは消してから貼ってください。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 起きたこと
+      description: 何をしたら、何が起きたか
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待したこと
+      description: 本当はどうなってほしかったか
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現の手順
+      description: 同じことを起こすための手順を、順に書く
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 触る側
+      description: どこの不具合か。分からなければ「分からない」を選ぶ
+      multiple: true
+      options:
+        - 本体（pipe_in/）
+        - ジェネレーター（generator/）
+        - プラグイン（plugin/）
+        - 拡張（vscode/）
+        - 文書（docs/・README）
+        - 分からない
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版や環境
+      description: pipe-in の版・OS・Python・Node・VSCode の版
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ（任意）
+      description: 秘密とパスは消してから貼る
+      render: text
