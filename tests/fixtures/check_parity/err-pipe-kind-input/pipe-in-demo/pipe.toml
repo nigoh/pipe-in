@@ -1,0 +1,10 @@
+[pipe]
+kind = "foo"
+label = "kind と input"
+input = "maybe"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt = "調べてください"

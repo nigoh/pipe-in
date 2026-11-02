@@ -1,0 +1,30 @@
+[pipe]
+kind = "linear"
+label = "timeout と agent calls"
+
+[[stages]]
+name = "timeout"
+output = "01_timeout.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+timeout_sec = 0
+
+[[stages]]
+name = "zero-calls"
+output = "02_zero.md"
+access = "read"
+max_agent_calls = 0
+prompt = "調べてください"
+[stages.agents.helper]
+description = "調べ物を任せる"
+prompt = "調べて返してください"
+tools = ["Read"]
+
+[[stages]]
+name = "no-agents"
+output = "03_none.md"
+access = "read"
+max_agent_calls = 5
+prompt = "調べてください"

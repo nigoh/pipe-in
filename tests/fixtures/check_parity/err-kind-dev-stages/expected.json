@@ -1,0 +1,8 @@
+{
+  "note": "kind = dev のパイプに段を書いた",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["dev"],
+  "only": "python",
+  "reason": "作業台は開発フロー（kind = dev）を開かないので、段を持つ dev の定義は読み込みの段階で止まる"
+}

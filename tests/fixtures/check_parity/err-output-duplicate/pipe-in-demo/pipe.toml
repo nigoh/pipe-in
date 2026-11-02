@@ -1,0 +1,15 @@
+[pipe]
+kind = "linear"
+label = "output の重複"
+
+[[stages]]
+name = "a"
+output = "01_same.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "b"
+output = "01_same.md"
+access = "read"
+prompt = "調べてください"

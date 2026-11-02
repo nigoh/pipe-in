@@ -1,0 +1,53 @@
+[pipe]
+kind = "linear"
+label = "読み込みで直るつなぎ"
+
+[[stages]]
+name = "both"
+output = "01_both.md"
+access = "read"
+next = "end"
+prompt = "調べてください"
+[stages.routes]
+a = "end"
+
+[[stages]]
+name = "ghost-next"
+output = "02_next.md"
+access = "read"
+next = "ghost"
+prompt = "調べてください"
+
+[[stages]]
+name = "ghost-route"
+output = "03_route.md"
+access = "read"
+prompt = "調べてください"
+[stages.routes]
+x = "ghost"
+
+[[stages]]
+name = "ghost-on-fail"
+output = "04_on_fail.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+on_fail = "ghost"
+
+[[stages]]
+name = "in-frame-next"
+output = "05_frame_next.md"
+access = "read"
+group = "par"
+next = "end"
+prompt = "調べてください"
+
+[[stages]]
+name = "in-frame-route"
+output = "06_frame_route.md"
+access = "read"
+group = "par"
+prompt = "調べてください"
+[stages.routes]
+x = "end"

@@ -1,0 +1,6 @@
+{
+  "note": "output が空・フォルダ入り・. 始まり（各1段）",
+  "valid": false,
+  "errors": 3,
+  "keywords": [["output は", "成果物はファイル名だけ"]]
+}

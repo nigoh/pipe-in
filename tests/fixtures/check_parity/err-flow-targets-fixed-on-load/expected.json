@@ -1,0 +1,8 @@
+{
+  "note": "next と routes の併用・存在しない next・存在しない routes の先・存在しない on_fail・枠の中の段の next と routes（各1段）",
+  "valid": false,
+  "errors": 6,
+  "keywords": ["どちらか一方だけ", "という段はありません", "同時に流すため"],
+  "only": "python",
+  "reason": "作業台は読み込みのときに、存在しない行き先を end や無しへ、併用を routes へ、枠の中の next と routes を捨てる形へ直し、保存すると直った形で書かれる"
+}

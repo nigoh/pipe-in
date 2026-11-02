@@ -1,0 +1,14 @@
+[pipe]
+kind = "linear"
+label = "指示なし"
+
+[[stages]]
+name = "none"
+output = "01_none.md"
+access = "read"
+
+[[stages]]
+name = "lost"
+output = "02_lost.md"
+access = "read"
+prompt_file = "prompts/02_lost.md"

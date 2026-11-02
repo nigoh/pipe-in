@@ -1,0 +1,23 @@
+[pipe]
+kind = "linear"
+label = "judge の項目"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+[stages.check.judge]
+threshold = 0.7
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすいか"
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "同じ名前の項目"
+weight = 1
+[[stages.check.judge.must]]
+name = ""
+description = "名前が空の項目"

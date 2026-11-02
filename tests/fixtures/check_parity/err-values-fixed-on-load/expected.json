@@ -1,0 +1,8 @@
+{
+  "note": "型や値が決まりにない：access・max_budget_usd が文字・MCP の type・writes が文字列・web が文字列（各1段）",
+  "valid": false,
+  "errors": 5,
+  "keywords": ["権限の型", "max_budget_usd", "type", "writes は文字列の一覧", "web は true / false"],
+  "only": "python",
+  "reason": "作業台は読み込みのときに既定値や空へ直し（access は read、予算は無し、type は stdio、写しの型違いは空）、保存すると直った形で書かれる"
+}

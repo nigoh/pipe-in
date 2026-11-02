@@ -1,0 +1,17 @@
+[pipe]
+kind = "linear"
+label = "SDK の値"
+
+[[stages]]
+name = "mode"
+output = "01_mode.md"
+access = "read"
+permission_mode = "bypassPermissions"
+prompt = "調べてください"
+
+[[stages]]
+name = "think"
+output = "02_think.md"
+access = "read"
+max_thinking_tokens = 0
+prompt = "調べてください"

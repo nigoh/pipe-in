@@ -1,0 +1,6 @@
+{
+  "note": "MCP サーバーの command が無い（stdio）・url が無い（http）・道具が mcp に無い（各1段）",
+  "valid": false,
+  "errors": 3,
+  "keywords": ["command が要ります", "url が要ります", "道具が mcp にありません"]
+}

@@ -100,6 +100,7 @@ git rebase --autostash main           # まだコミットしていない自分�
 | 使い方（コマンド・オプション・設定） | `README.md`・`docs/guide/`、拡張なら `vscode/README.md`、`/pipe-help`（`.claude/skills/pipe-help/SKILL.md`） |
 | 置き場所（ファイルを足した・動かした） | [design.md](design.md) の「置き場所」の表、必要なら `CLAUDE.md` |
 | 層・依存の向き | [design.md](design.md) と、それを検査するテスト |
+| 検査の決まり（`check_pipe`・`validatePipe`） | 両側と見本 `tests/fixtures/check_parity/`、[design.md](design.md) の「検査の二重化」の節 |
 | 開発の決まり | `docs/development/` と、それを検査するテスト、`CLAUDE.md` の要約、`/pipe-in` |
 
 - 文書をそろえるのは、`/pipe-docs [要点か範囲]` に任せられます。変えたファイル（`git diff --name-only main...HEAD` と `git status --short`）を集めて、文書係の `pipe-in-documenter` に上の表どおりに直させます。文書係が書けるのは `README.md`・`vscode/README.md`・`pipes/README.md`・`docs/assets/README.md` と `docs/guide/`・`docs/development/` の `.md` だけで、`CLAUDE.md`・`.claude/`（`/pipe-help` を含む）・決定の記録は、案を返して人の承認を得てからメインが直します。

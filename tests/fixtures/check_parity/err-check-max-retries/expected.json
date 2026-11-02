@@ -1,0 +1,6 @@
+{
+  "note": "check.max_retries が -1",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["max_retries"]
+}

@@ -64,6 +64,7 @@
 | [D0058](D0058-pr-issue-format.md) | PR と issue の形をそろえる。PR のテンプレート（6つの節と Mermaid の図の見本）と、不具合・機能の要望の issue forms を `.github/` に置き、決まりを workflow.md の「7. PR と issue」に書き、/pipe-in の仕上げで PR の本文の案を見せる |
 | [D0059](D0059-live-page-design.md) | 進み具合のページ（`/pipe-in --artifact`・`pipe-in live watch`）に、デザインの土台（ブランド「プラグ」）を入れる。色のトークン・書体・Lucide のアイコン・帯と札・カード。外部の読み込みは書体の `<link>` 2本と SVG の名前空間だけを許す。振る舞いは変えない |
 | [D0060](D0060-live-page-rules.md) | 進み具合のページで、「N回目」を2回目から出し（板 S3 に合わせる）、「HH:MM 更新」を見ている人の時刻帯で出す。札の表示名が 80 文字で切れることをテストで固定する（閉じた PR #104 にだけあった決まりを移した） |
+| [D0061](D0061-check-parity.md) | 作業台の検査（`validatePipe`）と `pipe-in-gen check` の結果がずれないように、同じ見本を両方に掛けて確かめる。ずれを直し、決まりを足すときは両方を直すことを文書に書く |
 
 ## ひな形
 

@@ -1,0 +1,10 @@
+[pipe]
+kind = "linear"
+label = "writes のパス"
+
+[[stages]]
+name = "build"
+output = "01_build.md"
+access = "code"
+writes = ["/abs/**", "../x/**", "C:/tmp/**", '\tmp\x']
+prompt = "作ってください"

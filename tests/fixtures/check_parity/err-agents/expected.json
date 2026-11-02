@@ -1,0 +1,6 @@
+{
+  "note": "サブエージェントの名前・description・prompt・持たせられない道具・この段で使えない道具（各1つ）",
+  "valid": false,
+  "errors": 5,
+  "keywords": ["名前", "description", "prompt", "持たせられません", "使えない道具"]
+}

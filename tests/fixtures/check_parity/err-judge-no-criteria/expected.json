@@ -1,0 +1,6 @@
+{
+  "note": "judge に criteria（採点の項目）が1つも無い",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["criteria"]
+}

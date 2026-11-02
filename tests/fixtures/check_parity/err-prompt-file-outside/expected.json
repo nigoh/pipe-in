@@ -1,0 +1,8 @@
+{
+  "note": "prompt_file がパイプのフォルダの外を指している",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["フォルダの外"],
+  "only": "python",
+  "reason": "作業台は prompts/ の下の .md 以外を、読み込みの段階で止める（開けない）"
+}

@@ -1,0 +1,25 @@
+[pipe]
+kind = "linear"
+label = "前へのつなぎ"
+
+[[stages]]
+name = "first"
+output = "01_first.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "loop-next"
+output = "02_next.md"
+access = "read"
+next = "first"
+prompt = "調べてください"
+
+[[stages]]
+name = "loop-route"
+output = "03_route.md"
+access = "read"
+prompt = "調べてください"
+[stages.routes]
+back = "first"
+done = "end"

@@ -1,0 +1,8 @@
+{
+  "note": "kind = dev で段が無いパイプは、流す側では通る",
+  "valid": true,
+  "errors": 0,
+  "keywords": [],
+  "only": "python",
+  "reason": "作業台は開発フロー（kind = dev）を開かない。段が本体に組み込みのため"
+}

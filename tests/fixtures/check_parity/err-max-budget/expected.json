@@ -1,0 +1,6 @@
+{
+  "note": "max_budget_usd が 0 と負の数（pipe.toml の 0 は誤り）",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["max_budget_usd は 0 より大きい数"]
+}

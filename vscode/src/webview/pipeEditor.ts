@@ -26,7 +26,7 @@ import { restRope, ropeSettled, stepRope } from '../domain/cableRope.ts';
 import type { Rope } from '../domain/cableRope.ts';
 import type { Wire } from '../domain/pipeWires.ts';
 import { insertBetween, replug, unplug } from '../domain/pipeLinks.ts';
-import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, takeOutOfFrame, unplugAll } from '../domain/pipeEdit.ts';
+import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, setAccess, takeOutOfFrame, unplugAll } from '../domain/pipeEdit.ts';
 import type { Clip } from '../domain/pipeEdit.ts';
 import { setCheck } from '../domain/pipeCheck.ts';
 import { checkBoxHtml, checkChipHtml } from '../view/checkHtml.ts';
@@ -546,7 +546,7 @@ $('pane').addEventListener('input', (ev) => {
       case 'b-kind': s.kind = sv as BlockKind; if (sv === 'verify') setCheck(s, true); full = true; break;
       case 'b-prompt': s.prompt = sv; break;
       case 'b-model': s.model = sv; break;
-      case 'b-access': s.access = sv as StageModel['access']; if (sv === 'read') s.writes = []; full = true; break;
+      case 'b-access': setAccess(s, sv as StageModel['access']); full = true; break;
       case 'b-bash': s.bash = v === true; full = true; break;
       case 'b-web': s.web = sv as StageModel['web']; full = true; break;
       case 'b-turns': s.maxTurns = parseInt(sv, 10) || 100; break;

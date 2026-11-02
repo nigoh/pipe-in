@@ -1,0 +1,6 @@
+{
+  "note": "docs で docs_dir が無い／外を指す（../・/ 始まり）／docs 以外に docs_dir を書いた（各1段）",
+  "valid": false,
+  "errors": 4,
+  "keywords": [["が必要", "が要ります"], "外を指して", "のときだけ書けます"]
+}

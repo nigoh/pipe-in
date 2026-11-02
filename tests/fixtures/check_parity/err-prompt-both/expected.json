@@ -1,0 +1,8 @@
+{
+  "note": "prompt と prompt_file の両方を書いた",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["prompt_file"],
+  "only": "python",
+  "reason": "作業台は prompt_file を取り、保存すると指示は prompt_file の1つになる"
+}

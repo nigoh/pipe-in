@@ -1,0 +1,6 @@
+{
+  "note": "段の名前が大文字まじり（Bad_Name）と予約名（end）",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["name は英小文字"]
+}

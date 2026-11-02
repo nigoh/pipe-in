@@ -1,0 +1,18 @@
+[pipe]
+kind = "linear"
+label = "on_fail が後ろ"
+
+[[stages]]
+name = "first"
+output = "01_first.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+on_fail = "second"
+
+[[stages]]
+name = "second"
+output = "02_second.md"
+access = "read"
+prompt = "調べてください"

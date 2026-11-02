@@ -1,0 +1,21 @@
+[pipe]
+kind = "linear"
+label = "予約名"
+
+[[stages]]
+name = "input"
+output = "00_input.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "summary"
+output = "99_summary.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "state"
+output = "state.json"
+access = "read"
+prompt = "調べてください"

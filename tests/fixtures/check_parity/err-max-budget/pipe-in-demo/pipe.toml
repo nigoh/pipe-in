@@ -1,0 +1,17 @@
+[pipe]
+kind = "linear"
+label = "予算"
+
+[[stages]]
+name = "zero"
+output = "01_zero.md"
+access = "read"
+max_budget_usd = 0
+prompt = "調べてください"
+
+[[stages]]
+name = "minus"
+output = "02_minus.md"
+access = "read"
+max_budget_usd = -1
+prompt = "調べてください"

@@ -1,0 +1,10 @@
+[pipe]
+kind = "linear"
+label = "max_steps"
+max_steps = 0
+
+[[stages]]
+name = "a"
+output = "01_a.md"
+access = "read"
+prompt = "調べてください"

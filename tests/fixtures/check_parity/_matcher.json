@@ -1,0 +1,68 @@
+[
+  {
+    "name": "件数もキーワードも合う",
+    "errors": ["段 1（a）: writes を書けません", "段 2（b）: max_steps は 1 以上"],
+    "expected": { "errors": 2, "keywords": ["writes を書けません", "max_steps"] },
+    "matches": true
+  },
+  {
+    "name": "件数が違う（多い）",
+    "errors": ["writes を書けません", "writes を書けません"],
+    "expected": { "errors": 1, "keywords": ["writes を書けません"] },
+    "matches": false
+  },
+  {
+    "name": "件数が違う（少ない）",
+    "errors": ["writes を書けません"],
+    "expected": { "errors": 2, "keywords": ["writes を書けません"] },
+    "matches": false
+  },
+  {
+    "name": "キーワードを含む誤りが無い",
+    "errors": ["writes を書けません", "writes を書けません"],
+    "expected": { "errors": 2, "keywords": ["writes を書けません", "max_steps"] },
+    "matches": false
+  },
+  {
+    "name": "説明のつかない誤りが混ざっている",
+    "errors": ["writes を書けません", "知らない誤り"],
+    "expected": { "errors": 2, "keywords": ["writes を書けません"] },
+    "matches": false
+  },
+  {
+    "name": "配列はどれか1つ含めばよい",
+    "errors": ["成果物はファイル名だけを書いてください"],
+    "expected": { "errors": 1, "keywords": [["output は", "成果物はファイル名だけ"]] },
+    "matches": true
+  },
+  {
+    "name": "配列のどれも含まない",
+    "errors": ["別の誤り"],
+    "expected": { "errors": 1, "keywords": [["output は", "成果物はファイル名だけ"]] },
+    "matches": false
+  },
+  {
+    "name": "同じ誤りが2件でも、件数が合えば通る",
+    "errors": ["成果物「x」が重複しています", "成果物「y」が重複しています"],
+    "expected": { "errors": 2, "keywords": ["重複"] },
+    "matches": true
+  },
+  {
+    "name": "空の一覧は、0件の期待に通る",
+    "errors": [],
+    "expected": { "errors": 0, "keywords": [] },
+    "matches": true
+  },
+  {
+    "name": "空の一覧は、誤りを期待するときは通らない",
+    "errors": [],
+    "expected": { "errors": 1, "keywords": ["writes を書けません"] },
+    "matches": false
+  },
+  {
+    "name": "誤りがあるのに0件を期待している",
+    "errors": ["writes を書けません"],
+    "expected": { "errors": 0, "keywords": [] },
+    "matches": false
+  }
+]

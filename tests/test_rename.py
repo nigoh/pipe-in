@@ -206,6 +206,9 @@ ALLOWED: dict[str, str] = {
     "vscode/src/app/pipeEditor.test.ts": "古い置き場所・フォルダ名のテスト",
     "vscode/src/infra/fsPipes.test.ts": "古いフォルダ名を受け付けることのテスト",
     "vscode/src/manifest.test.ts": "宣言に古い名前が無いことのテスト",
+    "tests/test_check_parity.py": "前の形（devpipe- のフォルダ）の見本が通ることのテスト（D0061）",
+    "vscode/src/app/pipeCheckParity.test.ts": "前の形（devpipe- のフォルダ）の見本が通ることのテスト（D0061）",
+    "tests/fixtures/check_parity/ok-legacy-folder/expected.json": "前の形（devpipe- のフォルダ）の見本の説明（D0061）",
 }
 
 

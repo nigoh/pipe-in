@@ -1,7 +1,14 @@
 // 作業台の編集：複製・コピー・貼り付け・まとめて消す・枠に入れる/出す・つなぎをすべて外す・囲んで選ぶ。純粋な関数だけ。
 // 枠に入っているかは位置で決まる（段の中心が枠の中）ので、枠に入れる・出すは段を動かすことで行う。
 import { blockSize, frameOf, freeSpot, membersOf } from './pipeModel.ts';
-import type { FrameModel, PipeModel, Point, Rect, StageModel } from './pipeModel.ts';
+import type { Access, FrameModel, PipeModel, Point, Rect, StageModel } from './pipeModel.ts';
+
+/** 段の権限を変える。read にすると writes を、docs 以外にすると docs_dir を空にする（画面から作れない組み合わせを持たないため） */
+export function setAccess(stage: StageModel, access: Access): void {
+  stage.access = access;
+  if (access === 'read') stage.writes = [];
+  if (access !== 'docs') stage.docsDir = '';
+}
 
 /** 写したもの（モデルとは切り離した写し） */
 export interface Clip { stages: StageModel[]; frames: FrameModel[] }

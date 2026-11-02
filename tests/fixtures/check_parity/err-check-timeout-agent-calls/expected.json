@@ -1,0 +1,8 @@
+{
+  "note": "check.timeout_sec が 0・agents がある段で max_agent_calls が 0・agents の無い段に max_agent_calls",
+  "valid": false,
+  "errors": 3,
+  "keywords": ["timeout_sec", "max_agent_calls"],
+  "only": "python",
+  "reason": "作業台は check.timeout_sec と max_agent_calls を読まない（保存すると落ちる。D0035）ので、検査する値が無い"
+}

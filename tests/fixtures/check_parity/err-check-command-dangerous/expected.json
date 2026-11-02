@@ -1,0 +1,6 @@
+{
+  "note": "check.command に DANGEROUS_BASH の9つの表の語を1つずつ（9段）",
+  "valid": false,
+  "errors": 9,
+  "keywords": ["command は使えません"]
+}

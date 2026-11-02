@@ -1,0 +1,6 @@
+{
+  "note": "MCP サーバーの名前が大文字まじり（Bad）",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["MCP サーバーの名前"]
+}

@@ -1,0 +1,3 @@
+[pipe]
+kind = "linear"
+label = "段なし"

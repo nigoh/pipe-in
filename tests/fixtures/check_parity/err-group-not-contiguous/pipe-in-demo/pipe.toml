@@ -1,0 +1,23 @@
+[pipe]
+kind = "linear"
+label = "枠が離れている"
+
+[[stages]]
+name = "first"
+output = "01_first.md"
+access = "read"
+group = "par"
+prompt = "調べてください"
+
+[[stages]]
+name = "middle"
+output = "02_middle.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "last"
+output = "03_last.md"
+access = "read"
+group = "par"
+prompt = "調べてください"

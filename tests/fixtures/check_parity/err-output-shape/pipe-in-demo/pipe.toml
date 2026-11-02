@@ -1,0 +1,21 @@
+[pipe]
+kind = "linear"
+label = "output の形"
+
+[[stages]]
+name = "empty"
+output = ""
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "folder"
+output = "sub/x.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "hidden"
+output = ".hidden.md"
+access = "read"
+prompt = "調べてください"

@@ -1,0 +1,13 @@
+[pipe]
+kind = "linear"
+label = "MCP サーバーの名前"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+mcp = ["mcp__Bad__x"]
+prompt = "調べてください"
+[stages.mcp_servers.Bad]
+type = "stdio"
+command = "node"
