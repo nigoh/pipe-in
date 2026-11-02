@@ -95,6 +95,10 @@ class LinearPipeline(BasePipeline):
             if s.check
         }
 
+    def _stage_groups(self) -> dict[str, str]:
+        """枠（並列の束）の中の段の枠の名前（記録の stages[].group）。"""
+        return {s.name: s.group for s in self.pipe.stages if s.group}
+
     def _next_attempt(self, stage: str) -> int:
         """この段の検証が何回目か。記録（review の再開で戻した分も含む）の check の数 + 1。"""
         return sum(1 for h in self.history if h.get("stage") == stage and "check" in h) + 1

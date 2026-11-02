@@ -6,7 +6,7 @@
 // 「成果物」のタブの中身（一覧＋プレビュー、D0025）は artifactsHtml.ts。その幅の規則は、ここの既存の 2 つの @media（1100px・800px）の中に書く。
 // 「エージェント・スキル」のタブの中身（使ったエージェント・スキル・道具の表、D0050）は toolsHtml.ts。タブが増えても切れないよう、.detail-tabs は折り返す（@media は足さない）。
 // 実際にスクロールする外側の枠（<main class="detail">・「成果物」と「エージェント・スキル」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
-import { WAITING_MESSAGE, reasonNodeIds } from '../domain/pipelineView.ts';
+import { WAITING_MESSAGE, pickableLogStages, reasonNodeIds, terminalFor } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
 import { stateWord } from '../domain/runList.ts';
 import type { RunListView, RunRow } from '../domain/runList.ts';
@@ -276,6 +276,25 @@ function renderTerminal(view: PipelineView, terminal: TerminalView): string {
   );
 }
 
+/**
+ * 枠の中の段ごとの、隠した出力の欄（D0063）。枠の中の段の節を押すと、パネルのスクリプトがその段の欄だけを見せる。
+ * 見出しは「出力：<段の表示名>（N 回目）」、ログが無ければ「（ログなし）」。スクロール位置は欄ごとに覚える（data-scroll-name）。
+ */
+function renderStageTerminals(view: PipelineView): string {
+  return pickableLogStages(view)
+    .map((stage) => {
+      const { terminal } = terminalFor(view, stage);
+      const source = terminal.source;
+      const suffix = source === null ? '（ログなし）' : source.attempt === null ? '' : `（${source.attempt} 回目）`;
+      const title = `出力：${stageLabel(view, stage)}${suffix}`;
+      return (
+        `<section class="pane-output" data-log-for="${escapeHtml(stage)}" hidden><h2 class="terminal-title">${escapeHtml(title)}</h2>` +
+        `<div class="terminal" data-scroll="output" data-scroll-name="${escapeHtml(stage)}">${terminal.items.map(renderItem).join('')}</div></section>`
+      );
+    })
+    .join('');
+}
+
 // 図の拡大縮小のボタン（D0019-AC-79）。倍率の文字と aria-label は panelScript.ts が倍率に合わせて書き換える。
 const ZOOM_BAR =
   '<div class="zoom-bar" role="group" aria-label="図の大きさ">' +
@@ -287,9 +306,9 @@ const ZOOM_BAR =
 function renderDiagramPanel(view: PipelineView, staleAfterSec: number | null): string {
   return (
     '<div class="split">' +
-    `<div class="pane-diagram" data-scroll="diagram">${ZOOM_BAR}${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)), staleAfterSec)}` +
+    `<div class="pane-diagram" data-scroll="diagram">${ZOOM_BAR}${renderFlowSvg(view.nodes, new Set(reasonNodeIds(view)), staleAfterSec, view.frames)}` +
     `${renderWarnings(view.warnings)}${renderReasons(view)}${renderTimes(view)}</div>` +
-    `<div class="pane-right">${renderTerminal(view, view.terminal)}` +
+    `<div class="pane-right">${renderTerminal(view, view.terminal)}${renderStageTerminals(view)}` +
     `<section class="pane-gantt" data-scroll="gantt">${renderGantt(view.gantt, staleAfterSec)}</section></div>` +
     '</div>'
   );

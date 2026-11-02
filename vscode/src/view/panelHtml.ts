@@ -11,6 +11,7 @@ import type { PipelineView } from '../domain/pipelineView.ts';
 import type { RunListView } from '../domain/runList.ts';
 import { ARTIFACTS_STYLE } from './artifactsHtml.ts';
 import { escapeHtml } from './escape.ts';
+import { PAR_COLOR } from './frameStyle.ts';
 import { GANTT_STYLE } from './ganttHtml.ts';
 import { PANEL_SCRIPT } from './panelScript.ts';
 import { REASONS_STYLE } from './reasonsHtml.ts';
@@ -29,7 +30,7 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .banner-msg.is-failed { color: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .banner-msg.is-done { color: var(--vscode-charts-green); }
 .banner-msg.is-running { color: var(--vscode-charts-blue); }
-.flow { display: block; flex: none; height: auto; }
+.flow { --par: ${PAR_COLOR}; display: block; flex: none; height: auto; }
 .flow text { fill: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: 12px; }
 .flow .is-strong { font-weight: 600; }
 .flow .node-detail, .flow .edge-label { fill: var(--vscode-descriptionForeground); font-size: 10.5px; }
@@ -96,6 +97,14 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .flow .loop.is-picked .loop-path { stroke: var(--vscode-focusBorder, var(--vscode-charts-blue)); stroke-width: 3.2; stroke-dasharray: none; opacity: 1; marker-end: url(#mk-pick); }
 .flow .loop.is-picked .loop-label { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); font-weight: 700; }
 .flow .head.is-pick { fill: var(--vscode-focusBorder, var(--vscode-charts-blue)); }
+.flow .node[data-logpick] { cursor: pointer; }
+.flow .node[data-logpick]:focus-visible .shape { outline: 2px solid var(--vscode-focusBorder); }
+.flow .frame-box { fill: color-mix(in srgb, var(--par) 7%, transparent); stroke: var(--par); stroke-width: 2; }
+.flow .frame-tab { fill: color-mix(in srgb, var(--par) 45%, var(--vscode-editor-background)); }
+.flow .frame.is-done .frame-tab { fill: var(--par); }
+.flow .frame.is-running .frame-tab { fill: var(--vscode-charts-blue); }
+.flow .frame.is-failed .frame-tab { fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
+.flow .frame-tab-text { fill: var(--vscode-editor-background); font-size: 11px; font-weight: 600; }
 `;
 
 /**

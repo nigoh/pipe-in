@@ -243,7 +243,7 @@ command = "pipe-in-gen findings-check findings.json --sources sources.json --spe
 
 - `[stages.routes]`：段に choice を返させ、行き先を選びます（`"end"` で終わり）。
 - `next`：次の段を決めます（`"end"` で終わり）。省くと定義の次の段です。
-- `group`：同じ group の続いた段は同時に流します。
+- `group`：同じ group の続いた段は同時に流します。VSCode の実行パネルの図では、この段が枠に入って横に並びます（[VSCode 拡張](vscode.md)の「図の並列の枠」）。
 - 分岐先の段が、ほかの分岐先に流れ込まないように、最後に `next` を書いてください。
 - `group` の段には `review`・`routes`・`next` を書けません。`check` の `on_fail` は自分だけを指せます（自分だけをやり直す）。
 - 段を流す回数は `[pipe]` の `max_steps`（既定 50）までです。超えたら終了コード 3 で止めます（飛び先や差し戻しの無限ループを防ぐ）。

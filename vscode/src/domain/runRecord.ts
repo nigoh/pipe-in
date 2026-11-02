@@ -108,6 +108,8 @@ export interface StageDef {
   review: boolean | null;
   /** 判定（[stages.check]）の設定。判定が無い段・古い記録では null */
   check: StageCheckDef | null;
+  /** 並列の枠（stages[].group）の名前。枠の外の段・古い記録・読めない値では null（D0063） */
+  group: string | null;
 }
 
 /** 段の判定の設定（stages[].check）。 */
@@ -361,9 +363,19 @@ function parseStages(value: unknown): StageDef[] | null {
       output: fileNameOrNull(s.output),
       review: typeof s.review === 'boolean' ? s.review : null,
       check: parseStageCheck(s.check, s.name),
+      group: groupNameOrNull(s.group),
     });
   }
   return stages;
+}
+
+/** 枠の名前の長さの上限（文字数）。 */
+const GROUP_NAME_MAX = 64;
+
+/** stages[].group（並列の枠の名前）を読む。作業台の枠の名前は日本語もありうるので、文字の種類は問わない。空・空白だけ・長すぎ・パスの区切りを含む・文字でない値は null。 */
+function groupNameOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '' || value.length > GROUP_NAME_MAX) return null;
+  return /[/\\]/.test(value) ? null : value;
 }
 
 /** stages[].check（判定の設定）を読む。オブジェクトでなければ null。on_fail は段の名前だけ（自分自身は null＝自分をやり直す）、max_retries は 0 以上の整数だけ。 */
