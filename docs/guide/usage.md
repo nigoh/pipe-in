@@ -43,6 +43,18 @@ pipe-in --project ~/src/myapp --input request.md --name "CSV 出力を足す"
 
 `pipe-in` の代わりに `python -m pipe_in` でも動きます。
 
+## 前のパイプの結果を受けて流す（--after）
+
+前のパイプが PASSED で終わった記録の成果物を、次のパイプへ渡して流します。
+
+```bash
+pipe-in --pipe spec-qa --after diagrams --project ~/src/myapp --text "図と食い違う所を見つけたい"
+```
+
+- 流す前に、前のパイプの名前・結果・終わった日時が出ます。古さは判定しません。
+- 次のときは断ります。理由と直し方を出して、終了コード 1 で止まり、後ろの記録は作りません。前の記録がこの実行の作業フォルダに無い（`--project`・`--config` を前の実行と同じにする）・途中で止まっている・確認待ち（`--review` で答える）・失敗で終わった（直して流し直す）・成果物が1つも無い。`--after` が2つ以上・パス・後ろと同じ名前・`--pipe` なし・後ろが `kind = "dev"`・`--review` や `--from` と一緒。
+- 受けた元は `state.json` の `received_from` に残ります。くわしくは[パイプをつなぐ](pipes.md#パイプをつなぐ--after)。
+
 ## 途中から再開する
 
 前の段の文書が残っていれば、その次から始められます。

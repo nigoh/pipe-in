@@ -21,6 +21,7 @@
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
 | パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/`（警告は `lint.py`。誤りの検査 `check_pipe` とは別で、`definition` だけを読む） |
+| 前のパイプの記録を受ける（`--after`。前の記録を読んで受けてよいかを決める・断る文・後ろの段が前の記録を書けない守りの判定・流す前の1行。記録の受け渡しは `pipeline.py` と `specs.py` が行う） | `pipe_in/pipe/after.py` |
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
@@ -109,6 +110,7 @@ pipe_in.usage
 - D0062 で `state.json` の `stages[]` に `check`（`on_fail`・`max_retries`。判定のある段だけ）と、`runs[]` の `check` の要素に `attempt`（その段の何回目の検証か）を足しました。どちらも足すだけで、無い古い記録は、判定の節を出さない／並びの番号で読みます。古い版の拡張は知らない項目を読まずに捨てます。鍵は共通の表 `tests/fixtures/check_record.json` を本体と拡張のテストが読んで結びます。`pipeline.toml`・`pipe.toml` と `guard` は変えません。意味が変わるのは、`check` の要素の鍵の集まりに `attempt` が増えることだけです（鍵の集まりをそのまま比べているテスト 3 件は、`attempt` を含める形に直す）。
 - D0063 で `state.json` の `stages[]` に `group`（並列の枠の名前。枠の中の段だけ）を足しました。足すだけで、無い古い記録は枠なしで読みます（段は一列に出る）。古い版の拡張は知らない項目を読まずに捨てるので、新しい記録でも段が一列に出ます。鍵は共通の表 `tests/fixtures/group_record.json` を本体と拡張のテストが読んで結びます。意味が変わるものはありません（`stages[]` の鍵の集まりをそのまま比べているテストは、`group` の無い段を比べているので変わりません）。
 - D0065 は記録の形・設定・パイプの形を変えません。作業台の「保存した版」のファイル名の種別に `-external`（外で書き換わる前）を足しただけです（`<13桁の時刻>-external.json`。中身は同じ `PipeModel` の JSON）。今の拡張は `-external` の無い古い版をそのまま読みます。`-external` を知らない前の拡張は、形の違うファイルとして読み飛ばし、50 版の数にも入れず消しません（前の拡張に戻すと残るだけで、害は容量だけ。手で消せます）。内側の型 `VersionEntry` に `external?: true`（省ける）を足しました。
+- D0069 で `state.json` に `received_from`（`--after` で前のパイプの記録を受けた実行だけ。前の名前・終わった日時・種類・成果物の場所）を足しました。足すだけで、無い古い記録は受けた元の無い実行として読みます。続きの `--review`・`--from` は、この項目をそのまま使い、前の記録を読み直しません。拡張は知らない項目として読み捨てるので、拡張の画面は変えません。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

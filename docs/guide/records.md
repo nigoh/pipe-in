@@ -14,7 +14,7 @@
 | `03_red_tests.md` | テスト先行の記録（AC とテストの対応、落ちたことの確認） | テスト先行 |
 | `04_implementation.md` | 実装の記録（回ごとに追記） | 実装 |
 | `05_test_report.md` | 検証報告（AC ごとの結果） | 検証 |
-| `99_summary.md` | 全体の結果、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
+| `99_summary.md` | 全体の結果、受けた元（`--after` で受けた実行だけ。「パイプ」の行の次に1行）、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
 | `state.json` | 実行の記録（機械向け）。段の並び（`stages`：名前・表示名・成果物・確認の有無）、段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
@@ -32,6 +32,7 @@
 | `check`（`stages[]` の要素） | 段の判定の設定：`on_fail`（不合格のとき戻す段の名前。自分をやり直すなら `null`）と `max_retries`（戻す上限） | 判定（`[stages.check]`）のある段にだけ書きます。判定の無い段・開発フローには書きません。項目の無い古い記録は、判定の無い段として読み、VSCode の図は判定の節を出しません |
 | `group`（`stages[]` の要素） | 並列の枠（作業台の枠。`pipe.toml` の `[[stages]]` の `group`）の名前 | 枠の中の段にだけ書きます（`check` の後ろ）。枠の外の段・開発フローには書きません。項目の無い古い記録は枠なしとして読み、VSCode の図は段を一列に出します。拡張は、空・空白だけ・65 文字以上・`/` や `\` を含む・文字でない値を、枠なしとして読みます |
 | `attempt`（`runs[]` の `check` の中） | その段の何回目の検証か（1 から） | パイプの検証のたびに書きます。確認待ちで止めて再開しても、同じ段の前の検証の続きの番号になります。項目の無い古い記録は、同じ段の並びの番号で読みます |
+| `received_from` | 受けた元（前のパイプの記録から渡したもの）：`pipe`（前の名前）・`kind`・`updated_at`（前の終わった日時）・`dir`（前の記録の場所。作業フォルダからの相対。`linear` は前の名前、`dev` は `.`）・`artifacts`（段の表示名 `stage` と作業フォルダからの相対パス `path`。段の順） | `pipe-in --pipe <後ろ> --after <前>` で始めた実行にだけ書きます。受けていない実行には書きません。確認待ちからの続き（`--review`）と途中からの再開（`--from`）は、この項目をそのまま使い、前の記録は読み直しません。項目の無い古い記録は、受けた元の無い実行として読みます。VSCode の拡張は、この項目を読まずに捨てます |
 
 名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。`stages[]` の `check` と `check` の `attempt` の鍵も、同じ作りで `tests/fixtures/check_record.json` の表で確かめています。`stages[]` の `group` の鍵も、`tests/fixtures/group_record.json` の表で確かめています。
 
