@@ -87,6 +87,18 @@ class LinearPipeline(BasePipeline):
             return "差し戻しの上限まで検証に通りませんでした"
         return EXIT_MESSAGES[result]
 
+    def _stage_checks(self) -> dict[str, dict[str, Any]]:
+        """判定のある段の設定（記録の stages[].check）。自分をやり直すときの on_fail は None。"""
+        return {
+            s.name: {"on_fail": s.check.on_fail if s.check.on_fail not in (None, "", s.name) else None, "max_retries": s.check.max_retries}
+            for s in self.pipe.stages
+            if s.check
+        }
+
+    def _next_attempt(self, stage: str) -> int:
+        """この段の検証が何回目か。記録（review の再開で戻した分も含む）の check の数 + 1。"""
+        return sum(1 for h in self.history if h.get("stage") == stage and "check" in h) + 1
+
     def _summary_extra(self) -> list[str]:
         checks = [h for h in self.history if "check" in h]
         if not checks:
@@ -298,7 +310,8 @@ class LinearPipeline(BasePipeline):
                     f"確認用コマンド `{c.command}` が失敗しました（終了コード {res.returncode}）\n```\n{res.output_tail[-2000:]}\n```"
                 )
         status = "fail" if problems else "pass"
-        self.history.append({"stage": s.name, "check": {"status": status, "problems": problems, **record}})
+        attempt = self._next_attempt(s.name)
+        self.history.append({"stage": s.name, "check": {"attempt": attempt, "status": status, "problems": problems, **record}})
         self._save_state()
         mark = "✓ 検証に合格" if status == "pass" else "✗ 検証に不合格"
         print(f"  {mark}: {one_line(record.get('summary') or '; '.join(problems))}", flush=True)

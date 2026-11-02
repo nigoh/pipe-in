@@ -29,8 +29,10 @@
 | `agent`（`runs[]` の要素と `Prompt` 行） | その段を受け持ったエージェントの名前 | `pipe-in record begin <段> --agent <名前>`。付けなければ書きません。SDK で流す段には書きません。VSCode の時系列の行の名前と、エージェント・スキルの表のエージェントの行に出ます |
 | `max_budget_usd`（`runs[]` の要素） | その実行に効いた費用の上限（ドル。0 より大きい数） | SDK で流す段のうち、上限が効いた実行にだけ書きます（`pipeline.toml` の `[stages.<段>]` か `pipe.toml` の値。[設定](config.md)）。上限が無い実行には書きません（`null` も書きません）。項目の無い古い記録は、上限なしとして読みます。VSCode の図は 0.001〜10000 ドルの範囲だけを上限として読みます。VSCode の図が、費用を上限と比べるのに使います |
 | `resumed`（`runs[]` の要素） | 会話の続きの印 | 上限が効いた実行のうち、`resume` を渡した実行にだけ `true` を書きます（偽は書きません）。続きの会話の費用は前の回からの累計（Claude Code v2.1.277 以降の動き）なので、図は金額の対を出さず、止まったときだけ言葉を出します。項目の無い記録は、続きでないものとして読みます |
+| `check`（`stages[]` の要素） | 段の判定の設定：`on_fail`（不合格のとき戻す段の名前。自分をやり直すなら `null`）と `max_retries`（戻す上限） | 判定（`[stages.check]`）のある段にだけ書きます。判定の無い段・開発フローには書きません。項目の無い古い記録は、判定の無い段として読み、VSCode の図は判定の節を出しません |
+| `attempt`（`runs[]` の `check` の中） | その段の何回目の検証か（1 から） | パイプの検証のたびに書きます。確認待ちで止めて再開しても、同じ段の前の検証の続きの番号になります。項目の無い古い記録は、同じ段の並びの番号で読みます |
 
-名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。
+名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。`stages[]` の `check` と `check` の `attempt` の鍵も、同じ作りで `tests/fixtures/check_record.json` の表で確かめています。
 
 時刻は、`logs/*.jsonl` の `Prompt` の行の `at`（段の始まり。同じログに何度か流したときは最後の `Prompt` の行）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。
 

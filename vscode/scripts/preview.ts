@@ -24,6 +24,8 @@ import {
   artifactsPageHtml,
   budgetPageHtml,
   buildOmittedTree,
+  checkPageHtml,
+  checkSampleKind,
   buildRunsTree,
   panelKind,
   panelPreviewHtml,
@@ -220,6 +222,13 @@ for (const [page, theme] of PANEL_PAGES) {
   // 「エージェント・スキル」タブの見本（D0050）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
   if (kind === 'tools') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('tools', (dest) => toolsPageHtml(dest, theme)), 'utf8');
+    continue;
+  }
+  // 判定とやり直しの見本（D0062）：自分をやり直す・前の段へ戻す（上限まで）・古い記録の 3 つ。記録は一時フォルダの中に書いて読む
+  if (kind === 'check') {
+    const checkKind = checkSampleKind(page);
+    if (checkKind === null) throw new Error(`判定の見本の種類が読めません: ${page}`);
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('check', (dest) => checkPageHtml(dest, checkKind, theme)), 'utf8');
     continue;
   }
   // 上限と費用の表の見本（D0051）：10 段のパイプの記録を一時フォルダの中に書いて読む

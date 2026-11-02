@@ -135,6 +135,33 @@ export interface PipelineNode {
   metrics: StageMetrics | null;
   /** 段の節だけ、費用を上限と比べた結果（選んだ 1 回）。動いている段・状態を持たない段・節を手で作る側では null か無し（D0051） */
   budget?: NodeBudget | null;
+  /** 判定の節（id が check:<段>）だけ。回数と上限・戻り先。ほかは null か無し（D0062） */
+  check?: NodeCheck | null;
+}
+
+/** 判定の節の id の頭（check:<段>）。 */
+export const CHECK_NODE_PREFIX = 'check:';
+
+/** 判定の節の中身：札の元・戻り先・やり直した回数と上限（D0062）。 */
+export interface NodeCheck {
+  /** 札の元：自分をやり直す（self）か、前の段へ戻す（back） */
+  kind: 'self' | 'back';
+  /** 戻り先の段（self は null） */
+  onFail: Stage | null;
+  /** やり直した回数。検証がまだ無ければ null */
+  retries: number | null;
+  /** 上限。記録に無ければ null */
+  maxRetries: number | null;
+  /** 不合格で、検証の回数が上限 + 1 に届いた */
+  exhausted: boolean;
+}
+
+/** 判定の節を選んだときに出す、検証 1 回分の結果。 */
+export interface CheckReason {
+  attempt: number;
+  status: 'pass' | 'fail';
+  summary: string;
+  problems: string[];
 }
 
 export interface TerminalView {
@@ -195,6 +222,8 @@ export interface PipelineView {
    * 項目が無い（古い写し）ときも、表が空として読む。
    */
   tools?: ToolsTable | null;
+  /** パイプの判定（検証）の結果：段の名前 → 古い順の結果（D0062）。無い記録・開発フローでは空 */
+  checkResults?: Readonly<Record<Stage, CheckReason[]>>;
 }
 
 /** 図の状態の組み立て方。 */
@@ -229,11 +258,12 @@ export interface ReviseNote {
 /** 節を選んだときに出す理由。 */
 export type NodeReasons =
   | { kind: 'sendBack'; items: SendBack[] }
-  | { kind: 'revise'; stage: Stage; label: string; items: ReviseNote[] };
+  | { kind: 'revise'; stage: Stage; label: string; items: ReviseNote[] }
+  | { kind: 'check'; stage: Stage; label: string; items: CheckReason[] };
 
 const REVIEW_NODE_PREFIX = 'review:';
 
-/** 検証の不合格を古い順に並べる。パイプの記録では空（パイプの check の戻り先は記録に残らない）。 */
+/** 検証の不合格を古い順に並べる（開発フローだけ。パイプの判定は checkResults と判定の節）。 */
 function buildSendBacks(record: RunRecord, labels: Readonly<Record<Stage, string>>): SendBack[] {
   if (!isDevRecord(record)) return [];
   const implementAttempts = record.stageRuns.filter((r) => r.stage === 'implement').map((r) => r.attempt);
@@ -270,12 +300,23 @@ function buildRevisions(record: RunRecord, labels: Readonly<Record<Stage, string
   return notes;
 }
 
+/** 検証の結果を段ごとに古い順に並べる。attempt の無い要素の回は、同じ段の並びの番号。 */
+function buildCheckResults(record: RunRecord): Record<Stage, CheckReason[]> {
+  const byStage: Record<Stage, CheckReason[]> = {};
+  for (const c of record.checks) {
+    const list = (byStage[c.stage] ??= []);
+    list.push({ attempt: c.attempt ?? list.length + 1, status: c.status, summary: c.summary, problems: c.problems });
+  }
+  return byStage;
+}
+
 /** 理由を持つ（選べる）節の id。図に無い節は入れない。 */
 export function reasonNodeIds(view: PipelineView): NodeId[] {
   const revised = new Set(view.revisions.map((r) => r.stage));
   return view.nodes
     .filter((n) => {
       if (n.id === 'implement' || n.id === 'verdict') return view.sendBacks.length > 0;
+      if (n.id.startsWith(CHECK_NODE_PREFIX)) return (view.checkResults?.[n.id.slice(CHECK_NODE_PREFIX.length)]?.length ?? 0) > 0;
       return n.id.startsWith(REVIEW_NODE_PREFIX) && revised.has(n.id.slice(REVIEW_NODE_PREFIX.length));
     })
     .map((n) => n.id);
@@ -285,6 +326,10 @@ export function reasonNodeIds(view: PipelineView): NodeId[] {
 export function nodeReasons(view: PipelineView, nodeId: NodeId): NodeReasons | null {
   if (!reasonNodeIds(view).includes(nodeId)) return null;
   if (nodeId === 'implement' || nodeId === 'verdict') return { kind: 'sendBack', items: view.sendBacks };
+  if (nodeId.startsWith(CHECK_NODE_PREFIX)) {
+    const stage = nodeId.slice(CHECK_NODE_PREFIX.length);
+    return { kind: 'check', stage, label: view.stageLabels[stage] ?? stage, items: view.checkResults?.[stage] ?? [] };
+  }
   const stage = nodeId.slice(REVIEW_NODE_PREFIX.length);
   const items = view.revisions.filter((r) => r.stage === stage);
   return { kind: 'revise', stage, label: view.stageLabels[stage] ?? stage, items };
@@ -435,6 +480,41 @@ function verdictNode(record: RunRecord, runningStage: Stage | null): PipelineNod
   return makeNode('verdict', status);
 }
 
+/**
+ * 判定の節（check:<段>）。状態は最新の検証で決まる（pass は完了、fail は失敗）。
+ * 検証がまだ無い・段が動いている・やり直したがまだ検証されていない・前の段へ戻して別の段が動いている間は、まだ。
+ */
+function checkNode(def: StageDef, record: RunRecord, runningStage: Stage | null): PipelineNode {
+  const results = record.checks.filter((c) => c.stage === def.name);
+  const rounds = results.map((c, i) => c.attempt ?? i + 1);
+  const last = results.at(-1);
+  const runCount = record.stageRuns.filter((r) => r.stage === def.name).length;
+  const status: NodeStatus =
+    last === undefined ||
+    runningStage === def.name ||
+    runCount > results.length ||
+    (last.status === 'fail' && runningStage !== null)
+      ? 'pending'
+      : last.status === 'pass'
+        ? 'done'
+        : 'failed';
+  // 戻り先の段が記録に無い（読めない）ときは、自分をやり直すに正す
+  const target = def.check?.onFail ?? null;
+  const onFail = target !== null && record.stages?.some((s) => s.name === target) ? target : null;
+  const maxRetries = def.check?.maxRetries ?? null;
+  const latestRound = rounds.length === 0 ? 0 : Math.max(...rounds);
+  return makeNode(`${CHECK_NODE_PREFIX}${def.name}`, status, {
+    label: '判定',
+    check: {
+      kind: onFail !== null ? 'back' : 'self',
+      onFail,
+      retries: last === undefined ? null : latestRound - 1,
+      maxRetries,
+      exhausted: last !== undefined && last.status === 'fail' && maxRetries !== null && latestRound >= maxRetries + 1,
+    },
+  });
+}
+
 function finalNode(record: RunRecord): PipelineNode {
   const status: NodeStatus = record.final === null ? 'pending' : record.final === 'PASSED' ? 'done' : 'failed';
   return makeNode('final', status);
@@ -463,7 +543,7 @@ function buildDevNodes(snapshot: WorkDirSnapshot, record: RunRecord, runningStag
 }
 
 /**
- * パイプの節：依頼メモ → 段 →（確認）→ … → 完了。差し戻しはないので判定の節もない。
+ * パイプの節：依頼メモ → 段 →（判定）→（確認）→ … → 完了。判定の節は stages[].check のある段のあとだけ。
  * 確認の節は review = true の段のあと。review を持たない古い記録では、確認の記録がある段のあとだけ。
  */
 function buildPipeNodes(
@@ -475,6 +555,8 @@ function buildPipeNodes(
   const nodes = [makeNode('input', inputStatus(snapshot), { label: '依頼メモ' })];
   stages.forEach((s, i) => {
     nodes.push(stageNode(s.name, record, runningStage, { label: s.label }));
+    // 判定のある段のすぐあと（確認の節より前。確認は判定に通ってから）
+    if (s.check !== null) nodes.push(checkNode(s, record, runningStage));
     const hasReview = s.review ?? record.reviews.some((r) => r.stage === s.name);
     if (hasReview) {
       const later = stages.slice(i + 1).map((x) => x.name);
@@ -661,5 +743,6 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
       quietSec,
     }),
     tools: withTools ? buildTools(logs, runningLog, record, stageLabels) : null,
+    checkResults: buildCheckResults(record),
   };
 }

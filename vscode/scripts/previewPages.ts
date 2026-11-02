@@ -21,6 +21,8 @@ import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
 import { budgetStateJson } from './budgetSamples.ts';
+import { checkStateJson } from './checkSamples.ts';
+import type { CheckSampleKind } from './checkSamples.ts';
 import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
 import { bareRecordSample, freshSample, sdkSample, skillRecordSample } from './toolsSamples.ts';
 import type { SampleRun, ToolsVariant } from './toolsSamples.ts';
@@ -54,7 +56,7 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
  * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -76,12 +78,25 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-tools-dark', 'dark'],
   ['run-panel-budget-light', 'light'],
   ['run-panel-budget-dark', 'dark'],
+  ['run-panel-check-self-light', 'light'],
+  ['run-panel-check-self-dark', 'dark'],
+  ['run-panel-check-back-light', 'light'],
+  ['run-panel-check-back-dark', 'dark'],
+  ['run-panel-check-old-light', 'light'],
+  ['run-panel-check-old-dark', 'dark'],
 ];
+
+/** 判定の見本のページ（run-panel-check-<種類>-<テーマ>）の種類。ほかのページなら null。 */
+export function checkSampleKind(page: string): CheckSampleKind | null {
+  const m = /^run-panel-check-(self|back|old)-/.exec(page);
+  return m === null ? null : (m[1] as CheckSampleKind);
+}
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
   if (page.includes('-tools-')) return 'tools';
   if (page.includes('-budget-')) return 'budget';
+  if (checkSampleKind(page) !== null) return 'check';
   if (page.includes('-artifacts-')) return 'artifacts';
   if (page.includes('-stale-soon-')) return 'stale-soon';
   if (page.includes('-stale-')) return 'stale';
@@ -242,6 +257,24 @@ export async function buildBudgetDir(dest: string): Promise<string> {
 /** 上限と費用の表の確認用ページ。一時フォルダ（dest）に書いた見本の記録を、本物の読み取りで読んで HTML にする。 */
 export async function budgetPageHtml(dest: string, theme: Theme): Promise<string> {
   const view = await readShowcaseView(await buildBudgetDir(dest));
+  return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
+}
+
+// ---- 判定とやり直しの見本（D0062）-------------------------------------------------------------
+// 見本の記録（checkSamples.ts）を一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。tests/fixtures/ には書かない。
+
+/** 判定の見本の記録を dest の中に書き、その docs/pipeline の絶対パスを返す。 */
+export async function buildCheckDir(dest: string, kind: CheckSampleKind): Promise<string> {
+  const dir = path.join(dest, 'docs', 'pipeline');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, 'state.json'), checkStateJson(kind), 'utf8');
+  await writeFile(path.join(dir, '00_input.md'), 'パイプの判定とやり直しを実行の図に出す見本\n', 'utf8');
+  return dir;
+}
+
+/** 判定の見本の確認用ページ。一時フォルダ（dest）に書いた見本の記録を、本物の読み取りで読んで HTML にする。 */
+export async function checkPageHtml(dest: string, kind: CheckSampleKind, theme: Theme): Promise<string> {
+  const view = await readShowcaseView(await buildCheckDir(dest, kind));
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
 }
 

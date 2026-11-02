@@ -2,26 +2,37 @@
 // 色は CSS（panelHtml.ts の STYLE）でクラスに付ける。ここでは形と位置だけを決める。
 // 動いている段で段のログが目安の時間動かないとき（D0021）は、節と、その段へ入る流れる矢印に印の属性（data-quiet・data-stale-after）を持たせ、
 // 節の 2 行目に「⚠ 更新なし」の文字を足す。パネルのスクリプトが is-stale を付けると、CSS が点線の枠にし、脈打ちと点の流れを止める。
-import { NODE_STATUS_LABELS } from '../domain/pipelineView.ts';
+import { checkChipText } from '../domain/pipeCheck.ts';
+import { CHECK_NODE_PREFIX, NODE_STATUS_LABELS } from '../domain/pipelineView.ts';
 import type { NodeId, PipelineNode } from '../domain/pipelineView.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
 import { formatMilli } from './money.ts';
 import { STALE_WORD, staleAttrs, staleTime } from './staleMark.ts';
 
-type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final';
+type Shape = 'doc' | 'stage' | 'review' | 'verdict' | 'final' | 'check';
 
 const REVIEW_PREFIX = 'review:';
 
-/** 節の形は id で決まる（依頼メモ・確認・判定・完了。ほかは段）。 */
+/** 節の形は id で決まる（依頼メモ・確認・判定（開発フロー）・パイプの判定・完了。ほかは段）。 */
 function shapeOf(id: NodeId): Shape {
   if (id === 'input') return 'doc';
   if (id === 'verdict') return 'verdict';
   if (id === 'final') return 'final';
+  if (id.startsWith(CHECK_NODE_PREFIX)) return 'check';
   return id.startsWith(REVIEW_PREFIX) ? 'review' : 'stage';
 }
 
-const HEIGHTS: Readonly<Record<Shape, number>> = { doc: 30, stage: 50, review: 30, verdict: 46, final: 32 };
+const HEIGHTS: Readonly<Record<Shape, number>> = { doc: 30, stage: 50, review: 30, verdict: 46, final: 32, check: 46 };
+
+const EXHAUSTED_WORD = '上限まで';
+
+/** 判定の節の 2 行目の文字：やり直した回数と上限（「2 / 3 回」。上限が無ければ「2 回」）。検証がまだ無ければ null。 */
+function checkCountText(node: PipelineNode): string | null {
+  const c = node.check;
+  if (c == null || c.retries === null) return null;
+  return c.maxRetries === null ? `${c.retries} 回` : `${c.retries} / ${c.maxRetries} 回`;
+}
 
 // 段の節の上限の表示（D0051）。2 行目（y+38）の下に、金額の対・棒・言葉と「N 回目」の順に足す。
 const BAR_W = 152; // 棒の枠の幅（節の幅 176 から左右の余白を引いた値）
@@ -108,6 +119,8 @@ const GAP = 24;
 const TOP = 8;
 const LOOP_RIGHT_X = 266;
 const LOOP_LEFT_X = 30;
+const CHECK_LOOP_STEP = 6; // 判定の戻りの矢印が複数あるとき、通り道を左へずらす幅
+const CHECK_LOOP_MIN_X = 10;
 
 interface Placed {
   node: PipelineNode;
@@ -143,7 +156,7 @@ function outline(p: Placed): string {
     return `<path class="shape" d="M${CX},${y} L${CX + VERDICT_HALF_W},${m} L${CX},${y + h} L${CX - VERDICT_HALF_W},${m} Z"/>`;
   }
   const hw = halfWidth(shape);
-  const rx = shape === 'stage' ? 6 : shape === 'doc' ? 3 : h / 2;
+  const rx = shape === 'stage' || shape === 'check' ? 6 : shape === 'doc' ? 3 : h / 2;
   const cls = shape === 'doc' ? 'shape is-doc' : 'shape';
   return `<rect class="${cls}" x="${CX - hw}" y="${y}" width="${hw * 2}" height="${h}" rx="${rx}"/>`;
 }
@@ -158,6 +171,7 @@ const MARKS: Readonly<Record<PipelineNode['status'], string>> = {
 
 /** 節に対応する矢印の id（renderLoops の data-loop と同じ値）。 */
 function loopIdOf(id: NodeId): string {
+  if (id.startsWith(CHECK_NODE_PREFIX)) return id;
   return id.startsWith(REVIEW_PREFIX) ? `revise:${id.slice(REVIEW_PREFIX.length)}` : 'send-back';
 }
 
@@ -165,6 +179,15 @@ function loopIdOf(id: NodeId): string {
 function pickAttrs(id: NodeId): string {
   const e = escapeHtml(id);
   return ` data-reasons="${e}" data-reasons-loop="${escapeHtml(loopIdOf(id))}" tabindex="0" role="button" aria-pressed="false"`;
+}
+
+/** 判定の節の <title> の足し書き：（やり直し 1 / 3 回・上限まで）。出るものが無ければ空。 */
+function checkNodeTitle(node: PipelineNode): string {
+  const items: string[] = [];
+  const count = checkCountText(node);
+  if (count !== null) items.push(`やり直し ${count}`);
+  if (node.check?.exhausted === true) items.push(EXHAUSTED_WORD);
+  return items.length === 0 ? '' : `（${items.join('・')}）`;
 }
 
 function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: number | null): string {
@@ -192,6 +215,16 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: num
       parts.push(`<text class="node-stale" x="${LEFT + 12}" y="${y + 38}">${STALE_WORD} ${staleTime(node.quietSec, 'tspan')}</text>`);
     }
     parts.push(...renderBudget(node, y));
+  } else if (shape === 'check') {
+    // 1 行目：札（作業台と同じ文字）と状態。2 行目：やり直した回数と上限（上限まで落ちたら言葉も）。数字と固定の言葉だけ
+    const chip = node.check == null ? node.label : checkChipText(node.check.kind);
+    parts.push(`<text class="node-label is-strong" x="${LEFT + 12}" y="${y + 20}">${escapeHtml(chip)}</text>`);
+    parts.push(`<text class="node-status" x="${RIGHT - 10}" y="${y + 20}" text-anchor="end">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
+    const count = checkCountText(node);
+    if (count !== null) parts.push(`<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">${escapeHtml(count)}</text>`);
+    if (node.check?.exhausted === true) {
+      parts.push(`<text class="check-word" x="${RIGHT - 10}" y="${y + 38}" text-anchor="end">${EXHAUSTED_WORD}</text>`);
+    }
   } else if (shape === 'verdict') {
     parts.push(`<text class="node-label" x="${CX}" y="${mid(p) + 4}" text-anchor="middle">${escapeHtml(node.label)}</text>`);
     parts.push(`<text class="node-status" x="${CX + VERDICT_HALF_W + 8}" y="${mid(p) + 4}">${escapeHtml(`${MARKS[node.status]} ${status}`.trim())}</text>`);
@@ -213,7 +246,8 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, staleAfterSec: num
   const pick = pickable.has(node.id) ? pickAttrs(node.id) : '';
   const waitingMark = node.waitingSec != null ? ' is-waiting' : '';
   const budgetMark = shape === 'stage' && node.budget != null ? ` is-budget-${node.budget.state}` : '';
-  const title = `${node.label}：${status}${shape === 'stage' ? budgetTitle(node) : ''}`;
+  const checkTitle = shape === 'check' ? checkNodeTitle(node) : '';
+  const title = `${node.label}：${status}${shape === 'stage' ? budgetTitle(node) : ''}${checkTitle}`;
   return `<g class="node is-${node.status}${waitingMark}${budgetMark}" data-node="${escapeHtml(node.id)}"${stale}${pick}><title>${escapeHtml(title)}</title>${parts.join('')}</g>`;
 }
 
@@ -268,7 +302,31 @@ function renderLoops(placed: Placed[]): string {
       loop('send-back', n, d, label, `x="${LOOP_LEFT_X - 8}" y="${ym}" text-anchor="middle" transform="rotate(-90 ${LOOP_LEFT_X - 8} ${ym})"`, `差し戻し ${n} 回`),
     );
   }
+  loops.push(...renderCheckLoops(placed));
   return loops.join('');
+}
+
+/** 前の段へ戻す判定の戻りの矢印：判定の節の左から、左の通り道を通って、戻り先の段の節へ。自分をやり直す判定は描かない。 */
+function renderCheckLoops(placed: Placed[]): string[] {
+  const loops: string[] = [];
+  let k = 0;
+  for (const p of placed.filter((q) => q.shape === 'check')) {
+    const c = p.node.check;
+    const target = c?.onFail == null ? undefined : placed.find((q) => q.node.id === c.onFail);
+    if (c == null || target === undefined) continue;
+    const x = Math.max(CHECK_LOOP_MIN_X, LOOP_LEFT_X - k * CHECK_LOOP_STEP);
+    const n = c.retries ?? 0;
+    const y1 = mid(p);
+    const y2 = mid(target);
+    const d = `M${LEFT},${y1} L${x},${y1} L${x},${y2} L${LEFT - 2},${y2}`;
+    // 文字が重ならないよう、ラベルは最初の 1 本だけ（ほかは <title> で読める）
+    const label = k === 0 && n > 0 ? `戻し ${n}回` : '';
+    const ym = (y1 + y2) / 2;
+    const labelAttrs = `x="${x - 8}" y="${ym}" text-anchor="middle" transform="rotate(-90 ${x - 8} ${ym})"`;
+    loops.push(loop(p.node.id, n, d, label, labelAttrs, `${target.node.label}へ戻す ${n} 回`));
+    k += 1;
+  }
+  return loops;
 }
 
 const DEFS = `<defs>

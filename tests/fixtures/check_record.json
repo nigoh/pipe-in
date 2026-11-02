@@ -1,0 +1,20 @@
+{
+  "keys": ["check", "attempt"],
+  "cases": [
+    { "memo": "自分をやり直す・1 回目 fail → 2 回目 pass", "check": { "on_fail": null, "max_retries": 3 }, "results": ["fail", "pass"], "exit": "PASSED",
+      "written": { "check": { "on_fail": null, "max_retries": 3 }, "attempt": [1, 2] },
+      "read": { "onFail": null, "maxRetries": 3, "checks": [ { "attempt": 1, "status": "fail" }, { "attempt": 2, "status": "pass" } ] } },
+    { "memo": "前の段へ戻す・1 回目 fail → 2 回目 pass", "check": { "on_fail": "draw", "max_retries": 2 }, "results": ["fail", "pass"], "exit": "PASSED",
+      "written": { "check": { "on_fail": "draw", "max_retries": 2 }, "attempt": [1, 2] },
+      "read": { "onFail": "draw", "maxRetries": 2, "checks": [ { "attempt": 1, "status": "fail" }, { "attempt": 2, "status": "pass" } ] } },
+    { "memo": "前の段へ戻す・上限（2 回）まで落ちた", "check": { "on_fail": "draw", "max_retries": 2 }, "results": ["fail", "fail", "fail"], "exit": "TEST_FAILED",
+      "written": { "check": { "on_fail": "draw", "max_retries": 2 }, "attempt": [1, 2, 3] },
+      "read": { "onFail": "draw", "maxRetries": 2, "checks": [ { "attempt": 1, "status": "fail" }, { "attempt": 2, "status": "fail" }, { "attempt": 3, "status": "fail" } ] } },
+    { "memo": "自分をやり直す・上限 0 で 1 回目から fail", "check": { "on_fail": null, "max_retries": 0 }, "results": ["fail"], "exit": "TEST_FAILED",
+      "written": { "check": { "on_fail": null, "max_retries": 0 }, "attempt": [1] },
+      "read": { "onFail": null, "maxRetries": 0, "checks": [ { "attempt": 1, "status": "fail" } ] } },
+    { "memo": "自分をやり直す・1 回目で pass", "check": { "on_fail": null, "max_retries": 1 }, "results": ["pass"], "exit": "PASSED",
+      "written": { "check": { "on_fail": null, "max_retries": 1 }, "attempt": [1] },
+      "read": { "onFail": null, "maxRetries": 1, "checks": [ { "attempt": 1, "status": "pass" } ] } }
+  ]
+}

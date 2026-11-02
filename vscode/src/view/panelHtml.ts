@@ -64,6 +64,7 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .flow .is-budget-over .budget-fill, .flow .is-budget-stopped .budget-fill { fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .flow .is-budget-over .budget-track, .flow .is-budget-stopped .budget-track { stroke: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .flow .is-budget-stopped .budget-track { stroke-width: 2; }
+.flow .check-word { font-size: 11px; font-weight: 600; fill: var(--vscode-charts-red, var(--vscode-errorForeground)); }
 .elapsed { color: var(--vscode-foreground); font-variant-numeric: tabular-nums; }
 .flow .node-stale { display: none; fill: var(--vscode-foreground); font-size: 10.5px; font-weight: 600; }
 .flow .node-stale .elapsed { fill: var(--vscode-foreground); }
