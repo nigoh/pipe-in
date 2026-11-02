@@ -11,6 +11,7 @@ Node が無い環境では全部 skip する（skip は成功に見えるので�
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -65,10 +66,12 @@ def ms(text: str) -> int:
     return int(datetime.fromisoformat(text).timestamp() * 1000)
 
 
-def run_scene(node_path: str, page_html: str, **scene) -> dict:
+def run_scene(node_path: str, page_html: str, tz: str = "UTC", **scene) -> dict:
+    """tz は台の node の時刻帯（環境変数 TZ。子プロセスだけに足す）。手元の時刻帯で結果が変わらないよう、既定は UTC。"""
     scene["html"] = page_html
     proc = subprocess.run(
         [node_path, str(HARNESS)], input=json.dumps(scene).encode("utf-8"), capture_output=True, timeout=120, cwd=str(ROOT),
+        env={**os.environ, "TZ": tz},
     )
     try:
         result = json.loads(proc.stdout.decode("utf-8"))
@@ -206,15 +209,15 @@ def test_d0027_harness_without_script_is_a_load_error(node):
 # ---- ページの本物の JS ---------------------------------------------------------------------------------
 
 
-def go(node, html, steps=None, **opts):
-    r = run_scene(node, html, steps=steps or [], **opts)
+def go(node, html, steps=None, *, tz="UTC", **opts):
+    r = run_scene(node, html, tz=tz, steps=steps or [], **opts)
     assert r["load_error"] is None, r["load_error"]
     assert r["uncaught"] == [] and r["unhandled"] == [], (r["uncaught"], r["unhandled"])
     return r
 
 
-def call(node, html, fn, *args):
-    r = run_scene(node, html, steps=[{"op": "call", "fn": fn, "args": list(args)}])
+def call(node, html, fn, *args, tz="UTC"):
+    r = run_scene(node, html, tz=tz, steps=[{"op": "call", "fn": fn, "args": list(args)}])
     assert r["load_error"] is None, r["load_error"]
     step = r["steps"][0]
     assert step["threw"] is None, f"{fn}({args}) が例外: {step['threw']}"
@@ -819,8 +822,8 @@ def one_stage(status: str, **kw) -> dict:
     return snapshot([stage("only", status, **extra)])
 
 
-def query(node, html, snap, selector):
-    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": selector}])
+def query(node, html, snap, selector, *, tz="UTC"):
+    r = go(node, html, tz=tz, steps=[*sending(snap), {"op": "query", "selector": selector}])
     return r["steps"][-1]["result"]
 
 
@@ -1040,9 +1043,9 @@ def test_d0027_ac88_row_with_all_three_values(node, html):
 # ---- D0059：頭・札・合計・帯・数 -------------------------------------------------------------------------------
 
 
-def text_of(node, html, snap, selector):
+def text_of(node, html, snap, selector, *, tz="UTC"):
     """写しを届けたあと、selector に合う最初の要素の文字（無ければ None）。"""
-    found = query(node, html, snap, selector)
+    found = query(node, html, snap, selector, tz=tz)
     return found[0]["text"] if found else None
 
 
@@ -1206,26 +1209,48 @@ def test_d0059_ac11_total_is_shown_next_to_the_chips(node, html):
     assert [t["text"] for t in query(node, html, snapshot([stage("a", "done"), stage("b")]), ".total")] in ([], [""])
 
 
-def test_d0059_ac12_updated_time_from_generated_at(node, html):
-    """D0059-AC-12: 写しの generated_at（2026-07-01T12:40:05+09:00）から「12:40 更新」を出す。時分はそのまま（時差の計算をしない）。"""
-    assert text_of(node, html, snapshot([stage("a", "done")], generated_at="2026-07-01T12:40:05+09:00"), ".updated") == "12:40 更新"
-    assert text_of(node, html, snapshot([stage("a", "done")], generated_at="2026-07-01T03:05:00Z"), ".updated") == "03:05 更新"
+def test_d0060_ac03_updated_time_follows_the_viewer_timezone(node, html):
+    """D0060-AC-03: 写しの generated_at（2026-07-01T12:40:05+09:00）を、見ているブラウザの時刻帯に直して「HH:MM 更新」を出す（D0059-AC-12 を置き換え）。"""
+    snap = snapshot([stage("a", "done")], generated_at="2026-07-01T12:40:05+09:00")
+    assert text_of(node, html, snap, ".updated", tz="UTC") == "03:40 更新"
+    assert text_of(node, html, snap, ".updated", tz="Asia/Tokyo") == "12:40 更新"
+    assert text_of(node, html, snap, ".updated", tz="America/New_York") == "23:40 更新"
+
+
+def test_d0060_ac03_harness_timezone_switch_takes_effect(node, html):
+    """D0060-AC-03: 台の自己検査。TZ を UTC と Asia/Tokyo で切り替えると updatedText の答えが 9 時間ずれる（ずれなければ TZ が台に効いていない）。"""
+    utc = call(node, html, "updatedText", "2026-07-01T12:40:05Z", tz="UTC")
+    tokyo = call(node, html, "updatedText", "2026-07-01T12:40:05Z", tz="Asia/Tokyo")
+    assert utc == "12:40 更新", utc
+    assert tokyo == "21:40 更新", f"TZ の切り替えが効いていない: UTC={utc!r} Tokyo={tokyo!r}"
 
 
 @pytest.mark.parametrize(
     "value,expected",
-    [("2026-07-01T12:40:05+09:00", "12:40 更新"), ("2026-07-01T12:40:05Z", "12:40 更新"), ("2026-07-01T00:00:00+00:00", "00:00 更新"), ("2026-07-01T23:59:59.123-05:00", "23:59 更新"),
+    [("2026-07-01T12:40:05+09:00", "03:40 更新"), ("2026-07-01T12:40:05Z", "12:40 更新"), ("2026-07-01T00:00:00+00:00", "00:00 更新"), ("2026-07-01T23:59:59.123-05:00", "04:59 更新"),
      (None, ""), ("", ""), ("abc", ""), (5, ""), ([], ""), ({}, ""), ("2026-07-01T12:40:05", ""), ("2026-07-01", ""), ("12:40", ""), (NAN, ""), (True, "")],
     ids=lambda v: repr(v)[:30],
 )
-def test_d0059_ac12_updated_text_function(node, html, value, expected):
-    """D0059-AC-12: updatedText(generatedAt) は、ずれつき ISO の形（TIME_RE）に合えば「HH:MM 更新」、合わなければ空。"""
-    assert call(node, html, "updatedText", value) == expected
+def test_d0060_ac04_updated_text_function(node, html, value, expected):
+    """D0060-AC-04: updatedText(generatedAt) は、ずれつき ISO（Z・小数秒・マイナスのずれも）なら TZ=UTC の時分で「HH:MM 更新」、合わなければ空（D0059-AC-12 を置き換え）。"""
+    assert call(node, html, "updatedText", value, tz="UTC") == expected
 
 
-@pytest.mark.parametrize("bad", ["drop", None, 5, "abc", "2026-07-01T12:40:05"], ids=repr)
+@pytest.mark.parametrize(
+    "value,tz,expected",
+    [("2026-07-01T12:40:05Z", "Asia/Kolkata", "18:10 更新"), ("2026-07-01T15:00:00Z", "Asia/Tokyo", "00:00 更新"), ("2026-07-01T04:05:00Z", "UTC", "04:05 更新")],
+    ids=["kolkata_half_hour", "tokyo_midnight", "two_digits"],
+)
+def test_d0060_ac04_half_hour_and_midnight_timezones(node, html, value, tz, expected):
+    """D0060-AC-04: 30 分ずれる時刻帯でも合い、0 時台は「00」、時・分は 2 桁、24 時間表記（24: や午前・午後の印は出ない）。"""
+    got = call(node, html, "updatedText", value, tz=tz)
+    assert got == expected
+    assert re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d 更新", got)
+
+
+@pytest.mark.parametrize("bad", ["drop", None, 5, "abc", "2026-07-01T12:40:05", "2026-02-30T12:00:00+09:00"], ids=repr)
 def test_d0059_ac12_bad_or_missing_generated_at_is_not_shown(node, html, bad):
-    """D0059-AC-12: generated_at が無い・形が違うときは時刻を出さず（.updated は空）、ほかの表示（名前・段・言葉・アイコン）は壊れない。"""
+    """D0059-AC-12 / D0060-AC-05: generated_at が無い・形が違う・日付として読めない（2月30日）ときは時刻を出さず（.updated は空）、ほかの表示（名前・段・言葉・アイコン）は壊れない。"""
     snap = snapshot([stage("a", "done")])
     if bad == "drop":
         del snap["generated_at"]
@@ -1309,3 +1334,68 @@ def test_d0027_ac88_stage_time_does_not_change_the_running_elapsed(node, html):
     r = go(node, html, steps=sending(counting_snapshot(83, 40)))
     text = r["steps"][0]["view"]["text"]
     assert shows(text, "1:23") and shows(text, "0:40") and "0:12" in text and "秒" not in text
+
+
+# ---- D0060：「N回目」は2回目から・札の表示名は80文字 ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("attempt,shown", [(2, "2回目"), (3, "3回目"), (999, "999回目")], ids=lambda v: str(v))
+def test_d0060_ac01_attempt_two_and_up_is_shown(node, html, attempt, shown):
+    """D0060-AC-01: attempt が 2 以上の段（上限 999 まで）は「N回目」が出る。今のままで通る（2 以上は元から出ている）。"""
+    found = query(node, html, snapshot([stage("a", "done", attempt=attempt)]), ".stage .attempt")
+    assert [x["text"] for x in found] == [shown]
+
+
+@pytest.mark.parametrize(
+    "bad", [1, None, 0, -1, 1.5, NAN, "2", True, 1000, 10**30, [2], INF, NINF], ids=lambda v: repr(v)[:20],
+)
+def test_d0060_ac02_attempt_one_null_and_odd_values_are_not_shown(node, html, bad):
+    """D0060-AC-02: attempt が 1・null・0・負・小数・NaN・文字・真偽・1000 以上・巨大な数・配列の段は「回目」の要素が出ず、画面に NaN・undefined・null も出ない。"""
+    r = go(node, html, steps=[*sending(snapshot([stage("a", "done", attempt=bad)])), {"op": "query", "selector": ".stage .attempt"}])
+    assert r["steps"][1]["result"] == [], "「回目」が出ている"
+    text = r["steps"][0]["view"]["text"]
+    assert "回目" not in text and "LABEL-a" in text
+    assert not any(w in text for w in ("NaN", "undefined", "null"))
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(1, None), (2, 2), (3, 3), (998, 998), (999, 999), (1000, None), (0, None), (-2, None), (2.5, None), (None, None), ("2", None), (True, None), ([], None), ({}, None), (NAN, None), (INF, None)],
+    ids=lambda v: repr(v)[:20],
+)
+def test_d0060_ac02_ok_attempt_function(node, html, value, expected):
+    """D0060-AC-02: okAttempt(v) は 2〜999 の整数だけ数をそのまま返し、ほかは null。"""
+    assert call(node, html, "okAttempt", value) == expected
+
+
+def chip_label(text: str, prefix: str) -> str:
+    assert text.startswith(prefix), (prefix, text)
+    return text[len(prefix):]
+
+
+@pytest.mark.parametrize("status,prefix", [("review", "確認待ち："), ("running", "作業中：")], ids=["review", "running"])
+def test_d0060_ac06_chip_label_is_cut_at_80_characters(node, html, status, prefix):
+    """D0060-AC-06: 札の表示名は 80 文字ちょうどならそのまま、81 文字なら先頭 79 文字 + 「…」（札の表示名の部分が 80 文字）。前置きは数えず、変わらない。今のままで通る（checkSnapshot の clip が効いている。守り続ける検査）。"""
+    kw = {"pending_since": iso(5)} if status == "review" else {"started_at": iso(5)}
+    exact, over = "あ" * 80, "あ" * 81
+    t80 = text_of(node, html, snapshot([stage("a", status, label=exact, **kw)]), ".chips .chip-text")
+    t81 = text_of(node, html, snapshot([stage("a", status, label=over, **kw)]), ".chips .chip-text")
+    assert chip_label(t80, prefix) == exact
+    cut = chip_label(t81, prefix)
+    assert cut == "あ" * 79 + "…" and len(cut) == 80
+
+
+def test_d0060_ac06_chip_label_does_not_split_a_surrogate_pair(node, html):
+    """D0060-AC-06: 79 文字目に絵文字（サロゲートペア）がまたがる表示名でも、壊れた文字（孤立したサロゲート）が出ない。今のままで通る。"""
+    label = "あ" * 78 + "😀" * 3
+    t = text_of(node, html, snapshot([stage("a", "review", label=label, pending_since=iso(5))]), ".chips .chip-text")
+    cut = chip_label(t, "確認待ち：")
+    assert cut == "あ" * 78 + "😀" + "…" and len(cut) == 80
+    t.encode("utf-8")  # 孤立したサロゲートがあれば UnicodeEncodeError
+
+
+def test_d0060_ac06_row_label_is_unchanged(node, html):
+    """D0060-AC-06: 段の行（カード）の表示名は今のまま（80 文字をこえれば同じ clip で切る）。今のままで通る。"""
+    r = go(node, html, steps=[*sending(snapshot([stage("a", "done", label="い" * 81), stage("b", "done", label="う" * 80)])), {"op": "query", "selector": ".stage .label"}])
+    texts = [x["text"] for x in r["steps"][1]["result"]]
+    assert texts == ["い" * 79 + "…", "う" * 80]

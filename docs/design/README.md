@@ -81,4 +81,4 @@ pipe-in の画面（計画ボード・実行パネル・進み具合のページ
 - キャンバスで直したら、`canvas/` に写し直します（`canvas.json` の `boards` と `order` は、`canvas/` の `.dc.html` とちょうど同じにします。`tests/test_design_docs.py` が確かめます）。
 - キャンバスの URL、セッションの ID、手元のセッションやブランチの名前は書きません（公開リポジトリのため）。
 - この土台をコードに入れるのは、画面ごとに `/pipe-in` で進めます（計画ボードは `.claude/skills/pipe-plan/board.html`、進み具合のページは `pipe_in/engine/live_page.py`、実行パネルと作業台は `vscode/`）。
-- 進み具合のページには入れました（[D0059](../decisions/D0059-live-page-design.md)）。色の値は上の表と計画ボードの `board.html` と同じにし、書体の `<link>` 2本は計画ボードと同じ文字で、`<head>` に置きます。アイコンは `ICONS` の定数に線の形を写し、`createElementNS` で作ります（`undo-2` と `circle-dashed` を含む）。「待ち」の札は、ページでは「まだ」（確認待ちでも動いてもいない段）と「確認待ち」（人の判断を待つ段）に分けて書きます。
+- 進み具合のページには入れました（[D0059](../decisions/D0059-live-page-design.md)）。色の値は上の表と計画ボードの `board.html` と同じにし、書体の `<link>` 2本は計画ボードと同じ文字で、`<head>` に置きます。アイコンは `ICONS` の定数に線の形を写し、`createElementNS` で作ります（`undo-2` と `circle-dashed` を含む）。「N回目」は2回目から出し、「HH:MM 更新」は見ているブラウザの時刻帯で出します（[D0060](../decisions/D0060-live-page-rules.md)）。「待ち」の札は、ページでは「まだ」（確認待ちでも動いてもいない段）と「確認待ち」（人の判断を待つ段）に分けて書きます。
