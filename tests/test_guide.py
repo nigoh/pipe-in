@@ -45,6 +45,7 @@ GUIDE_DOCS = [
     "config.md",
     "migrate.md",
     "develop.md",
+    "start-without-commands.md",  # D0072：数だけの直し（コマンドを打たない人向けの文書）
 ]
 MIGRATION_TITLE = f"{OLD} から移る"
 README_SECTIONS = ["すぐ試す", "文書", MIGRATION_TITLE, "ライセンス"]

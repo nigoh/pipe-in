@@ -23,7 +23,7 @@ pipe-in は、要件メモから **要件定義 → 設計 → テスト先行 �
 - 段の並びを自分で決めた「パイプ」を作って流せます（図を作る・仕様とソースの突き合わせなど）。→ [パイプ](docs/guide/pipes.md)
 - 費用・トークン・利用枠を、段ごとに記録に残します。→ [記録と使用量](docs/guide/records.md)
 
-**目次**：[すぐ試す](#すぐ試す) · [文書](#文書) · [前の名前から移る](#migrate) · [ライセンス](#ライセンス)
+**目次**：[すぐ試す](#すぐ試す) · [文書](#文書) · [前の名前から移る](#migrate) · [ライセンス](#ライセンス) · [English](README.en.md)
 
 ## すぐ試す
 
@@ -98,6 +98,7 @@ Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、
 | --- | --- |
 | [使い方](docs/guide/usage.md) | 開発フローの流れ・流す・途中から再開・確認の画面・`--pause` と `--review`・`pipe-in record`・Claude のアーティファクトで見る・ボタンで答える（`pipe-in live`、`--artifact`、ターミナルの実行を見る `pipe-in live watch` と `/pipe-in:pipe-live`）・注意 |
 | [VSCode の拡張](docs/guide/vscode.md) | 入れ方・実行を見る・パイプ作業台 |
+| [コマンドを打たない人向けの案内](docs/guide/start-without-commands.md) | 拡張とブラウザ・会話だけで見る・見本を選ぶ・確認に答える道と、端末で 1 行貼る手順が要る範囲 |
 | [パイプ](docs/guide/pipes.md) | 作り方・検査の警告・組み方の目安（比較実験から）・ひな形・見本のパイプ（図・仕様の突き合わせ・調べもの・動画）・`pipe.toml`・検証と差し戻し・指摘の検査（`findings-check`）・分岐・Agent SDK の設定 |
 | [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査と進み具合を見る `/pipe-in:pipe-live` のスキル・フック。プラグイン自身の確かめのケース `plugin/evals/` の流し方も） |
 | [安全のしくみ](docs/guide/safety.md) | 段ごとの書き込める範囲・どの段でも止める操作 |

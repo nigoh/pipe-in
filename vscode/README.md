@@ -1,5 +1,7 @@
 # pipe-in-vscode
 
+[English](README.en.md)
+
 [pipe-in](../README.md) の実行を、VSCode の中でパイプライン図とターミナル風の出力として見る拡張。パイプを組み立てる作業台もある。
 pipe-in が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物のファイル）は読むだけで、何も書かない。
 書くのは、作業台で「保存」を押したときの、開いたパイプのフォルダ（新しいパイプは `.pipe-in/pipes/pipe-in-<名前>/`）の中（`pipe.toml`・`prompts/*.md`・`layout.json`・無いときの `README.md`）だけ。
@@ -14,6 +16,8 @@ pipe-in が work_dir に書く記録（`state.json`・`logs/*.jsonl`・成果物
 </picture>
 
 <sub>「pipe-in: 実行を見る」のパネル。見本の記録（数字は見本）を写したもの。</sub>
+
+初めての人向けの案内（walkthrough）もある。VSCode の「ようこそ」（コマンドパレットの「Help: Welcome」）から「pipe-in をはじめる」を選ぶと、入れる → 見本を選ぶ → 流す → 確認に答える、の手順をたどれる（自動では開かない）。コマンドを使わずにできる範囲は [コマンドを打たない人向けの案内](../docs/guide/start-without-commands.md) にある。
 
 ## 使い方
 
