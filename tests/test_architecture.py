@@ -481,6 +481,102 @@ def test_d0044_ac29_live_answer_is_in_an_installed_package():
     assert (ROOT / "pipe_in" / "engine" / "live_answer.py").is_file()
 
 
+# ---- D0066：流す前の費用の目安の部品は、読むだけで書かず、guard に触れない ----------------------------------------
+
+ESTIMATE_PARTS = ["pipe_in/usage/prices.py", "pipe_in/usage/estimate.py", "pipe_in/estimate_cmd.py"]
+WRITE_CALLS = [
+    r"\bwrite_text\b",
+    r"\bwrite_bytes\b",
+    r"\bopen\([^)]*['\"][wax+]",
+    r"\bmkdir\b",
+    r"\bmakedirs\b",
+    r"\bunlink\b",
+    r"\brmtree\b",
+    r"\bshutil\b",
+    r"\bsubprocess\b",
+    r"\bclaude_agent_sdk\b",
+    r"\.touch\(",
+    r"\brename\(",
+]
+
+
+def estimate_part_problems(rel: str, source: str) -> list[str]:
+    """書き込み・子プロセス・SDK の呼び出しと、guard の読み込みがあれば、その文。コメント行は見ない。"""
+    import re
+
+    code = "\n".join(line for line in source.splitlines() if not line.lstrip().startswith("#"))
+    problems = [f"{rel}: {pat}" for pat in WRITE_CALLS if re.search(pat, code)]
+    for node in ast.walk(ast.parse(source)):
+        names = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""] if isinstance(node, ast.ImportFrom) else []
+        names += [a.name for a in node.names] if isinstance(node, ast.ImportFrom) else []
+        problems += [f"{rel}: guard を読んでいる（{n}）" for n in names if "guard" in n.split(".")[-1]]
+    return problems
+
+
+def test_d0066_ac12_目安の部品のソースに書き込みと子プロセスが無い():
+    """D0066-AC-12: 目安の 3 つの部品（usage/prices.py・usage/estimate.py・estimate_cmd.py）のソースに、書き込みの呼び出し（write_text・
+    open(…, "w")・mkdir・makedirs・unlink・subprocess・claude_agent_sdk など）が無い。estimate は読むだけ。"""
+    problems: list[str] = []
+    for rel in ESTIMATE_PARTS:
+        path = ROOT / rel
+        assert path.is_file(), f"{rel} が無い（まだ作っていない）"
+        problems += estimate_part_problems(rel, path.read_text(encoding="utf-8"))
+    assert problems == []
+
+
+def test_d0066_ac28_目安の部品はguardを読まず書き込み先を持たない():
+    """D0066-AC-28: 目安の 3 つの部品は、guard（engine/guard.py・generator/guard_hook.py）を import しない。止める範囲は変わらない
+    （3 つの guard のファイル自体を変えていないことは、検証の段で git diff で確かめる）。"""
+    for rel in ESTIMATE_PARTS:
+        path = ROOT / rel
+        assert path.is_file(), f"{rel} が無い（まだ作っていない）"
+        assert [p for p in estimate_part_problems(rel, path.read_text(encoding="utf-8")) if "guard" in p] == []
+
+
+def test_d0066_ac12_検査そのものが書き込みと子プロセスとguardの読み込みを見つける_守る():
+    """D0066-AC-12: 検査そのもの：書き込み・子プロセス・SDK・guard の読み込みを含む見本は見つけ、読むだけの見本・コメントの行は見逃す（今のまま通る。守る）。"""
+    bad = [
+        "p.write_text('x')",
+        "open(path, 'w')",
+        "open(path, mode='a')",
+        "p.mkdir(parents=True)",
+        "import os\nos.makedirs(d)",
+        "p.unlink()",
+        "import subprocess",
+        "import claude_agent_sdk",
+        "from .engine.guard import check_write",
+        "from .engine import guard",
+    ]
+    for src in bad:
+        assert estimate_part_problems("x.py", src), src
+    ok = ["data = p.read_text()", "open(path)", "open(path, 'r')", "# p.write_text('x') は使わない\nx = 1", "from .metrics import summarize_runs"]
+    for src in ok:
+        assert estimate_part_problems("x.py", src) == [], src
+
+
+def test_d0066_ac12_usageの目安の部品は標準ライブラリとusageの中だけを読む():
+    """D0066-AC-12: usage/prices.py・usage/estimate.py は、標準ライブラリと usage の中（.prices・.metrics）だけを import する（一番下の層。
+    engine・dev・pipe は読まない）。"""
+    import sys
+
+    for rel in ["pipe_in/usage/prices.py", "pipe_in/usage/estimate.py"]:
+        path = ROOT / rel
+        assert path.is_file(), f"{rel} が無い（まだ作っていない）"
+        outside: list[str] = []
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                outside += [a.name for a in node.names if a.name.split(".")[0] not in sys.stdlib_module_names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0:
+                    if (node.module or "").split(".")[0] not in sys.stdlib_module_names:
+                        outside.append(node.module or "")
+                elif node.level == 1 and (node.module or "") not in {"prices", "metrics"}:
+                    outside.append("." + (node.module or ""))
+                elif node.level > 1:
+                    outside.append("." * node.level + (node.module or ""))
+        assert outside == [], f"{rel}: {outside}"
+
+
 def test_python_files_have_no_invalid_escape_sequences():
     """リポジトリの .py に、無効なエスケープ（`"\\("`・`'\\ '` など）が無い。今は SyntaxWarning だが、新しい Python では誤りになる。"""
     import warnings

@@ -37,6 +37,8 @@ export type ToEditorMessage =
   | { type: 'versions'; list: VersionEntry[] }
   /** 選んだ版の中身 */
   | { type: 'version'; id: string; model: PipeModel }
+  /** 費用の目安に使う今日（UTC の日付）と、前の実績（ドル。無ければ null）。開いたときに一度だけ送る（D0066） */
+  | { type: 'estimateContext'; today: string; actualUsd: number | null }
   /** 外で書き換わったときの知らせ（D0065。型だけ。パネルは入口と同じ版で出る） */
   | ExternalNotice;
 export type FromEditorMessage =

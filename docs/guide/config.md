@@ -39,3 +39,5 @@ model = "sonnet"
 段が `maximum buffer size of 1048576 bytes` を含むトレースバックで落ちたときは、`max_buffer_mb` が入る前の pipe-in を読んでいます（1048576 バイトは SDK の既定の 1MB）。pipe-in のフォルダで `git pull` してから `pip install -e .` で入れ直してください。どこから読んでいるかは `python -c "import pipe_in; print(pipe_in.__file__)"` で確かめます（版の番号は前と同じなので、見分けには使えません）。
 
 段の名前は `requirements` / `design` / `red` / `implement` / `test` です。
+
+`[stages.<段>]` の `model`・`max_turns`・`max_budget_usd` と `[pipeline]` の `max_retries` は、流す前の費用の目安（`pipe-in estimate`。[使い方](usage.md#流す前に費用の目安を見るpipe-in-estimate)）も読みます。

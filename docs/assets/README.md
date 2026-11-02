@@ -33,7 +33,7 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | ページ | 見るもの | 画像に撮るか |
 | --- | --- | --- |
 | `pipe-editor-dark.html`・`pipe-editor-light.html` | パイプ作業台（暗い・明るい）。ブロック「ソースの調査」を1回押すと、右に段の設定が出る | 撮る：`pipe-editor-dark.png`・`pipe-editor-light.png` |
-| `pipe-editor-diagrams.html` | ひな形のパイプ diagrams を開いた作業台の見本 | 撮らない |
+| `pipe-editor-diagrams.html` | ひな形のパイプ diagrams を開いた作業台の見本。費用の目安の節（D0066）の確かめは、作業台のどのページでも、右の欄の末尾の節を開き、ページの `window.__previewEstimate({ today, actualUsd })` で今日と前の実績を送って見る（ページは足さない） | 撮らない |
 | `pipe-editor-external-dark.html`・`pipe-editor-external-light.html` | 外で書き換わったパイプを読み直す動き（D0065）。ページの `window.__previewExternal('reloaded' / 'conflict' / 'unreadable')` で拡張からの知らせを送り、読み直しのトースト・差分つきの帯の 2 つのボタン・読めなかった帯・履歴の「外で書き換わる前」の行を見る。帯のボタンを押すと `window.__posted` に `externalChoice` が積まれ、ページが読み込み／残すの結果を返す。ファイルを見張る動きはプレビューでは確かめられない | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 | `run-panel-light.html`・`run-panel-dark.html` | 完了した見本の「実行を見る」パネル（明るい・暗い） | 撮らない（`run-panel-light.png`・`run-panel-dark.png` は、下の実行の一覧のページ `run-panel-runs-*` から撮る） |
 | `run-panel-running-light.html`・`run-panel-running-dark.html`（`run-panel-running-*`） | 動いている実行の動き（脈打ち・点の流れ・点滅）。動きは静止画に写らない | 撮らない |

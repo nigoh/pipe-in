@@ -105,14 +105,33 @@ def pipeline_for(cfg: Config, pipe: pd.PipeDef | None, *, test_cmd_given: bool =
       test_command は --test-cmd → パイプの定義 → pipeline.toml の順に優先する。
     - kind = "linear"：定義の順に段を流す。記録は <work_dir>/<名前>/ に分ける。
     """
+    cfg = _run_cfg(cfg, pipe)
     if pipe is None:
         return DevPipeline(cfg)
     if pipe.kind == "dev":
-        cfg = cfg.for_pipe(pipe.name, own_work_dir=False)
         if pipe.test_command and not test_cmd_given:
             cfg = replace(cfg, test_command=pipe.test_command)
         return DevPipeline(cfg)
-    return LinearPipeline(cfg.for_pipe(pipe.name, own_work_dir=True), pipe)
+    return LinearPipeline(cfg, pipe)
+
+
+def _run_cfg(cfg: Config, pipe: pd.PipeDef | None) -> Config:
+    """パイプの種類 → 記録の場所の設定。dev は work_dir のまま、linear は <work_dir>/<名前>/ に分ける（estimate も同じ決め方を使う）。"""
+    if pipe is None:
+        return cfg
+    return cfg.for_pipe(pipe.name, own_work_dir=pipe.kind != "dev")
+
+
+def _print_estimate(cfg: Config, pipe: pd.PipeDef | None) -> None:
+    """確認の前に、費用の目安を 2 行で出す（D0066）。作れなくても、流すことは止めない。"""
+    from . import estimate_cmd
+
+    try:
+        line = estimate_cmd.line_for_run(cfg, pipe)
+    except Exception:
+        return
+    if line:
+        print(line + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -138,6 +157,11 @@ def main(argv: list[str] | None = None) -> int:
         from .engine.live_cmd import main as live_main
 
         return live_main(argv[1:])
+    if argv and argv[0] == "estimate":
+        # 流す前の費用の目安を出す（段は流さず、何も書かない）
+        from .estimate_cmd import main as estimate_main
+
+        return estimate_main(argv[1:], _load_pipe, _run_cfg)
     args = _parse_args(argv)
     if args.review:
         if args.input is not None or args.text is not None or args.from_stage is not None or args.yes:
@@ -182,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.yes and not pause and not sys.stdin.isatty():
         print("⚠ 対話できない環境です。確認の段で止まるので、確認を省くなら --yes を付けてください。\n")
     _warn_if_dirty(cfg.project_dir)
+    _print_estimate(cfg, pipe)
     try:
         result = asyncio.run(pipeline.run(text, from_stage))
     except KeyboardInterrupt:

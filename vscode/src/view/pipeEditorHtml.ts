@@ -200,6 +200,16 @@ details.box > summary { cursor: pointer; font-size: 12px; color: var(--muted); f
 /* 判定の箱：いちばん上のスイッチで入り切りし、オンのときだけ下の欄を出す */
 .check-box > .pill.toggle { justify-self: start; }
 .check-box .row2 { grid-template-columns: minmax(0, 1fr) minmax(0, 7em); }
+/* 費用の目安の節（D0066）：幅の見出し・段ごとの内訳・印 */
+.cost-estimate > summary { color: var(--ink); }
+.cost-estimate .cost-total, .cost-estimate .cost-actual { margin: 0; font-weight: 700; }
+.cost-estimate .cost-actual .note { margin-left: 6px; font-weight: 400; }
+.cost-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.cost-table th, .cost-table td { border-bottom: 1px solid var(--rule); padding: 3px 6px; text-align: right; font-weight: 400; font-family: var(--mono); }
+.cost-table th[scope="row"], .cost-table thead th:first-child { text-align: left; font-family: inherit; }
+.cost-table thead th { color: var(--muted); font-weight: 700; }
+.cost-model { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.cost-mark { display: block; margin: 2px 0 0; font-size: 11px; font-weight: 400; color: var(--vscode-editorWarning-foreground, var(--ink)); }
 details.preview { border: 1px dashed var(--rule); border-radius: 8px; }
 details.preview summary { cursor: pointer; padding: 7px 10px; font-weight: 700; }
 details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; font-family: var(--mono); font-size: 11px; }
