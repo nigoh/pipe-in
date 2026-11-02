@@ -27,6 +27,35 @@ test('AC-70: 版を書く・一覧にする・読む・消す（根の中の pip
   }
 });
 
+test('D0065-AC-09: 実物の口でも <id>-external.json を書ける・一覧に出せる・読める・消せる', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'versions-'));
+  try {
+    const store = createFsVersionStore(root);
+    await store.write('pipe-in-one', `${T}-external.json`, '{"e":1}');
+    assert.equal(await readFile(path.join(root, 'pipe-in-one', `${T}-external.json`), 'utf8'), '{"e":1}');
+    assert.deepEqual(await store.list('pipe-in-one'), [`${T}-external.json`]);
+    assert.equal(await store.read('pipe-in-one', `${T}-external.json`), '{"e":1}');
+    await store.remove('pipe-in-one', `${T}-external.json`);
+    assert.deepEqual(await store.list('pipe-in-one'), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('D0065-AC-09: -external に似た形（二重の印・別の綴り・拡張子なし・パス）は、書かない・読まない・一覧に出さない', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'versions-'));
+  try {
+    const store = createFsVersionStore(root);
+    for (const file of [`${T}-external-draft.json`, `${T}-draft-external.json`, `${T}-ext.json`, `${T}-externals.json`, `${T}-external`, `../${T}-external.json`, `..\\${T}-external.json`, '-external.json']) {
+      await assert.rejects(store.write('pipe-in-one', file, 'x'), Error, file);
+      assert.equal(await store.read('pipe-in-one', file), null, file);
+    }
+    assert.deepEqual(await readdir(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('AC-70: 形の違うフォルダ名・ファイル名・根の外へ出るパスは、読まず書かない', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'versions-'));
   try {

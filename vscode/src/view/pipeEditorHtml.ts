@@ -55,7 +55,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn.primary:hover { background: var(--vscode-button-hoverBackground); }
 .btn.small { padding: 1px 8px; font-size: 12px; }
 .zoom { font-family: var(--mono); font-size: 12px; min-width: 44px; text-align: center; }
-.work { display: grid; grid-template-columns: 92px minmax(0, 1fr) 420px; gap: 8px; min-height: 0; }
+.work { display: grid; grid-template-columns: 92px minmax(0, 1fr) 420px; grid-template-rows: auto minmax(0, 1fr); column-gap: 8px; row-gap: 0; min-height: 0; }
+.work > .shelf, .work > .stage-area, .work > .side { grid-row: 2; }
+/* 外で書き換わったときの帯（D0065）。隠れているあいだは高さを取らない */
+.ext-banner { grid-column: 1 / -1; grid-row: 1; border: 1px solid var(--return); border-left-width: 4px; border-radius: 3px; background: var(--panel); padding: 6px 10px; margin-bottom: 8px; min-width: 0; }
+.ext-banner[hidden] { display: none; }
+.ext-title { font-weight: 700; }
+.ext-note, .ext-reason { font-size: 12px; color: var(--muted); }
+.ext-diff { list-style: none; margin: 4px 0; padding: 0; max-height: 120px; overflow-y: auto; display: grid; gap: 2px; font-size: 12px; }
+.ext-diff li { overflow-wrap: anywhere; }
+.ext-kind { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--rule); border-radius: 99px; padding: 0 6px; color: var(--muted); }
+.ext-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ext-actions button { border: 1px solid var(--vscode-button-border, var(--rule)); background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 2px; padding: 3px 10px; cursor: pointer; }
+.ext-actions button[data-ext="load"] { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
 .shelf { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--rule); border-radius: 3px; padding: 6px 4px; overflow-y: auto; background: var(--panel); }
 .shelf h2 { margin: 0 0 2px; font-size: 11px; color: var(--muted); text-align: center; }
 .tile { display: grid; justify-items: center; gap: 2px; padding: 5px 2px 4px; border: 1px solid transparent; border-radius: 3px; cursor: grab; font-size: 11px; text-align: center; touch-action: none; user-select: none; }
@@ -221,9 +233,9 @@ details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; fo
 .hrow.later { color: var(--muted); }
 /* 狭い幅：右の欄を面の下に回し、高さを面と半分ずつに分ける（どちらも中でスクロールする）。凡例は図に重なるので隠す */
 @media (max-width: 1000px) {
-  .work { grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .shelf { grid-row: 1; } .stage-area { grid-row: 1; min-height: 0; }
-  .side { grid-column: 1 / -1; grid-row: 2; }
+  .work { grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  .work > .shelf, .work > .stage-area { grid-row: 2; } .stage-area { min-height: 0; }
+  .work > .side { grid-column: 1 / -1; grid-row: 3; margin-top: 8px; }
   .legend { display: none; }
 }
 `;
@@ -256,6 +268,7 @@ export function renderPipeEditorHtml(o: PipeEditorHtmlOptions): string {
   <button type="button" class="btn primary" id="save">保存</button>
 </header>
 <main class="work">
+  <div class="ext-banner" id="ext-banner" role="alert" hidden></div>
   <nav class="shelf" id="shelf" aria-label="ブロックの棚"><h2>ブロック</h2></nav>
   <section class="stage-area" id="area" aria-label="路線図">
     <div class="world" id="world"></div>

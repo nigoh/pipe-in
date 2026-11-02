@@ -6,7 +6,7 @@ import path from 'node:path';
 import type { VersionStore } from '../app/pipeVersions.ts';
 
 const PIPE_DIR = /^pipe-in-[a-z0-9][a-z0-9-]*$/;
-const FILE = /^\d{13}(-draft)?\.json$/;
+const FILE = /^\d{13}(-draft|-external)?\.json$/;
 
 export function createFsVersionStore(root: string): VersionStore {
   const base = path.resolve(root);

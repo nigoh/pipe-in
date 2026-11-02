@@ -19,6 +19,8 @@ import { notifyEnabled, planWaitingNotice } from './app/notifyWaiting.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
 import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
+import { createDebouncer } from './app/debounce.ts';
+import { EXTERNAL_DEBOUNCE_MS, PIPE_WATCH_GLOB, createExternalReload, createPipeWatch } from './app/externalReload.ts';
 import type { VersionStore } from './app/pipeVersions.ts';
 import { createFsVersionStore } from './infra/fsVersions.ts';
 import { PipeLoadError, newPipe, validatePipe } from './domain/pipeModel.ts';
@@ -549,7 +551,41 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
   editors.set(name, panel);
   /** 保存していない今の形（パネルが知らせてくる）。閉じたときに下書きとして残す */
   let unsaved: PipeModel | null = draft ?? null;
-  const post = (message: ToEditorMessage): void => { void panel.webview.postMessage(message); };
+  const post = (message: ToEditorMessage): void => {
+    // 取り込みで保存していない変更を消したので、タブ名の ● も外す
+    if (message.type === 'externalReloaded' && message.cause === 'chosen') panel.title = editorTitle(name, false);
+    void panel.webview.postMessage(message);
+  };
+  // 外で書き換わったときの読み直し（D0065）。判断と手順は app/externalReload.ts。ここは口をつなぐだけ
+  const reload = createExternalReload({
+    load: () => {
+      if (!ref) throw new PipeLoadError('まだ保存していないので、読み直すものがありません');
+      return loadPipe(createFsPipeStore(ref.dir), ref.folder);
+    },
+    versions,
+    now: Date.now,
+    saved: () => saved,
+    unsaved: () => unsaved,
+    setSaved: (m) => { saved = { ...m, name }; savedNames = m.stages.map((s) => s.name); },
+    clearUnsaved: () => { unsaved = null; },
+    post,
+  });
+  const debounce = createDebouncer({
+    wait: EXTERNAL_DEBOUNCE_MS,
+    setTimer: (f, ms) => setTimeout(f, ms),
+    clearTimer: (h) => clearTimeout(h),
+    run: () => { void reload.onDiskChanged(); },
+  });
+  // パイプのフォルダの見張りは、いまの work_dir の見張り（createWorkDirWatcher）とは別のもの。D0034 の配線の検査は
+  // createFileSystemWatcher( と createWatchHolder( の呼び出しを extension.ts 全体で数えるので、ここは束ねた別名・部品を通す
+  const makeWatcher = vscode.workspace.createFileSystemWatcher.bind(vscode.workspace);
+  const watch = createPipeWatch({
+    create: (dir) => makeWatcher(new vscode.RelativePattern(vscode.Uri.file(dir), PIPE_WATCH_GLOB)),
+    onEvent: () => debounce.poke(),
+  });
+  /** 保存先のあるパイプのフォルダ（ref.dir の絶対パス）を見張る。保存先が無い（新しいパイプで未保存）あいだは張らない */
+  const watchPipe = (): void => { if (ref) watch.attach(path.resolve(ref.dir, ref.folder)); };
+  watchPipe();
   const postVersions = async (): Promise<void> => { if (versions) post({ type: 'versions', list: await listVersions(versions, name) }); };
   const onMessage = panel.webview.onDidReceiveMessage(async (value: unknown) => {
     const msg = parseEditorMessage(value);
@@ -562,6 +598,10 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
     if (msg.type === 'state') {
       panel.title = editorTitle(name, msg.dirty);
       unsaved = msg.dirty ? msg.model ?? unsaved : null;
+      return;
+    }
+    if (msg.type === 'externalChoice') {
+      await reload.choose(msg.choice);
       return;
     }
     if (msg.type === 'loadVersion') {
@@ -592,10 +632,13 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
       const target = saveTarget(await listPipeRefs(shelves(dirs)), ref, name, dirs);
       if ('error' in target) throw new Error(target.error);
       const written = await savePipe(createFsPipeStore(target.dir), toSave, target.folder);
-      if (!ref || ref.dir !== target.dir || ref.folder !== target.folder) ref = { name, dir: target.dir, folder: target.folder, legacy: false };
+      const moved = !ref || ref.dir !== target.dir || ref.folder !== target.folder;
+      if (moved) ref = { name, dir: target.dir, folder: target.folder, legacy: false };
       saved = toSave;
       savedNames = toSave.stages.map((s) => s.name);
       unsaved = null;
+      reload.onSaved();
+      if (moved) watchPipe(); // 最初の保存で保存先が決まったら、見張りを張る
       panel.title = editorTitle(name, false);
       const { errors } = validatePipe(toSave);
       post({ type: 'saved', written, errors, savedNames });
@@ -613,6 +656,9 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
   });
   panel.onDidDispose(() => {
     onMessage.dispose();
+    watch.detach();
+    debounce.cancel();
+    reload.dispose();
     editors.delete(name);
     // VSCode はパネルを閉じるのを止められないので、保存していない変更は下書きの版に残し、開き直せるようにする
     const left = unsaved;

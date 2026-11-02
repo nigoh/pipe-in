@@ -110,7 +110,7 @@ def must_contain(text: str, word: str, where: str) -> None:
 
 # ---- AC-15：一覧の持ち場は docs/assets/README.md（作業台のページも） ----------------------------------------
 
-EDITOR_PAGES = ["pipe-editor-dark", "pipe-editor-light", "pipe-editor-diagrams"]
+EDITOR_PAGES = ["pipe-editor-dark", "pipe-editor-light", "pipe-editor-diagrams", "pipe-editor-external-dark", "pipe-editor-external-light"]
 
 
 def editor_names_missing(readme: str, names: list[str]) -> list[str]:
@@ -140,14 +140,17 @@ def test_D0039_AC_15_見本_食い違いを見つける検査そのものは_png
         "  ['pipe-editor-dark', f('a', 1, {}, null), 'dark'],\n"
         "  ['pipe-editor-light', f('a', 1, {}, null), 'light'],\n"
         "  ['pipe-editor-diagrams', f('b', g(h('x'), 'u'), p, null), 'dark'],\n"
+        "  ['pipe-editor-external-dark', f('a', 1, {}, null), 'dark'],\n"
+        "  ['pipe-editor-external-light', f('a', 1, {}, null), 'light'],\n"
         "  ['pipe-editor-new', f('c', 1, {}, null), 'dark'],\n"
         "];\nfor (const [page] of PANEL_PAGES) {}\n"
     )
     names = editor_page_names(ts)
     assert names == [*EDITOR_PAGES, "pipe-editor-new"]
     readme = "`pipe-editor-dark.html`・`pipe-editor-light.html`・`pipe-editor-diagrams.png`"
-    assert editor_names_missing(readme, names) == ["pipe-editor-diagrams", "pipe-editor-new"]
-    assert editor_names_missing(readme + "・`pipe-editor-diagrams.html`・`pipe-editor-new.html`", names) == []
+    assert editor_names_missing(readme, names) == ["pipe-editor-diagrams", "pipe-editor-external-dark", "pipe-editor-external-light", "pipe-editor-new"]
+    rest = "・`pipe-editor-diagrams.html`・`pipe-editor-external-dark.html`・`pipe-editor-external-light.html`・`pipe-editor-new.html`"
+    assert editor_names_missing(readme + rest, names) == []
     assert editor_page_names("const X = 1;") == []
 
 
