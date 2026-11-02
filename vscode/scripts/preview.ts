@@ -166,8 +166,10 @@ for (const [page, model, theme, external] of PAGES) {
     ? `if(m.type==='externalChoice'){if(m.choice==='load')send({type:'externalReloaded',model:ext(),savedNames:${names},cause:'chosen',versions:null});else send({type:'externalKept',savedNames:${names}})}`
     : '';
   // 他のスクリプトの名前とぶつからないように、全体を即時関数に入れる
-  const stub = `<script nonce="preview">(()=>{window.__posted=[];const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);${extHead}window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);`
-    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'versions',list:${versions}})}`
+  // 費用の目安（D0066）：開いたときに今日（固定。単価表の as_of に近い日）を知らせる。補助 window.__previewEstimate({ today, actualUsd }) で、今日と前の実績を送り直せる
+  const estHead = `window.__previewEstimate=(c)=>send({type:'estimateContext',today:c.today,actualUsd:c.actualUsd});`;
+  const stub = `<script nonce="preview">(()=>{window.__posted=[];const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);${estHead}${extHead}window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);`
+    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'estimateContext',today:'2026-11-02',actualUsd:null});send({type:'versions',list:${versions}})}`
     + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
     + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}`
     + `${extChoice}}})})();</script>`;

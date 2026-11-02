@@ -9,7 +9,7 @@ import { assistantTool, stageRunEntry, stateJson } from '../test/fixtures.ts';
 import { clockAt } from '../test/liveFixtures.ts';
 import { logOf, toolsSnapshot, uniqueCalls } from '../test/toolsFixtures.ts';
 
-/** RunRow の項目（17 個）。増やすときは、人が決めた設計の変更として、ここも直す */
+/** RunRow の項目（18 個。D0066 で costUsd を足した）。増やすときは、人が決めた設計の変更として、ここも直す */
 const ROW_KEYS = [
   'key',
   'session',
@@ -22,6 +22,7 @@ const ROW_KEYS = [
   'result',
   'sessionId',
   'costText',
+  'costUsd',
   'updatedText',
   'updatedDate',
   'updatedMs',
@@ -84,7 +85,7 @@ const STATES: [string, SummarizeInput][] = [
   ['AssistantMessage だけの大きな呼び出し（Agent を 25 回）', input({ stateJson: base.stateJson, stageLogs: [{ fileName: '01_requirements.jsonl', text: logOf('requirements', Array.from({ length: 25 }, (_, i) => assistantTool('Agent', { subagent_type: 'a' }, `a${i}`)), { finished: false }) }] })],
 ];
 for (const [label, given] of STATES) {
-  test(`D0050-AC-40: summarizeRun の戻りのキーは固定の 17 個のまま（${label}。Agent・Skill・入れ子の呼び出しを含む記録でも。今のまま通る。守る）`, () => {
+  test(`D0050-AC-40: summarizeRun の戻りのキーは固定の 18 個のまま（${label}。Agent・Skill・入れ子の呼び出しを含む記録でも。今のまま通る。守る）`, () => {
     const row = summarizeRun(given, clockAt(0));
     assert.deepEqual(Object.keys(row).sort(), ROW_KEYS);
   });

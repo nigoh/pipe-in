@@ -436,6 +436,40 @@ test('D0050-AC-41: buildPipelineView( の呼び出し元は domain/runList.ts（
   assert.deepEqual(viewCallerProblems(files), []);
 });
 
+// ---- D0066：流す前の費用の目安の 3 つの部品（domain・view・app）の構造 ----
+// 新しいファイルが無いあいだは「まだ作っていない」で落とす。検査そのものの確かめは、既存の検査（layerViolations・clockUsers）を使う。
+
+const COST_PARTS = ['domain/costEstimate.ts', 'view/costEstimateHtml.ts', 'app/costContext.ts'] as const;
+
+test('D0066-AC-19: 目安の 3 つの部品は層の決まりを守る（vscode を import しない・domain と app は node:path だけ・view は何も読まない・子プロセス・utimes なし）', () => {
+  for (const rel of COST_PARTS) needSource(rel);
+  const rels = targets().map(relOf);
+  for (const rel of COST_PARTS) assert.ok(rels.includes(rel), `${rel} が検査の対象にある`);
+  const files = COST_PARTS.map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(layerViolations(files), []);
+  assert.deepEqual(childProcessUsers(files), []);
+  assert.deepEqual(timeWriterUsers(files), []);
+  for (const f of files) assert.ok(!VSCODE_IMPORTS.some((re) => re.test(f.source)), `${f.rel} が vscode を import している`);
+});
+
+test('D0066-AC-19: domain/costEstimate.ts と view/costEstimateHtml.ts は時計・乱数・node: を読まない（今日は引数）。app/costContext.ts は Date.now・setTimeout を呼ばない（nowMs は引数）', () => {
+  const pure = (['domain/costEstimate.ts', 'view/costEstimateHtml.ts'] as const).map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(clockUsers(pure), []);
+  for (const f of pure) assert.deepEqual(findClockOrNode(f.source), [], `${f.rel}: 時計・乱数・node: の読み込み`);
+  const ctx = withoutComments(needSource('app/costContext.ts'));
+  assert.doesNotMatch(ctx, /\bDate\.now\b|\bsetTimeout\b|\bsetInterval\b|Math\.random/);
+});
+
+test('D0066-AC-19: 向きを守る：domain/costEstimate.ts は ./ の読み込みだけ、view/costEstimateHtml.ts は ../app・../infra・vscode を読まない、app/costContext.ts は ../view・../infra を読まない', () => {
+  assert.deepEqual(specifiersOf(needSource('domain/costEstimate.ts')).filter((s) => !s.startsWith('./')), []);
+  assert.deepEqual(specifiersOf(needSource('view/costEstimateHtml.ts')).filter((s) => /^\.\.\/(?:app|infra)\b/.test(s) || s === 'vscode'), []);
+  assert.deepEqual(specifiersOf(needSource('app/costContext.ts')).filter((s) => /^\.\.\/(?:view|infra|webview)\b/.test(s) || s === 'vscode'), []);
+});
+
+test('D0066-AC-19: 拡張の書き込み先は増えない（目安の 3 つの部品は fs の書き込みを持たない）', () => {
+  for (const rel of COST_PARTS) assert.doesNotMatch(withoutComments(needSource(rel)), /\b(?:writeFile|appendFile|mkdir|unlink|rename|copyFile)\b|node:fs/, rel);
+});
+
 test('D0050-AC-41: 検査そのもの：呼び出し元が 3 か所の見本・tools: false の無い summarizeRun の見本・tools を渡す refreshView の見本を見つけ、そろった見本は見逃す（今のまま通る。守る）', () => {
   const runList = { rel: 'domain/runList.ts', source: "const view = buildPipelineView({ workDir: '', stateJson, stageLogs, artifacts: {} }, clock, { tools: false });" };
   const refresh = { rel: 'app/refreshView.ts', source: 'return buildPipelineView(snapshot, clock);' };

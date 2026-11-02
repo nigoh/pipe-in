@@ -35,6 +35,8 @@ export interface RunRow {
   sessionId: string | null;
   /** '$0.123'。読めなければ '—' */
   costText: string;
+  /** costText の元の数（ドル。total_cost_usd）。読めなければ null。作業台の「前の実績」に使う（D0066） */
+  costUsd?: number | null;
   /** '10/17 10:05'。読めなければ '—' */
   updatedText: string;
   /** '10/17'。読めなければ '—' */
@@ -210,6 +212,7 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
     result: state === 'done' && view.final !== null ? finalWord(view.final) : null,
     sessionId: record.sessionId ?? lastStageRun(record)?.sessionId ?? null,
     costText: typeof raw.total_cost_usd === 'number' && Number.isFinite(raw.total_cost_usd) ? `$${raw.total_cost_usd.toFixed(3)}` : DASH,
+    costUsd: typeof raw.total_cost_usd === 'number' && Number.isFinite(raw.total_cost_usd) ? raw.total_cost_usd : null,
     updatedText,
     updatedDate: updatedText === DASH ? DASH : updatedText.slice(0, 5),
     updatedMs: updated === null ? null : parseInstant(updated, clock.localOffsetMin),

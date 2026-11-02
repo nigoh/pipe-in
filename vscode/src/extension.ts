@@ -39,6 +39,7 @@ import type { RunListView, RunRow } from './domain/runList.ts';
 import { DEBOUNCE_MS, POLL_MS, PRESENCE_CHECK_MS, WATCH_GLOB, createGeneration, createPoller, shouldPoll } from './app/refreshPolicy.ts';
 import { chooseEntry, findEntry, isPreviousRun, loadRunList, toListView } from './app/runList.ts';
 import type { RunList, RunsSource } from './app/runList.ts';
+import { estimateContext } from './app/costContext.ts';
 import { rememberRun, restoreRun } from './app/selection.ts';
 import { staleAfterSeconds } from './app/staleness.ts';
 import { createWatchHolder, createWorkDirChecker } from './app/workDirWatch.ts';
@@ -592,6 +593,8 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
     if (!msg) return;
     if (msg.type === 'ready') {
       post({ type: 'load', model: draft ?? saved, folder: folderNow(), savedNames, ...(draft ? { dirty: true } : {}) });
+      // 費用の目安に使う今日と前の実績（既に読んだ一覧の写しから選ぶだけ。開いたときの一度だけ。D0066）
+      post({ type: 'estimateContext', ...estimateContext(lastList, name, Date.now()) });
       await postVersions();
       return;
     }

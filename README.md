@@ -64,6 +64,8 @@ pipe-in --project ~/src/myapp --text "ユーザー一覧に CSV 出力ボタン�
 > [!IMPORTANT]
 > 段ごとに Claude Agent SDK を呼ぶので、利用料がかかります。対象は git 管理下にして、作業用のブランチで流してください。
 
+流す前に、`pipe-in estimate --project ~/src/myapp` で費用の目安（少なめ〜多め）を見られます（段は流しません。約束する金額ではありません）。→ [使い方](docs/guide/usage.md#流す前に費用の目安を見るpipe-in-estimate)
+
 ### VSCode で見る
 
 拡張を入れた VSCode で対象のプロジェクトを開き、コマンドパレットの「pipe-in: 実行を見る」を選ぶと、流している実行をパネルで見られます。下のステータスバーにも今の状態が出ます。入れ方は [VSCode の拡張](docs/guide/vscode.md)。
