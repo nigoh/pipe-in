@@ -23,6 +23,7 @@ npm ci               # 型検査とビルドの道具（テストだけなら不
 npm test             # node:test（Node 22 以上）
 npm run typecheck
 npm run build        # out/extension.cjs
+npm run examples:gen # examples/ の見本を src/domain/exampleData.ts に作り直す（見本を直したときだけ）
 ```
 
 VSCode でこのフォルダを開き、F5（拡張機能の開発ホスト）で起動する。コマンドパレットの「pipe-in: 実行を見る」でパネルが開く。
@@ -140,7 +141,7 @@ pipe-in（前の名前の 0.2 以降）の記録（`state.json` に `usage_summa
 
 <sub>パイプ作業台。見本のパイプを開き、段「ソースの調査」を選んだところ。</sub>
 
-コマンドパレットの「pipe-in: パイプ作業台を開く」で、ワークスペースの `.pipe-in/pipes/` と前の版の置き場所（どちらも無くて `pipes/` があればそこ）のパイプを選ぶか、新しく作る。
+コマンドパレットの「pipe-in: パイプ作業台を開く」で、ワークスペースの `.pipe-in/pipes/` と前の版の置き場所（どちらも無くて `pipes/` があればそこ）のパイプを選ぶか、新しく作る。「見本から作る」では、流せる見本（`diagrams`・`research`・`spec-qa`。[examples/README.md](../examples/README.md)）を選び、名前を付けて、保存していない下書きとして開く（保存を押すまで何も書かない。見本は拡張に組み込み、実行時に `examples/` は読まない。直したら `npm run examples:gen` で作り直す）。
 
 - 新しいパイプは最初の置き場所の `pipe-in-<名前>/` に書く。前の版のフォルダ名のパイプは、直して保存してもそのフォルダに書く。
 - 同じ名前のパイプが2つの置き場所にあれば、新しい置き場所・新しいフォルダ名のほうを開く。新しく作るときに、ほかの置き場所に同じ名前があれば断る（`pipe-in-gen new` と同じ決まり）。

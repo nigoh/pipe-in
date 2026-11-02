@@ -1,0 +1,75 @@
+# pipe-in のパイプ（見本）：プロジェクトのファイルを読んで調べ、出典つきの報告にまとめる
+#
+# 段の並び・書き込める範囲・確認の有無・検証はここで、各段への指示は prompts/ のファイルで決めます。
+# どの段も Web・MCP・Bash は使いません。調べるのは対象のプロジェクトのファイルだけです。
+# 報告をまとめる段だけが docs/research/ に書けます（検証で差し戻したときに直せるように）。
+
+[pipe]
+kind = "linear"
+label = "調べものをまとめる（問い → 調べる → まとめる → 出典の突き合わせ）"
+description = "調べたいことを問いに整え、プロジェクトのファイルから出典つきで調べ、報告にまとめて、出典と中身が合っているかを確かめる"
+input = "required"  # 調べたいこと
+
+[[stages]]
+name = "frame"
+label = "問いを整える"
+output = "01_question.md"
+access = "read"
+review = true
+max_turns = 20
+max_budget_usd = 0.5
+prompt_file = "prompts/01_frame.md"
+
+[[stages]]
+name = "gather"
+label = "調べる"
+output = "02_findings.md"
+access = "read"
+max_turns = 60
+max_budget_usd = 2.0
+prompt_file = "prompts/02_gather.md"
+
+[[stages]]
+name = "summarize"
+label = "まとめる"
+output = "03_report.md"
+access = "docs"
+docs_dir = "docs/research"
+review = true
+max_turns = 30
+max_budget_usd = 1.0
+prompt_file = "prompts/03_summarize.md"
+
+[[stages]]
+name = "verify"
+label = "出典と中身の突き合わせ"
+output = "04_verify.md"
+access = "read"
+max_turns = 50
+max_budget_usd = 1.5
+prompt_file = "prompts/04_verify.md"
+# 出典と中身が合っていなければ、直す点を添えて「まとめる」段へ戻す（2回まで）
+[stages.check]
+verdict = true
+# 報告に「## 」の見出しが3つ以上なければ不合格（結論・根拠・分からないこと）。外側は "、中は ' で書くと、Windows の cmd.exe でも sh でも崩れない。
+# 大なり・小なりの記号はシェルの書き出しに当たるので使わず、range で数える。
+# python が無い環境（python3 だけ等）では command を書き換える。審査だけで差し戻すと、直しで決まりが崩れても気づけない。
+command = "python -c \"import sys,pathlib as P;p=P.Path('docs/research/report.md');t=p.read_text(encoding='utf-8',errors='ignore') if p.exists() else '';sys.exit(0 if sum(l.startswith('## ') for l in t.splitlines()) in range(3,1000) else 1)\""
+on_fail = "summarize"
+max_retries = 2
+
+# 中身の指摘は審査役に任せる。must に当たると、平均に関わらず不合格になる
+[stages.check.judge]
+threshold = 0.7
+
+[[stages.check.judge.criteria]]
+name = "主張と出典の一致"
+description = "報告の主張が、添えた出典（ファイルと場所）の内容と合っている"
+
+[[stages.check.judge.criteria]]
+name = "分からないことの書き分け"
+description = "確かめられたことと、分からないこと・推測が、報告の中で分けて書かれている"
+
+[[stages.check.judge.must]]
+name = "出典のない断定がない"
+description = "報告に、出典（ファイルと場所）のない事実の断定がありますか（ある＝違反）"

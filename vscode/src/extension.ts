@@ -18,11 +18,13 @@ import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_NOTIFY, SET
 import { notifyEnabled, planWaitingNotice } from './app/notifyWaiting.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
+import { exampleNameProblem, startFromExample } from './app/exampleFlow.ts';
 import { listVersions, readVersion, recordVersion } from './app/pipeVersions.ts';
 import { createDebouncer } from './app/debounce.ts';
 import { EXTERNAL_DEBOUNCE_MS, PIPE_WATCH_GLOB, createExternalReload, createPipeWatch } from './app/externalReload.ts';
 import type { VersionStore } from './app/pipeVersions.ts';
 import { createFsVersionStore } from './infra/fsVersions.ts';
+import { findExample, listExamples } from './domain/pipeExamples.ts';
 import { PipeLoadError, newPipe, validatePipe } from './domain/pipeModel.ts';
 import type { PipeModel } from './domain/pipeModel.ts';
 import { createFsPipeStore } from './infra/fsPipes.ts';
@@ -496,9 +498,33 @@ async function editPipe(): Promise<void> {
   }
   const refs = await listPipeRefs(shelves(dirs));
   const NEW: PipeItem = { label: '$(add) 新しいパイプを作る' };
-  const items: PipeItem[] = [NEW, ...refs.map((ref) => ({ label: ref.name, description: path.join(ref.dir, ref.folder), ref }))];
+  const FROM_EXAMPLE: PipeItem = { label: '$(library) 見本から作る', description: '流せる見本を写して、新しいパイプにする' };
+  const items: PipeItem[] = [NEW, FROM_EXAMPLE, ...refs.map((ref) => ({ label: ref.name, description: path.join(ref.dir, ref.folder), ref }))];
   const picked = await vscode.window.showQuickPick(items, { placeHolder: `開くパイプ（${dirs.join('・')}）` });
   if (!picked) return;
+  if (picked === FROM_EXAMPLE) {
+    // 見本から作る：未保存の下書きとして開く（保存を押すまで、どこにも書かない）。判断は app/exampleFlow.ts
+    const chosen = await vscode.window.showQuickPick(
+      listExamples().map((x) => ({ label: x.name, description: `${x.label}・${x.stages} 段・上限の合計 $${x.budgetTotal.toFixed(1)}`, detail: x.description })),
+      { placeHolder: '写す見本', matchOnDescription: true, matchOnDetail: true },
+    );
+    if (!chosen) return;
+    const example = findExample(chosen.label);
+    if (!example) return;
+    const given = await vscode.window.showInputBox({
+      prompt: `新しいパイプの名前（${path.join(first, folderFor('<名前>'))} になります）`,
+      value: example.name,
+      validateInput: (v) => exampleNameProblem(refs, dirs, v),
+    });
+    if (!given) return;
+    const started = startFromExample(refs, dirs, example, given);
+    if ('error' in started) {
+      void vscode.window.showWarningMessage(`${NAME}: ${started.error}`);
+      return;
+    }
+    openEditor(dirs, null, newPipe(given), [], started.model);
+    return;
+  }
   let model: PipeModel;
   if (!picked.ref) {
     const name = await vscode.window.showInputBox({
