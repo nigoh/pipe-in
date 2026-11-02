@@ -20,6 +20,7 @@
    - 成果物のタブのパネル：`run-panel-artifacts-*`（動いている開発フローと 12 個のパイプの 2 つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` に送ったメッセージの種類が貯まる。成果物は一時フォルダに作り、更新時刻を固定の値にそろえる）。
    - エージェント・スキルのタブのパネル：`run-panel-tools-*`（4 つの実行を持つ）。
    - 段ごとの費用の上限のパネル：`run-panel-budget-*`（10 段のパイプ。図の節の上限の表示と、使用量のタブの費用の表）。
+   - 判定と並列の枠のパネル：`run-panel-check-self-*`・`run-panel-check-back-*`・`run-panel-check-old-*`（D0062）と `run-panel-group-running-*`・`run-panel-group-failed-*`・`run-panel-group-old-*`（D0063）。
 2. 手元だけで配る。次のコマンドを裏で動かす（`file:` では開けない。外には出さない）：
 
    ```
