@@ -24,6 +24,10 @@ import {
   artifactsPageHtml,
   budgetPageHtml,
   buildOmittedTree,
+  checkPageHtml,
+  checkSampleKind,
+  groupPageHtml,
+  groupSampleKind,
   buildRunsTree,
   panelKind,
   panelPreviewHtml,
@@ -130,25 +134,45 @@ description = "秘密の値を書かない"
 const DIAGRAMS = path.join(ROOT, '..', 'generator', 'templates', 'diagrams');
 const diagramPrompts: Record<string, string> = {};
 for (const f of readdirSync(path.join(DIAGRAMS, 'prompts'))) diagramPrompts[`prompts/${f}`] = readFileSync(path.join(DIAGRAMS, 'prompts', f), 'utf8');
-const PAGES: [string, ReturnType<typeof pipeFromFiles>, Theme][] = [
-  ['pipe-editor-dark', pipeFromFiles('design-review', SAMPLE, {}, null), 'dark'],
-  ['pipe-editor-light', pipeFromFiles('design-review', SAMPLE, {}, null), 'light'],
-  ['pipe-editor-diagrams', pipeFromFiles('diagrams', readFileSync(path.join(DIAGRAMS, 'pipe.toml'), 'utf8'), diagramPrompts, null), 'dark'],
+// 4つ目が true のページは、外で書き換わったときの確かめ用（D0065。補助 window.__previewExternal と、版の見本に -external が入る）
+const PAGES: [string, ReturnType<typeof pipeFromFiles>, Theme, boolean][] = [
+  ['pipe-editor-dark', pipeFromFiles('design-review', SAMPLE, {}, null), 'dark', false],
+  ['pipe-editor-light', pipeFromFiles('design-review', SAMPLE, {}, null), 'light', false],
+  ['pipe-editor-diagrams', pipeFromFiles('diagrams', readFileSync(path.join(DIAGRAMS, 'pipe.toml'), 'utf8'), diagramPrompts, null), 'dark', false],
+  ['pipe-editor-external-dark', pipeFromFiles('design-review', SAMPLE, {}, null), 'dark', true],
+  ['pipe-editor-external-light', pipeFromFiles('design-review', SAMPLE, {}, null), 'light', true],
 ];
 
 mkdirSync(OUT, { recursive: true });
 copyFileSync(path.join(ROOT, 'out', 'pipeEditor.js'), path.join(OUT, 'pipeEditor.js'));
-for (const [page, model, theme] of PAGES) {
+for (const [page, model, theme, external] of PAGES) {
   // 保存を押したら、受け取った中身を window.__saved に残す（画面の確認で、保存が届いたかを見られるように）。
   // 送られたものはすべて window.__posted に残す。版の一覧は見本を2つ（1つは閉じたときの下書き）返し、選ばれたら見本のパイプを返す
   const json = JSON.stringify(model).replace(/</g, '\u003c');
   const names = JSON.stringify(model.stages.map((s) => s.name));
   const folder = JSON.stringify(folderFor(model.name));
-  const versions = JSON.stringify([{ id: '1760000600000-draft', savedAt: 1760000600000, draft: true }, { id: '1760000000000', savedAt: 1760000000000, draft: false }]);
-  const stub = `<script nonce="preview">window.__posted=[];window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);`
-    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'versions',list:${versions}})}`
+  const sampleVersions: { id: string; savedAt: number; draft: boolean; external?: true }[] = [{ id: '1760000600000-draft', savedAt: 1760000600000, draft: true }, { id: '1760000000000', savedAt: 1760000000000, draft: false }];
+  if (external) sampleVersions.splice(1, 0, { id: '1760000300000-external', savedAt: 1760000300000, draft: false, external: true });
+  const versions = JSON.stringify(sampleVersions);
+  // 外で書き換わった形の見本（label と先頭の段の表示名が変わる）。補助 window.__previewExternal(kind) で知らせを送り、帯のボタンの選びにも答える
+  const extHead = external
+    ? `const ext=()=>{const v=${json};v.label='外で書き換えた見本';v.stages[0].label=v.stages[0].label+'（外で更新）';return v};`
+      + `const diff=[{kind:'pipe',target:'pipe',text:'label'},{kind:'prompt',target:${names}[0],text:'新しい指示の先頭の1行'},{kind:'layout',target:${names}[0],text:'位置が変わった'}];`
+      + `window.__previewExternal=(kind)=>{if(kind==='reloaded')send({type:'externalReloaded',model:ext(),savedNames:${names},cause:'auto',versions:null});`
+      + `if(kind==='conflict')send({type:'externalConflict',diff});`
+      + `if(kind==='unreadable')send({type:'externalUnreadable',reason:'pipe.toml を読めません：見本の理由'})};`
+    : '';
+  const extChoice = external
+    ? `if(m.type==='externalChoice'){if(m.choice==='load')send({type:'externalReloaded',model:ext(),savedNames:${names},cause:'chosen',versions:null});else send({type:'externalKept',savedNames:${names}})}`
+    : '';
+  // 他のスクリプトの名前とぶつからないように、全体を即時関数に入れる
+  // 費用の目安（D0066）：開いたときに今日（固定。単価表の as_of に近い日）を知らせる。補助 window.__previewEstimate({ today, actualUsd }) で、今日と前の実績を送り直せる
+  const estHead = `window.__previewEstimate=(c)=>send({type:'estimateContext',today:c.today,actualUsd:c.actualUsd});`;
+  const stub = `<script nonce="preview">(()=>{window.__posted=[];const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);${estHead}${extHead}window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);`
+    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'estimateContext',today:'2026-11-02',actualUsd:null});send({type:'versions',list:${versions}})}`
     + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
-    + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}}});</script>`;
+    + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}`
+    + `${extChoice}}})})();</script>`;
   let html = renderPipeEditorHtml({ nonce: 'preview', scriptUri: 'pipeEditor.js', cspSource: '' });
   html = withTheme(html, theme);
   html = html.replace('<script nonce="preview" src="pipeEditor.js">', `${stub}<script nonce="preview" src="pipeEditor.js">`);
@@ -220,6 +244,20 @@ for (const [page, theme] of PANEL_PAGES) {
   // 「エージェント・スキル」タブの見本（D0050）：動いている SDK の実行・/pipe-in の記録・受け持ちを付けなかった記録・呼び出しがまだ無い実行の 4 つ。木は一時フォルダの中だけに作る
   if (kind === 'tools') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('tools', (dest) => toolsPageHtml(dest, theme)), 'utf8');
+    continue;
+  }
+  // 判定とやり直しの見本（D0062）：自分をやり直す・前の段へ戻す（上限まで）・古い記録の 3 つ。記録は一時フォルダの中に書いて読む
+  if (kind === 'check') {
+    const checkKind = checkSampleKind(page);
+    if (checkKind === null) throw new Error(`判定の見本の種類が読めません: ${page}`);
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('check', (dest) => checkPageHtml(dest, checkKind, theme)), 'utf8');
+    continue;
+  }
+  // 並列の枠の見本（D0063）：枠の中が同時に動く・完了と失敗と判定のやり直し・group の無い古い記録の 3 つ。記録とログは一時フォルダの中に書いて読む
+  if (kind === 'group') {
+    const groupKind = groupSampleKind(page);
+    if (groupKind === null) throw new Error(`並列の枠の見本の種類が読めません: ${page}`);
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('group', (dest) => groupPageHtml(dest, groupKind, theme)), 'utf8');
     continue;
   }
   // 上限と費用の表の見本（D0051）：10 段のパイプの記録を一時フォルダの中に書いて読む

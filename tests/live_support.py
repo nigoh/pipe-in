@@ -69,6 +69,11 @@ def review(stage: str, action: str = "approved", feedback: str | None = None) ->
     return r
 
 
+def without_at(entry: dict[str, Any]) -> dict[str, Any]:
+    """D0071: review の要素から at（書いた時刻。実際の時計で書くので値で固定できない）を外した写し。at の値は D0071-AC-01 が確かめる。"""
+    return {k: v for k, v in entry.items() if k != "at"}
+
+
 def verdict(status: Any, attempt: Any = 1, *, stage: str = "test", **extra: Any) -> dict[str, Any]:
     v = {"status": status, "summary": "", "failures": [], "commands": [], "command_check": None}
     v.update(extra)

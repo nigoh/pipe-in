@@ -399,7 +399,7 @@ def test_ac15_state_history_has_judge_and_keeps_old_keys(tmp_path):
     }
     assert second["judge"]["status"] == "pass" and second["judge"]["overall"] == 1.0
     for rec in (first, second):  # 既存のキーはそのまま。足したのは judge だけ
-        assert set(rec) == {"status", "problems", "summary", "command", "returncode", "judge"}
+        assert set(rec) == {"attempt", "status", "problems", "summary", "command", "returncode", "judge"}
         assert rec["command"] == "make check" and rec["returncode"] == 0 and rec["summary"] == "要約"
     assert "禁止語" in "\n".join(first["problems"])
     assert "の理由" not in json.dumps(first["judge"], ensure_ascii=False)  # 理由は記録しない
@@ -410,7 +410,7 @@ def test_ac15_judge_only_record_keys(tmp_path):
     pipe = make_pipe(tmp_path, two_stage())
     assert run(tmp_path, pipe, ScriptedRunner(pipe, {"verify": [GOOD]})) == Exit.PASSED
     (rec,) = checks_of(tmp_path, pipe)
-    assert set(rec) == {"status", "problems", "judge"} and rec["problems"] == []
+    assert set(rec) == {"attempt", "status", "problems", "judge"} and rec["problems"] == []
 
 
 def test_ac15_stage_without_judge_has_no_judge_record(tmp_path):
@@ -418,7 +418,7 @@ def test_ac15_stage_without_judge_has_no_judge_record(tmp_path):
     pipe = make_pipe(tmp_path, pipe_toml(stage_toml("verify", "[stages.check]\nverdict = true\n")))
     assert run(tmp_path, pipe, ScriptedRunner(pipe, {"verify": [PASS]})) == Exit.PASSED
     (rec,) = checks_of(tmp_path, pipe)
-    assert set(rec) == {"status", "problems", "summary"}
+    assert set(rec) == {"attempt", "status", "problems", "summary"}
 
 
 def summary_of(tmp_path) -> str:

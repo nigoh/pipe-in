@@ -69,6 +69,12 @@ def one_line(text: str, limit: int = 100) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+def received_line(rec: dict[str, Any]) -> str:
+    """受けた元の1行（前の名前と終わった日時）。画面・まとめ・続きの表示で使う。"""
+    when = rec.get("updated_at") or "不明"
+    return f"「{rec.get('pipe')}」（終わった日時 {when}）"
+
+
 class BasePipeline:
     def __init__(
         self,
@@ -95,6 +101,26 @@ class BasePipeline:
         self.started_at = datetime.now().isoformat(timespec="seconds")
         # セッション名。--name で付けるか、要件メモの最初の行から作る。取れなければ None（state.json に書かない）
         self.name: str | None = None
+        # 前のパイプから受けた元（--after。state.json の received_from。D0069）。受けていなければ None
+        self.received: dict[str, Any] | None = None
+
+    def receive(self, record: dict[str, Any] | None) -> None:
+        """受けた元を持つ。受けていない（None・辞書でない）なら None のまま。子が受け方を変えてよい。"""
+        self.received = record if isinstance(record, dict) else None
+
+    def _state_data(self) -> dict[str, Any]:
+        """state.json を辞書で読む。無い・読めない・辞書でないときは空の辞書（続きを読むための道具）。"""
+        path = self.doc(STATE)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        except (OSError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _resume_note(self) -> None:
+        """続きを始めるとき、記録の受けた元を画面に1行出す（受けていなければ何も出さない）。"""
+        if self.received is not None:
+            print(f"  受けた元: {received_line(self.received)}", flush=True)
 
     # ---- 子が決めること ---------------------------------------------------
 
@@ -111,6 +137,14 @@ class BasePipeline:
 
     def _exit_message(self, result: Exit) -> str:
         return EXIT_MESSAGES[result]
+
+    def _stage_checks(self) -> dict[str, dict[str, Any]]:
+        """段の名前 → {"on_fail": 段の名前 | None, "max_retries": int}。判定のある段だけ。既定は空。"""
+        return {}
+
+    def _stage_groups(self) -> dict[str, str]:
+        """段の名前 → 枠（並列の束）の名前。枠の中の段だけ。既定は空。"""
+        return {}
 
     def _summary_extra(self) -> list[str]:
         """まとめに足す節（開発フローのテストの判定など）。"""
@@ -151,9 +185,22 @@ class BasePipeline:
         }
         if self.name is not None:
             state["name"] = self.name
+        # 受けた元は、受けた実行だけに書く（項目を足すだけ。受けていない記録には無い）
+        if self.received is not None:
+            state["received_from"] = self.received
+        checks = self._stage_checks()
+        groups = self._stage_groups()
         state |= {
             "stages": [
-                {"name": n, "label": s.label, "output": s.output, "review": s.review} for n, s in self.specs.items()
+                {
+                    "name": n,
+                    "label": s.label,
+                    "output": s.output,
+                    "review": s.review,
+                    **({"check": checks[n]} if n in checks else {}),
+                    **({"group": groups[n]} if n in groups else {}),
+                }
+                for n, s in self.specs.items()
             ],
             # 確認待ちは終わりではないので final は空のまま（pending_review を見る）
             "final": final.name if final is not None and final != Exit.AWAITING_REVIEW else None,
@@ -257,7 +304,7 @@ class BasePipeline:
             # 開発用スキル（pipe-in record）の記録には会話の続きがないので、ここから SDK で流さない。
             # 値は見ない（前の版の "pipe-in" も、この先名前が変わっても漏れないように）
             raise SystemExit(
-                f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-dev）が書いたものです。"
+                f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-in）が書いたものです。"
                 "続きはその会話で進めてください（pipe-in --review では流せません）"
             )
         pending = data.get("pending_review")
@@ -270,6 +317,8 @@ class BasePipeline:
         if isinstance(kept, str) and kept:
             self.name = kept
         self.seq = max((h["seq"] for h in self.history if "seq" in h), default=0)
+        # 受けた元は前の記録を読み直さず、この記録の received_from をそのまま使う（D0069-FR-11）
+        self.receive(data.get("received_from"))
         return pending
 
     # ---- 終わり ---------------------------------------------------------
@@ -291,6 +340,7 @@ class BasePipeline:
             "",
             f"- 結果: **{self._exit_message(result)}**",
             f"- パイプ: {self.cfg.pipe}",
+            *([f"- 受けた元: {received_line(self.received)}"] if self.received is not None else []),
             f"- 開始: {self.started_at}",
             f"- 合計（概算）: ${self.total_cost:.3f}",
             "",

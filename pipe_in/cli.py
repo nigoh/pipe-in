@@ -9,8 +9,10 @@ import argparse
 import asyncio
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
+from typing import Any, TypeVar
 
 from .dev.pipeline import DevPipeline
 from .dev.specs import STAGES
@@ -18,8 +20,11 @@ from .engine.checkpoint import Decision
 from .engine.config import Config, load_config
 from .engine.pipeline import BasePipeline
 from .engine.session import normalize_name
+from .pipe import after
 from .pipe import definition as pd
 from .pipe.pipeline import LinearPipeline
+
+T = TypeVar("T")
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -58,6 +63,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--name",
         help="この実行のセッション名（state.json の name。VSCode の実行の一覧に出る）。省くと要件メモの最初の行から作る。始めるときだけ付けられる",
     )
+    p.add_argument(
+        "--after",
+        action="append",
+        metavar="前のパイプ名",
+        help="前のパイプが PASSED で終わった記録を受けて、--pipe のパイプを流す（成果物の場所だけを渡す。始めるときだけ付けられる。1つだけ）",
+    )
     p.add_argument("--max-retries", type=int, help="テスト失敗時に実装へ差し戻す最大回数（既定: 3）")
     p.add_argument("--test-cmd", help="テストの段のあとに、判定の裏付けとして実行するコマンド（例: 'pytest -q'）")
     return p.parse_args(argv)
@@ -84,6 +95,26 @@ def _warn_if_dirty(project: Path) -> None:
         print("⚠ 未コミットの変更があります。作業用のブランチで、コミットしてから実行するのがおすすめです。\n")
 
 
+def _or_exit(fn: Callable[..., T], *args: Any) -> T:
+    """断る文（AfterError）を、終了コード 1 の SystemExit に直す。"""
+    try:
+        return fn(*args)
+    except after.AfterError as e:
+        raise SystemExit(str(e)) from e
+
+
+def _check_after_combination(args: argparse.Namespace) -> None:
+    """--after と、ほかの引数の組み合わせを先に検める（記録には何も書いていない段で断る）。"""
+    if args.review:
+        raise SystemExit("--after は始めるときだけ付けられます（--review と一緒には使えません）")
+    if args.from_stage is not None:
+        raise SystemExit("--after と --from は一緒に使えません（続きは記録の受けた元を使います）")
+    if args.pipe is None:
+        raise SystemExit("--after は --pipe で名前のあるパイプと一緒に使ってください（組み込みの開発フローには付けられません）")
+    if len(args.after) > 1:
+        raise SystemExit("--after は1つだけ指定できます（前のパイプは1つだけ受けられます）")
+
+
 def _load_pipe(name_or_path: str, project: Path) -> pd.PipeDef:
     path = pd.find_pipe(name_or_path, project=project.expanduser().resolve())
     if path is None:
@@ -105,14 +136,33 @@ def pipeline_for(cfg: Config, pipe: pd.PipeDef | None, *, test_cmd_given: bool =
       test_command は --test-cmd → パイプの定義 → pipeline.toml の順に優先する。
     - kind = "linear"：定義の順に段を流す。記録は <work_dir>/<名前>/ に分ける。
     """
+    cfg = _run_cfg(cfg, pipe)
     if pipe is None:
         return DevPipeline(cfg)
     if pipe.kind == "dev":
-        cfg = cfg.for_pipe(pipe.name, own_work_dir=False)
         if pipe.test_command and not test_cmd_given:
             cfg = replace(cfg, test_command=pipe.test_command)
         return DevPipeline(cfg)
-    return LinearPipeline(cfg.for_pipe(pipe.name, own_work_dir=True), pipe)
+    return LinearPipeline(cfg, pipe)
+
+
+def _run_cfg(cfg: Config, pipe: pd.PipeDef | None) -> Config:
+    """パイプの種類 → 記録の場所の設定。dev は work_dir のまま、linear は <work_dir>/<名前>/ に分ける（estimate も同じ決め方を使う）。"""
+    if pipe is None:
+        return cfg
+    return cfg.for_pipe(pipe.name, own_work_dir=pipe.kind != "dev")
+
+
+def _print_estimate(cfg: Config, pipe: pd.PipeDef | None) -> None:
+    """確認の前に、費用の目安を 2 行で出す（D0066）。作れなくても、流すことは止めない。"""
+    from . import estimate_cmd
+
+    try:
+        line = estimate_cmd.line_for_run(cfg, pipe)
+    except Exception:
+        return
+    if line:
+        print(line + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -138,7 +188,14 @@ def main(argv: list[str] | None = None) -> int:
         from .engine.live_cmd import main as live_main
 
         return live_main(argv[1:])
+    if argv and argv[0] == "estimate":
+        # 流す前の費用の目安を出す（段は流さず、何も書かない）
+        from .estimate_cmd import main as estimate_main
+
+        return estimate_main(argv[1:], _load_pipe, _run_cfg)
     args = _parse_args(argv)
+    if args.after is not None:
+        _check_after_combination(args)
     if args.review:
         if args.input is not None or args.text is not None or args.from_stage is not None or args.yes:
             raise SystemExit("--review は --input・--text・--from・--yes と一緒には使えません")
@@ -152,6 +209,9 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--pause と --yes は一緒には使えません")
     pause = args.pause or args.review is not None
     pipe = _load_pipe(args.pipe, args.project) if args.pipe else None
+    after_name: str | None = None
+    if pipe is not None and args.after is not None:
+        after_name = _or_exit(after.check_after, args.after, pipe)
     cfg = load_config(
         args.project,
         args.config,
@@ -160,11 +220,16 @@ def main(argv: list[str] | None = None) -> int:
         auto_approve=args.yes,
         pause_for_review=pause,
     )
+    # 前の記録は、この実行の作業フォルダ（pipeline_for で段の記録の場所に分ける前）から探す。断るならここで止まる（何も書いていない）
+    previous = _or_exit(after.read_previous, after_name, cfg, cfg.work_dir) if after_name is not None else None
     pipeline = pipeline_for(cfg, pipe, test_cmd_given=args.test_cmd is not None)
     linear = isinstance(pipeline, LinearPipeline)
     cfg = pipeline.cfg
     if args.name is not None:
         pipeline.name = normalize_name(args.name)  # 空・空白だけは「付けなかった」と同じ
+    if previous is not None:
+        pipeline.receive(previous.record())
+        print(after.intro_line(previous), flush=True)
     if args.review:
         _warn_if_dirty(cfg.project_dir)
         decision = Decision(args.review, (args.feedback or "").strip())
@@ -182,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.yes and not pause and not sys.stdin.isatty():
         print("⚠ 対話できない環境です。確認の段で止まるので、確認を省くなら --yes を付けてください。\n")
     _warn_if_dirty(cfg.project_dir)
+    _print_estimate(cfg, pipe)
     try:
         result = asyncio.run(pipeline.run(text, from_stage))
     except KeyboardInterrupt:

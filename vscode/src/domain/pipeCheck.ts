@@ -3,6 +3,11 @@
 import { frameOf, orderStages } from './pipeModel.ts';
 import type { PipeModel, StageModel } from './pipeModel.ts';
 
+/** 判定の札の文字（自分をやり直す／前の段へ戻す）。作業台のカードと実行の図が同じ文字を使うよう、ここ 1 か所に置く（D0062） */
+export function checkChipText(kind: 'self' | 'back'): string {
+  return kind === 'self' ? '判定 ↻' : '判定 ↩';
+}
+
 /** 判定を入れる。すぐ保存できるよう、Claude が判定する・この段をやり直すで始める */
 export function turnCheckOn(s: StageModel): void {
   s.check.on = true;

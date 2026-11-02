@@ -21,7 +21,7 @@ from ..engine.checkpoint import Decision
 from ..engine.config import Config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, BasePipeline, Exit, ShellResult, one_line, run_shell
 from ..engine.runner import StageRun, StageRunner, run_stage_sdk
-from . import judge
+from . import after, judge
 from . import specs as ps
 from .definition import END, PipeDef, PipeStage
 
@@ -76,6 +76,17 @@ class LinearPipeline(BasePipeline):
         self.pipe = pipe
         self.index = {s.name: i for i, s in enumerate(pipe.stages)}
 
+    def receive(self, record: dict[str, Any] | None) -> None:
+        """前のパイプの記録を受ける（--after）。受けた元で、後ろの段の書けない所（前の記録）を作り直す（D0069-FR-15）。
+        読めない形の受けた元は、守りを外して流さないよう止める。"""
+        if record is not None:
+            problem = after.check_received(record)
+            if problem is not None:
+                raise SystemExit(f"state.json の received_from が読めません（{problem}）。前のパイプからの受け渡しを、流し直してください")
+        self.received = record
+        previous = None if record is None else after.guard_for(record, self.cfg.rel(self.cfg.work_dir.parent))
+        self.specs = ps.build_pipe_specs(self.cfg, self.pipe, previous=previous)
+
     def _revise_prompt(self, stage: str, feedback: str) -> str:
         return ps.revise_prompt(self.cfg, self.pipe, stage, feedback)
 
@@ -86,6 +97,22 @@ class LinearPipeline(BasePipeline):
         if result == Exit.TEST_FAILED:
             return "差し戻しの上限まで検証に通りませんでした"
         return EXIT_MESSAGES[result]
+
+    def _stage_checks(self) -> dict[str, dict[str, Any]]:
+        """判定のある段の設定（記録の stages[].check）。自分をやり直すときの on_fail は None。"""
+        return {
+            s.name: {"on_fail": s.check.on_fail if s.check.on_fail not in (None, "", s.name) else None, "max_retries": s.check.max_retries}
+            for s in self.pipe.stages
+            if s.check
+        }
+
+    def _stage_groups(self) -> dict[str, str]:
+        """枠（並列の束）の中の段の枠の名前（記録の stages[].group）。"""
+        return {s.name: s.group for s in self.pipe.stages if s.group}
+
+    def _next_attempt(self, stage: str) -> int:
+        """この段の検証が何回目か。記録（review の再開で戻した分も含む）の check の数 + 1。"""
+        return sum(1 for h in self.history if h.get("stage") == stage and "check" in h) + 1
 
     def _summary_extra(self) -> list[str]:
         checks = [h for h in self.history if "check" in h]
@@ -109,6 +136,10 @@ class LinearPipeline(BasePipeline):
         if start_name not in names:
             raise SystemExit(f"--from には {', '.join(names)} のどれかを指定してください")
         start = names.index(start_name)
+        if from_stage is not None:
+            # 途中の段からの再開は、この記録の受けた元をそのまま使う（前の記録は読み直さない。D0069-FR-11）
+            self.receive(self._state_data().get("received_from"))
+            self._resume_note()
         if input_text is None and self.pipe.input == "required" and not self._doc_ready(INPUT):
             raise SystemExit(f"パイプ「{self.pipe.name}」には依頼メモが要ります。--input か --text で渡してください")
         missing = [
@@ -127,6 +158,7 @@ class LinearPipeline(BasePipeline):
     async def review(self, decision: Decision) -> Exit:
         """確認で止まった実行に答えて、続きを流す。承認なら、止まったときに決まっていた次の段から。"""
         pending = self._load_pending()
+        self._resume_note()
         stage = pending["stage"]
         self.pending = None
         if decision.action == "approve":
@@ -227,7 +259,7 @@ class LinearPipeline(BasePipeline):
         if first is not None:
             run = await self._run(s.name, first[0], resume=first[1], note="指摘を反映")
         else:
-            prompt = ps.stage_prompt(self.cfg, self.pipe, i, failure_note=note)
+            prompt = ps.stage_prompt(self.cfg, self.pipe, i, failure_note=note, received=self.received)
             run = await self._run(s.name, prompt, note="検証の指摘を反映" if note else "")
         while True:
             if run.is_error or not self._doc_ready(s.output):
@@ -298,7 +330,8 @@ class LinearPipeline(BasePipeline):
                     f"確認用コマンド `{c.command}` が失敗しました（終了コード {res.returncode}）\n```\n{res.output_tail[-2000:]}\n```"
                 )
         status = "fail" if problems else "pass"
-        self.history.append({"stage": s.name, "check": {"status": status, "problems": problems, **record}})
+        attempt = self._next_attempt(s.name)
+        self.history.append({"stage": s.name, "check": {"attempt": attempt, "status": status, "problems": problems, **record}})
         self._save_state()
         mark = "✓ 検証に合格" if status == "pass" else "✗ 検証に不合格"
         print(f"  {mark}: {one_line(record.get('summary') or '; '.join(problems))}", flush=True)

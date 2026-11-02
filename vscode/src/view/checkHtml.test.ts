@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { END, newPipe, newStage } from '../domain/pipeModel.ts';
 import type { BlockKind, PipeModel, StageModel } from '../domain/pipeModel.ts';
+import * as pipeCheck from '../domain/pipeCheck.ts';
 import { checkBoxHtml, checkChip, checkChipHtml } from './checkHtml.ts';
 
 function stage(id: string, kind: BlockKind, x: number, y: number, over: Partial<StageModel> = {}): StageModel {
@@ -85,6 +86,18 @@ test('D0005-AC-13: 「不合格のとき」の選択肢は、この段をやり�
   assert.deepEqual(options(checkBoxHtml(m, st(m, 'c'))), ['この段をやり直す', '&lt;b&gt;調べる', 'b']);
   assert.match(checkBoxHtml(m, st(m, 'c')), /<option value="a" selected>/);
   assert.deepEqual(options(checkBoxHtml(m, st(m, 'f1'))), ['この段をやり直す']);
+});
+
+test('D0062-AC-11: 作業台の札と実行の図の札が同じ checkChipText の文字（判定 ↻ / 判定 ↩）', () => {
+  // checkChipText は実装の段で入るまで、名前空間 import で読む（無ければ「無い」ことを理由に落とす）
+  const fn = (pipeCheck as Record<string, unknown>).checkChipText;
+  if (typeof fn !== 'function') assert.fail('pipeCheck.checkChipText が無い（まだ作っていない）');
+  const chipText = fn as (kind: 'self' | 'back') => string;
+  const m = sample();
+  assert.equal(checkChip(m, st(m, 'b'))?.text, chipText('self'));
+  assert.equal(checkChip(m, st(m, 'c'))?.text, chipText('back'));
+  assert.equal(chipText('self'), '判定 ↻');
+  assert.equal(chipText('back'), '判定 ↩');
 });
 
 test('D0005-AC-13: 並列の枠の中の前の段へ戻す段では、その段が選ばれた状態で出る（行き先が消えない）', () => {

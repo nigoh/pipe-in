@@ -130,9 +130,9 @@ def test_d0044_ac30_feedback_file_gives_the_same_record_as_feedback(tmp_path, ca
     assert run(review_argv(b, "revise", "--feedback-file", str(f))) == 0
     out_b = capsys.readouterr().out
     sa, sb = state_of(a), state_of(b)
-    assert sa["runs"][-1] == sb["runs"][-1] == {"stage": "requirements", "review": "revise", "feedback": feedback.strip()}
+    assert ls.without_at(sa["runs"][-1]) == ls.without_at(sb["runs"][-1]) == {"stage": "requirements", "review": "revise", "feedback": feedback.strip()}
     assert sa["pending_review"] is None and sb["pending_review"] is None
-    assert [r for r in sa["runs"] if "review" in r] == [r for r in sb["runs"] if "review" in r]
+    assert [ls.without_at(r) for r in sa["runs"] if "review" in r] == [ls.without_at(r) for r in sb["runs"] if "review" in r]
     assert out_a == out_b == OK_LINE + "\n"
     assert f.read_bytes() == feedback.encode("utf-8"), "読むだけで、ファイルは変えない"
 
@@ -265,7 +265,7 @@ def test_d0044_ac30_other_results_with_a_readable_file_ignore_its_text(tmp_path,
     f = write(tmp_path / "fb.txt", "入らない指摘")
     assert run(review_argv(root, result, "--feedback-file", str(f))) == 0
     entry = state_of(root)["runs"][-1]
-    assert entry == {"stage": "requirements", "review": expected}
+    assert ls.without_at(entry) == {"stage": "requirements", "review": expected}
     assert state_of(root)["pending_review"] is None
     capsys.readouterr()
 
@@ -279,7 +279,7 @@ def test_d0044_ac30_feedback_option_alone_is_unchanged(tmp_path, capsys):
     assert run(review_argv(root, "revise", "--feedback", "  直して  ")) == 0
     assert capsys.readouterr().out == OK_LINE + "\n"
     s = state_of(root)
-    assert s["runs"][-1] == {"stage": "requirements", "review": "revise", "feedback": "直して"} and s["pending_review"] is None
+    assert ls.without_at(s["runs"][-1]) == {"stage": "requirements", "review": "revise", "feedback": "直して"} and s["pending_review"] is None
 
 
 def test_d0044_ac30_revise_without_any_feedback_is_still_refused(tmp_path, capsys):
@@ -296,7 +296,7 @@ def test_d0044_ac30_feedback_option_is_ignored_for_other_results_as_before(tmp_p
     """D0044-AC-30: approved・quit に付けた --feedback は、今までどおり無視される。今のままで通る。"""
     root = project(tmp_path)
     assert run(review_argv(root, result, "--feedback", "無視される")) == 0
-    assert state_of(root)["runs"][-1] == {"stage": "requirements", "review": result}
+    assert ls.without_at(state_of(root)["runs"][-1]) == {"stage": "requirements", "review": result}
     capsys.readouterr()
 
 

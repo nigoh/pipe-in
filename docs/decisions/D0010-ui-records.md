@@ -88,7 +88,7 @@
 
 - 固定ファイル：`pipe.toml`・`layout.json`・`README.md`
 - 指示文：`prompts/*.md`
-- 版のファイル名：`<13桁>[-draft].json`
+- 版のファイル名：`<13桁>[-draft|-external].json`（外の書き換えの版は D0065 で足した）
 - 今の形：`vscode/src/infra/fsPipes.ts` が書けるのは、パイプの置き場所の中の `pipe-in-<名前>/`（前の版の `devpipe-<名前>/` も）にある、上の固定ファイルと指示文だけ。`vscode/src/infra/fsVersions.ts` が書けるのは、拡張の保存場所の `pipe-versions/pipe-in-<名前>/` にある、上の版のファイル名だけ（前の版のフォルダ名は受け付けない）。外は読まず、書かない。保存先は拡張が開いたパイプから決め、パネルから来た値では決めない。
 - 読み取れる理由：保存先は拡張の側で持ち、パネルから来た値では決めない、とコメントにある（`vscode/src/extension.ts` の保存先を決める箇所）。指示文を開くときは読むだけの表示にするのは、書き換えても作業台の保存で上書きされるため（同じファイルの `openPrompt` の箇所のコメント）。拡張の保存場所で前の版のフォルダ名を受け付けないのは、保存場所は前の版から引き継がないため（`vscode/src/infra/fsVersions.ts` の先頭のコメント）。
 - 読み取れる経緯：作業台（当時の名前は作図台）はコミット 01677f2 で足された。同じコミットで、プラグインの pipe-builder の書き込みもパイプのフォルダだけに絞られた。コミット 9f1907c で「パイプ作図台」は「パイプ作業台」に改名され（当時のコマンド ID は `devpipe.editPipe` のまま。今は `pipe-in.editPipe` で、前の ID は D0006 で読み替えて登録だけしている）、版は拡張の保存場所にだけ書くことになった。
@@ -105,8 +105,8 @@
 
 - 実行パネル 拡張→パネル：`render`
 - 実行パネル パネル→拡張：`ready`・`openArtifact`・`selectRun`
-- 作業台 拡張→パネル：`load`・`saved`・`failed`・`versions`・`version`
-- 作業台 パネル→拡張：`ready`・`save`・`state`・`openPrompt`・`loadVersion`
+- 作業台 拡張→パネル：`load`・`saved`・`failed`・`versions`・`version`・`estimateContext`（D0066 で足した）
+- 作業台 パネル→拡張：`ready`・`save`・`state`・`openPrompt`・`loadVersion`・`externalChoice`
 - 今の形：型は `vscode/src/view/messages.ts` にある。パネルから来た値は `parseWebviewMessage`・`parseEditorMessage` で形を検める。形が違えば捨てる。場所（保存先・開く先・読む版・見る実行）はパネルの値では決めず、入口が決める。
 - 読み取れる理由：場所を入口が決めるのは、パネルから来た文字で場所を決めないため（`vscode/src/view/messages.ts` と `vscode/src/extension.ts` のコメント）。
 - 設定名とコマンド ID：設定は `pipe-in.workDir`（実行を見る work_dir）・`pipe-in.pipesDir`（作業台のパイプの置き場所）、コマンドは `pipe-in.showRun`（実行を見る）・`pipe-in.editPipe`（作業台を開く）。`vscode/package.json` にある。前の名前の読み替えは「前の名前の扱い」を見る。

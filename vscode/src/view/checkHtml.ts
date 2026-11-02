@@ -1,6 +1,6 @@
 // 段の判定の札と、右のパネルの判定の箱（HTML の文字列、純粋）。外から来た文字は escapeHtml を通す。
 // 自分をやり直す判定は図にケーブルを描かないので、札で行き先を示す（D0005）。
-import { failKind, failTargets } from '../domain/pipeCheck.ts';
+import { checkChipText, failKind, failTargets } from '../domain/pipeCheck.ts';
 import type { PipeModel, StageModel } from '../domain/pipeModel.ts';
 import { escapeHtml as esc } from './escape.ts';
 
@@ -10,9 +10,10 @@ const SELF = 'この段をやり直す';
 export function checkChip(m: PipeModel, s: StageModel): { text: string; title: string } | null {
   if (!s.check.on) return null;
   const times = `（最大 ${s.check.maxRetries} 回）`;
-  if (failKind(m, s) === 'self') return { text: '判定 ↻', title: `不合格なら、${SELF}${times}` };
+  const kind = failKind(m, s);
+  if (kind === 'self') return { text: checkChipText(kind), title: `不合格なら、${SELF}${times}` };
   const to = m.stages.find((x) => x.id === s.onFail)!;
-  return { text: '判定 ↩', title: `不合格なら「${to.label}」へ戻す${times}` };
+  return { text: checkChipText(kind), title: `不合格なら「${to.label}」へ戻す${times}` };
 }
 
 export function checkChipHtml(m: PipeModel, s: StageModel): string {

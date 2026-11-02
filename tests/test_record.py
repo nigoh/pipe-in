@@ -72,11 +72,18 @@ def fixture_state(name: str) -> dict:
     return json.loads((FIXTURES / name / "state.json").read_text(encoding="utf-8"))
 
 
+def strip_review_at(s: dict) -> None:
+    """D0071: review の要素の at を外す（見本は at の無い古い形のまま。at の値は D0071-AC-01 が確かめる）。"""
+    for run in s["runs"]:
+        if "review" in run:
+            run.pop("at", None)
+
+
 # ---- AC-01・AC-03：本体と同じ形（拡張が読む見本と同じ） -------------------------
 
 
 def test_ac01_running_matches_fixture(tmp_path):
-    """D0006-AC-22: 始めた段の記録とログの1行目が見本と同じ（driver は pipe-dev、prompt は /pipe-dev の<段>）。"""
+    """D0006-AC-22: 始めた段の記録とログの1行目が見本と同じ（driver は pipe-dev、prompt は /pipe-in の<段>。D0071 で文を直した）。"""
     r = recorder(tmp_path)
     r.start("足したい機能のメモ")
     r.begin("requirements")
@@ -102,6 +109,7 @@ def test_ac01_waiting_matches_fixture(tmp_path):
     got = state(tmp_path)
     got["pending_review"].pop("since", None)
     got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
+    strip_review_at(got)  # D0071: review の要素に at が足された（見本は古い形のまま残す）。at は D0071-AC-01 が確かめる
     assert got == fixture_state("waiting")
 
 
@@ -112,18 +120,19 @@ def test_ac01_finished_matches_fixture(tmp_path):
     to_finish(r)
     got = state(tmp_path)
     got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
+    strip_review_at(got)  # D0071: review の要素に at が足された（見本は古い形のまま残す）。at は D0071-AC-01 が確かめる
     assert got == fixture_state("finished")
     summary = (tmp_path / "docs" / "pipeline" / "99_summary.md").read_text(encoding="utf-8")
     assert "PASSED" in summary or "終わりました" in summary
 
 
-def test_summary_title_is_pipe_dev(tmp_path):
-    """D0006-AC-22: finish が書く 99_summary.md の1行目は「# /pipe-dev のまとめ」。"""
+def test_summary_title_is_pipe_in(tmp_path):
+    """D0006-AC-22: finish が書く 99_summary.md の1行目は「# /pipe-in のまとめ」（D0071 で /pipe-dev から直した）。"""
     r = recorder(tmp_path)
     up_to_waiting(r)
     to_finish(r)
     summary = (tmp_path / "docs" / "pipeline" / "99_summary.md").read_text(encoding="utf-8")
-    assert summary.splitlines()[0] == "# /pipe-dev のまとめ"
+    assert summary.splitlines()[0] == "# /pipe-in のまとめ"
 
 
 def test_old_fixture_differs_only_in_driver():
@@ -234,7 +243,7 @@ def set_driver(project: Path, driver: str | None) -> None:
 
 @pytest.mark.parametrize("driver", ["pipe-dev", "pipe-in", "other"])
 def test_review_refuses_records_with_a_driver(tmp_path, driver):
-    """D0006-AC-23: driver の入った記録（今の pipe-dev・前の版の pipe-in・ほか）の続きを、pipe-in --review が SDK で流さない。文に /pipe-dev を含む。"""
+    """D0006-AC-23・D0071-AC-13: driver の入った記録（今の pipe-dev・前の版の pipe-in・ほか）の続きを、pipe-in --review が SDK で流さない。断る文は /pipe-in を含み /pipe-dev を含まない。"""
     up_to_waiting(recorder(tmp_path))
     set_driver(tmp_path, driver)
     called = []
@@ -246,7 +255,8 @@ def test_review_refuses_records_with_a_driver(tmp_path, driver):
     cfg = load_config(tmp_path, pause_for_review=True)
     with pytest.raises(SystemExit) as e:
         asyncio.run(DevPipeline(cfg, runner=runner).review(Decision("approve", "")))
-    assert "/pipe-dev" in str(e.value.code)
+    assert "/pipe-in" in str(e.value.code)
+    assert "/pipe-dev" not in str(e.value.code)
     assert "pipe-in --review" in str(e.value.code)
     assert not called
 
@@ -564,6 +574,74 @@ def test_d0019_ac49_archive_carries_name_and_session_id(tmp_path):
     assert old["runs"][0]["agent"] == "pipe-in-analyst"
     now = state(tmp_path)
     assert now["name"] == "次の実行" and "session_id" not in now
+
+
+# ---- D0071：review の要素に at を足す ----------------------------------------------------------------
+
+
+def _review_with(r: Recorder, action: str) -> None:
+    r.start("メモ")
+    r.begin("requirements")
+    r.done("requirements")
+    r.wait("requirements")
+    if action == "revise":
+        r.review("requirements", "revise", feedback="直して")
+    else:
+        r.review("requirements", action)
+
+
+@pytest.mark.parametrize("action", ["approved", "revise", "quit"])
+def test_d0071_ac01_review_entries_have_at(tmp_path, action):
+    """D0071-AC-01: Recorder.review が書く runs[] の要素に、差し替えた時刻の at が入る（Prompt 行の at と同じ書き方）。"""
+    import re
+
+    from pipe_in.engine import clock
+
+    when = datetime(2026, 10, 17, 11, 22, 33)
+    r = recorder(tmp_path, now=lambda: when)
+    _review_with(r, action)
+    entry = state(tmp_path)["runs"][-1]
+    assert entry["stage"] == "requirements" and entry["review"] == action
+    assert "at" in entry, f"review の要素に at が入っていない: {entry}"
+    assert entry["at"] == clock.with_offset(when)
+    assert re.fullmatch(OFFSET_TEXT, entry["at"]), entry["at"]
+    parsed = datetime.fromisoformat(entry["at"])
+    assert parsed.tzinfo is not None and parsed.microsecond == 0
+
+
+@pytest.mark.parametrize("action", ["approved", "revise", "quit"])
+def test_d0071_ac01_cli_review_entries_have_at(tmp_path, action):
+    """D0071-AC-01: コマンド（record.main）で書いた review の要素にも at が入り、読める時刻で、今の時刻に近い。"""
+    from pipe_in.dev import record
+
+    p = str(tmp_path)
+    assert record.main(["start", "--project", p, "--text", "メモ"]) == 0
+    extra = ["--feedback", "直して"] if action == "revise" else []
+    assert record.main(["review", "requirements", action, "--project", p, *extra]) == 0
+    entry = state(tmp_path)["runs"][-1]
+    assert "at" in entry, f"review の要素に at が入っていない: {entry}"
+    parsed = datetime.fromisoformat(entry["at"])
+    assert parsed.tzinfo is not None
+    assert abs((datetime.now().astimezone() - parsed).total_seconds()) < 120
+
+
+def test_d0071_ac01_at_does_not_change_other_keys(tmp_path):
+    """D0071-AC-01: at を外すと、review の要素は従来の形（stage・review・revise のときは feedback）のまま。鍵の並びは at が最後。"""
+    r = recorder(tmp_path)
+    r.start("メモ")
+    r.review("requirements", "revise", feedback="直して")
+    r.review("requirements", "approved")
+    r.review("requirements", "quit")
+    runs = state(tmp_path)["runs"]
+    assert all("at" in e for e in runs), runs
+    assert list(runs[0]) == ["stage", "review", "feedback", "at"]
+    assert list(runs[1]) == ["stage", "review", "at"]
+    stripped = [{k: v for k, v in e.items() if k != "at"} for e in runs]
+    assert stripped == [
+        {"stage": "requirements", "review": "revise", "feedback": "直して"},
+        {"stage": "requirements", "review": "approved"},
+        {"stage": "requirements", "review": "quit"},
+    ]
 
 
 def test_ac02_record_module_does_not_import_the_sdk():

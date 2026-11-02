@@ -33,7 +33,8 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | ページ | 見るもの | 画像に撮るか |
 | --- | --- | --- |
 | `pipe-editor-dark.html`・`pipe-editor-light.html` | パイプ作業台（暗い・明るい）。ブロック「ソースの調査」を1回押すと、右に段の設定が出る | 撮る：`pipe-editor-dark.png`・`pipe-editor-light.png` |
-| `pipe-editor-diagrams.html` | ひな形のパイプ diagrams を開いた作業台の見本 | 撮らない |
+| `pipe-editor-diagrams.html` | ひな形のパイプ diagrams を開いた作業台の見本。費用の目安の節（D0066）の確かめは、作業台のどのページでも、右の欄の末尾の節を開き、ページの `window.__previewEstimate({ today, actualUsd })` で今日と前の実績を送って見る（ページは足さない） | 撮らない |
+| `pipe-editor-external-dark.html`・`pipe-editor-external-light.html` | 外で書き換わったパイプを読み直す動き（D0065）。ページの `window.__previewExternal('reloaded' / 'conflict' / 'unreadable')` で拡張からの知らせを送り、読み直しのトースト・差分つきの帯の 2 つのボタン・読めなかった帯・履歴の「外で書き換わる前」の行を見る。帯のボタンを押すと `window.__posted` に `externalChoice` が積まれ、ページが読み込み／残すの結果を返す。ファイルを見張る動きはプレビューでは確かめられない | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 | `run-panel-light.html`・`run-panel-dark.html` | 完了した見本の「実行を見る」パネル（明るい・暗い） | 撮らない（`run-panel-light.png`・`run-panel-dark.png` は、下の実行の一覧のページ `run-panel-runs-*` から撮る） |
 | `run-panel-running-light.html`・`run-panel-running-dark.html`（`run-panel-running-*`） | 動いている実行の動き（脈打ち・点の流れ・点滅）。動きは静止画に写らない | 撮らない |
 | `run-panel-waiting-light.html`・`run-panel-waiting-dark.html`（`run-panel-waiting-*`） | 確認待ちの実行の動き（点滅）。動きは静止画に写らない | 撮らない |
@@ -44,8 +45,14 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 | `run-panel-artifacts-light.html`・`run-panel-artifacts-dark.html`（`run-panel-artifacts-*`） | 成果物のタブ（D0025）。実行の一覧つきで、動いている開発フローと12個のパイプの2つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。成果物の一覧・プレビュー・選び・描き直しのあとの動きと内容を見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 | `run-panel-tools-light.html`・`run-panel-tools-dark.html`（`run-panel-tools-*`） | エージェント・スキルのタブ（D0050）。実行の一覧つきで、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`window.__previewNext()` で動いている実行が進んだ本体を送れ、`window.__posted` には、パネルが拡張へ送ったメッセージの種類が貯まる。表・案内・空の文・描き直しのあとの動きを見るためのページ | 撮らない（動きと内容を見るためのページで、画像には撮らない） |
 | `run-panel-budget-light.html`・`run-panel-budget-dark.html`（`run-panel-budget-*`） | 段ごとの費用の上限の表示（D0051）。10 段のパイプ `budget-demo` の記録で、図の節の金額の対・棒・言葉（余裕・近い・超えた・止まった・上限なし・続きの会話の回・複数回・最大の組）と、使用量のタブの先頭の「段ごとの費用」の表を見る。記録は一時フォルダに書いて読み、`tests/fixtures/` には足さない | 撮らない（見た目と並びを確かめるためのページで、画像には撮らない） |
+| `run-panel-check-self-light.html`・`run-panel-check-self-dark.html`（`run-panel-check-self-*`） | パイプの判定とやり直し（D0062）。自分をやり直す判定が 1 回 fail → pass の記録で、判定の節の札「判定 ↻」・「1 / 3 回」・完了の色と、節を押したときの右の欄（検証ごとの結果）を見る | 撮らない（見た目と並びを確かめるためのページで、画像には撮らない） |
+| `run-panel-check-back-light.html`・`run-panel-check-back-dark.html`（`run-panel-check-back-*`） | 前の段へ戻す判定が上限まで落ちた記録。判定の節の失敗の色・札「判定 ↩」・「2 / 2 回」・「上限まで」と、戻り先の段への戻りの矢印を見る | 撮らない（同上） |
+| `run-panel-check-old-light.html`・`run-panel-check-old-dark.html`（`run-panel-check-old-*`） | 判定の情報の無い古い記録のパイプ。判定の節が出ず、今までと同じ図になることを見る | 撮らない（同上） |
+| `run-panel-group-running-light.html`・`run-panel-group-running-dark.html`（`run-panel-group-running-*`） | 並列の枠（D0063）。枠（中が 4 段）の中の 2 段が同時に動き、1 段が先に完了した記録で、枠の線と名前の札・横並び・4 段目の折り返し・枠の前後の矢印・経過の秒と、枠の中の節を押したときの右の欄の切り替え（もう一度押す・枠の外の節で既定に戻る）を見る | 撮らない（見た目と並びを確かめるためのページで、画像には撮らない） |
+| `run-panel-group-failed-light.html`・`run-panel-group-failed-dark.html`（`run-panel-group-failed-*`） | 枠の中に完了・失敗の段があり、判定のある段が 1 回 fail → pass した記録。枠の札の失敗の色・完了と失敗の見分け・「判定 ↻」と「2 回目」が枠の中に収まることを見る | 撮らない（同上） |
+| `run-panel-group-old-light.html`・`run-panel-group-old-dark.html`（`run-panel-group-old-*`） | `group` の無い古い記録のパイプ。枠が出ず、今までと同じ一列の図になることを見る | 撮らない（同上） |
 
-見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が、エージェント・スキルのタブの見本の記録（ログと `state.json`）は `vscode/scripts/toolsSamples.ts` が作ります。上限と費用の表のページの見本の記録は `vscode/scripts/budgetSamples.ts` が作ります。`run-list.gif` の最後の使用量のタブの絵は、段ごとの費用の節が足される前の見た目のままです（撮り直しは別の機会に行います）。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
+見本の文章（長い Markdown・外から来た文字・上限を超える日本語）は `vscode/scripts/artifactSamples.ts` が、エージェント・スキルのタブの見本の記録（ログと `state.json`）は `vscode/scripts/toolsSamples.ts` が作ります。上限と費用の表のページの見本の記録は `vscode/scripts/budgetSamples.ts` が、判定とやり直しのページの見本の記録は `vscode/scripts/checkSamples.ts` が作ります。並列の枠のページの見本の記録と段のログは `vscode/scripts/groupSamples.ts` が作ります（どれも一時フォルダに書いて読み、`tests/fixtures/` には足しません。判定の見本は共通の表 `tests/fixtures/check_record.json` を、枠の見本は `tests/fixtures/group_record.json` を読むだけです）。`run-list.gif` の最後の使用量のタブの絵は、段ごとの費用の節が足される前の見た目のままです（撮り直しは別の機会に行います）。ページが足されたり名前が変わったりしたら、この表を直します（`vscode/scripts/previewPages.ts` の `PANEL_PAGES` と `preview.ts` の `PAGES` に合っているかは、`tests/test_guide.py` と `tests/test_skill_tidy_docs.py` が見ます）。
 
 ## 撮り直す
 

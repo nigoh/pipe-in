@@ -1,8 +1,8 @@
 """pipe-in record：開発フローの記録（state.json・段のログ・まとめ）だけを書く。段は流さない（SDK を呼ばない）。
 
-Claude Code の開発用スキル（/pipe-dev）が、会話の中で進めた段の結果を本体と同じ形で残すために使う。
+Claude Code の開発用スキル（/pipe-in）が、会話の中で進めた段の結果を本体と同じ形で残すために使う。
 VSCode の拡張は、本体の記録と同じように図・確認待ち・差し戻しを出せる。
-記録には driver = "pipe-dev" を入れ、pipe-in --review がこの記録の続きを流さないようにする。
+記録の driver に DRIVER の値を入れ、pipe-in --review がこの記録の続きを流さないようにする。
 """
 
 from __future__ import annotations
@@ -21,10 +21,10 @@ from ..engine import clock
 from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
 from ..engine.session import check_token, name_from_memo, normalize_name
+from .record_order import LOGS, check_dir, format_report
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
 
 DRIVER = "pipe-dev"
-LOGS = "logs"
 ARCHIVE = "archive"
 OUTPUTS = {"requirements": REQUIREMENTS, "design": DESIGN, "red": RED, "implement": IMPLEMENTATION, "test": TEST_REPORT}
 REVIEWED = ("requirements", "design", "red")
@@ -53,10 +53,15 @@ class Recorder:
     def _stamp(self) -> str:
         return self.now().isoformat(timespec="seconds")
 
-    def _load(self) -> dict[str, Any]:
+    def require_state(self) -> Path:
+        """記録（state.json）があることを確かめる。無ければ start を促す文で断る。"""
         path = self.work_dir / STATE
         if not path.is_file():
             raise RecordError(f"記録がありません（{self.cfg.rel(path)}）。先に pipe-in record start で始めてください")
+        return path
+
+    def _load(self) -> dict[str, Any]:
+        path = self.require_state()
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _save(self, state: dict[str, Any]) -> None:
@@ -169,7 +174,7 @@ class Recorder:
         now = t.isoformat(timespec="seconds")
         logs = self.work_dir / LOGS
         logs.mkdir(parents=True, exist_ok=True)
-        prompt = f"/pipe-dev の{label}" + (f"（{attempt} 回目）" if attempt else "")
+        prompt = f"/pipe-in の{label}" + (f"（{attempt} 回目）" if attempt else "")
         line: dict[str, Any] = {"_type": "Prompt", "stage": stage, "resume": None, "prompt": prompt, "driver": DRIVER}
         if agent is not None:
             line["agent"] = agent
@@ -251,6 +256,7 @@ class Recorder:
             if not feedback.strip():
                 raise RecordError("revise には、直してほしい点（feedback）を付けてください")
             entry["feedback"] = feedback.strip()
+        entry["at"] = clock.with_offset(self.now())  # 順序の検査（record check）が使う
         state["runs"].append(entry)
         state["pending_review"] = None
         self._save(state)
@@ -312,7 +318,7 @@ class Recorder:
     def _summary(self, state: dict[str, Any]) -> str:
         w = self.cfg.rel(self.work_dir)
         lines = [
-            "# /pipe-dev のまとめ",
+            "# /pipe-in のまとめ",
             "",
             f"- 結果: {state['final']}（{EXIT_MESSAGES[Exit[state['final']]]}）",
             f"- 期間: {state['started_at']} 〜 {state['updated_at']}",
@@ -407,6 +413,8 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--failure", action="append", help="<基準>=<不合格の中身>（何度でも）")
     s.add_argument("--command", action="append", help="流したコマンド（何度でも）")
 
+    sub.add_parser("check", parents=[common], help="記録の順序（承認より前に次の段が始まっていないか）を読むだけで検べる")
+
     s = sub.add_parser("finish", parents=[common], help="最後の結果とまとめを書く")
     s.add_argument("final", help=" / ".join(FINALS))
     return p
@@ -455,6 +463,15 @@ def run(args: argparse.Namespace) -> int:
     """読んだ引数で記録を書く（pipe-in skill record も、旗を検めてからここを呼ぶ）。"""
     r = Recorder(load_config(args.project, args.config))
     try:
+        if args.action == "check":
+            path = r.require_state()
+            try:
+                state = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                state = None
+            text, code = format_report(check_dir(r.work_dir), state)
+            print(text)
+            return code
         if args.action == "start":
             memo = args.text if args.text is not None else args.input.expanduser().read_text(encoding="utf-8")
             r.start(memo, name=args.name, session_id=args.session_id)

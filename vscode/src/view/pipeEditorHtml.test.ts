@@ -23,6 +23,48 @@ test('AC-32: 渡された値は escape する', () => {
   assert.doesNotMatch(html, /src="a"b"/);
 });
 
+test('D0065-AC-15: パネルから来る externalChoice は、choice が load・keep のときだけ通す', () => {
+  assert.deepEqual(parseEditorMessage({ type: 'externalChoice', choice: 'load' }), { type: 'externalChoice', choice: 'load' });
+  assert.deepEqual(parseEditorMessage({ type: 'externalChoice', choice: 'keep' }), { type: 'externalChoice', choice: 'keep' });
+});
+
+for (const [label, value] of [
+  ['知らない choice', { type: 'externalChoice', choice: 'discard' }],
+  ['空の choice', { type: 'externalChoice', choice: '' }],
+  ['大文字', { type: 'externalChoice', choice: 'LOAD' }],
+  ['型違い（数）', { type: 'externalChoice', choice: 1 }],
+  ['型違い（真偽）', { type: 'externalChoice', choice: true }],
+  ['choice なし', { type: 'externalChoice' }],
+  ['choice が配列', { type: 'externalChoice', choice: ['load'] }],
+] as [string, unknown][]) {
+  test(`D0065-AC-15: externalChoice の ${label} は捨てる（null）`, () => {
+    assert.equal(parseEditorMessage(value), null);
+  });
+}
+
+test('D0065-AC-15: 拡張 → パネルの通知の型（externalReloaded など）をパネルから送られても通さない。既存の分岐は変わらない', () => {
+  for (const type of ['externalReloaded', 'externalConflict', 'externalKept', 'externalUnreadable', 'externalResolved']) assert.equal(parseEditorMessage({ type }), null, type);
+  assert.deepEqual(parseEditorMessage({ type: 'ready' }), { type: 'ready' });
+  assert.deepEqual(parseEditorMessage({ type: 'loadVersion', id: '1760000000000-external' }), { type: 'loadVersion', id: '1760000000000-external' });
+});
+
+test('D0065-AC-21: 作業台の HTML に外の書き換えの帯 #ext-banner がある（role="alert"・最初は hidden）', () => {
+  const html = renderPipeEditorHtml({ nonce: 'abc123', scriptUri: 'vscode-webview://x/out/pipeEditor.js', cspSource: 'vscode-webview://x' });
+  const tag = /<div[^>]*\bid="ext-banner"[^>]*>/.exec(html)?.[0] ?? '';
+  assert.ok(tag, '#ext-banner の div がある');
+  assert.match(tag, /class="ext-banner"/);
+  assert.match(tag, /role="alert"/);
+  assert.match(tag, /\bhidden\b/);
+  assert.ok(html.indexOf('id="ext-banner"') < html.indexOf('class="stage-area"'), '帯は stage-area の上');
+});
+
+test('D0065-AC-21: 帯を足した HTML でも、外部の URL・style 属性・色の直書きが無い（今のまま通る。守る）', () => {
+  const html = renderPipeEditorHtml({ nonce: 'abc123', scriptUri: 'vscode-webview://x/out/pipeEditor.js', cspSource: 'vscode-webview://x' });
+  assert.doesNotMatch(html, /https?:\/\//);
+  assert.doesNotMatch(html, /\sstyle="/);
+  assert.doesNotMatch(html.replace(/var\(--vscode-[^)]+\)/g, ''), /#[0-9A-Fa-f]{6}\b/);
+});
+
 test('AC-33: パネルから来るのは ready と save（モデルの形を確かめる）だけ', () => {
   assert.deepEqual(parseEditorMessage({ type: 'ready' }), { type: 'ready' });
   const model = newPipe('x');

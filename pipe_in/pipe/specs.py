@@ -77,6 +77,20 @@ def _outside_pipe(can_write: Callable[[str], bool], cfg: Config, pipe: PipeDef) 
     return wrapped
 
 
+def _outside_previous(
+    can_write: Callable[[str], bool], previous: tuple[Callable[[str], bool], str] | None
+) -> Callable[[str], bool]:
+    """前のパイプの記録は、どの段からも書かせない（D0069-FR-15）。書けないものを外すだけなので、守りは広がるだけ。"""
+    if previous is None:
+        return can_write
+    blocked, _ = previous
+
+    def wrapped(rel: str) -> bool:
+        return not blocked(rel) and can_write(rel)
+
+    return wrapped
+
+
 def _sdk_tool_name(mcp: str) -> str:
     """mcp__<サーバー>__* は、SDK にはサーバー単位（mcp__<サーバー>）で渡す。"""
     return mcp[: -len("__*")] if mcp.endswith("__*") else mcp
@@ -134,11 +148,15 @@ def _mcp_server(m: McpServerDef) -> dict[str, Any]:
     return {"type": m.type, "url": m.url}
 
 
-def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
+def build_pipe_specs(
+    cfg: Config, pipe: PipeDef, *, previous: tuple[Callable[[str], bool], str] | None = None
+) -> dict[str, StageSpec]:
     rules = _stage_rules()
     specs: dict[str, StageSpec] = {}
     for s in pipe.stages:
         can_write, hint = _can_write(cfg, s)
+        if previous is not None:
+            hint = f"{hint}（{previous[1]}）"
         allowed, disallowed = _tools(s)
         limit = s.max_agent_calls or DEFAULT_MAX_AGENT_CALLS
         agent_rules = _agent_rules(limit, bash=s.bash) if s.agents else ""
@@ -150,7 +168,7 @@ def build_pipe_specs(cfg: Config, pipe: PipeDef) -> dict[str, StageSpec]:
             allowed_tools=allowed,
             disallowed_tools=disallowed,
             allow_bash=s.bash,
-            can_write=_outside_pipe(can_write, cfg, pipe),
+            can_write=_outside_previous(_outside_pipe(can_write, cfg, pipe), previous),
             write_scope_hint=hint,
             system_append=rules + agent_rules + (f"\n\n## この段の決まり\n\n{s.system_append.strip()}\n" if s.system_append else ""),
             output_format=output_format(s),
@@ -194,8 +212,11 @@ def _judge_prompt(j: StageJudge) -> list[str]:
     return lines
 
 
-def stage_prompt(cfg: Config, pipe: PipeDef, index: int, failure_note: str | None = None) -> str:
-    """段への依頼文。渡すものは、依頼メモと、前の段のうち成果物がもうあるもの（分岐で通らなかった段は除く）。"""
+def stage_prompt(
+    cfg: Config, pipe: PipeDef, index: int, failure_note: str | None = None, *, received: dict[str, Any] | None = None
+) -> str:
+    """段への依頼文。渡すものは、依頼メモと、前の段のうち成果物がもうあるもの（分岐で通らなかった段は除く）。
+    received（--after で受けた前のパイプの記録）があれば、その成果物の場所も足す。前の依頼メモは渡さない（D0069-FR-08・FR-09）。"""
     w = cfg.rel(cfg.work_dir)
     stage = pipe.stages[index]
     given: list[str] = []
@@ -206,6 +227,13 @@ def stage_prompt(cfg: Config, pipe: PipeDef, index: int, failure_note: str | Non
         for prev in pipe.stages[:index]
         if (cfg.work_dir / prev.output).is_file() and not (stage.group and prev.group == stage.group)
     ]
+    if received is not None:
+        # 記録の場所は作業フォルダからの相対。作業フォルダの親（docs/pipeline）から引く
+        base = cfg.work_dir.parent
+        given += [
+            f"- 前のパイプ「{received['pipe']}」の{art['stage']}の成果物: `{cfg.rel(base / art['path'])}`"
+            for art in received["artifacts"]
+        ]
     lines = [stage.prompt_text(), ""]
     if given:
         lines += ["## 渡すもの", "", "先に読んでください。", "", *given, ""]

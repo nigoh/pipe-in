@@ -201,12 +201,12 @@ def test_D0010_AC_05_書ける場所が実物と一致する():
     assert prompt, "fsPipes.ts から PROMPT（prompts/…md）を読めなかった"
     file_re = re.search(r"const FILE = /\^(.*)\$/", src_text("infra/fsVersions.ts"))
     assert file_re, "fsVersions.ts から FILE を読めなかった"
-    assert file_re.group(1) == r"\d{13}(-draft)?\.json", "版のファイル名の形が変わった。記録も直す"
+    assert file_re.group(1) == r"\d{13}(-draft|-external)?\.json", "版のファイル名の形が変わった。記録も直す"
 
     text = record_text()
     assert bullet(text, "固定ファイル") == set(re.findall(r"'([^']+)'", fixed.group(1)))
     assert bullet(text, "指示文") == {"prompts/*.md"}
-    assert bullet(text, "版のファイル名") == {"<13桁>[-draft].json"}
+    assert bullet(text, "版のファイル名") == {"<13桁>[-draft|-external].json"}
 
 
 def test_D0010_AC_05_版の上限が定数と一致する():

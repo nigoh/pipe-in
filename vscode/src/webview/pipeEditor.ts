@@ -30,6 +30,8 @@ import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, p
 import type { Clip } from '../domain/pipeEdit.ts';
 import { setCheck } from '../domain/pipeCheck.ts';
 import { checkBoxHtml, checkChipHtml } from '../view/checkHtml.ts';
+import { estimateCost } from '../domain/costEstimate.ts';
+import { costEstimateHtml } from '../view/costEstimateHtml.ts';
 import { menuFor, menuKey, placeMenu } from '../domain/pipeMenu.ts';
 import type { MenuItem, MenuPath, MenuTarget } from '../domain/pipeMenu.ts';
 import { createHistory, jump, record, redo, undo } from '../domain/editHistory.ts';
@@ -37,6 +39,9 @@ import type { History } from '../domain/editHistory.ts';
 import { VERSION_LIMIT } from '../domain/pipeVersions.ts';
 import type { VersionEntry } from '../domain/pipeVersions.ts';
 import { plugSvg, socketSvg } from '../view/plugSvg.ts';
+import { renderExternalBanner } from '../view/externalHtml.ts';
+import type { BannerState } from '../view/externalHtml.ts';
+import type { DiffItem } from '../domain/pipeDiff.ts';
 
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 const vscode = acquireVsCodeApi();
@@ -107,9 +112,13 @@ const st: {
   dropWire: string | null;
   /** 保存先のフォルダ名（拡張が知らせてくる。見せるだけ） */
   folder: string;
+  /** 費用の目安に使う今日（来る前は null＝古さを見ない）と、前の実績（ドル。無ければ null）。拡張が開いたときに一度だけ知らせてくる（D0066） */
+  estimate: { today: string | null; actualUsd: number | null };
+  /** 「費用の目安」の節を開いているか（欄の作り直しをまたいで覚える） */
+  costOpen: boolean;
 } = {
   m: null, sel: { type: 'pipe' }, view: { x: 30, y: 30, z: 0.8 }, tab: 'block', dirty: false, viewMoved: false, lifted: null, snapped: null,
-  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null, folder: '',
+  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null, folder: '', estimate: { today: null, actualUsd: null }, costOpen: false,
 };
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 const esc = (t: unknown): string => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -146,6 +155,22 @@ function changed(label: string, key?: string): void {
   record(hist, label, snapNow(), key);
   syncDirty();
   if (st.tab === 'history') renderPane();
+  refreshEstimate();
+}
+
+/**
+ * 「費用の目安」の節だけを作り直す（段・パイプを編集するたび）。右の欄全体は作り直さない（打っている入力欄のフォーカスを失わないため）。
+ * 節は「ブロック」のタブの末尾の入れ物 #cost-slot に入れる。計算は domain の estimateCost（本体と同じ決まり）。
+ */
+function refreshEstimate(): void {
+  const slot = document.getElementById('cost-slot');
+  if (!slot || !st.m) return;
+  const stages = model().stages.map((s) => ({
+    name: s.name, model: s.model, maxTurns: s.maxTurns, maxBudget: s.maxBudget, maxRetries: s.check.on ? s.check.maxRetries : 0,
+  }));
+  slot.innerHTML = costEstimateHtml(estimateCost(stages, st.estimate.today), st.estimate.actualUsd);
+  const box = slot.querySelector('details');
+  if (box) box.open = st.costOpen;
 }
 
 /** 写しの形に戻す（元に戻す・やり直し・履歴の時点）。選んでいたものが無くなっていれば外す */
@@ -486,6 +511,9 @@ function renderPane(): void {
   if (st.tab === 'block') {
     pane.innerHTML = blockPane();
     if (same) pane.querySelectorAll('details').forEach((d) => { if (opened.has(d.querySelector('summary')?.textContent ?? '')) d.open = true; });
+    // 費用の目安の入れ物（段・パイプの選びが変わっても、どの表示でも末尾に残す）
+    pane.insertAdjacentHTML('beforeend', '<div id="cost-slot"></div>');
+    refreshEstimate();
   } else if (st.tab === 'check') {
     const { errors } = validatePipe(m);
     pane.innerHTML = `<ul class="result">${errors.length ? errors.map((e) => `<li>${esc(e)}</li>`).join('') : `<li class="ok">パイプ「${esc(m.name)}」: 問題ありません</li>`}</ul>
@@ -504,7 +532,7 @@ function historyPane(): string {
   const ops = hist.entries.map((e, i) => ({ e, i })).reverse().map(({ e, i }) =>
     `<li><button type="button" class="hrow${i === hist.at ? ' cur' : ''}${i > hist.at ? ' later' : ''}" data-hist="${i}"${i === hist.at ? ' aria-current="step"' : ''}>${esc(e.label)}</button></li>`).join('');
   const vers = st.versions.map((v) =>
-    `<li><button type="button" class="hrow" data-ver="${esc(v.id)}">${esc(when(v.savedAt))}${v.draft ? '<span class="chip warn">下書き（保存していない）</span>' : ''}</button></li>`).join('');
+    `<li><button type="button" class="hrow" data-ver="${esc(v.id)}">${esc(when(v.savedAt))}${v.draft ? '<span class="chip warn">下書き（保存していない）</span>' : ''}${v.external ? '<span class="chip">外で書き換わる前</span>' : ''}</button></li>`).join('');
   return `<div class="box"><h3>操作（新しい順）</h3>
       <p class="note">押すと、その時点の形に戻ります。戻したあとでも Ctrl+Y で先へ進めます。Ctrl+Z で1手戻ります。</p>
       <ol class="hist">${ops}</ol></div>
@@ -582,6 +610,11 @@ $('pane').addEventListener('input', (ev) => {
     if (pre && s) pre.textContent = delivered(s);
   }
 });
+// 「費用の目安」の節を開け閉めしたら覚える（toggle は泡立たないので、取り込みの段で受ける）
+$('pane').addEventListener('toggle', (ev) => {
+  const t = ev.target as HTMLDetailsElement;
+  if (t.id === 'cost-estimate') st.costOpen = t.open;
+}, true);
 $('pane').addEventListener('change', (ev) => {
   const t = ev.target as HTMLElement;
   if (t.matches('select, input[type=checkbox]')) t.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1348,11 +1381,23 @@ $('save').addEventListener('click', save);
 // ---- 拡張とのやり取り ------------------------------------------------------------
 
 /** 保存した版の日時（パネルの中だけで使う表示の書式） */
+function showExtBanner(s: BannerState): void {
+  const el = $('ext-banner');
+  el.innerHTML = renderExternalBanner(s);
+  el.hidden = false;
+}
+function hideExtBanner(): void {
+  const el = $('ext-banner');
+  el.innerHTML = '';
+  el.hidden = true;
+}
 const when = (t: number): string => new Date(t).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 window.addEventListener('message', (ev: MessageEvent) => {
   const msg = ev.data as {
     type?: string; model?: PipeModel; written?: string[]; errors?: string[]; message?: string;
     savedNames?: string[]; dirty?: boolean; list?: VersionEntry[]; id?: string; folder?: string;
+    cause?: 'auto' | 'chosen'; versions?: VersionEntry[] | null; diff?: DiffItem[]; reason?: string;
+    today?: string; actualUsd?: number | null;
   };
   if (msg.type === 'load' && msg.model) {
     st.m = msg.model;
@@ -1370,6 +1415,7 @@ window.addEventListener('message', (ev: MessageEvent) => {
     toast(msg.dirty ? '保存していない下書きを開きました。保存を押すとファイルに書きます' : 'ブロックの右のプラグを引っぱって、ほかのブロックの左のコンセントに差します');
   } else if (msg.type === 'saved') {
     savedSnap = savingSnap;
+    hideExtBanner(); // 保存したら食い違いは終わり
     st.savedNames = msg.savedNames ?? st.savedNames;
     ($('save') as HTMLButtonElement).disabled = false;
     syncDirty();
@@ -1385,10 +1431,42 @@ window.addEventListener('message', (ev: MessageEvent) => {
     const v = st.versions.find((x) => x.id === msg.id);
     st.m = { ...msg.model, name: st.m.name };
     selectOne({ type: 'pipe' });
-    changed(`保存した版（${v ? when(v.savedAt) : msg.id}${v?.draft ? '・下書き' : ''}）を読み込んだ`);
+    changed(`保存した版（${v ? when(v.savedAt) : msg.id}${v?.draft ? '・下書き' : v?.external ? '・外で書き換わる前' : ''}）を読み込んだ`);
     render();
     fit();
     toast('保存した版を読み込みました。保存を押すまでファイルは書きません（Ctrl+Z で読み込む前に戻せます）');
+  } else if (msg.type === 'externalReloaded' && msg.model && st.m) {
+    // 外で書き換わった形に入れ替える。取り消しの履歴は新しく始め、位置（viewMoved）は触らない
+    st.m = msg.model;
+    st.savedNames = msg.savedNames ?? st.savedNames;
+    selectOne({ type: 'pipe' });
+    hist = createHistory(snapNow(), '外で書き換わったので読み直した');
+    savedSnap = snapNow();
+    if (Array.isArray(msg.versions)) st.versions = msg.versions;
+    hideExtBanner();
+    syncDirty();
+    render();
+    if (st.tab === 'history') renderPane();
+    toast(msg.cause === 'chosen'
+      ? '外の変更を読み込みました（自分の変更は履歴の「保存した版」に残しました）'
+      : '外で書き換わったので読み直しました');
+  } else if (msg.type === 'estimateContext' && typeof msg.today === 'string') {
+    st.estimate = { today: msg.today, actualUsd: typeof msg.actualUsd === 'number' ? msg.actualUsd : null };
+    refreshEstimate();
+  } else if (msg.type === 'externalConflict' && Array.isArray(msg.diff)) {
+    showExtBanner({ type: 'externalConflict', diff: msg.diff });
+  } else if (msg.type === 'externalUnreadable' && typeof msg.reason === 'string') {
+    showExtBanner({ type: 'externalUnreadable', reason: msg.reason });
+  } else if (msg.type === 'externalKept') {
+    hideExtBanner();
+    st.savedNames = msg.savedNames ?? st.savedNames;
+    toast('自分の変更を残しました。保存すると外の変更を上書きします');
+  } else if (msg.type === 'externalResolved') {
+    hideExtBanner();
   }
+});
+$('ext-banner').addEventListener('click', (ev) => {
+  const choice = (ev.target as HTMLElement).closest<HTMLElement>('button[data-ext]')?.dataset.ext;
+  if (choice === 'load' || choice === 'keep') vscode.postMessage({ type: 'externalChoice', choice });
 });
 vscode.postMessage({ type: 'ready' });

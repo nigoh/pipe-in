@@ -106,6 +106,29 @@ export interface StageDef {
   output: string | null;
   /** このあとに人の確認を取るか */
   review: boolean | null;
+  /** 判定（[stages.check]）の設定。判定が無い段・古い記録では null */
+  check: StageCheckDef | null;
+  /** 並列の枠（stages[].group）の名前。枠の外の段・古い記録・読めない値では null（D0063） */
+  group: string | null;
+}
+
+/** 段の判定の設定（stages[].check）。 */
+export interface StageCheckDef {
+  /** 不合格のときに戻す段。自分をやり直す（または読めない）なら null */
+  onFail: Stage | null;
+  /** やり直しの上限。読めない・項目なしは null */
+  maxRetries: number | null;
+}
+
+/** 検証（runs[] の check の要素）1つの結果。 */
+export interface CheckResult {
+  stage: Stage;
+  /** その段の何回目の検証か。無い・読めない記録では null（図の組み立てで並びの番号を使う） */
+  attempt: number | null;
+  status: 'pass' | 'fail';
+  summary: string;
+  /** 直す点。文字だけ残す */
+  problems: string[];
 }
 
 /** 人の確認で止まっているときの段と文書（state.json の pending_review）。 */
@@ -135,6 +158,8 @@ export interface RunRecord {
   reviews: Review[];
   redResults: RedResult[];
   verdicts: Verdict[];
+  /** パイプの検証の結果（runs[] の check の要素）。古い順。開発フロー・判定の無い記録では空 */
+  checks: CheckResult[];
   /** 'PASSED' ほか。知らない文字列もそのまま */
   final: string | null;
   totalCostUsd: number;
@@ -156,6 +181,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   reviews: [],
   redResults: [],
   verdicts: [],
+  checks: [],
   final: null,
   totalCostUsd: 0,
   startedAt: null,
@@ -164,7 +190,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
 
 /** EMPTY_RUN_RECORD の写し（配列は新しく作る。読み取りの途中で足していくため）。 */
 function emptyRecord(): RunRecord {
-  return { ...EMPTY_RUN_RECORD, warnings: [], stageRuns: [], reviews: [], redResults: [], verdicts: [] };
+  return { ...EMPTY_RUN_RECORD, warnings: [], stageRuns: [], reviews: [], redResults: [], verdicts: [], checks: [] };
 }
 
 const REVIEW_ACTIONS: readonly string[] = ['approved', 'revise', 'quit'];
@@ -238,15 +264,17 @@ export function parseRunRecord(text: string | null): RunRecord {
   // 段の並びを持たない記録はパイプを持つ前の開発フローのものなので、開発の5段だけを受け付ける
   const knownStage: (value: unknown) => value is Stage = record.stages === null ? isStage : isStageName;
 
+  // 検証（check）の要素を読むのは、開発フローでないパイプの記録だけ
+  const readChecks = !isDevRecord(record);
   for (const entry of data.runs) {
     if (!isJsonObject(entry)) continue;
-    classifyRunEntry(entry, record, knownStage);
+    classifyRunEntry(entry, record, knownStage, readChecks);
   }
   return record;
 }
 
 /** runs の要素1つを見分けて record に足す（上から順に最初に当てはまるもの。どれでもなければ捨てる）。 */
-function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (value: unknown) => value is Stage): void {
+function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (value: unknown) => value is Stage, readChecks: boolean): void {
   const stage = entry.stage;
   if (typeof entry.seq === 'number' && knownStage(stage)) {
     record.stageRuns.push({
@@ -283,6 +311,17 @@ function classifyRunEntry(entry: JsonObject, record: RunRecord, knownStage: (val
       status: verdict.status as VerdictStatus,
       summary: str(verdict.summary),
       failures: parseFailures(verdict.failures),
+    });
+    return;
+  }
+  const check = entry.check;
+  if (readChecks && isJsonObject(check) && (check.status === 'pass' || check.status === 'fail') && knownStage(stage)) {
+    record.checks.push({
+      stage,
+      attempt: numOrNull(check.attempt),
+      status: check.status,
+      summary: str(check.summary),
+      problems: Array.isArray(check.problems) ? check.problems.filter((p): p is string => typeof p === 'string') : [],
     });
     return;
   }
@@ -323,9 +362,30 @@ function parseStages(value: unknown): StageDef[] | null {
       label: typeof s.label === 'string' && s.label !== '' ? s.label : s.name,
       output: fileNameOrNull(s.output),
       review: typeof s.review === 'boolean' ? s.review : null,
+      check: parseStageCheck(s.check, s.name),
+      group: groupNameOrNull(s.group),
     });
   }
   return stages;
+}
+
+/** 枠の名前の長さの上限（文字数）。 */
+const GROUP_NAME_MAX = 64;
+
+/** stages[].group（並列の枠の名前）を読む。作業台の枠の名前は日本語もありうるので、文字の種類は問わない。空・空白だけ・長すぎ・パスの区切りを含む・文字でない値は null。 */
+function groupNameOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '' || value.length > GROUP_NAME_MAX) return null;
+  return /[/\\]/.test(value) ? null : value;
+}
+
+/** stages[].check（判定の設定）を読む。オブジェクトでなければ null。on_fail は段の名前だけ（自分自身は null＝自分をやり直す）、max_retries は 0 以上の整数だけ。 */
+function parseStageCheck(value: unknown, self: Stage): StageCheckDef | null {
+  if (!isJsonObject(value)) return null;
+  const retries = value.max_retries;
+  return {
+    onFail: isStageName(value.on_fail) && value.on_fail !== self ? value.on_fail : null,
+    maxRetries: typeof retries === 'number' && Number.isInteger(retries) && retries >= 0 ? retries : null,
+  };
 }
 
 /** 開発フローの記録か。段の並びがない（パイプを持つ前の）記録と、段が開発の5段そのものの記録（kind = "dev" のパイプも）。 */

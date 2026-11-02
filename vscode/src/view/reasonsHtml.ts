@@ -2,7 +2,7 @@
 // 欄は節ごとに全部入れておき、選ぶまでは hidden にする。開け閉めはパネルのスクリプトがする。
 // 色は var(--vscode-*)、CSS はクラスだけ。外から来た文字は escapeHtml を通す。
 import { nodeReasons, reasonNodeIds } from '../domain/pipelineView.ts';
-import type { NodeReasons, PipelineView, ReviseNote, SendBack } from '../domain/pipelineView.ts';
+import type { CheckReason, NodeReasons, PipelineView, ReviseNote, SendBack } from '../domain/pipelineView.ts';
 import { escapeHtml } from './escape.ts';
 
 export const REASONS_STYLE = `
@@ -39,10 +39,25 @@ function renderRevise(item: ReviseNote): string {
   return `<li class="reason"><p class="reason-head reason-detail">${escapeHtml(head)}</p>${hasText ? '' : NO_REASON}</li>`;
 }
 
+/** 判定の節の1件：検証 N 回目の合否・要約・直す点。 */
+function renderCheck(item: CheckReason): string {
+  const head = `検証 ${item.attempt} 回目：${item.status === 'pass' ? '合格' : '不合格'}`;
+  const summary = item.summary === '' ? '' : `<p class="reason-summary">${escapeHtml(item.summary)}</p>`;
+  const problems = item.problems.map((p) => `<li><span class="reason-detail">${escapeHtml(p)}</span></li>`);
+  const list = problems.length === 0 ? '' : `<ul class="reason-failures">${problems.join('')}</ul>`;
+  const none = item.status === 'fail' && summary === '' && list === '' ? NO_REASON : '';
+  return `<li class="reason"><p class="reason-head">${escapeHtml(head)}</p>${summary}${list}${none}</li>`;
+}
+
 function renderSection(view: PipelineView, nodeId: string, reasons: NodeReasons): string {
   const label = view.nodes.find((n) => n.id === nodeId)?.label ?? nodeId;
-  const name = reasons.kind === 'revise' ? `${label}（${reasons.label}）` : label;
-  const items = reasons.kind === 'sendBack' ? reasons.items.map(renderSendBack) : reasons.items.map(renderRevise);
+  const name = reasons.kind === 'revise' || reasons.kind === 'check' ? `${label}（${reasons.label}）` : label;
+  const items =
+    reasons.kind === 'sendBack'
+      ? reasons.items.map(renderSendBack)
+      : reasons.kind === 'check'
+        ? reasons.items.map(renderCheck)
+        : reasons.items.map(renderRevise);
   return `<section class="reasons" data-reasons-for="${escapeHtml(nodeId)}" hidden><h2 class="terminal-title">${escapeHtml(`理由：${name}`)}</h2><ol class="reason-list">${items.join('')}</ol></section>`;
 }
 

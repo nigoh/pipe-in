@@ -239,6 +239,47 @@ test('D0024-AC-42: 時計の検査そのものが、使うファイルだけを�
   assert.deepEqual(found, ['domain/a.ts', 'view/c.ts']);
 });
 
+// ---- D0065：外で書き換わったパイプを読み直す部品（domain 2・app 2・view 1）の構造 ----
+// 新しいファイルが無いあいだは「まだ作っていない」で落とす。検査そのものの確かめは、既存の検査（layerViolations・clockUsers）を使う。
+
+const EXTERNAL_PARTS = ['domain/pipeDiff.ts', 'domain/pipeExternal.ts', 'app/debounce.ts', 'app/externalReload.ts', 'view/externalHtml.ts'] as const;
+const EXTERNAL_CLOCK_FREE = ['domain/pipeDiff.ts', 'domain/pipeExternal.ts', 'app/debounce.ts', 'app/externalReload.ts'] as const;
+
+test('D0065-AC-22: 外の書き換えの 5 つの部品が、構造の検査の対象（targets()）に入っている（vscode を import しない）', () => {
+  for (const rel of EXTERNAL_PARTS) needSource(rel);
+  const rels = targets().map(relOf);
+  for (const rel of EXTERNAL_PARTS) assert.ok(rels.includes(rel), `${rel} が検査の対象にある`);
+  for (const rel of EXTERNAL_PARTS) {
+    const source = readFileSync(path.join(SRC, rel), 'utf8');
+    assert.ok(!VSCODE_IMPORTS.some((re) => re.test(source)), `${rel} が vscode を import している`);
+  }
+});
+
+test('D0065-AC-22: 外の書き換えの 5 つの部品は、層ごとの node: の決まりを守る（domain・app は node:path だけ、view は何も読まない）', () => {
+  const files = EXTERNAL_PARTS.map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(layerViolations(files), []);
+});
+
+test('D0065-AC-22: domain/pipeDiff.ts・domain/pipeExternal.ts・app/debounce.ts・app/externalReload.ts は Date・setTimeout を直接使わない（時計は渡される）', () => {
+  const files = EXTERNAL_CLOCK_FREE.map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(clockUsers(files), []);
+  for (const f of files) assert.deepEqual(findClockOrNode(f.source).filter((x) => x !== 'node:path'), [], `${f.rel}: 時計・乱数`);
+});
+
+test('D0065-AC-22: app/externalReload.ts は node:fs を読まない。app の 2 つは ../view と ../infra を、domain の 2 つは ../app・../view・../infra を読まない（向きは domain ← app ← view）', () => {
+  const specs = (rel: string): string[] => specifiersOf(needSource(rel));
+  assert.deepEqual(specs('app/externalReload.ts').filter((s) => /^(?:node:)?fs(?:\/|$)/.test(s)), []);
+  for (const rel of ['app/externalReload.ts', 'app/debounce.ts']) assert.deepEqual(specs(rel).filter((s) => /^\.\.\/(?:view|infra|webview)\b/.test(s) || s === 'vscode'), [], rel);
+  for (const rel of ['domain/pipeDiff.ts', 'domain/pipeExternal.ts']) assert.deepEqual(specs(rel).filter((s) => /^\.\.\/(?:app|view|infra|webview)\b/.test(s) || s === 'vscode'), [], rel);
+  assert.deepEqual(specs('view/externalHtml.ts').filter((s) => /^\.\.\/(?:app|infra)\b/.test(s) || s === 'vscode'), []);
+});
+
+test('D0065-AC-22: 拡張の書き込み先は増えない（infra/ で書く関数を持つのは fsPipes.ts・fsVersions.ts だけ。新しい部品は fs を使わない）（今のまま通る。守る）', () => {
+  const writers = listTsFiles(path.join(SRC, 'infra')).filter((f) => !f.endsWith('.test.ts') && /\b(?:writeFile|appendFile|mkdir|rm|unlink|rename|copyFile)\b/.test(withoutComments(readFileSync(f, 'utf8')))).map(relOf).sort();
+  assert.ok(writers.includes('infra/fsPipes.ts') && writers.includes('infra/fsVersions.ts'), `書く口が見つかっている：${writers.join(',')}`);
+  assert.deepEqual(writers.filter((w) => w !== 'infra/fsPipes.ts' && w !== 'infra/fsVersions.ts'), []);
+});
+
 // ---- D0050：エージェント・スキル・道具の表の部品（domain/toolsTable.ts・view/toolsHtml.ts）の構造 ----
 // AC-33：表を作る部品は「今」を使わない（時計を読まず、引数にも取らない）。AC-38：層の向きを守る。
 // AC-41(2)：一覧の行の組み立て（domain/runList.ts）・app/runList.ts・infra/ は、表を作る部品を値として import しない。buildPipelineView の呼び出し元は 2 か所だけ。
@@ -393,6 +434,40 @@ test('D0050-AC-41: buildPipelineView( の呼び出し元は domain/runList.ts（
   const files = [...targets(), path.join(SRC, 'extension.ts')].map((file) => ({ rel: relOf(file), source: readFileSync(file, 'utf8') }));
   assert.ok(files.some((f) => f.rel === 'domain/runList.ts') && files.some((f) => f.rel === 'extension.ts'), '検査の対象に入っている');
   assert.deepEqual(viewCallerProblems(files), []);
+});
+
+// ---- D0066：流す前の費用の目安の 3 つの部品（domain・view・app）の構造 ----
+// 新しいファイルが無いあいだは「まだ作っていない」で落とす。検査そのものの確かめは、既存の検査（layerViolations・clockUsers）を使う。
+
+const COST_PARTS = ['domain/costEstimate.ts', 'view/costEstimateHtml.ts', 'app/costContext.ts'] as const;
+
+test('D0066-AC-19: 目安の 3 つの部品は層の決まりを守る（vscode を import しない・domain と app は node:path だけ・view は何も読まない・子プロセス・utimes なし）', () => {
+  for (const rel of COST_PARTS) needSource(rel);
+  const rels = targets().map(relOf);
+  for (const rel of COST_PARTS) assert.ok(rels.includes(rel), `${rel} が検査の対象にある`);
+  const files = COST_PARTS.map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(layerViolations(files), []);
+  assert.deepEqual(childProcessUsers(files), []);
+  assert.deepEqual(timeWriterUsers(files), []);
+  for (const f of files) assert.ok(!VSCODE_IMPORTS.some((re) => re.test(f.source)), `${f.rel} が vscode を import している`);
+});
+
+test('D0066-AC-19: domain/costEstimate.ts と view/costEstimateHtml.ts は時計・乱数・node: を読まない（今日は引数）。app/costContext.ts は Date.now・setTimeout を呼ばない（nowMs は引数）', () => {
+  const pure = (['domain/costEstimate.ts', 'view/costEstimateHtml.ts'] as const).map((rel) => ({ rel: rel as string, source: needSource(rel) }));
+  assert.deepEqual(clockUsers(pure), []);
+  for (const f of pure) assert.deepEqual(findClockOrNode(f.source), [], `${f.rel}: 時計・乱数・node: の読み込み`);
+  const ctx = withoutComments(needSource('app/costContext.ts'));
+  assert.doesNotMatch(ctx, /\bDate\.now\b|\bsetTimeout\b|\bsetInterval\b|Math\.random/);
+});
+
+test('D0066-AC-19: 向きを守る：domain/costEstimate.ts は ./ の読み込みだけ、view/costEstimateHtml.ts は ../app・../infra・vscode を読まない、app/costContext.ts は ../view・../infra を読まない', () => {
+  assert.deepEqual(specifiersOf(needSource('domain/costEstimate.ts')).filter((s) => !s.startsWith('./')), []);
+  assert.deepEqual(specifiersOf(needSource('view/costEstimateHtml.ts')).filter((s) => /^\.\.\/(?:app|infra)\b/.test(s) || s === 'vscode'), []);
+  assert.deepEqual(specifiersOf(needSource('app/costContext.ts')).filter((s) => /^\.\.\/(?:view|infra|webview)\b/.test(s) || s === 'vscode'), []);
+});
+
+test('D0066-AC-19: 拡張の書き込み先は増えない（目安の 3 つの部品は fs の書き込みを持たない）', () => {
+  for (const rel of COST_PARTS) assert.doesNotMatch(withoutComments(needSource(rel)), /\b(?:writeFile|appendFile|mkdir|unlink|rename|copyFile)\b|node:fs/, rel);
 });
 
 test('D0050-AC-41: 検査そのもの：呼び出し元が 3 か所の見本・tools: false の無い summarizeRun の見本・tools を渡す refreshView の見本を見つけ、そろった見本は見逃す（今のまま通る。守る）', () => {
