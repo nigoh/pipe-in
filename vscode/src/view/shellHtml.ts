@@ -187,14 +187,27 @@ function renderStatusLine(view: PipelineView): string {
 /** 確認待ちの黄の知らせ。動いている段があるあいだ・終わったあとは出さない。 */
 function renderNotice(view: PipelineView): string {
   if (view.noRecords || view.final !== null || view.runningStage !== null || view.pendingReview === null) return '';
-  const { label, doc } = view.pendingReview;
+  const { stage, label, doc } = view.pendingReview;
+  // 確かめる文書は、成果物の一覧にあって読めるものだけ開く（名前は doc の最後の部分。openArtifact は一覧にある名前しか通さない）
+  const file = doc.split('/').pop() ?? '';
+  const open = view.artifacts.some((a) => a.name === file && a.ready)
+    ? `<button type="button" class="secondary" data-artifact="${escapeHtml(file)}">${OPEN_DOC_LABEL}</button>`
+    : '';
+  const cmd = `python -m pipe_in record review ${stage}`;
   return (
     '<div class="notice" role="status">' +
     `<strong>${escapeHtml(`${label}の確認を待っている：${doc}`)}</strong>` +
     '<span class="notice-sub">読んで、承認か修正の依頼を返してください</span>' +
+    open +
+    '<span class="notice-sub">答え方：会話で返す。コマンドなら ' +
+    `<code>${escapeHtml(`${cmd} approved`)}</code>（直してほしいときは <code>revise --feedback "…"</code>、やめるときは <code>quit</code>）。` +
+    '<code>/pipe-in --artifact</code> のときは、アーティファクトのボタンでも答えられます</span>' +
     '</div>'
   );
 }
+
+/** 確認待ちの知らせの、確かめる文書を開くボタンの文字（D0064）。押すと既存の openArtifact になる */
+const OPEN_DOC_LABEL = '確かめる文書を開く';
 
 /**
  * 「この段のログが（時間）更新されていません。」の知らせ。プロセスは調べていないことと、長い段では動いていても更新されないことを添える。
