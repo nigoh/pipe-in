@@ -11,6 +11,8 @@
 | 手で | 単体では確かめられない、手元の環境での動き（例：Git Bash と PowerShell から呼ぶ） | 手順と結果を決定の記録に書く |
 | 実機 | SDK を呼ぶ・Claude Code にプラグインを入れる | **人に言われたときだけ**（利用料や、手元の設定が変わる）。結果を決定の記録に書く |
 
+検査の二重化（`check_pipe` と `validatePipe`）の見本は `tests/fixtures/check_parity/` に置き、Python と拡張のテストが同じ表を読みます（[design.md](design.md) の「検査の二重化」）。
+
 プラグインの eval のケース（`plugin/evals/`）は、`pytest` でファイルの形だけを確かめます（`tests/test_plugin_evals.py`）。`claude plugin eval` を流すのは実機で、利用料がかかるので、人に言われたときだけです。
 
 - 本体：`python -m pytest -q`（`tests/`）

@@ -1,0 +1,11 @@
+[pipe]
+kind = "linear"
+label = "最小"
+input = "optional"
+
+[[stages]]
+name = "look"
+label = "見る"
+output = "01_look.md"
+access = "read"
+prompt_file = "prompts/01_look.md"

@@ -1,0 +1,8 @@
+{
+  "note": "kind と input が決まりにない値",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["kind", "input"],
+  "only": "python",
+  "reason": "作業台は kind を持たず、input は選択式で、読み込みのときに決まった値へ直る（保存すると直った形で書かれる）"
+}

@@ -1,0 +1,8 @@
+{
+  "note": "prompt_file の中身が空白だけ",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["指示"],
+  "only": "extension",
+  "reason": "流す側は空の指示ファイルを誤りにしない（ファイルがあれば通す）。作業台は指示の抜けとして知らせる"
+}

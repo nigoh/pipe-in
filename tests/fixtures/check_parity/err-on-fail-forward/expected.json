@@ -1,0 +1,6 @@
+{
+  "note": "on_fail が後ろの段を指している",
+  "valid": false,
+  "errors": 1,
+  "keywords": [["自分か前", "自分より前"]]
+}

@@ -1,0 +1,9 @@
+[pipe]
+label = "古い形"
+
+[[stages]]
+name = "look"
+label = "見る"
+output = "01_look.md"
+access = "read"
+prompt = "見てください"

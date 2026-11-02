@@ -1,0 +1,59 @@
+[pipe]
+kind = "linear"
+label = "流れ"
+input = "optional"
+
+[[stages]]
+name = "survey"
+label = "調べる"
+output = "01_survey.md"
+access = "read"
+prompt = "対象を調べてください"
+
+[[stages]]
+name = "draft-a"
+label = "下書き A"
+output = "02_draft_a.md"
+access = "docs"
+docs_dir = "docs"
+group = "par"
+prompt = "A の下書きを書いてください"
+
+[[stages]]
+name = "draft-b"
+label = "下書き B"
+output = "03_draft_b.md"
+access = "docs"
+docs_dir = "docs"
+group = "par"
+prompt = "B の下書きを書いてください"
+
+[[stages]]
+name = "verify"
+label = "確かめる"
+output = "04_verify.md"
+access = "read"
+prompt = "下書きを確かめてください"
+[stages.check]
+verdict = true
+command = "pytest -q"
+on_fail = "survey"
+max_retries = 2
+
+[[stages]]
+name = "sort"
+label = "仕分け"
+output = "05_sort.md"
+access = "read"
+prompt = "直す必要があるかを選んでください"
+[stages.routes]
+fix = "fix"
+done = "end"
+
+[[stages]]
+name = "fix"
+label = "直す"
+output = "06_fix.md"
+access = "code"
+writes = ["src/**"]
+prompt = "指摘された点を直してください"

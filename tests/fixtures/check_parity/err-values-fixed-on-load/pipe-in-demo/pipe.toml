@@ -1,0 +1,39 @@
+[pipe]
+kind = "linear"
+label = "読み込みで直る値"
+
+[[stages]]
+name = "access"
+output = "01_access.md"
+access = "write"
+prompt = "調べてください"
+
+[[stages]]
+name = "budget"
+output = "02_budget.md"
+access = "read"
+max_budget_usd = "five"
+prompt = "調べてください"
+
+[[stages]]
+name = "mcp-type"
+output = "03_mcp.md"
+access = "read"
+mcp = ["mcp__x__tool"]
+prompt = "調べてください"
+[stages.mcp_servers.x]
+type = "grpc"
+
+[[stages]]
+name = "writes"
+output = "04_writes.md"
+access = "code"
+writes = "src/**"
+prompt = "調べてください"
+
+[[stages]]
+name = "web"
+output = "05_web.md"
+access = "read"
+web = "yes"
+prompt = "調べてください"

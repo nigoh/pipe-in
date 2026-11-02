@@ -1,0 +1,6 @@
+{
+  "note": "permission_mode が確認を省くモード、max_thinking_tokens が 0（各1段）",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["permission_mode", "max_thinking_tokens"]
+}

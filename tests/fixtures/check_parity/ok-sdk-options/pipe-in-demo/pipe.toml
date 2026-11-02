@@ -1,0 +1,44 @@
+[pipe]
+kind = "linear"
+label = "SDK の設定"
+input = "optional"
+
+[[stages]]
+name = "build"
+label = "作る"
+output = "01_build.md"
+access = "code"
+bash = true
+writes = ["src/**", "tests/**"]
+web = ["docs.example.com"]
+mcp = ["mcp__my_server__lookup"]
+permission_mode = "plan"
+max_thinking_tokens = 1024
+add_dirs = ["docs"]
+max_budget_usd = 1.5
+max_turns = 50
+max_agent_calls = 5
+prompt = "コードを作ってください"
+[stages.check]
+verdict = true
+timeout_sec = 300
+max_retries = 1
+[stages.check.judge]
+threshold = 0.8
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすいか"
+[[stages.check.judge.criteria]]
+name = "scope"
+description = "頼まれた範囲に収まっているか"
+[[stages.check.judge.must]]
+name = "tests-pass"
+description = "テストが通っているか"
+[stages.agents.helper]
+description = "調べ物を任せる"
+prompt = "言われたことを調べて短く返してください"
+tools = ["Read", "Grep", "Bash"]
+[stages.mcp_servers.my_server]
+type = "stdio"
+command = "node"
+args = ["server.js"]

@@ -1,0 +1,6 @@
+{
+  "note": "access = read の段に writes を書いた（pipe-in-gen check が落とす理由と同じ）",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["writes を書けません"]
+}

@@ -1,0 +1,11 @@
+[pipe]
+kind = "linear"
+label = "check が空"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+max_retries = 1

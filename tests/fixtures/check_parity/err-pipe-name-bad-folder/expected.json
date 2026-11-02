@@ -1,0 +1,8 @@
+{
+  "note": "フォルダ名の名前の部分が大文字まじり（pipe-in-Bad_Name）",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["パイプの名前"],
+  "only": "python",
+  "reason": "作業台はこの名前のフォルダを一覧に出さず、開かない（nameOfFolder が null を返す）"
+}

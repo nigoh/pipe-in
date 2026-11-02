@@ -1,0 +1,29 @@
+[pipe]
+kind = "linear"
+label = "サブエージェント"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt = "調べてください"
+[stages.agents.Bad]
+description = "名前が大文字まじり"
+prompt = "調べて返してください"
+tools = ["Read"]
+[stages.agents.no-desc]
+description = ""
+prompt = "調べて返してください"
+tools = ["Read"]
+[stages.agents.no-prompt]
+description = "指示が空"
+prompt = ""
+tools = ["Read"]
+[stages.agents.nested]
+description = "入れ子にしようとする"
+prompt = "調べて返してください"
+tools = ["Task"]
+[stages.agents.shell]
+description = "この段に無い道具を持たせる"
+prompt = "調べて返してください"
+tools = ["Bash"]

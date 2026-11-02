@@ -1,0 +1,9 @@
+[pipe]
+kind = "dev"
+label = "dev に段"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt = "調べてください"

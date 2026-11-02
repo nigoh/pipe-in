@@ -1,0 +1,9 @@
+[pipe]
+kind = "linear"
+label = "空の指示ファイル"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+prompt_file = "prompts/01_look.md"

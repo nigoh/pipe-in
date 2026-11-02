@@ -1,0 +1,6 @@
+{
+  "note": "指示が無い段と、prompt_file の先が無い段",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["指示"]
+}

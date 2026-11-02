@@ -1,0 +1,26 @@
+[pipe]
+kind = "linear"
+label = "枠の中の on_fail"
+
+[[stages]]
+name = "base"
+output = "01_base.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "left"
+output = "02_left.md"
+access = "read"
+group = "par"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+on_fail = "base"
+
+[[stages]]
+name = "right"
+output = "03_right.md"
+access = "read"
+group = "par"
+prompt = "調べてください"

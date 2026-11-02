@@ -1,0 +1,10 @@
+[pipe]
+kind = "linear"
+label = "add_dirs のパス"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+add_dirs = ["/abs", '\x', "C:/x"]
+prompt = "調べてください"

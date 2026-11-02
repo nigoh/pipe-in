@@ -1,0 +1,6 @@
+{
+  "note": "judge の threshold が範囲の外（1.5）と数でない（文字列）",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["threshold"]
+}

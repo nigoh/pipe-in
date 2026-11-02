@@ -14,6 +14,7 @@
 | 設定の読み込み（`max_budget_usd` の値の検査もここ。`pipe.toml` 側も同じ判定と文を使う） | `pipe_in/engine/config.py` |
 | セッション名の取り方と、セッション ID・受け持ちの検査（標準ライブラリだけ。拡張の `sessionName.ts` と同じ規則を、同じ表で確かめる） | `pipe_in/engine/session.py`・共通の表 `tests/fixtures/session_names.json` |
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
+| 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
 | 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
@@ -106,6 +107,25 @@ pipe_in.usage
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。
+
+## 検査の二重化（Python と拡張）
+
+パイプの定義の検査は、Python と拡張の2か所にあります。拡張は子プロセスを起こさないので、一本にはしません。代わりに、同じ見本を両側に掛けるテストで、ずれを見張ります。
+
+- 相手：`pipe_in/pipe/definition.py` の `check_pipe` と、`vscode/src/domain/pipeModel.ts` の `validatePipe`。警告（`lint.py`）と `pipeCheck.ts`（段の判定スイッチ）は対象外です。
+- 決まりを足す・変えるとき：`check_pipe` と `validatePipe` の両方を直し、見本のケースを足します。誤りの見本は `err-` で始めます。片側だけが見る決まりは `expected.json` に `only`（`"python"` か `"extension"`）と `reason` を書きます。拡張が読まない項目や、読み込みで直る項目は `only: "python"` と理由で残します。
+- 見本は `tests/fixtures/check_parity/<ケース名>/`。`pipe-in-<名前>/pipe.toml`（必要なら `prompts/`）と `expected.json`（`note`・`valid`・`errors`・`keywords`、`only` があれば `reason`）からなります。文は両側で違うので、件数とキーワードで比べます。誤りの件数が `errors` と等しく、`keywords` の各要素（配列ならどれか1つ）を含む誤りがあり、どの誤りもどれかのキーワードを含むときに合います。この規則は `_matcher.json` で両側が確かめます。
+- テスト：Python は `tests/test_check_parity.py`、拡張は `vscode/src/app/pipeCheckParity.test.ts`（見本を読む偽の `PipeStore` を `loadPipe` に渡す）。
+- 写しの見張り：拡張の `DANGEROUS_COMMANDS` と `RESERVED_OUTPUTS` は、本体の `DANGEROUS_BASH`（`guard.py`）と `RESERVED_OUTPUTS` の写しです。守る側の `guard.py` は変えません。本体の表に語を足すと Python のテストが「見本に無い」と落ち、見本を足すと拡張のテストが落ちるので、写しを直します。
+
+### 意図した差
+
+| 種類 | 中身 | 見本 |
+| --- | --- | --- |
+| 作業台にない項目 | `kind`・`input`（読み込みで直る）・`timeout_sec`・`max_agent_calls`（読まず、保存で落ちる。D0035） | `err-pipe-kind-input`・`err-check-timeout-agent-calls`（`only: python`） |
+| 読み込みで直る項目 | access の型違い・MCP の type・写しの型違い・`next` と `routes` の併用・存在しない行き先や `on_fail`・枠の中の `next`・`routes`・`prompt` と `prompt_file` の両方。保存すると直った形で書かれる | `err-values-fixed-on-load`・`err-flow-targets-fixed-on-load`・`err-prompt-both`・`err-prompt-file-outside`（`only: python`） |
+| 拡張が厳しい側 | 前の段へのつなぎ、空の指示ファイル、docs_dir の途中の `..`（Python は解決して中なら通す）、JS の語境界（Unicode より厳しい）。流す側は狭めも広げもしない | `ext-flow-backward`・`ext-prompt-empty-file`（`only: extension`） |
+| 作業台が開けないもの | `kind = "dev"` のパイプ、使えないフォルダ名 | `err-kind-dev-stages`・`err-pipe-name-bad-folder`・`ok-kind-dev`（`only: python`） |
 
 ## 依存を足すとき
 

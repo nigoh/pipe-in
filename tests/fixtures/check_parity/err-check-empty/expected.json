@@ -1,0 +1,6 @@
+{
+  "note": "[stages.check] があるのに、verdict・command・judge のどれも無い",
+  "valid": false,
+  "errors": 1,
+  "keywords": [["verdict", "検証には"]]
+}

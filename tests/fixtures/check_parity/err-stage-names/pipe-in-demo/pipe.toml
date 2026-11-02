@@ -1,0 +1,15 @@
+[pipe]
+kind = "linear"
+label = "段の名前"
+
+[[stages]]
+name = "Bad_Name"
+output = "01_a.md"
+access = "read"
+prompt = "調べてください"
+
+[[stages]]
+name = "end"
+output = "02_b.md"
+access = "read"
+prompt = "調べてください"

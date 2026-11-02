@@ -1,0 +1,30 @@
+[pipe]
+kind = "linear"
+label = "docs_dir"
+
+[[stages]]
+name = "missing"
+output = "01_missing.md"
+access = "docs"
+prompt = "書いてください"
+
+[[stages]]
+name = "up"
+output = "02_up.md"
+access = "docs"
+docs_dir = "../outside"
+prompt = "書いてください"
+
+[[stages]]
+name = "abs"
+output = "03_abs.md"
+access = "docs"
+docs_dir = "/etc/docs"
+prompt = "書いてください"
+
+[[stages]]
+name = "code"
+output = "04_code.md"
+access = "code"
+docs_dir = "docs"
+prompt = "書いてください"

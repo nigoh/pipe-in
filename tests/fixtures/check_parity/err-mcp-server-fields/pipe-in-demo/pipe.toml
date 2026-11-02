@@ -1,0 +1,30 @@
+[pipe]
+kind = "linear"
+label = "MCP サーバーの項目"
+
+[[stages]]
+name = "no-command"
+output = "01_a.md"
+access = "read"
+mcp = ["mcp__a__x"]
+prompt = "調べてください"
+[stages.mcp_servers.a]
+type = "stdio"
+
+[[stages]]
+name = "no-url"
+output = "02_b.md"
+access = "read"
+mcp = ["mcp__b__x"]
+prompt = "調べてください"
+[stages.mcp_servers.b]
+type = "http"
+
+[[stages]]
+name = "no-tool"
+output = "03_c.md"
+access = "read"
+prompt = "調べてください"
+[stages.mcp_servers.c]
+type = "stdio"
+command = "node"

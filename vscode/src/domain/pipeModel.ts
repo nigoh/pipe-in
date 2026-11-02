@@ -493,6 +493,63 @@ export function pipeFiles(m: PipeModel): Record<string, string> {
 
 // ---- 検査 ------------------------------------------------------------------
 
+/** 本体が書くファイル名（pipe_in/pipe/definition.py の RESERVED_OUTPUTS の写し。output には使えない） */
+const RESERVED_OUTPUTS = new Set(['00_input.md', '99_summary.md', 'state.json']);
+
+/**
+ * check の command に書けない語と理由（pipe_in/engine/guard.py の DANGEROUS_BASH の写し）。
+ * 守る側は本体の guard で、ここは作業台で先に知らせるための表示用。語の境界は JS の ASCII で、Python の Unicode より厳しい側。
+ */
+const DANGEROUS_COMMANDS: [RegExp, string][] = [
+  [/\bgit\s+push\b/, 'git push はパイプラインの外で人が行ってください'],
+  [/\bgit\s+reset\s+--hard\b/, 'git reset --hard は禁止です'],
+  [/\bgit\s+clean\s+-\w*f/, 'git clean -f は禁止です'],
+  [/\bgit\s+(checkout|switch)\b/, 'ブランチの切り替えはパイプラインの外で行ってください'],
+  [/\brm\s+(-\w*[rR]\w*|--recursive)\b/, '再帰的な削除は禁止です'],
+  [/\bsudo\b/, 'sudo は禁止です'],
+  [/\b(curl|wget|ssh|scp|rsync|nc)\b/, '外部への通信コマンドは禁止です'],
+  [/\b(npm|pnpm|yarn|cargo)\s+publish\b|\btwine\s+upload\b/, 'パッケージの公開は禁止です'],
+  [/\bchmod\s+-R\b|\bchown\b/, '権限の一括変更は禁止です'],
+];
+
+const JUDGE_KEYS = ['threshold', 'criteria', 'must'];
+const JUDGE_ITEM_KEYS = ['name', 'description'];
+
+/** 審査（check.judge）の検査。pipe_in/pipe/definition.py の _load_judge・_load_judge_items・_check_judge と同じ決まり */
+function judgeErrors(j: TomlTable): string[] {
+  const errors: string[] = [];
+  for (const k of Object.keys(j)) if (!JUDGE_KEYS.includes(k)) errors.push(`check.judge に知らないキー「${k}」があります（${JUDGE_KEYS.join(' / ')} だけ）`);
+  const th = j.threshold === undefined ? 0.7 : j.threshold;
+  if (typeof th !== 'number') errors.push('check.judge の threshold は数（0 以上 1 以下）で書いてください');
+  else if (!(th >= 0 && th <= 1)) errors.push('check.judge の threshold は 0 以上 1 以下で書いてください');
+  const items = (key: 'criteria' | 'must'): { name: string }[] => {
+    const raw = j[key];
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw) || !raw.every(isTable)) {
+      errors.push(`check.judge の ${key} は [[stages.check.judge.${key}]] の表の並びで書いてください`);
+      return [];
+    }
+    return raw.map((x, n) => {
+      const at = `check.judge の ${key} の ${n + 1} つ目`;
+      for (const k of Object.keys(x)) if (!JUDGE_ITEM_KEYS.includes(k)) errors.push(`${at}に知らないキー「${k}」があります（${JUDGE_ITEM_KEYS.join(' / ')} だけ）`);
+      if (typeof x.name !== 'string') errors.push(`${at}には name（文字列）が要ります`);
+      if (typeof x.description !== 'string') errors.push(`${at}には description（文字列）が要ります`);
+      return { name: typeof x.name === 'string' ? x.name : '' };
+    });
+  };
+  const criteria = items('criteria'), must = items('must');
+  if (!criteria.length) errors.push('check.judge の criteria（採点の項目）が1つも書かれていません');
+  for (const [key, list] of [['criteria', criteria], ['must', must]] as const) {
+    const seen = new Set<string>();
+    for (const it of list) {
+      if (!it.name.trim()) errors.push(`check.judge の ${key} に、name が空の項目があります`);
+      else if (seen.has(it.name)) errors.push(`check.judge の ${key} の名前「${it.name}」が重複しています`);
+      seen.add(it.name);
+    }
+  }
+  return errors;
+}
+
 function stageTools(s: StageModel): string[] {
   const tools = [...READ_ONLY_TOOLS, ...EDIT_TOOLS];
   if (s.bash) tools.push('Bash');
@@ -517,14 +574,22 @@ export function validatePipe(m: PipeModel): { errors: string[] } {
     else if (names.has(s.name)) errors.push(at + `段の名前「${s.name}」が重複しています`);
     names.add(s.name);
     if (!s.output || /[\\/]/.test(s.output) || s.output.startsWith('.')) errors.push(at + '成果物はファイル名だけを書いてください（例: 01_survey.md）');
+    else if (RESERVED_OUTPUTS.has(s.output)) errors.push(at + `output に「${s.output}」は使えません（本体が書くファイルです）`);
     else if (outs.has(s.output)) errors.push(at + `成果物「${s.output}」が重複しています`);
     outs.add(s.output);
     if (!s.prompt.trim()) errors.push(at + '頼むこと（指示）が空です');
     if (s.access === 'docs' && !s.docsDir) errors.push(at + '文書のフォルダ（docs_dir）が要ります');
-    if (s.access === 'docs' && s.docsDir && (s.docsDir.startsWith('/') || s.docsDir.split('/').includes('..'))) errors.push(at + `docs_dir「${s.docsDir}」はプロジェクトの外を指しています`);
-    s.writes.forEach((g) => { if (!g || g.startsWith('/') || g.split('/').includes('..')) errors.push(at + `writes の「${g}」は、プロジェクトの中の相対パスで書いてください`); });
+    if (s.access === 'docs' && s.docsDir && (s.docsDir.startsWith('/') || s.docsDir.startsWith('\\') || /^[A-Za-z]:/.test(s.docsDir) || s.docsDir.split('/').includes('..'))) errors.push(at + `docs_dir「${s.docsDir}」はプロジェクトの外を指しています`);
+    else if (s.access !== 'docs' && s.docsDir) errors.push(at + 'docs_dir は access = "docs" のときだけ書けます');
+    if (s.access === 'read' && s.writes.length) errors.push(at + 'access = "read" の段には writes を書けません（成果物のほかは書けない型です）');
+    s.writes.forEach((g) => { if (!g || g.startsWith('/') || g.startsWith('\\') || /^[A-Za-z]:/.test(g) || g.split('/').includes('..')) errors.push(at + `writes の「${g}」は、プロジェクトの中の相対パスで書いてください`); });
     if (s.check.on && !s.check.verdict && !s.check.command && !s.check.judge) errors.push(at + '検証には、判定・確認用のコマンド・審査のどれかが要ります');
-    if (s.check.on && /\b(curl|wget|ssh|scp|rsync|nc)\b|\bgit\s+push\b/.test(s.check.command)) errors.push(at + '確認用のコマンドに、外への通信や git push は使えません');
+    if (s.check.on && s.check.judge) judgeErrors(s.check.judge).forEach((e) => errors.push(at + e));
+    if (s.check.on && s.check.command) {
+      const hit = DANGEROUS_COMMANDS.find(([re]) => re.test(s.check.command));
+      if (hit) errors.push(at + `check の command は使えません：${hit[1]}`);
+    }
+    if (s.maxBudget !== null && !(Number.isFinite(s.maxBudget) && s.maxBudget > 0)) errors.push(at + `max_budget_usd は 0 より大きい数で書いてください（単位はドル。例: max_budget_usd = 1.0）。今の値: ${s.maxBudget}`);
     if (s.check.on && !(s.check.maxRetries >= 0)) errors.push(at + 'check の max_retries は 0 以上の整数で書いてください');
     if (s.onFail && s.onFail !== s.id) {
       const j = pos(s.onFail);
@@ -568,6 +633,7 @@ export function validatePipe(m: PipeModel): { errors: string[] } {
     });
     s.mcpServers.forEach((srv) => {
       if (!srv.name) errors.push(at + 'MCP サーバーに名前がありません');
+      else if (!NAME_RE.test(srv.name.replace(/_/g, '-'))) errors.push(at + `MCP サーバーの名前「${srv.name}」は、英小文字・数字・- で書いてください`);
       if (srv.type === 'stdio' && !srv.command) errors.push(at + `MCP サーバー「${srv.name}」（stdio）には command が要ります`);
       if (srv.type !== 'stdio' && !srv.url) errors.push(at + `MCP サーバー「${srv.name}」（${srv.type}）には url が要ります`);
       if (!s.mcp.length) errors.push(at + `MCP サーバー「${srv.name}」の道具が mcp にありません（mcp__${srv.name}__<道具> を書いてください）`);

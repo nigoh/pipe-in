@@ -1,0 +1,6 @@
+{
+  "note": "並列の枠の中の段が review = true",
+  "valid": false,
+  "errors": 1,
+  "keywords": [["review", "人の確認"]]
+}

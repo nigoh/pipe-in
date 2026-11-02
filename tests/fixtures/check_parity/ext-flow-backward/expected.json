@@ -1,0 +1,8 @@
+{
+  "note": "next が前の段・routes が前の段（各1段）",
+  "valid": false,
+  "errors": 2,
+  "keywords": ["前の段へ進むつなぎ"],
+  "only": "extension",
+  "reason": "流す側は前へのつなぎを通す（max_steps で止まる）。作業台は前へ戻すなら差し戻しを使わせる"
+}

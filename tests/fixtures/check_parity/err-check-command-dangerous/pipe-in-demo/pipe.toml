@@ -1,0 +1,75 @@
+[pipe]
+kind = "linear"
+label = "危険なコマンド"
+
+[[stages]]
+name = "c1"
+output = "01_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "git push origin main"
+
+[[stages]]
+name = "c2"
+output = "02_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "git reset --hard HEAD"
+
+[[stages]]
+name = "c3"
+output = "03_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "git clean -fd"
+
+[[stages]]
+name = "c4"
+output = "04_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "git checkout main"
+
+[[stages]]
+name = "c5"
+output = "05_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "rm -rf build"
+
+[[stages]]
+name = "c6"
+output = "06_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "sudo make install"
+
+[[stages]]
+name = "c7"
+output = "07_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "curl https://example.com"
+
+[[stages]]
+name = "c8"
+output = "08_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "npm publish"
+
+[[stages]]
+name = "c9"
+output = "09_c.md"
+access = "read"
+prompt = "確かめてください"
+[stages.check]
+command = "chmod -R 777 ."

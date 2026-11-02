@@ -1,0 +1,29 @@
+[pipe]
+kind = "linear"
+label = "judge の threshold"
+
+[[stages]]
+name = "high"
+output = "01_high.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+[stages.check.judge]
+threshold = 1.5
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすいか"
+
+[[stages]]
+name = "text"
+output = "02_text.md"
+access = "read"
+prompt = "調べてください"
+[stages.check]
+verdict = true
+[stages.check.judge]
+threshold = "high"
+[[stages.check.judge.criteria]]
+name = "clarity"
+description = "読みやすいか"

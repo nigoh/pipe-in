@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { END, blockSize, frameOf, membersOf, newPipe, newStage } from './pipeModel.ts';
-import type { BlockKind, PipeModel, StageModel } from './pipeModel.ts';
+import type { Access, BlockKind, PipeModel, StageModel } from './pipeModel.ts';
+import * as edit from './pipeEdit.ts';
 import { copyItems, deleteItems, isLoose, itemsInRect, pasteClip, pasteOffset, putInFrame, takeOutOfFrame, unplugAll } from './pipeEdit.ts';
 
 function stage(id: string, kind: BlockKind, x: number, y: number, over: Partial<StageModel> = {}): StageModel {
@@ -189,4 +190,35 @@ test('D0005-AC-04: 外した段へ戻していた、ほかの段の判定もオ�
   assert.equal(unplugAll(m, 'a'), true);
   assert.equal(st(m, 'c').onFail, null);
   assert.equal(st(m, 'c').check.on, true);
+});
+
+// ---- D0061: 画面から作れない組み合わせ（read に writes、docs 以外に docs_dir）を持たない ----
+// setAccess がまだ無い間は、このファイルの ほかのテストを巻き込まないよう、名前空間から取り出して「無い」ことで落とす
+
+const setAccessOf = (): ((s: StageModel, access: Access) => void) | undefined =>
+  (edit as unknown as Record<string, ((s: StageModel, access: Access) => void) | undefined>)['setAccess'];
+
+test('D0061-AC-20: setAccess clears writes for read and docsDir for non-docs', () => {
+  const setAccess = setAccessOf();
+  assert.equal(typeof setAccess, 'function', 'pipeEdit.ts に setAccess(stage, access) が無い');
+  const s = stage('x', 'code', 0, 0, { access: 'code', writes: ['src/**'], docsDir: 'docs' });
+  // docs にしても writes はそのまま・docsDir も残る
+  setAccess!(s, 'docs');
+  assert.equal(s.access, 'docs');
+  assert.deepEqual(s.writes, ['src/**']);
+  assert.equal(s.docsDir, 'docs');
+  // code にすると docsDir を空にする（writes は残る）
+  setAccess!(s, 'code');
+  assert.equal(s.access, 'code');
+  assert.equal(s.docsDir, '');
+  assert.deepEqual(s.writes, ['src/**']);
+  // tests でも docsDir は空のまま
+  s.docsDir = 'docs';
+  setAccess!(s, 'tests');
+  assert.equal(s.docsDir, '');
+  // read にすると writes を空にする
+  setAccess!(s, 'read');
+  assert.equal(s.access, 'read');
+  assert.deepEqual(s.writes, []);
+  assert.equal(s.docsDir, '');
 });

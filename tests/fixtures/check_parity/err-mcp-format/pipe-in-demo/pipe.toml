@@ -1,0 +1,11 @@
+[pipe]
+kind = "linear"
+label = "mcp と web の書き方"
+
+[[stages]]
+name = "look"
+output = "01_look.md"
+access = "read"
+mcp = ["jira__x"]
+web = ["Bad_Domain"]
+prompt = "調べてください"

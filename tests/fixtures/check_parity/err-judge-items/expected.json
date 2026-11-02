@@ -1,0 +1,6 @@
+{
+  "note": "judge の項目：criteria の名前の重複・知らないキー（weight）・must の name が空",
+  "valid": false,
+  "errors": 3,
+  "keywords": ["重複", "知らないキー", "name が空"]
+}

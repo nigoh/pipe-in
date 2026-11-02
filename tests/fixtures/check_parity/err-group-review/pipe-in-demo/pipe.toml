@@ -1,0 +1,18 @@
+[pipe]
+kind = "linear"
+label = "枠の中の review"
+
+[[stages]]
+name = "left"
+output = "01_left.md"
+access = "read"
+group = "par"
+review = true
+prompt = "調べてください"
+
+[[stages]]
+name = "right"
+output = "02_right.md"
+access = "read"
+group = "par"
+prompt = "調べてください"

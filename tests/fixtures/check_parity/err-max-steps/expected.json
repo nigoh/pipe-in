@@ -1,0 +1,6 @@
+{
+  "note": "max_steps が 0",
+  "valid": false,
+  "errors": 1,
+  "keywords": ["max_steps は 1 以上"]
+}

@@ -1,0 +1,6 @@
+{
+  "note": "writes に絶対パス・.. を含む・C: 形・\\ 始まり（各1つ）",
+  "valid": false,
+  "errors": 4,
+  "keywords": ["プロジェクトの中の相対パス"]
+}
