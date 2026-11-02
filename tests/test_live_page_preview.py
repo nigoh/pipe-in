@@ -60,6 +60,25 @@ def test_d0044_ac54_preview_escapes_closing_tags_in_the_snapshot():
     assert "alert(1)" in html and "<script>alert(1)" not in html
 
 
+def test_d0059_preview_has_all_states(tmp_path):
+    """D0059-AC-26: 確認用ページに all-states がある：6つの状態（完了・作業中・確認待ち・まだ・失敗・差し戻し）の段と generated_at を持つ写しで、
+    ライト・ダークの2つが書かれ、写しが埋まっている。白黒にして状態を見分ける画面の確認（D0059-AC-21〜26）はこのページを開く。"""
+    snap = pv.all_states_snapshot()
+    assert snap["schema"] == 1 and snap["empty"] is False and snap["final"] is None
+    assert {s["status"] for s in snap["stages"]} == {"done", "running", "review", "waiting", "failed", "revised"} and len(snap["stages"]) == 6
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}", snap["generated_at"])
+    assert "all-states" in pv.PREVIEWS
+    written = {p.name: p for p in pv.write_previews(tmp_path / "out")}
+    for theme in ("light", "dark"):
+        html = written[f"answer-all-states-{theme}.html"].read_text(encoding="utf-8")
+        assert f'data-theme="{theme}"' in html
+        assert json.dumps(snap["name"])[1:-1] in html and "generated_at" in html and html.count("<script>") == 2
+    from datetime import datetime, timezone
+
+    pinned = pv.all_states_snapshot(datetime(2026, 7, 1, 3, 40, 5, tzinfo=timezone.utc))
+    assert pinned["generated_at"] == "2026-07-01T03:40:05+00:00"
+
+
 def test_d0044_ac54_preview_files_are_written_outside_the_repository(tmp_path):
     """D0044-AC-54: 確認用ページは指定した出力先に、項目ごとにライト・ダークで書く。リポジトリの中には書かない（書こうとすると断る）。"""
     written = pv.write_previews(tmp_path / "out")

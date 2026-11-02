@@ -2,8 +2,10 @@
 
 - build_page() は引数を取らない。記録・写し・パスなど外の文字は一切入らず、呼ぶたびに同じ HTML を返す。
 - 写しは HTML に埋めず、ページの JS が `await claude.use("db")` で取り、runs/current を購読して描き直す。
-- 値は textContent だけで画面に出す（HTML として差し込まない）。外部の読み込みは無い。
+- 値は textContent だけで画面に出す（HTML として差し込まない）。
+- 外部の読み込みは、Google Fonts の <link> 2本（計画ボードと同じ文字）と、アイコンを作る createElementNS の SVG の名前空間 1 か所だけ（D0059）。
 - 色は :root のトークンにだけ書く（ライトが既定。ダークは prefers-color-scheme と data-theme で切り替える）。
+- D0059：デザイン「プラグ」（docs/design/）を入れた。状態はアイコン（SVG）と言葉、帯は模様で伝える。写しの項目は足さない。
 - D0044：確認待ちの行に、承認・差し戻し・中止のボタンを出す（`claude.use("comments")` が使えて、写しの review が有効なときだけ）。
   押すと決まった形の文を `sendToClaude` でコメントとして送る。ボタンの部品は JS が確認待ちが現れたときに作る（_BODY は変えない）。
   画面に出す文は固定の定数だけで、段の表示名・セッション名・パスは使わない。
@@ -12,51 +14,116 @@
 
 from __future__ import annotations
 
+# 計画ボード（.claude/skills/pipe-plan/board.html）の <head> と同じ2行。tests/test_live_page.py が文字を突き合わせる
+_FONT_LINKS = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700'
+    '&family=JetBrains+Mono:wght@400;600&display=swap">\n'
+)
+
 _CSS = r"""
 :root {
-  --bg: #ffffff;
-  --fg: #1f2328;
-  --muted: #59636e;
-  --line: #d1d9e0;
-  --run: #0969da;
-  --review: #9a6700;
-  --ok: #1a7f37;
-  --ng: #cf222e;
+  --bg: #f6f6f4;
+  --panel: #ffffff;
+  --col: #ecebe7;
+  --line: #e4ded8;
+  --fg: #23201e;
+  --muted: #6b625c;
+  --coral: #c2471f;
+  --coral-soft: #fde6dd;
+  --coral-text: #a83a17;
+  --on-coral: #ffffff;
+  --teal: #167d6b;
+  --teal-soft: #dcefe9;
+  --teal-text: #0f5a4d;
+  --blue: #3f6fb0;
+  --bad: #b3261e;
+  --bad-soft: #fbe2df;
+  --bad-text: #9a1f18;
+  --ok: #2e7d32;
+  --ok-soft: #e3f1e3;
+  --ok-text: #22652a;
+  --shadow: 0 1px 2px rgba(35, 32, 30, .08);
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r-tag: 6px;
+  --r-card: 10px;
+  --r-panel: 14px;
+  --r-chip: 999px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1117;
-    --fg: #e6edf3;
-    --muted: #8b949e;
-    --line: #30363d;
-    --run: #58a6ff;
-    --review: #d29922;
-    --ok: #3fb950;
-    --ng: #f85149;
+    --bg: #161514;
+    --panel: #211f1d;
+    --col: #1d1b19;
+    --line: #36322f;
+    --fg: #f2ece6;
+    --muted: #ada39b;
+    --coral: #ff8a65;
+    --coral-soft: #4a2316;
+    --coral-text: #ffb59c;
+    --on-coral: #2a140b;
+    --teal: #5fc4ab;
+    --teal-soft: #15392f;
+    --teal-text: #8fe0c6;
+    --blue: #8db4ee;
+    --bad: #ff8a80;
+    --bad-soft: #4a1f1c;
+    --bad-text: #ffb4ab;
+    --ok: #81c784;
+    --ok-soft: #1e3a20;
+    --ok-text: #a5d6a7;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .45);
     color-scheme: dark;
   }
 }
 :root[data-theme="light"] {
-  --bg: #ffffff;
-  --fg: #1f2328;
-  --muted: #59636e;
-  --line: #d1d9e0;
-  --run: #0969da;
-  --review: #9a6700;
-  --ok: #1a7f37;
-  --ng: #cf222e;
+  --bg: #f6f6f4;
+  --panel: #ffffff;
+  --col: #ecebe7;
+  --line: #e4ded8;
+  --fg: #23201e;
+  --muted: #6b625c;
+  --coral: #c2471f;
+  --coral-soft: #fde6dd;
+  --coral-text: #a83a17;
+  --on-coral: #ffffff;
+  --teal: #167d6b;
+  --teal-soft: #dcefe9;
+  --teal-text: #0f5a4d;
+  --blue: #3f6fb0;
+  --bad: #b3261e;
+  --bad-soft: #fbe2df;
+  --bad-text: #9a1f18;
+  --ok: #2e7d32;
+  --ok-soft: #e3f1e3;
+  --ok-text: #22652a;
+  --shadow: 0 1px 2px rgba(35, 32, 30, .08);
   color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --bg: #0d1117;
-  --fg: #e6edf3;
-  --muted: #8b949e;
-  --line: #30363d;
-  --run: #58a6ff;
-  --review: #d29922;
-  --ok: #3fb950;
-  --ng: #f85149;
+  --bg: #161514;
+  --panel: #211f1d;
+  --col: #1d1b19;
+  --line: #36322f;
+  --fg: #f2ece6;
+  --muted: #ada39b;
+  --coral: #ff8a65;
+  --coral-soft: #4a2316;
+  --coral-text: #ffb59c;
+  --on-coral: #2a140b;
+  --teal: #5fc4ab;
+  --teal-soft: #15392f;
+  --teal-text: #8fe0c6;
+  --blue: #8db4ee;
+  --bad: #ff8a80;
+  --bad-soft: #4a1f1c;
+  --bad-text: #ffb4ab;
+  --ok: #81c784;
+  --ok-soft: #1e3a20;
+  --ok-text: #a5d6a7;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .45);
   color-scheme: dark;
 }
 * {
@@ -73,55 +140,178 @@ body {
   padding: 1rem;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font: 16px/1.5 var(--f-body);
 }
 main {
   max-width: 44rem;
   margin: 0 auto;
 }
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.head::before {
+  content: "";
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: var(--r-tag);
+  background: var(--coral);
+}
 h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.updated,
+.elapsed,
+.usage,
+.attempt,
+.total {
+  font-family: var(--f-mono);
+}
+.updated {
+  margin-left: auto;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 #name {
-  margin: 0;
+  margin: 0.75rem 0 0.5rem;
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.chips:empty {
+  display: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: var(--r-chip);
+  background: var(--col);
+  color: var(--fg);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.chip svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+.chip-review {
+  background: var(--coral-soft);
+  color: var(--coral-text);
+}
+.chip-running {
+  background: var(--teal-soft);
+  color: var(--teal-text);
+}
+.total {
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 #final,
 #msg {
-  margin: 0.25rem 0 0;
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+}
+#final:empty {
+  display: none;
+}
+.band {
+  display: flex;
+  gap: 4px;
+  height: 8px;
+  margin: 1rem 0 0.4rem;
+}
+.seg {
+  flex: 1 1 0;
+  border-radius: 2px;
+}
+.seg-done {
+  background: var(--ok);
+}
+.seg-review {
+  background: repeating-linear-gradient(135deg, var(--coral) 0 3px, var(--coral-soft) 3px 6px);
+}
+.seg-running {
+  background: radial-gradient(circle, var(--teal) 1.5px, transparent 2px) 0 0 / 6px 6px, var(--teal-soft);
+}
+.seg-waiting {
+  background: var(--col);
+}
+.seg-failed {
+  background: var(--bad);
+}
+.seg-revised {
+  border: 2px solid var(--coral);
+}
+.seg-unknown {
+  border: 2px dotted var(--muted);
+}
+.counts {
+  margin: 0;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 #stages {
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: 1rem 0 0;
   padding: 0;
 }
 .stage {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.25rem 0.75rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--line);
+  padding: 0.7rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+}
+.s-review {
+  background: var(--coral-soft);
+  border: 2px solid var(--coral);
+}
+.s-waiting {
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
 }
 .mark {
   flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
+  width: 1.75rem;
+  height: 1.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  line-height: 1;
-  font-weight: 700;
+  border-radius: var(--r-chip);
+  background: var(--col);
   color: var(--muted);
+}
+.mark svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
 }
 .label {
   flex: 1 1 8rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 .word,
 .attempt,
@@ -134,35 +324,32 @@ h1 {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
-.s-running .mark,
-.s-running .elapsed {
-  color: var(--run);
-}
-.s-review .mark,
-.s-review .elapsed,
-.s-revised .mark {
-  color: var(--review);
-}
 .s-done .mark {
-  color: var(--ok);
-}
-.s-failed .mark {
-  color: var(--ng);
-}
-.s-waiting .mark,
-.s-running .mark,
-.s-review .mark {
-  border-radius: 50%;
-}
-.s-waiting .mark {
-  border: 2px solid var(--muted);
+  color: var(--ok-text);
+  background: var(--ok-soft);
 }
 .s-running .mark {
-  background: var(--run);
+  color: var(--teal-text);
+  background: var(--teal-soft);
 }
 .s-review .mark {
-  border: 2px solid var(--review);
-  background: linear-gradient(90deg, var(--review) 50%, transparent 50%);
+  color: var(--coral-text);
+  background: var(--coral-soft);
+  border: 2px solid var(--coral);
+}
+.s-revised .mark {
+  color: var(--coral-text);
+  background: var(--coral-soft);
+}
+.s-failed .mark {
+  color: var(--bad-text);
+  background: var(--bad-soft);
+}
+.s-running .elapsed {
+  color: var(--teal-text);
+}
+.s-review .elapsed {
+  color: var(--coral-text);
 }
 [hidden] {
   display: none;
@@ -180,8 +367,9 @@ h1 {
   font: inherit;
   padding: 0.5rem;
   border: 1px solid var(--line);
+  border-radius: var(--r-tag);
   color: var(--fg);
-  background: var(--bg);
+  background: var(--panel);
 }
 .rv-row {
   display: flex;
@@ -192,30 +380,33 @@ h1 {
   min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  background: var(--bg);
+  border-radius: var(--r-tag);
+  background: var(--panel);
   color: var(--fg);
   font: inherit;
   cursor: pointer;
 }
 .rv-approve {
-  border-color: var(--ok);
+  background: var(--coral);
+  color: var(--on-coral);
+  border-color: var(--coral);
 }
 .rv-quit {
-  border-color: var(--ng);
+  border-color: var(--bad);
 }
 .rv-go {
   border-width: 2px;
-  border-color: var(--run);
+  border-color: var(--coral);
 }
 .rv-btn:disabled {
   border-style: dashed;
+  background: var(--col);
   color: var(--muted);
   cursor: not-allowed;
 }
 .rv-btn:focus-visible,
 .rv-input:focus-visible {
-  outline: 2px solid var(--run);
+  outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
 .rv-msg {
@@ -231,8 +422,16 @@ h1 {
       opacity: 0.35;
     }
   }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
   .s-running .mark {
     animation: pulse 1.6s ease-in-out infinite;
+  }
+  .s-running .mark svg {
+    animation: spin 2s linear infinite;
   }
   .rv-btn,
   .rv-input {
@@ -243,9 +442,12 @@ h1 {
 
 _BODY = r"""
 <main>
-<h1>進み具合</h1>
+<header class="head"><h1>pipe-in · 進み具合</h1><span class="updated"></span></header>
 <p id="name"></p>
+<div class="chips"></div>
 <p id="final"></p>
+<div class="band" aria-hidden="true"></div>
+<p class="counts"></p>
 <p id="msg" role="status" aria-live="polite"></p>
 <ol id="stages"></ol>
 </main>
@@ -293,14 +495,29 @@ var FAILED_MSG = "送れませんでした。もう一度押すか、会話で�
 var ANCHOR_FAILED = "場所を取れませんでした。会話で答えてください。";
 
 var STATUS = {
-  waiting: { mark: "", word: "待ち" },
-  running: { mark: "", word: "実行中" },
-  review: { mark: "", word: "確認待ち" },
-  done: { mark: "✓", word: "完了" },
-  failed: { mark: "✕", word: "失敗" },
-  revised: { mark: "↩", word: "差し戻し" },
-  unknown: { mark: "？", word: "不明" }
+  waiting: { word: "まだ" },
+  running: { word: "作業中" },
+  review: { word: "確認待ち" },
+  done: { word: "完了" },
+  failed: { word: "失敗" },
+  revised: { word: "差し戻し" },
+  unknown: { word: "不明" }
 };
+var SVG_NS = "http://www.w3.org/2000/svg";
+var ICONS = {
+  done: "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M16 9l-5.5 5.5L8 12",
+  running: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5",
+  review: "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15",
+  waiting: "M5 12h14",
+  failed: "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M15 9l-6 6M9 9l6 6",
+  revised: "M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11",
+  unknown: "M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7"
+};
+var COUNT_ORDER = ["done", "review", "running", "failed", "revised", "waiting", "unknown"];
+var CHIP_SEP = "：";
+var TOTAL_LABEL = "合計";
+var TURN_LABEL = " ターン";
+var UPDATED_SUFFIX = " 更新";
 var FINALS = {
   PASSED: "合格",
   TEST_FAILED: "検証で不合格",
@@ -428,6 +645,7 @@ function checkSnapshot(value) {
     empty: value.empty === true,
     name: clip(value.name),
     final: final,
+    generatedAt: typeof value.generated_at === "string" ? value.generated_at : null,
     stages: stages,
     review: final === null ? checkReview(value.review, stages) : null
   };
@@ -469,11 +687,99 @@ function usageText(stage) {
   return parts.join(" ・ ");
 }
 
+function makeIcon(status) {
+  var key = has(ICONS, status) ? status : "unknown";
+  var svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  var path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", ICONS[key]);
+  svg.appendChild(path);
+  return svg;
+}
+
+function pickHead(stages) {
+  var running = null;
+  for (var i = 0; i < stages.length; i++) {
+    if (stages[i].status === "review") return { status: "review", label: stages[i].label };
+    if (running === null && stages[i].status === "running") running = { status: "running", label: stages[i].label };
+  }
+  return running;
+}
+
+function totalText(stages) {
+  var cost = 0;
+  var turns = 0;
+  var sec = 0;
+  for (var i = 0; i < stages.length; i++) {
+    if (isPositive(stages[i].cost)) cost += stages[i].cost;
+    if (isPositive(stages[i].turns)) turns += Math.floor(stages[i].turns);
+    if (isPositive(stages[i].duration)) sec += stages[i].duration;
+  }
+  var parts = [];
+  if (cost > 0) parts.push("$" + Number(cost.toFixed(4)));
+  if (turns > 0) parts.push(turns + TURN_LABEL);
+  if (sec > 0) parts.push(fmtElapsed(sec));
+  return parts.length === 0 ? "" : TOTAL_LABEL + " " + parts.join(" · ");
+}
+
+function updatedText(generatedAt) {
+  if (typeof generatedAt !== "string" || parseTime(generatedAt) === null) return "";
+  var m = TIME_RE.exec(generatedAt);
+  return m === null ? "" : m[4] + ":" + m[5] + UPDATED_SUFFIX;
+}
+
+function countText(stages) {
+  var n = {};
+  for (var i = 0; i < stages.length; i++) {
+    var st = stages[i].status;
+    if (!has(STATUS, st)) continue;
+    n[st] = has(n, st) ? n[st] + 1 : 1;
+  }
+  var parts = [];
+  for (var k = 0; k < COUNT_ORDER.length; k++) {
+    if (has(n, COUNT_ORDER[k])) parts.push(STATUS[COUNT_ORDER[k]].word + " " + n[COUNT_ORDER[k]]);
+  }
+  return parts.join(" ・ ");
+}
+
+function buildBand(stages) {
+  var segs = [];
+  for (var i = 0; i < stages.length; i++) {
+    segs.push(el("span", "seg seg-" + stages[i].status));
+  }
+  return segs;
+}
+
+function buildChips(stages) {
+  var out = [];
+  var head = pickHead(stages);
+  if (head !== null) {
+    var chip = el("span", "chip chip-" + head.status);
+    chip.appendChild(makeIcon(head.status));
+    chip.appendChild(el("span", "chip-text", STATUS[head.status].word + CHIP_SEP + head.label));
+    out.push(chip);
+  }
+  var total = totalText(stages);
+  if (total !== "") out.push(el("span", "total", total));
+  return out;
+}
+
+function pick(selector) {
+  return document.querySelector(selector);
+}
+
 function buildRow(stage, found) {
   var info = STATUS[stage.status];
   var li = el("li", "stage s-" + stage.status);
-  var mark = el("span", "mark", info.mark);
+  var mark = el("span", "mark");
   mark.setAttribute("aria-hidden", "true");
+  mark.appendChild(makeIcon(stage.status));
   li.appendChild(mark);
   li.appendChild(el("span", "label", stage.label));
   li.appendChild(el("span", "word", info.word));
@@ -494,11 +800,19 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function clearHead() {
+  pick(".updated").textContent = "";
+  pick(".counts").textContent = "";
+  pick(".chips").replaceChildren();
+  pick(".band").replaceChildren();
+}
+
 function show(message) {
   counters = [];
   byId("name").textContent = "";
   byId("final").textContent = "";
   byId("stages").replaceChildren();
+  clearHead();
   byId("msg").textContent = message;
   reviewRow = null;
   setReview(null);
@@ -529,6 +843,10 @@ function render(value) {
     }
     var memo = rememberFocus();
     byId("stages").replaceChildren.apply(byId("stages"), rows);
+    pick(".updated").textContent = updatedText(snap.generatedAt);
+    pick(".counts").textContent = countText(snap.stages);
+    pick(".chips").replaceChildren.apply(pick(".chips"), buildChips(snap.stages));
+    pick(".band").replaceChildren.apply(pick(".band"), buildBand(snap.stages));
     byId("name").textContent = snap.name;
     byId("final").textContent = snap.final === null ? "" : "結果: " + FINALS[snap.final];
     byId("msg").textContent = "";
@@ -928,6 +1246,7 @@ def build_page() -> str:
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         "<title>進み具合</title>\n"
+        f"{_FONT_LINKS}"
         f"<style>{_CSS}</style>\n"
         "</head>\n"
         f"<body>{_BODY}"

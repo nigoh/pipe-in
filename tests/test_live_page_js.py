@@ -250,7 +250,7 @@ def test_d0027_ac56_elapsed_is_counted_by_the_second_not_by_events(node, html):
 
 
 def test_d0027_ac56_only_running_and_review_stages_count(node, html):
-    """D0027-AC-56: 待ち・終わり・失敗・差し戻しの段は数えない（started_at が残っていても）。"""
+    """D0027-AC-56: まだ（waiting）・終わり・失敗・差し戻しの段は数えない（started_at が残っていても）。"""
     snap = snapshot([
         stage("a", "done", started_at=iso(83), pending_since=iso(40)), stage("b", "failed", started_at=iso(83)),
         stage("c", "revised", started_at=iso(83), pending_since=iso(40)), stage("d", "waiting", started_at=iso(83), pending_since=iso(40)),
@@ -506,24 +506,20 @@ def test_d0027_ac59_unsupported_schema_is_named_and_not_drawn(node, html):
 
 
 def test_d0027_ac59_renders_name_labels_and_status_marks(node, html):
-    """D0027-AC-59: セッション名と段の表示名が出て、状態は記号つきの文字で出る（色だけで伝えない）。"""
+    """D0027-AC-59・D0059-AC-07・AC-08: セッション名と段の表示名が出て、状態は言葉（まだ・作業中・確認待ち・完了・失敗・差し戻し）とアイコン（svg）で出る（色だけで伝えない）。
+    D0059 で、記号の字形をアイコンに、「待ち」「実行中」を「まだ」「作業中」に直した。"""
     snap = snapshot([stage("a", "waiting"), stage("b", "running", started_at=iso(5)), stage("c", "review", pending_since=iso(5)), stage("d", "done"),
                      stage("e", "failed"), stage("f", "revised")])
-    text = go(node, html, steps=sending(snap))["steps"][0]["view"]["text"]
+    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": ".stage .mark svg"}])
+    text = r["steps"][0]["view"]["text"]
     assert GOOD_MARK in text
     for name in "abcdef":
         assert f"LABEL-{name}" in text
-    for mark in "✓✕↩":  # 待ち・動いている・確認待ちの印は CSS の形（文字を持たない。AC-86）
-        assert mark in text, mark
-    for word in ("待ち", "実行中", "確認待ち"):
+    assert len(r["steps"][1]["result"]) == 6, "段ごとにアイコン（svg）が1つ"
+    for glyph in "✓✕↩":
+        assert glyph not in text, glyph
+    for word in ("まだ", "作業中", "確認待ち", "完了", "失敗", "差し戻し"):
         assert word in text, word
-
-
-@pytest.mark.parametrize("status,mark", [("done", "✓"), ("failed", "✕"), ("revised", "↩")])
-def test_d0027_ac59_each_status_has_its_own_mark(node, html, status, mark):
-    """D0027-AC-59: 文字の印を持つ状態（終わり・失敗・差し戻し）は、自分の記号が出る（1段だけの写しで）。"""
-    text = go(node, html, steps=sending(snapshot([stage("only", status)])))["steps"][0]["view"]["text"]
-    assert mark in text
 
 
 def test_d0027_ac59_six_statuses_look_different(node, html):
@@ -731,9 +727,9 @@ def test_d0027_ac62_script_markup_is_visible_as_literal_text(node, html):
     lines = r["steps"][0]["view"]["lines"]
     assert sum(name in line for line in lines) >= 2
     assert r["alerts"] == []
-    forbidden = {"script", "img", "iframe", "a", "style", "link", "object", "embed", "svg", "form", "input", "button"}
+    # D0059：状態のアイコンの svg と path は、状態から決まった固定のものだけ（createElementNS）。外から来た文字で増えないことは D0059-AC-14 で確かめる
+    forbidden = {"script", "img", "iframe", "a", "style", "link", "object", "embed", "form", "input", "button"}
     assert not forbidden & set(r["steps"][0]["view"]["created"])
-
 
 def test_d0027_ac62_entities_are_not_decoded(node, html):
     """D0027-AC-62: &lt;b&gt; のような文字は、そのまま &lt;b&gt; と見える（解釈しない）。"""
@@ -802,8 +798,19 @@ def test_d0027_ac50_body_skeleton_is_found_by_the_script(node, html):
 
 # ---- AC-86 状態の印（文字を持つ・持たない） -----------------------------------------------------------------
 
-CSS_DRAWN = {"waiting": "待ち", "running": "実行中", "review": "確認待ち"}
-TEXT_MARKS = {"done": "✓", "failed": "✕", "revised": "↩", "unknown": "？"}
+# D0059：状態の言葉とアイコン。アイコンの形（d）は docs/design/canvas/LiveProgress.dc.html の LI と同じ（undo-2 だけ板に無く、Lucide 1.61.0 から写す）
+WORDS = {"waiting": "まだ", "running": "作業中", "review": "確認待ち", "done": "完了", "failed": "失敗", "revised": "差し戻し", "unknown": "不明"}
+UNDO_2 = "M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"
+DESIGN_BOARD = ROOT / "docs" / "design" / "canvas" / "LiveProgress.dc.html"
+
+
+def design_icons() -> dict[str, str]:
+    """状態 → d の文字列。板（LiveProgress.dc.html の LI）から、undo-2 だけは Lucide から写した値（読むだけ）。"""
+    text = DESIGN_BOARD.read_text(encoding="utf-8")
+    found = re.search(r"const LI = (\{.*?\});", text, re.S)
+    assert found, "板の LI（アイコンの形）が読めない"
+    li = json.loads(found.group(1))
+    return {"done": li["ok"], "running": li["spin"], "review": li["hand"], "waiting": li["minus"], "failed": li["x"], "revised": UNDO_2, "unknown": li["todo"]}
 
 
 def one_stage(status: str, **kw) -> dict:
@@ -817,25 +824,81 @@ def query(node, html, snap, selector):
     return r["steps"][-1]["result"]
 
 
-@pytest.mark.parametrize("status,word", list(CSS_DRAWN.items()))
-def test_d0027_ac86_css_drawn_marks_have_no_text_but_the_word_stays(node, html, status, word):
-    """D0027-AC-86: 待ち・動いている・確認待ちの印の要素は文字を持たず（textContent が空）、aria-hidden のまま。意味は隣の言葉が伝える。"""
-    marks = query(node, html, one_stage(status), ".mark")
-    assert len(marks) == 1
-    assert marks[0]["text"] == "", f"印に字形が残っている: {marks[0]['text']!r}"
-    assert marks[0]["attrs"].get("aria-hidden") == "true"
-    words = query(node, html, one_stage(status), ".word")
-    assert [w["text"] for w in words] == [word]
+@pytest.mark.parametrize("status,word", list(WORDS.items()))
+def test_d0059_ac07_status_words(node, html, status, word):
+    """D0059-AC-07: 状態の言葉は、まだ（waiting）・作業中（running）・確認待ち（review）・完了（done）・失敗（failed）・差し戻し（revised）・不明（unknown）。"""
+    snap = one_stage("weird" if status == "unknown" else status)
+    assert [w["text"] for w in query(node, html, snap, ".stage .word")] == [word]
 
 
-@pytest.mark.parametrize("status,glyph", list(TEXT_MARKS.items()))
-def test_d0027_ac86_other_marks_stay_one_character_and_hidden_from_readers(node, html, status, glyph):
-    """D0027-AC-86: 終わり・失敗・差し戻し（と未知）の印は今の文字のまま、1文字で、aria-hidden のまま（同じ固定の幅に収まる）。"""
-    marks = query(node, html, one_stage(status), ".mark")
-    assert len(marks) == 1
-    assert marks[0]["text"] == glyph
-    assert len(marks[0]["text"]) == 1
+def test_d0059_ac07_no_bare_machi_label(node, html):
+    """D0059-AC-07: 「待ち」だけの札（確認待ち以外）と、古い言葉「実行中」が、どの状態の画面にも出ない（「待ち」は人の判断を待つときの「確認待ち」だけ）。"""
+    for status in WORDS:
+        text = go(node, html, steps=sending(one_stage("weird" if status == "unknown" else status)))["steps"][0]["view"]["text"]
+        assert "実行中" not in text, status
+        for line in text.split("\n"):
+            assert line != "待ち", (status, line)
+            assert "待ち" not in line.replace("確認待ち", ""), (status, line)
+
+
+@pytest.mark.parametrize("status", list(WORDS))
+def test_d0059_ac08_row_mark_has_one_svg_and_the_word(node, html, status):
+    """D0059-AC-08: 行の印（.mark）の中に svg が1つ（path が1本）入り、印は文字を持たず aria-hidden、言葉の span に状態の言葉が入る。印は行の最初の子。"""
+    snap = one_stage("weird" if status == "unknown" else status)
+    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": ".stage .mark"}, {"op": "query", "selector": ".stage .mark svg"},
+                              {"op": "query", "selector": ".stage .mark path"}, {"op": "query", "selector": ".stage .word"}, {"op": "query", "selector": ".stage > span"}])
+    marks, svgs, paths, words, spans = (s["result"] for s in r["steps"][1:])
+    assert len(marks) == 1 and marks[0]["text"] == "", f"印に字形が残っている: {marks[0]['text'] if marks else None!r}"
     assert marks[0]["attrs"].get("aria-hidden") == "true"
+    assert len(svgs) == 1 and len(paths) == 1
+    assert svgs[0]["attrs"].get("aria-hidden") == "true"
+    assert [w["text"] for w in words] == [WORDS[status]]
+    assert "mark" in spans[0]["attrs"].get("class", "").split()
+
+
+def test_d0059_ac08_icons_match_the_design(node, html):
+    """D0059-AC-08: 7つの状態のアイコンの d が、板（LiveProgress.dc.html）と同じ（完了＝circle-check・作業中＝refresh-cw・確認待ち＝hand・まだ＝minus・失敗＝circle-x・差し戻し＝undo-2・不明＝circle-dashed）。"""
+    for status, expected in design_icons().items():
+        snap = one_stage("weird" if status == "unknown" else status)
+        paths = query(node, html, snap, ".stage .mark path")
+        assert [p["attrs"].get("d") for p in paths] == [expected], status
+
+
+def test_d0059_ac08_each_status_has_its_own_icon(node, html):
+    """D0059-AC-08: 7つの状態のアイコンの形は、どれも違う（色だけでなく形でも見分けられる）。"""
+    shapes = {}
+    for status in WORDS:
+        snap = one_stage("weird" if status == "unknown" else status)
+        paths = query(node, html, snap, ".stage .mark path")
+        assert len(paths) == 1, status
+        shapes[status] = paths[0]["attrs"].get("d")
+    assert all(shapes.values()) and len(set(shapes.values())) == 7, shapes
+
+
+@pytest.mark.parametrize("status", ["done", "running", "unknown"])
+def test_d0059_ac08_svg_attributes(node, html, status):
+    """D0059-AC-08: アイコンの svg は viewBox 0 0 24 24・fill none・stroke currentColor・stroke-width 2・丸い端と角・aria-hidden=true。外から来た文字は属性に入らない。"""
+    snap = one_stage("weird" if status == "unknown" else status, label="<img src=x onerror=alert(1)>")
+    found = query(node, html, snap, ".stage .mark svg")
+    assert len(found) == 1, "行の印の中に svg が1つ無い"
+    svg = found[0]["attrs"]
+    assert svg.get("viewBox") == "0 0 24 24" and svg.get("fill") == "none" and svg.get("stroke") == "currentColor", svg
+    assert svg.get("stroke-width") == "2" and svg.get("stroke-linecap") == "round" and svg.get("stroke-linejoin") == "round"
+    assert svg.get("aria-hidden") == "true"
+    assert not any("img" in str(v) or "onerror" in str(v) for v in svg.values())
+
+
+def test_d0059_ac08_icons_are_made_only_in_the_svg_namespace(node, html):
+    """D0059-AC-08: アイコンは createElementNS で、SVG の名前空間の svg と path だけを作る（台は別の名前空間なら投げる）。createElement(\"svg\") では作らない。"""
+    rows = [stage(f"s{i}", st) for i, st in enumerate(WORDS)]
+    r = go(node, html, steps=[*sending(snapshot(rows)), {"op": "query", "selector": ".stage .mark svg"}])
+    view = r["steps"][0]["view"]
+    assert len(r["steps"][1]["result"]) == 7, "行ごとに印の中に svg が1つ"
+    assert view["created_ns"] and {tuple(x) for x in view["created_ns"]} <= {("http://www.w3.org/2000/svg", "svg"), ("http://www.w3.org/2000/svg", "path")}
+    names = [t for _, t in view["created_ns"]]
+    assert view["created"].count("svg") == names.count("svg") and view["created"].count("path") == names.count("path"), "createElement(\"svg\") で作っている"
+    assert names.count("svg") >= 7 and names.count("path") == names.count("svg")
+    assert view["html_insertions"] == 0
 
 
 def test_d0027_ac86_every_row_has_exactly_one_mark_first(node, html):
@@ -851,8 +914,8 @@ def test_d0027_ac86_every_row_has_exactly_one_mark_first(node, html):
 
 
 def test_d0027_ac86_drawn_marks_keep_their_status_class_for_the_css(node, html):
-    """D0027-AC-86: 行の class が s-<状態> のまま（CSS の形が .s-<状態> .mark で当たる）。"""
-    for status in CSS_DRAWN:
+    """D0027-AC-86・D0059-AC-08: 行の class が s-<状態> のまま（CSS の色が .s-<状態> .mark で当たる）。"""
+    for status in ("waiting", "running", "review"):
         rows = query(node, html, one_stage(status), ".stage")
         assert len(rows) == 1 and f"s-{status}" in rows[0]["attrs"]["class"].split()
 
@@ -972,6 +1035,273 @@ def test_d0027_ac88_row_with_all_three_values(node, html):
     """D0027-AC-88: 費用・ターン・時間がそろった行：「$0.5 ・ 3ターン ・ 1:09」。経過（動いている段）と同じ書き方で並ぶ。"""
     items = query(node, html, one_stage("done", cost_usd=0.5, turns=3, duration_sec=69), ".usage")
     assert [i["text"] for i in items] == ["$0.5 ・ 3ターン ・ 1:09"]
+
+
+# ---- D0059：頭・札・合計・帯・数 -------------------------------------------------------------------------------
+
+
+def text_of(node, html, snap, selector):
+    """写しを届けたあと、selector に合う最初の要素の文字（無ければ None）。"""
+    found = query(node, html, snap, selector)
+    return found[0]["text"] if found else None
+
+
+def mixed_snapshot(**top) -> dict:
+    """完了2・確認待ち1・まだ2。"""
+    return snapshot([stage("a", "done"), stage("b", "done"), stage("c", "review", pending_since=iso(40)), stage("d"), stage("e")], **top)
+
+
+def test_d0059_harness_creates_svg_elements_and_rejects_other_namespaces(node):
+    """D0059-AC-08: 台の自己検査。createElementNS は SVG の名前空間だけ許し、種類を created と created_ns に積む。それ以外の名前空間は投げる。"""
+    page = """<!doctype html><html><body><p id="msg"></p><script>
+var SVG = "http://www.w3.org/2000/svg";
+async function main() {
+  var s = document.createElementNS(SVG, "svg"); var p = document.createElementNS(SVG, "path");
+  s.setAttribute("viewBox", "0 0 24 24"); p.setAttribute("d", "M0 0"); s.appendChild(p); document.getElementById("msg").appendChild(s);
+}
+main();
+function other() { return document.createElementNS("http://www.w3.org/1999/xhtml", "div"); }
+</script></body></html>"""
+    r = run_scene(node, page, steps=[{"op": "call", "fn": "other", "args": []}, {"op": "query", "selector": "p svg path"}])
+    assert r["load_error"] is None and r["uncaught"] == []
+    assert r["loaded"]["created_ns"] == [["http://www.w3.org/2000/svg", "svg"], ["http://www.w3.org/2000/svg", "path"]]
+    assert r["loaded"]["created"] == ["svg", "path"] and r["loaded"]["tags"] == {"p": 1, "svg": 1, "path": 1}
+    assert "NamespaceError" in r["steps"][0]["threw"]
+    assert r["steps"][1]["result"][0]["attrs"] == {"d": "M0 0"}
+
+
+def test_d0059_ac10_band_has_one_segment_per_stage_with_state_classes(node, html):
+    """D0059-AC-10: 完了2・確認待ち1・まだ2 の写しで、帯が5つの区切りに分かれ、それぞれに状態の class（seg-done・seg-review・seg-waiting）が付く。順は段の順。"""
+    segs = query(node, html, mixed_snapshot(), ".band .seg")
+    classes = [s["attrs"]["class"].split() for s in segs]
+    assert len(segs) == 5
+    assert [next(c for c in cs if c.startswith("seg-")) for cs in classes] == ["seg-done", "seg-done", "seg-review", "seg-waiting", "seg-waiting"]
+    assert all("seg" in cs for cs in classes)
+
+
+@pytest.mark.parametrize("status", list(WORDS))
+def test_d0059_ac10_every_status_has_a_segment_class(node, html, status):
+    """D0059-AC-10: 7つの状態のどれも、帯の区切りに seg-<状態> の class が付く（不明は seg-unknown）。"""
+    snap = one_stage("weird" if status == "unknown" else status)
+    segs = query(node, html, snap, ".band .seg")
+    assert len(segs) == 1 and f"seg-{status}" in segs[0]["attrs"]["class"].split()
+
+
+def test_d0059_ac10_counts_text(node, html):
+    """D0059-AC-10: 帯の下に「完了 2 ・ 確認待ち 1 ・ まだ 2」と出る（0 の状態は出さない）。"""
+    assert text_of(node, html, mixed_snapshot(), ".counts") == "完了 2 ・ 確認待ち 1 ・ まだ 2", "数の入れ物（.counts）が骨組みに無い、または文が違う"
+
+
+def test_d0059_ac10_counts_order_is_fixed(node, html):
+    """D0059-AC-10: 数の並びは 完了・確認待ち・作業中・失敗・差し戻し・まだ・不明 の順（写しの段の順に関わらない）。"""
+    stages = [stage("g", "weird"), stage("f"), stage("e", "revised"), stage("d", "failed"), stage("c", "running", started_at=iso(5)), stage("b", "review", pending_since=iso(5)), stage("a", "done")]
+    assert text_of(node, html, snapshot(stages), ".counts") == "完了 1 ・ 確認待ち 1 ・ 作業中 1 ・ 失敗 1 ・ 差し戻し 1 ・ まだ 1 ・ 不明 1"
+
+
+def test_d0059_ac10_count_text_function(node, html):
+    """D0059-AC-10: countText(stages) は状態ごとの数の文字。段が無ければ空。"""
+    assert call(node, html, "countText", [{"status": "done"}, {"status": "done"}, {"status": "waiting"}]) == "完了 2 ・ まだ 1"
+    assert call(node, html, "countText", []) == ""
+
+
+def test_d0059_ac10_no_stages_no_band(node, html):
+    """D0059-AC-10: 段が 0 件の写しでは、帯の区切りも数も札も出ない。前の写しの帯は残らない。"""
+    r = go(node, html, steps=[*sending(mixed_snapshot()), {"op": "query", "selector": ".band .seg"}, *sending(snapshot([])),
+                              {"op": "query", "selector": ".band .seg"}, {"op": "query", "selector": ".counts"}, {"op": "query", "selector": ".chips"}])
+    assert len(r["steps"][1]["result"]) == 5, "区切りが描かれていない（先に帯を描く）"
+    assert r["steps"][3]["result"] == []
+    assert r["steps"][4]["result"][0]["text"] == ""
+    assert r["steps"][5]["result"][0]["text"] == ""
+
+
+def test_d0059_ac10_band_is_aria_hidden(node, html):
+    """D0059-AC-10: 帯は aria-hidden="true"（同じ内容を下の文字が伝える）。"""
+    bands = query(node, html, mixed_snapshot(), ".band")
+    assert len(bands) == 1 and bands[0]["attrs"].get("aria-hidden") == "true"
+
+
+@pytest.mark.parametrize("bad", [snapshot([], empty=True), {"schema": 2, "stages": []}, None, {"schema": 1}], ids=["empty", "schema2", "none", "no_stages"])
+def test_d0059_ac20_empty_unreadable_and_unsupported_clear_the_new_parts(node, html, bad):
+    """D0059-AC-20: 空・版違い・読めない写しでは、帯・数・札・更新の時刻も空になる（前の写しの分が残らない）。"""
+    r = go(node, html, steps=[*sending(mixed_snapshot()), {"op": "query", "selector": ".band .seg"}, *sending(bad), {"op": "query", "selector": ".band .seg"},
+                              {"op": "query", "selector": ".counts"}, {"op": "query", "selector": ".chips"}, {"op": "query", "selector": ".updated"}])
+    assert len(r["steps"][1]["result"]) == 5
+    assert r["steps"][3]["result"] == []
+    assert [x["text"] for x in r["steps"][4]["result"] + r["steps"][5]["result"] + r["steps"][6]["result"]] == ["", "", ""]
+
+
+def test_d0059_ac11_head_chip_prefers_review_then_running(node, html):
+    """D0059-AC-11: 確認待ちの段があれば「確認待ち：<段の表示名>」の札（hand のアイコンつき）、無くて作業中の段があれば「作業中：<段の表示名>」。確認待ちが先。"""
+    def chips_of(snap: dict) -> str:
+        found = text_of(node, html, snap, ".chips")
+        assert found is not None, "札の入れ物（.chips）が骨組みに無い"
+        return found
+
+    chips = chips_of(counting_snapshot())
+    assert "確認待ち：LABEL-red" in chips and "作業中" not in chips
+    only_running = snapshot([stage("a", "done"), stage("b", "running", started_at=iso(5)), stage("c")])
+    chips = chips_of(only_running)
+    assert "作業中：LABEL-b" in chips and "確認待ち" not in chips
+    first_review = snapshot([stage("a", "review", pending_since=iso(5)), stage("b", "review", pending_since=iso(5))])
+    chips = chips_of(first_review)
+    assert "確認待ち：LABEL-a" in chips and "LABEL-b" not in chips
+
+
+def test_d0059_ac11_head_chip_has_an_icon(node, html):
+    """D0059-AC-11: 状態の札には、その状態のアイコン（確認待ち＝hand、作業中＝refresh-cw）が付く（札の中に svg が1つ）。"""
+    icons = design_icons()
+    for snap, status in ((counting_snapshot(), "review"), (snapshot([stage("b", "running", started_at=iso(5))]), "running")):
+        paths = query(node, html, snap, ".chips svg path")
+        assert [p["attrs"].get("d") for p in paths] == [icons[status]], status
+
+
+def test_d0059_ac11_no_chip_without_either(node, html):
+    """D0059-AC-11: 確認待ちも作業中も無ければ、状態の札は出ない（完了・まだ・失敗だけの写し）。"""
+    snap = snapshot([stage("a", "done"), stage("b", "failed"), stage("c")])
+    chips = text_of(node, html, snap, ".chips")
+    assert chips is not None, "札の入れ物（.chips）が無い"
+    assert "確認待ち" not in chips and "作業中" not in chips
+    assert query(node, html, snap, ".chips svg") == []
+
+
+def test_d0059_ac11_pick_head_function(node, html):
+    """D0059-AC-11: pickHead(stages) は確認待ちが先、なければ作業中の最初の段 → {status, label}。どちらも無ければ null。"""
+    review, running = {"status": "review", "label": "R"}, {"status": "running", "label": "N"}
+    assert call(node, html, "pickHead", [running, review])["label"] == "R"
+    assert call(node, html, "pickHead", [{"status": "running", "label": "A"}, running])["label"] == "A"
+    assert call(node, html, "pickHead", [{"status": "done", "label": "D"}, {"status": "waiting", "label": "W"}]) is None
+    assert call(node, html, "pickHead", []) is None
+
+
+@pytest.mark.parametrize("final,shown", [("PASSED", "合格"), ("TEST_FAILED", "検証で不合格"), ("STOPPED_BY_HUMAN", "人が止めた"), ("BLOCKED", "進められない")])
+def test_d0059_ac11_final_text(node, html, final, shown):
+    """D0059-AC-11: 写しの final があれば「結果：…」（今の #final の文字）を出す。無ければ空。今のままで通る（#final の文字は変えない）。"""
+    text = text_of(node, html, done_snapshot() | {"final": final}, "#final")
+    assert text is not None and re.fullmatch(r"結果[:：] ?%s" % re.escape(shown), text), text
+    assert text_of(node, html, snapshot([stage("a", "done")]), "#final") == ""
+
+
+@pytest.mark.parametrize(
+    "stages,expected",
+    [
+        ([{"cost": 1.5, "turns": 10, "duration": 600}, {"cost": 0.25, "turns": 21, "duration": 484}], "合計 $1.75 · 31 ターン · 18:04"),
+        ([{"cost": 0.5, "turns": None, "duration": None}], "合計 $0.5"),
+        ([{"cost": None, "turns": 3, "duration": 12.5}, {"cost": None, "turns": None, "duration": 30}], "合計 3 ターン · 0:42"),
+        ([{"cost": 0, "turns": 0, "duration": 69.4}], "合計 1:09"),
+        ([{"cost": 0, "turns": 0, "duration": 0}, {"cost": NAN, "turns": INF, "duration": NINF}, {"cost": -1, "turns": "x", "duration": True}], ""),
+        ([{"cost": None, "turns": None, "duration": None}], ""),
+        ([], ""),
+    ],
+    ids=["all_three", "cost_only", "turns_and_time", "zero_cost_turns", "nothing_summable", "nulls", "no_stages"],
+)
+def test_d0059_ac11_total_text(node, html, stages, expected):
+    """D0059-AC-11: 合計は段の費用・ターン・時間を足して「合計 $1.75 · 31 ターン · 18:04」の形（時間は経過と同じ書き方）。正の数だけを足し、合計できる値が1つも無ければ空。"""
+    assert call(node, html, "totalText", stages) == expected
+
+
+def test_d0059_ac11_total_is_shown_next_to_the_chips(node, html):
+    """D0059-AC-11: 画面の頭に「合計 …」が出る（足せる値があるとき）。無ければ .total の要素は空か無い。"""
+    snap = snapshot([stage("a", "done", cost_usd=1.5, turns=10, duration_sec=600), stage("b", "done", cost_usd=0.25, turns=21, duration_sec=484), stage("c")])
+    assert [t["text"] for t in query(node, html, snap, ".total")] == ["合計 $1.75 · 31 ターン · 18:04"]
+    assert [t["text"] for t in query(node, html, snapshot([stage("a", "done"), stage("b")]), ".total")] in ([], [""])
+
+
+def test_d0059_ac12_updated_time_from_generated_at(node, html):
+    """D0059-AC-12: 写しの generated_at（2026-07-01T12:40:05+09:00）から「12:40 更新」を出す。時分はそのまま（時差の計算をしない）。"""
+    assert text_of(node, html, snapshot([stage("a", "done")], generated_at="2026-07-01T12:40:05+09:00"), ".updated") == "12:40 更新"
+    assert text_of(node, html, snapshot([stage("a", "done")], generated_at="2026-07-01T03:05:00Z"), ".updated") == "03:05 更新"
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [("2026-07-01T12:40:05+09:00", "12:40 更新"), ("2026-07-01T12:40:05Z", "12:40 更新"), ("2026-07-01T00:00:00+00:00", "00:00 更新"), ("2026-07-01T23:59:59.123-05:00", "23:59 更新"),
+     (None, ""), ("", ""), ("abc", ""), (5, ""), ([], ""), ({}, ""), ("2026-07-01T12:40:05", ""), ("2026-07-01", ""), ("12:40", ""), (NAN, ""), (True, "")],
+    ids=lambda v: repr(v)[:30],
+)
+def test_d0059_ac12_updated_text_function(node, html, value, expected):
+    """D0059-AC-12: updatedText(generatedAt) は、ずれつき ISO の形（TIME_RE）に合えば「HH:MM 更新」、合わなければ空。"""
+    assert call(node, html, "updatedText", value) == expected
+
+
+@pytest.mark.parametrize("bad", ["drop", None, 5, "abc", "2026-07-01T12:40:05"], ids=repr)
+def test_d0059_ac12_bad_or_missing_generated_at_is_not_shown(node, html, bad):
+    """D0059-AC-12: generated_at が無い・形が違うときは時刻を出さず（.updated は空）、ほかの表示（名前・段・言葉・アイコン）は壊れない。"""
+    snap = snapshot([stage("a", "done")])
+    if bad == "drop":
+        del snap["generated_at"]
+    else:
+        snap["generated_at"] = bad
+    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": ".updated"}, {"op": "query", "selector": ".stage .mark svg"}])
+    assert [u["text"] for u in r["steps"][1]["result"]] == [""], "更新の時刻の入れ物（.updated）が骨組みに無い、または空でない"
+    assert GOOD_MARK in r["steps"][0]["view"]["text"] and "LABEL-a" in r["steps"][0]["view"]["text"] and "完了" in r["steps"][0]["view"]["text"]
+    assert len(r["steps"][2]["result"]) == 1
+
+
+def test_d0059_ac20_old_snapshot_without_generated_at_renders(node, html):
+    """D0059-AC-20: generated_at を持たない古い写し（D0027 の最初の形）でも、描き直しが失敗せず、名前・段・言葉・アイコン・帯・数が出る。"""
+    old = {"schema": 1, "empty": False, "name": GOOD_MARK, "final": None, "stages": [stage("a", "done"), stage("b", "running", started_at=iso(5))]}
+    r = go(node, html, steps=[*sending(old), {"op": "query", "selector": ".band .seg"}, {"op": "query", "selector": ".counts"}, {"op": "query", "selector": ".stage .mark svg"}])
+    assert r["steps"][0]["threw"] is None
+    text = r["steps"][0]["view"]["text"]
+    assert GOOD_MARK in text and "LABEL-a" in text and "作業中" in text
+    assert len(r["steps"][1]["result"]) == 2 and r["steps"][2]["result"][0]["text"] == "完了 1 ・ 作業中 1" and len(r["steps"][3]["result"]) == 2
+
+
+@pytest.mark.parametrize("status", ["weird", "", "RUNNING", "__proto__", "constructor", 5, None])
+def test_d0059_ac20_unknown_status_uses_the_dashed_circle(node, html, status):
+    """D0059-AC-20: 状態が知らない文字・型違いの段は「不明」と circle-dashed のアイコンで描かれ、帯は seg-unknown になる。"""
+    snap = snapshot([stage("only", status)])
+    icons = design_icons()
+    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": ".stage .mark path"}, {"op": "query", "selector": ".stage .word"}, {"op": "query", "selector": ".band .seg"}])
+    assert [p["attrs"].get("d") for p in r["steps"][1]["result"]] == [icons["unknown"]]
+    assert [w["text"] for w in r["steps"][2]["result"]] == ["不明"]
+    assert "seg-unknown" in r["steps"][3]["result"][0]["attrs"]["class"].split()
+
+
+def test_d0059_ac20_unsupported_and_empty_messages(node, html):
+    """D0059-AC-20: schema が 1 でない写しは「この写しの版には対応していません」、空の写しは「まだ記録がありません」（D0027-AC-59 と同じ文）。今のままで通る部分を含む。"""
+    r = go(node, html, steps=[*sending({"schema": 2, "stages": [stage("g", "done")]}), *sending(snapshot([], empty=True, name=None)), *sending(None)])
+    assert UNSUPPORTED_MSG in r["steps"][0]["view"]["text"] and "LABEL-g" not in r["steps"][0]["view"]["text"]
+    assert EMPTY_MSG in r["steps"][1]["view"]["text"] and EMPTY_MSG in r["steps"][2]["view"]["text"]
+
+
+def test_d0059_ac13_elapsed_format_unchanged(node, html):
+    """D0059-AC-13: 経過・所要時間の書き方は変わらない：0:00・3:10・1:02:03・99:59:59。今のままで通る（守り続ける検査。境目は D0027-AC-58）。"""
+    for sec, shown in ((0, "0:00"), (190, "3:10"), (3723, "1:02:03"), (10**9, "99:59:59")):
+        assert call(node, html, "fmtElapsed", sec) == shown
+    text = go(node, html, steps=sending(counting_snapshot(190, 3723)))["steps"][0]["view"]["text"]
+    assert shows(text, "3:10") and shows(text, "1:02:03")
+
+
+HOSTILE_IMG = "<img src=x onerror=alert(1)>"
+
+
+def test_d0059_ac14_hostile_text_stays_text_and_adds_only_fixed_icons(node, html):
+    """D0059-AC-14: 名前・表示名・実行の名前に <img src=x onerror=…> が入っていても、文字として出るだけで要素は増えない。
+    増えるのは状態から決まった svg と path（固定のアイコン）だけで、同じ形の無害な写しと要素の種類・数・属性・アイコンの形が同じ。"""
+    def build(text: str) -> dict:
+        return snapshot([stage("a", "running", label=text, started_at=iso(5)), stage("b", "review", label=text, pending_since=iso(5)), stage("c", "done", label=text)], name=text)
+
+    h = go(node, html, steps=[*sending(build(HOSTILE_IMG)), {"op": "query", "selector": ".mark path"}, {"op": "query", "selector": ".chips"}])
+    p = go(node, html, steps=[*sending(build("AAAA")), {"op": "query", "selector": ".mark path"}, {"op": "query", "selector": ".chips"}])
+    hv, pv = h["steps"][0]["view"], p["steps"][0]["view"]
+    assert hv["tags"].get("svg", 0) >= 3, "アイコン（svg）が描かれていない"
+    assert hv["tags"] == pv["tags"] and hv["created"] == pv["created"] and hv["created_ns"] == pv["created_ns"] and hv["attrs"] == pv["attrs"]
+    assert "img" not in hv["created"] and not [a for a in hv["attrs"] if a.startswith("on")] and hv["html_insertions"] == 0
+    assert [x["attrs"] for x in h["steps"][1]["result"]] == [x["attrs"] for x in p["steps"][1]["result"]]
+    assert sum(HOSTILE_IMG in line for line in hv["lines"]) >= 3, "文字としては見える"
+    assert HOSTILE_IMG in h["steps"][2]["result"][0]["text"], "札にも文字として出る"
+    assert h["alerts"] == []
+
+
+def test_d0059_ac14_icon_shapes_do_not_depend_on_snapshot_text(node, html):
+    """D0059-AC-14: アイコンの d は固定の定数で、写しの文字（status に入れた d の文字列など）は入らない。未知の status の文字は不明のアイコンになる。"""
+    evil = "M0 0L9 9<script>alert(1)</script>"
+    snap = snapshot([stage("a", evil, label=evil), stage("b", "done")], name=evil)
+    r = go(node, html, steps=[*sending(snap), {"op": "query", "selector": ".mark path"}])
+    paths = [p["attrs"].get("d") for p in r["steps"][1]["result"]]
+    icons = design_icons()
+    assert paths == [icons["unknown"], icons["done"]]
 
 
 def test_d0027_ac88_stage_time_does_not_change_the_running_elapsed(node, html):

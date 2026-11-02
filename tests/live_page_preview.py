@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,8 @@ PREVIEWS: dict[str, dict[str, Any]] = {
     "can-unknown": {"can": "something-new"},
     "can-reject": {"can": "reject"},
     "comments-null": {"comments": False},
+    # D0059：6つの状態（完了・差し戻し・作業中・確認待ち・まだ・失敗）を並べた写し（generated_at あり。色を見ずに状態を言い分けられるか・帯・頭の札・合計を見る）
+    "all-states": {"can": "available", "send": "resolve", "snapshot": "all-states"},
 }
 
 
@@ -65,6 +68,41 @@ def long_name_snapshot() -> dict[str, Any]:
     snap["name"] = "とても長いセッション名" * 5 + "ABCDEFGHIJ"
     snap["stages"][0]["label"] = "長い段の表示名" * 6
     return snap
+
+
+def all_states_snapshot(now: datetime | None = None) -> dict[str, Any]:
+    """D0059：完了・差し戻し・作業中・確認待ち・まだ・失敗の6段を並べた写し（schema 1。generated_at あり。review は null）。
+    経過は now（既定は今）からさかのぼった時刻で入れる（開いたときに M:SS で進む）。"""
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).replace(microsecond=0)
+
+    def ago(seconds: int) -> str:
+        return (now - timedelta(seconds=seconds)).isoformat(timespec="seconds")
+
+    def stage(name: str, label: str, status: str, **kw: Any) -> dict[str, Any]:
+        entry: dict[str, Any] = {"name": name, "label": label, "status": status, "attempt": None, "started_at": None, "pending_since": None,
+                                 "verdict": None, "cost_usd": None, "turns": None, "duration_sec": None}
+        entry.update(kw)
+        return entry
+
+    return {
+        "schema": 1,
+        "generated_at": now.isoformat(timespec="seconds"),
+        "empty": False,
+        "name": "全部の状態の見本",
+        "final": None,
+        "review": None,
+        "stages": [
+            stage("requirements", "要件定義", "done", attempt=1, cost_usd=0.5, turns=3, duration_sec=125.0),
+            stage("design", "設計", "revised", attempt=1, cost_usd=0.8, turns=5, duration_sec=190.0),
+            stage("red", "テスト先行", "running", attempt=2, started_at=ago(83)),
+            stage("implement", "実装", "review", pending_since=ago(40)),
+            stage("test", "検証", "waiting"),
+            stage("audit", "監査", "failed", verdict="fail", cost_usd=0.25, turns=2, duration_sec=61.5),
+        ],
+    }
+
+
+SNAPSHOTS = {"all-states": all_states_snapshot}
 
 
 def _json(value: Any) -> str:
@@ -161,7 +199,8 @@ def write_previews(out_dir: Path) -> list[Path]:
     for name, cfg in PREVIEWS.items():
         for theme in ("light", "dark"):
             path = out / f"answer-{name}-{theme}.html"
-            path.write_text(preview_html(showcase_snapshot(), theme=theme, can=cfg.get("can", "available"), send=cfg.get("send", "resolve"), comments=cfg.get("comments", True)), encoding="utf-8")
+            snapshot = SNAPSHOTS[cfg["snapshot"]]() if "snapshot" in cfg else showcase_snapshot()
+            path.write_text(preview_html(snapshot, theme=theme, can=cfg.get("can", "available"), send=cfg.get("send", "resolve"), comments=cfg.get("comments", True)), encoding="utf-8")
             written.append(path)
     for theme in ("light", "dark"):
         path = out / f"answer-long-names-{theme}.html"
