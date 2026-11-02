@@ -102,7 +102,17 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 
 ## 見本のパイプ
 
-`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
+`examples/` に、そのまま流せる見本が 3 つあります。各段に `max_budget_usd`・`max_turns` の上限を付けてあり、README に書ける範囲と費用の目安（上限の合計。実測はまだありません）があります。選び方と流し方は [examples/README.md](../../examples/README.md) にあります。
+
+| 名前 | 用途 | 段 | 上限の合計 |
+| --- | --- | --- | --- |
+| `diagrams` | ソースを読んで Mermaid の図を作り、ソースと合うか確かめる（ひな形 `diagrams` の写し） | 3 | $4.0 |
+| `spec-qa` | 仕様書とソースの食い違いと QA の観点を書く（ひな形 `spec-qa` の写し） | 3 | $4.5 |
+| `research` | プロジェクトのファイルを調べ、出典つきの報告にまとめる（Web は使わない） | 4 | $5.0 |
+
+流し方は `pipe-in --pipe examples/research/pipes/pipe-in-research --project <対象のフォルダ> --text "調べたいこと"` のようにフォルダのパスで指します。VSCode の作業台の「見本から作る」で、自分のプロジェクトに写すこともできます（[VSCode の拡張](vscode.md#見本から作る)）。
+
+動画を作る見本もあります。`examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
 `ffmpeg` と Playwright が要ります。流し方・案のデータの形・ブラウザから答える受付（`examples/video/review_server.py`）は `examples/video/pipes/pipe-in-video/README.md`、台本の見本は `examples/video/pipe-in-intro-script.md` にあります。
 
 ## パイプをつなぐ（--after）
