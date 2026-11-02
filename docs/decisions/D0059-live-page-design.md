@@ -31,7 +31,7 @@
 - D0059-AC-09：印の幅が状態で変わらない。（tests/test_live_page.py）
 - D0059-AC-10：帯が段の数に分かれ、状態ごとの模様が付き、下に数が出る。（tests/test_live_page.py・tests/test_live_page_js.py）
 - D0059-AC-11：頭の札（「確認待ち：…」「作業中：…」）と合計が決まった文で出る。（tests/test_live_page_js.py）
-- D0059-AC-12：写しの `generated_at` から「HH:MM 更新」を出し、形が違えば出さない。（tests/test_live_page_js.py）
+- D0059-AC-12：写しの `generated_at` から「HH:MM 更新」を出し、形が違えば出さない。（tests/test_live_page_js.py。時刻帯の扱いは D0060 が、見ている人の時刻帯の時分で出す形に置き換えた）
 - D0059-AC-13：時間は M:SS（1時間をこえたら H:MM:SS）で、今の書き方と同じ。（tests/test_live_page_js.py）
 - D0059-AC-14：外から来た文字は文字として出るだけで、増える要素はアイコンの SVG だけ。（tests/test_live_page_js.py）
 - D0059-AC-15：D0044 のボタンの振る舞いが変わらない。（tests/test_live_page.py・tests/test_live_page_comments.py）

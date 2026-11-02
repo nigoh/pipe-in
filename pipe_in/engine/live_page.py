@@ -567,7 +567,7 @@ function okNumber(v) {
 }
 
 function okAttempt(v) {
-  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 999 ? v : null;
+  return typeof v === "number" && Number.isInteger(v) && v >= 2 && v <= 999 ? v : null;
 }
 
 function parseTime(text) {
@@ -729,9 +729,10 @@ function totalText(stages) {
 }
 
 function updatedText(generatedAt) {
-  if (typeof generatedAt !== "string" || parseTime(generatedAt) === null) return "";
-  var m = TIME_RE.exec(generatedAt);
-  return m === null ? "" : m[4] + ":" + m[5] + UPDATED_SUFFIX;
+  var ms = parseTime(generatedAt);
+  if (ms === null) return "";
+  var d = new Date(ms);
+  return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + UPDATED_SUFFIX;
 }
 
 function countText(stages) {
