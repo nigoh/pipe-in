@@ -304,7 +304,7 @@ class BasePipeline:
             # 開発用スキル（pipe-in record）の記録には会話の続きがないので、ここから SDK で流さない。
             # 値は見ない（前の版の "pipe-in" も、この先名前が変わっても漏れないように）
             raise SystemExit(
-                f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-dev）が書いたものです。"
+                f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-in）が書いたものです。"
                 "続きはその会話で進めてください（pipe-in --review では流せません）"
             )
         pending = data.get("pending_review")

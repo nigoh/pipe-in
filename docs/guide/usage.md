@@ -126,9 +126,12 @@ pipe-in record review requirements approved       # revise --feedback "…" / qu
 pipe-in record red red --summary "…"              # テスト先行の結果
 pipe-in record verdict pass --attempt 1 --summary "…"   # 検証の判定
 pipe-in record finish PASSED                      # 記録を閉じる
+pipe-in record check                              # 記録の順序を検べる（読むだけ）
 ```
 
 </details>
+
+- `record check` は、確認のある段（要件定義・設計・テスト先行）の承認（`review … approved`）より前に、後ろの段の `begin` が書かれていないかを、`state.json` と段のログの時刻から検べます。守られていれば「順序は守られています」を出して終了コード 0、違反があれば段の名前・順番・時刻を並べて終了コード 1 です。`review` に時刻（`at`）の無い古い記録や、時刻が読めない記録は、違反にせず「判定できなかったもの」として別に出します（終了コードは変わりません）。記録は書き換えません。`pipe-in skill record check` からも流せます。
 
 - 記録には `"driver": "pipe-dev"` が入ります。`pipe-in --review` は、`driver` の入った記録（前の版の記録も）の続きを流しません。VSCode のエージェント・スキルの表は、この `driver` で `/pipe-in` の記録を見分けます（呼び出しが記録に残らないことの案内が出ます）。
 

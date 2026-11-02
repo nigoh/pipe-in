@@ -85,7 +85,7 @@ def test_rule_catches_reverse_import(tmp_path, monkeypatch):
 
 def test_d0019_ac50_state_only_adds_keys(tmp_path):
     """D0019-AC-50: 新しい項目（name・session_id・runs[].agent）を全部付けて書いた state.json は、見本（古い形）の鍵をすべて含み、
-    増えるのは name・session_id・runs[].agent だけ（既存の項目の名前・意味を変えない）。"""
+    増えるのは name・session_id・runs[].agent だけ（既存の項目の名前・意味を変えない）。D0071: review の要素の runs[].at も足された。"""
     import json
     from datetime import datetime
 
@@ -132,7 +132,7 @@ def test_d0019_ac50_state_only_adds_keys(tmp_path):
     old_run_keys = {k for run in old["runs"] for k in run}
     new_run_keys = {k for run in new["runs"] for k in run}
     assert old_run_keys <= new_run_keys
-    assert new_run_keys - old_run_keys == {"agent"}
+    assert new_run_keys - old_run_keys == {"agent", "at"}  # D0071: review の要素に at を足した
     for key in set(old) - {"started_at", "updated_at", "runs", "name"}:
         assert type(new[key]) is type(old[key]) or old[key] is None or new[key] is None, key  # 既存の項目の型を変えていない
     assert [s["name"] for s in new["stages"]] == [s["name"] for s in old["stages"]]
@@ -575,6 +575,122 @@ def test_d0066_ac12_usageの目安の部品は標準ライブラリとusageの�
                 elif node.level > 1:
                     outside.append("." * node.level + (node.module or ""))
         assert outside == [], f"{rel}: {outside}"
+
+
+# ---- D0071：記録の順序の検査（pipe_in/dev/record_order.py）は読むだけ -------------------------------------
+
+RECORD_ORDER = "pipe_in.dev.record_order"
+ORDER_NEVER_IMPORTS = {"subprocess", "shutil", "multiprocessing", "socket", "urllib", "http", "tempfile", "claude_agent_sdk"}
+WRITE_METHODS = {"write_text", "write_bytes", "mkdir", "unlink", "rmdir", "touch", "rename", "symlink_to", "hardlink_to", "chmod", "truncate"}
+WRITE_OS = {"remove", "removedirs", "makedirs", "mkdir", "rmdir", "rename", "replace", "unlink", "truncate", "chmod", "system", "popen"}
+WRITE_MODE_CHARS = set("wax+")
+
+
+def _order_import_problems(path: Path, module: str) -> list[str]:
+    """標準ライブラリと pipe_in.engine 以外を読んでいる import（record・SDK・subprocess なども含む）。"""
+    import sys
+
+    problems: list[str] = []
+    for target in sorted({t for t in _imports(path, module) if t}):
+        top = target.split(".")[0]
+        if top in ORDER_NEVER_IMPORTS:
+            problems.append(f"{target}（読んではいけない）")
+        elif top == "pipe_in":
+            if not (target == "pipe_in" or target == "pipe_in.engine" or target.startswith("pipe_in.engine.")):
+                problems.append(f"{target}（engine 以外の本体）")
+        elif top not in sys.stdlib_module_names and top != "__future__":
+            problems.append(f"{target}（標準ライブラリでない）")
+    return problems
+
+
+def _open_writes(node: ast.Call) -> bool:
+    mode: ast.expr | None = None
+    func = node.func
+    is_builtin = isinstance(func, ast.Name) and func.id == "open"
+    is_method = isinstance(func, ast.Attribute) and func.attr == "open"
+    if not (is_builtin or is_method):
+        return False
+    pos = 1 if is_builtin else 0  # open(path, mode) / path.open(mode)
+    if len(node.args) > pos:
+        mode = node.args[pos]
+    for kw in node.keywords:
+        if kw.arg == "mode":
+            mode = kw.value
+    if mode is None:
+        return False
+    if isinstance(mode, ast.Constant) and isinstance(mode.value, str):
+        return bool(WRITE_MODE_CHARS & set(mode.value))
+    return True  # 文字で読めないモードは、安全側に書き込みとみなす
+
+
+def _order_write_calls(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if _open_writes(node):
+            found.append(f"{node.lineno}: open（書き込みモード）")
+        elif isinstance(func, ast.Attribute):
+            if func.attr in WRITE_METHODS:
+                found.append(f"{node.lineno}: .{func.attr}()")
+            elif isinstance(func.value, ast.Name) and func.value.id == "os" and func.attr in WRITE_OS:
+                found.append(f"{node.lineno}: os.{func.attr}()")
+            elif func.attr == "replace" and len(node.args) == 1 and not node.keywords:
+                found.append(f"{node.lineno}: .replace(1 つの引数)（Path.replace の形）")
+    return found
+
+
+def test_d0071_ac16_record_order_imports_only_stdlib_and_engine():
+    """D0071-AC-16: pipe_in/dev/record_order.py は標準ライブラリと pipe_in.engine だけを読む（record・SDK・subprocess は読まない）。"""
+    path = ROOT / "pipe_in" / "dev" / "record_order.py"
+    assert path.is_file(), "pipe_in/dev/record_order.py がまだ無い"
+    assert _order_import_problems(path, RECORD_ORDER) == []
+
+
+def test_d0071_ac16_record_order_has_no_write_calls():
+    """D0071-AC-16: record_order.py は書き込みの呼び出し（write_text・write_bytes・open の書き込みモード・mkdir・unlink・rename・shutil・os.remove など）を使わない。"""
+    path = ROOT / "pipe_in" / "dev" / "record_order.py"
+    assert path.is_file(), "pipe_in/dev/record_order.py がまだ無い"
+    assert _order_write_calls(path) == []
+
+
+def test_d0071_ac16_check_finds_forbidden_imports_and_writes(tmp_path):
+    """D0071-AC-16: 検査そのものが、禁止の import と書き込みの呼び出しを見つけられる（見つからないと検査が空振りしている）。"""
+    bad = tmp_path / "bad.py"
+    bad.write_text(
+        "import subprocess\nimport shutil\nimport yaml\nimport os\nfrom pathlib import Path\n"
+        "from pipe_in.dev import record\nfrom pipe_in.dev.record import Recorder\nfrom pipe_in.pipe import definition\n"
+        "from pipe_in.engine.pipeline import STATE\n"
+        "def f(p: Path, mode):\n"
+        "    p.write_text('x')\n    p.write_bytes(b'x')\n    p.mkdir()\n    p.unlink()\n    p.rename(p)\n    p.replace(p)\n"
+        "    open(p, 'w')\n    open(p, mode='a')\n    p.open('r+')\n    open(p, mode)\n    os.remove(p)\n    shutil.rmtree(p)\n",
+        encoding="utf-8",
+    )
+    imports = _order_import_problems(bad, "pipe_in.dev.bad")
+    for word in ("subprocess", "shutil", "yaml", "pipe_in.dev.record", "pipe_in.pipe"):
+        assert any(word in p for p in imports), (word, imports)
+    assert not any("pipe_in.engine.pipeline" in p for p in imports), imports
+    writes = _order_write_calls(bad)
+    for word in ("write_text", "write_bytes", ".mkdir", ".unlink", ".rename", "Path.replace", "os.remove"):
+        assert any(word in w for w in writes), (word, writes)
+    assert len([w for w in writes if "open（書き込みモード）" in w]) == 4, writes
+
+
+def test_d0071_ac16_check_accepts_a_read_only_module(tmp_path):
+    """D0071-AC-16: 検査が読むだけのコード（open の読み取り・read_text・str.replace・datetime.replace）を誤って止めない。"""
+    ok = tmp_path / "ok.py"
+    ok.write_text(
+        "from __future__ import annotations\nimport json\nfrom datetime import datetime\nfrom pathlib import Path\n"
+        "from ..engine.pipeline import STATE\n"
+        "def f(p: Path, t: datetime):\n"
+        "    open(p)\n    open(p, 'r')\n    p.open(encoding='utf-8')\n    p.read_text()\n    'a'.replace('a', 'b')\n    t.replace(tzinfo=None)\n"
+        "    return json.loads('{}')\n",
+        encoding="utf-8",
+    )
+    assert _order_import_problems(ok, "pipe_in.dev.ok") == []
+    assert _order_write_calls(ok) == []
 
 
 def test_python_files_have_no_invalid_escape_sequences():

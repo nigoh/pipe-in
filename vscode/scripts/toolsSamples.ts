@@ -394,10 +394,10 @@ export function skillRecordSample(nowMs: number): SampleRun {
       ],
     },
     logs: [
-      { fileName: '01_requirements.jsonl', text: recordLog('requirements', '/pipe-dev の要件定義', ANALYST, nowMs - 690 * SEC, 95.0, '要件定義を書いた') },
-      { fileName: '02_requirements_2.jsonl', text: recordLog('requirements', '/pipe-dev の要件定義（2 回目）', ANALYST, nowMs - 560 * SEC, 41.2, '指摘を反映した') },
-      { fileName: '03_design.jsonl', text: recordLog('design', '/pipe-dev の設計', ANALYST, nowMs - 450 * SEC, 120.4, '設計を書いた') },
-      { fileName: '04_red.jsonl', text: recordLog('red', '/pipe-dev のテスト先行', TESTER, nowMs - 300 * SEC, 75.0, 'テストを書いた') },
+      { fileName: '01_requirements.jsonl', text: recordLog('requirements', '/pipe-in の要件定義', ANALYST, nowMs - 690 * SEC, 95.0, '要件定義を書いた') },
+      { fileName: '02_requirements_2.jsonl', text: recordLog('requirements', '/pipe-in の要件定義（2 回目）', ANALYST, nowMs - 560 * SEC, 41.2, '指摘を反映した') },
+      { fileName: '03_design.jsonl', text: recordLog('design', '/pipe-in の設計', ANALYST, nowMs - 450 * SEC, 120.4, '設計を書いた') },
+      { fileName: '04_red.jsonl', text: recordLog('red', '/pipe-in のテスト先行', TESTER, nowMs - 300 * SEC, 75.0, 'テストを書いた') },
     ],
     files: {
       '00_input.md': docText('# 依頼メモ', '', 'ユーザー一覧に CSV 出力ボタンを足したい（確認用の見本）。'),

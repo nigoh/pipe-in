@@ -36,6 +36,7 @@
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` と、文字列でない `agent_type` は読むだけにする。判断の途中で例外が出ても止める） |
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
+| /pipe-in の記録の順序を読むだけで検べる（pipe-in record check。承認より前に次の段が始まっていないか） | `pipe_in/dev/record_order.py` |
 | 機能ごとの worktree を切る・main に入ったものを片付ける・main に載せ直す（pipe-in worktree new・clean・sync。D0048・D0049） | `pipe_in/dev/worktree.py` |
 | /pipe-in が打つ記録と worktree のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049） | `pipe_in/dev/skill_cmd.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md` |
@@ -115,6 +116,7 @@ pipe_in.usage
 - D0063 で `state.json` の `stages[]` に `group`（並列の枠の名前。枠の中の段だけ）を足しました。足すだけで、無い古い記録は枠なしで読みます（段は一列に出る）。古い版の拡張は知らない項目を読まずに捨てるので、新しい記録でも段が一列に出ます。鍵は共通の表 `tests/fixtures/group_record.json` を本体と拡張のテストが読んで結びます。意味が変わるものはありません（`stages[]` の鍵の集まりをそのまま比べているテストは、`group` の無い段を比べているので変わりません）。
 - D0065 は記録の形・設定・パイプの形を変えません。作業台の「保存した版」のファイル名の種別に `-external`（外で書き換わる前）を足しただけです（`<13桁の時刻>-external.json`。中身は同じ `PipeModel` の JSON）。今の拡張は `-external` の無い古い版をそのまま読みます。`-external` を知らない前の拡張は、形の違うファイルとして読み飛ばし、50 版の数にも入れず消しません（前の拡張に戻すと残るだけで、害は容量だけ。手で消せます）。内側の型 `VersionEntry` に `external?: true`（省ける）を足しました。
 - D0069 で `state.json` に `received_from`（`--after` で前のパイプの記録を受けた実行だけ。前の名前・終わった日時・種類・成果物の場所）を足しました。足すだけで、無い古い記録は受けた元の無い実行として読みます。続きの `--review`・`--from` は、この項目をそのまま使い、前の記録を読み直しません。拡張は知らない項目として読み捨てるので、拡張の画面は変えません。
+- D0071 で `state.json` の `runs[]` の `review` の要素に `at`（書いた時刻。`Prompt` 行の `at` と同じ書き方）を足しました。足すだけで、無い古い記録は `record check` が「判定できなかった」として読みます。ほかの読み手（`--review`・`live`・拡張）は `at` を使いません。古い版の拡張は知らない項目を読まずに捨てます。`driver` の値 `"pipe-dev"` は変えません。`Prompt` 行の `prompt` と `99_summary.md` の1行目の呼び名が `/pipe-dev` から `/pipe-in` に変わりますが、文字として読むだけなので古い記録もそのまま読めます。`runs[]` の要素の鍵の集まりを比べているテスト（`test_d0019_ac50_state_only_adds_keys`）は、`at` を含める形に直しました。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。
