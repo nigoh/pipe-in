@@ -1,6 +1,7 @@
 // パイプ作業台のパネルの外側の HTML。中の操作は webview/pipeEditor.ts（out/pipeEditor.js）が行う。
 // 色はすべて VSCode のテーマ（var(--vscode-*)）から。外から何も読み込まない（CSP は nonce と webview の出どころだけ）。
 import { escapeHtml } from './escape.ts';
+import { PAR_COLOR } from './frameStyle.ts';
 
 export interface PipeEditorHtmlOptions {
   nonce: string;
@@ -21,7 +22,7 @@ const STYLE = `
   --next: var(--vscode-charts-blue);
   --route: var(--vscode-charts-orange);
   --return: var(--vscode-charts-red);
-  --par: var(--vscode-charts-green);
+  --par: ${PAR_COLOR};
   --sel: var(--vscode-editor-selectionBackground);
   --todo: var(--vscode-charts-yellow);
   --on-accent: var(--vscode-button-foreground);

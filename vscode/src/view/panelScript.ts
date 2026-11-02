@@ -1,6 +1,8 @@
 // パネルの中で動く小さなスクリプト（文字列）。panelHtml.ts が <script nonce> に入れる。外部の読み込みはしない。
 // render を受けたら本体を差し替え、ボタンで openArtifact・selectRun、読み込み後に ready を送る。拡張へ送るメッセージはこの 3 種類だけ。
 // 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
+// 枠の中の段の節（data-logpick。D0063）を押す・Enter・Space で、右の出力の欄をその段のログ（data-log-for）に替える。もう一度押す・ほかの節を押すと既定の欄に戻る。
+// 理由の選び（picked）とログの選び（pickedLog）は排他。選びはこの変数だけで持ち、拡張へは送らず、保存もしない。
 // 時間の数え上げ（D0017）：[data-elapsed] は「基準の秒」。基準を受けた時刻（このパネルの時計）からの差だけを足し、記録の時刻は読まない。
 // タイマーは1つだけ。見えていない間と、数える要素が無いときは回さない。
 // 止まっているかも（D0021）：[data-quiet] は「最後の更新からの秒（基準）」、data-stale-after は「目安の秒」。同じ数え上げの中で、
@@ -33,6 +35,7 @@ export const PANEL_SCRIPT = `
   const root = document.querySelector('.root');
   const FLASH_MS = 1400;
   let picked = null;
+  let pickedLog = null;
   let baseMs = Date.now();
   let timerId = null;
   let loopMemo = null;
@@ -125,8 +128,34 @@ export const PANEL_SCRIPT = `
     }
     loopMemo = { run: run, counts: counts };
   }
+  // 見えている出力の欄（隠れた段ごとの欄は数えない）
+  function visibleTerminal() {
+    return Array.from(root.querySelectorAll('.terminal')).find(function (t) { return t.closest('[hidden]') === null; }) || null;
+  }
   function nearBottom(el) { return !el || el.scrollHeight - el.scrollTop - el.clientHeight < 40; }
-  function follow(wasNear) { const t = root.querySelector('.terminal'); if (t && wasNear) t.scrollTop = t.scrollHeight; }
+  function follow(wasNear) { const t = visibleTerminal(); if (t && wasNear) t.scrollTop = t.scrollHeight; }
+  // 枠の中の段の節（data-logpick）を押すと、右の欄がその段のログに替わる。選びはこの変数だけで持ち、拡張へは送らず、保存もしない。
+  function applyLogPick() {
+    const nodes = Array.from(root.querySelectorAll('[data-logpick]'));
+    if (pickedLog !== null && !nodes.some(function (g) { return g.getAttribute('data-logpick') === pickedLog; })) pickedLog = null;
+    nodes.forEach(function (g) {
+      const on = g.getAttribute('data-logpick') === pickedLog;
+      g.setAttribute('aria-pressed', on ? 'true' : 'false');
+      g.classList.toggle('is-picked', on);
+    });
+    root.querySelectorAll('[data-log-for]').forEach(function (s) {
+      s.hidden = s.getAttribute('data-log-for') !== pickedLog;
+    });
+    root.querySelectorAll('.pane-output').forEach(function (s) {
+      if (!s.hasAttribute('data-log-for')) s.hidden = pickedLog !== null;
+    });
+  }
+  function togglePickLog(g) {
+    const id = g.getAttribute('data-logpick');
+    pickedLog = pickedLog === id ? null : id;
+    picked = null;
+    applyPick();
+  }
   function applyPick() {
     const nodes = Array.from(root.querySelectorAll('[data-reasons]'));
     if (picked !== null && !nodes.some(function (g) { return g.getAttribute('data-reasons') === picked; })) picked = null;
@@ -143,10 +172,12 @@ export const PANEL_SCRIPT = `
     root.querySelectorAll('[data-reasons-for]').forEach(function (s) {
       s.hidden = s.getAttribute('data-reasons-for') !== picked;
     });
+    applyLogPick();
   }
   function togglePick(g) {
     const id = g.getAttribute('data-reasons');
     picked = picked === id ? null : id;
+    pickedLog = null;
     applyPick();
   }
 
@@ -252,9 +283,9 @@ export const PANEL_SCRIPT = `
   function focusKey() {
     const active = document.activeElement;
     if (!active || typeof active.closest !== 'function') return null;
-    const el = active.closest('[data-keep],[data-run],[data-reasons]');
+    const el = active.closest('[data-keep],[data-run],[data-reasons],[data-logpick]');
     if (!el) return null;
-    const attr = el.hasAttribute('data-keep') ? 'data-keep' : el.hasAttribute('data-run') ? 'data-run' : 'data-reasons';
+    const attr = el.hasAttribute('data-keep') ? 'data-keep' : el.hasAttribute('data-run') ? 'data-run' : el.hasAttribute('data-reasons') ? 'data-reasons' : 'data-logpick';
     const key = { attr: attr, value: el.getAttribute(attr), start: null, end: null };
     if (typeof el.selectionStart === 'number') { key.start = el.selectionStart; key.end = el.selectionEnd; }
     return key;
@@ -297,7 +328,7 @@ export const PANEL_SCRIPT = `
 
   // ---- 描き直し ----
   function applyRender(html) {
-    let wasNear = nearBottom(root.querySelector('.terminal'));
+    let wasNear = nearBottom(visibleTerminal());
     captureScroll();
     const before = shownRun;
     const key = focusKey();
@@ -373,7 +404,10 @@ export const PANEL_SCRIPT = `
       setZoom(kind === 'in' ? zoom + ZOOM_STEP : kind === 'out' ? zoom - ZOOM_STEP : 100);
     }
     const node = target.closest('[data-reasons]');
-    if (node) togglePick(node);
+    const logNode = target.closest('[data-logpick]');
+    if (logNode) togglePickLog(logNode);
+    else if (node) togglePick(node);
+    else if (target.closest('[data-node]')) { pickedLog = null; applyPick(); }
   });
   root.addEventListener('wheel', function (event) {
     if (!event.ctrlKey && !event.metaKey) return;
@@ -385,10 +419,12 @@ export const PANEL_SCRIPT = `
   }, { passive: false });
   root.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    const logNode = event.target.closest('[data-logpick]');
     const node = event.target.closest('[data-reasons]');
-    if (!node) return;
+    if (!logNode && !node) return;
     event.preventDefault();
-    togglePick(node);
+    if (logNode) togglePickLog(logNode);
+    else togglePick(node);
   });
   root.addEventListener('input', function (event) {
     const t = event.target;

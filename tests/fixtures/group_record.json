@@ -1,0 +1,21 @@
+{
+  "keys": ["group"],
+  "cases": [
+    { "memo": "枠の無いパイプ（どの段にも group が無い）",
+      "stages": [ { "name": "a" }, { "name": "b" } ],
+      "written": { "group": { "a": null, "b": null } },
+      "read": { "group": { "a": null, "b": null } } },
+    { "memo": "2 段の枠が前後に段をはさむ",
+      "stages": [ { "name": "a" }, { "name": "b", "group": "research" }, { "name": "c", "group": "research" }, { "name": "d" } ],
+      "written": { "group": { "a": null, "b": "research", "c": "research", "d": null } },
+      "read": { "group": { "a": null, "b": "research", "c": "research", "d": null } } },
+    { "memo": "枠が 1 段だけ",
+      "stages": [ { "name": "a", "group": "solo" }, { "name": "b" } ],
+      "written": { "group": { "a": "solo", "b": null } },
+      "read": { "group": { "a": "solo", "b": null } } },
+    { "memo": "名前の違う 2 つの枠が続く",
+      "stages": [ { "name": "a", "group": "g1" }, { "name": "b", "group": "g1" }, { "name": "c", "group": "g2" }, { "name": "d", "group": "g2" } ],
+      "written": { "group": { "a": "g1", "b": "g1", "c": "g2", "d": "g2" } },
+      "read": { "group": { "a": "g1", "b": "g1", "c": "g2", "d": "g2" } } }
+  ]
+}

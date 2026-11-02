@@ -137,6 +137,20 @@ export interface PipelineNode {
   budget?: NodeBudget | null;
   /** 判定の節（id が check:<段>）だけ。回数と上限・戻り先。ほかは null か無し（D0062） */
   check?: NodeCheck | null;
+  /** 並列の枠の中の段の節だけ、枠の名前。ほかは無し（D0063） */
+  group?: string | null;
+}
+
+/** 並列の枠 1 つ（stages[].group が続く段のまとまり）。 */
+export interface FrameView {
+  /** 枠の名前（記録の group） */
+  name: string;
+  /** 中の段の状態から決める：running > failed > done > pending */
+  status: 'pending' | 'running' | 'done' | 'failed';
+  /** 中の段の名前（stages[] の順） */
+  members: Stage[];
+  /** 中の節の id。段の節のあとに、その段の判定の節（check:<段>）があれば続く */
+  nodeIds: NodeId[];
 }
 
 /** 判定の節の id の頭（check:<段>）。 */
@@ -224,6 +238,12 @@ export interface PipelineView {
   tools?: ToolsTable | null;
   /** パイプの判定（検証）の結果：段の名前 → 古い順の結果（D0062）。無い記録・開発フローでは空 */
   checkResults?: Readonly<Record<Stage, CheckReason[]>>;
+  /** 並列の枠（D0063）。枠の無い記録・開発フローでは空（省いてもよい） */
+  frames?: FrameView[];
+  /** 動いている段の名前（枠の中では同時に複数）。runningStage は既定のログの段で、ここの最後 */
+  runningStages?: Stage[];
+  /** 枠の中の段ごとの、いちばん新しいログの出力（押して選ぶ欄の元） */
+  groupLogs?: Readonly<Record<Stage, TerminalView>>;
 }
 
 /** 図の状態の組み立て方。 */
@@ -388,11 +408,22 @@ function readLogs(stageLogs: WorkDirSnapshot['stageLogs'], withCalls: boolean): 
   return logs.sort((a, b) => a.name.seq - b.name.seq || (a.fileName < b.fileName ? -1 : a.fileName > b.fileName ? 1 : 0));
 }
 
-/** 動いている段のログ（FR-07）：Prompt があり終わっておらず、state.json に載った最大の通し番号より後ろのもの。 */
-function findRunningLog(logs: ReadLog[], record: RunRecord): ReadLog | null {
+/**
+ * 動いている段のログ（FR-07）を通し番号の昇順で返す：Prompt があり終わっておらず、
+ * (a) state.json に載った最大の通し番号より後ろのもの、または
+ * (b) 枠（stages[].group）の中の段で、state.json に同じ通し番号の実行がまだ載っていないもの（D0063）。
+ * (b) は、枠の中で先に済んだ段の通し番号のほうが大きくても、まだ動いている段を落とさないため。
+ * 枠の外の段は今までどおり (a) の最後の 1 つだけ。枠の無い記録・開発フローでは今までと同じ結果になる。
+ */
+function findRunningLogs(logs: ReadLog[], record: RunRecord): ReadLog[] {
   const maxSeq = record.stageRuns.reduce((max, run) => Math.max(max, run.seq), 0);
-  const candidates = logs.filter(({ name, log }) => log.hasPrompt && !log.finished && name.seq > maxSeq);
-  return candidates.at(-1) ?? null;
+  const doneSeqs = new Set(record.stageRuns.map((run) => run.seq));
+  const grouped = new Set((record.stages ?? []).filter((s) => s.group !== null).map((s) => s.name));
+  const open = logs.filter(({ log }) => log.hasPrompt && !log.finished);
+  const inFrame = open.filter(({ name }) => grouped.has(name.stage) && !doneSeqs.has(name.seq));
+  const lastPlain = open.filter(({ name }) => !grouped.has(name.stage) && name.seq > maxSeq).at(-1);
+  // 枠の中の段は (a) のとき（maxSeq より後ろ）も (b) に含まれる（実行が載っていないため）
+  return [...inFrame, ...(lastPlain === undefined ? [] : [lastPlain])].sort((a, b) => a.name.seq - b.name.seq);
 }
 
 function sumMetrics(runs: StageRun[]): StageMetrics | null {
@@ -427,14 +458,14 @@ function makeNode(id: NodeId, status: NodeStatus, extra: Partial<PipelineNode> =
 function stageNode(
   stage: Stage,
   record: RunRecord,
-  runningStage: Stage | null,
+  running: ReadonlySet<Stage>,
   extraNode: Partial<PipelineNode> = {},
   countSendBack = false,
 ): PipelineNode {
   const runs = record.stageRuns.filter((r) => r.stage === stage);
   const last = runs.at(-1);
   const status: NodeStatus =
-    runningStage === stage ? 'running' : last === undefined ? 'pending' : last.isError ? 'failed' : 'done';
+    running.has(stage) ? 'running' : last === undefined ? 'pending' : last.isError ? 'failed' : 'done';
   // 動いている段には上限の表示を出さない（動いている間の費用はまだ記録に無い）
   const extra: Partial<PipelineNode> = {
     metrics: sumMetrics(runs),
@@ -465,15 +496,15 @@ function reviewNode(id: NodeId, stage: Stage, laterStages: readonly Stage[], rec
   return makeNode(id, status, { label: '確認', reviseCount: reviews.filter((r) => r.action === 'revise').length });
 }
 
-function verdictNode(record: RunRecord, runningStage: Stage | null): PipelineNode {
+function verdictNode(record: RunRecord, running: ReadonlySet<Stage>): PipelineNode {
   const last = record.verdicts.at(-1);
   // 差し戻しのやり直し（実装・検証が動いている、または前回の判定より後の回の実装がある）なら、前回の判定はもう古い
   const latestImplement = record.stageRuns
     .filter((r) => r.stage === 'implement')
     .reduce((max, r) => Math.max(max, r.attempt ?? 0), 0);
   const retrying =
-    runningStage === 'implement' ||
-    runningStage === 'test' ||
+    running.has('implement') ||
+    running.has('test') ||
     (last !== undefined && last.attempt !== null && latestImplement > last.attempt);
   const status: NodeStatus =
     last === undefined || retrying ? 'pending' : last.status === 'pass' ? 'done' : 'failed';
@@ -484,16 +515,16 @@ function verdictNode(record: RunRecord, runningStage: Stage | null): PipelineNod
  * 判定の節（check:<段>）。状態は最新の検証で決まる（pass は完了、fail は失敗）。
  * 検証がまだ無い・段が動いている・やり直したがまだ検証されていない・前の段へ戻して別の段が動いている間は、まだ。
  */
-function checkNode(def: StageDef, record: RunRecord, runningStage: Stage | null): PipelineNode {
+function checkNode(def: StageDef, record: RunRecord, running: ReadonlySet<Stage>): PipelineNode {
   const results = record.checks.filter((c) => c.stage === def.name);
   const rounds = results.map((c, i) => c.attempt ?? i + 1);
   const last = results.at(-1);
   const runCount = record.stageRuns.filter((r) => r.stage === def.name).length;
   const status: NodeStatus =
     last === undefined ||
-    runningStage === def.name ||
+    running.has(def.name) ||
     runCount > results.length ||
-    (last.status === 'fail' && runningStage !== null)
+    (last.status === 'fail' && running.size > 0)
       ? 'pending'
       : last.status === 'pass'
         ? 'done'
@@ -526,18 +557,18 @@ function inputStatus(snapshot: WorkDirSnapshot): NodeStatus {
 }
 
 /** 開発フローの11節（判定と差し戻しあり）。 */
-function buildDevNodes(snapshot: WorkDirSnapshot, record: RunRecord, runningStage: Stage | null): PipelineNode[] {
+function buildDevNodes(snapshot: WorkDirSnapshot, record: RunRecord, running: ReadonlySet<Stage>): PipelineNode[] {
   return [
     makeNode('input', inputStatus(snapshot)),
-    stageNode('requirements', record, runningStage),
+    stageNode('requirements', record, running),
     reviewNode('review:requirements', 'requirements', STAGES_AFTER_REVIEW.requirements, record),
-    stageNode('design', record, runningStage),
+    stageNode('design', record, running),
     reviewNode('review:design', 'design', STAGES_AFTER_REVIEW.design, record),
-    stageNode('red', record, runningStage),
+    stageNode('red', record, running),
     reviewNode('review:red', 'red', STAGES_AFTER_REVIEW.red, record),
-    stageNode('implement', record, runningStage, {}, true),
-    stageNode('test', record, runningStage),
-    verdictNode(record, runningStage),
+    stageNode('implement', record, running, {}, true),
+    stageNode('test', record, running),
+    verdictNode(record, running),
     finalNode(record),
   ];
 }
@@ -550,13 +581,13 @@ function buildPipeNodes(
   snapshot: WorkDirSnapshot,
   record: RunRecord,
   stages: StageDef[],
-  runningStage: Stage | null,
+  running: ReadonlySet<Stage>,
 ): PipelineNode[] {
   const nodes = [makeNode('input', inputStatus(snapshot), { label: '依頼メモ' })];
   stages.forEach((s, i) => {
-    nodes.push(stageNode(s.name, record, runningStage, { label: s.label }));
+    nodes.push(stageNode(s.name, record, running, { label: s.label, ...(s.group !== null ? { group: s.group } : {}) }));
     // 判定のある段のすぐあと（確認の節より前。確認は判定に通ってから）
-    if (s.check !== null) nodes.push(checkNode(s, record, runningStage));
+    if (s.check !== null) nodes.push(checkNode(s, record, running));
     const hasReview = s.review ?? record.reviews.some((r) => r.stage === s.name);
     if (hasReview) {
       const later = stages.slice(i + 1).map((x) => x.name);
@@ -565,6 +596,66 @@ function buildPipeNodes(
   });
   nodes.push(finalNode(record));
   return nodes;
+}
+
+/**
+ * 並列の枠：stages[] を前から見て、同じ group が続く段を 1 つの枠にまとめる（D0063）。間に別の段が入れば別の枠。
+ * 枠の中の節の id は、段の節のあとにその段の判定の節（check:<段>）が続く。確認の節は枠に入れない。
+ * 状態は running > failed > done > pending（skipped は pending と同じ）。group の無い記録・開発フローでは空。
+ */
+function buildFrames(stages: readonly StageDef[], nodes: readonly PipelineNode[]): FrameView[] {
+  const statusOf = new Map(nodes.map((n) => [n.id, n.status] as const));
+  // 同じ group が続く段を束ねる（group の無い段で切れる）
+  const runs: { name: string; defs: StageDef[] }[] = [];
+  let prev: StageDef | null = null;
+  for (const s of stages) {
+    if (s.group !== null) {
+      if (prev !== null && prev.group === s.group) runs[runs.length - 1]?.defs.push(s);
+      else runs.push({ name: s.group, defs: [s] });
+    }
+    prev = s;
+  }
+  return runs.map(({ name, defs }) => {
+    const members = defs.map((d) => d.name);
+    const nodeIds = defs.flatMap((d) => (d.check !== null ? [d.name, `${CHECK_NODE_PREFIX}${d.name}`] : [d.name]));
+    const statuses = members.map((m) => statusOf.get(m) ?? 'pending');
+    const status: FrameView['status'] = statuses.includes('running')
+      ? 'running'
+      : statuses.includes('failed')
+        ? 'failed'
+        : statuses.every((s) => s === 'done')
+          ? 'done'
+          : 'pending';
+    return { name, status, members, nodeIds };
+  });
+}
+
+/** 枠の中の段ごとの、いちばん新しいログ（通し番号が最大）。ログが無い段は空。 */
+function buildGroupLogs(frames: readonly FrameView[], logs: readonly ReadLog[]): Record<Stage, TerminalView> {
+  const out: Record<Stage, TerminalView> = {};
+  for (const frame of frames) {
+    for (const stage of frame.members) {
+      const latest = logs.filter((l) => l.name.stage === stage).at(-1);
+      out[stage] = latest ? { source: latest.name, items: latest.log.items } : { source: null, items: [] };
+    }
+  }
+  return out;
+}
+
+/** 押してログを選べる段（全部の枠の中の段）。 */
+export function pickableLogStages(view: PipelineView): Stage[] {
+  return (view.frames ?? []).flatMap((f) => f.members);
+}
+
+/**
+ * 右の欄に出すログ。選んだ段が枠の中の段なら、その段のいちばん新しいログ。
+ * 枠の外・記録に無い・null は既定のログ（view.terminal）で、stage は null。
+ */
+export function terminalFor(view: PipelineView, pickedStage: Stage | null): { terminal: TerminalView; stage: Stage | null } {
+  if (pickedStage !== null && pickableLogStages(view).includes(pickedStage)) {
+    return { terminal: view.groupLogs?.[pickedStage] ?? { source: null, items: [] }, stage: pickedStage };
+  }
+  return { terminal: view.terminal, stage: null };
 }
 
 function stageLabelsOf(record: RunRecord, dev: boolean): Readonly<Record<Stage, string>> {
@@ -603,18 +694,20 @@ function quietSecOf(logs: ReadLog[], running: ReadLog | null, clock: ViewClock |
 /** 動いている段の節に runningSec と quietSec、確認待ちの確認の節に waitingSec を付ける（付けられるときだけ）。 */
 function withLiveSeconds(
   nodes: PipelineNode[],
-  runningLog: ReadLog | null,
+  runningLogs: readonly ReadLog[],
   pending: RunRecord['pendingReview'],
   quietSec: number | null,
   clock: ViewClock | undefined,
 ): PipelineNode[] {
-  const runningSec = runningLog === null ? null : secondsSince(runningLog.log.startedAt, clock);
+  // 動いている段ごとに、そのログの始まりからの経過秒（同じ段のログが複数なら通し番号の大きいほう）
+  const secByStage = new Map(runningLogs.map((l) => [l.name.stage, secondsSince(l.log.startedAt, clock)] as const));
   // 動いている段があるあいだは、確認待ちの印は古い。待ち時間は出さない
-  const waitingStage = runningLog === null && pending !== null ? pending.stage : null;
+  const waitingStage = runningLogs.length === 0 && pending !== null ? pending.stage : null;
   const waitingSec = waitingStage === null ? null : secondsSince(pending?.since ?? null, clock);
   return nodes.map((node) => {
     // Prompt の at が無い古い記録（runningSec が null）でも、更新なしの印は出す
-    if ((runningSec !== null || quietSec !== null) && node.id === runningLog?.name.stage) {
+    const runningSec = secByStage.get(node.id) ?? null;
+    if ((runningSec !== null || quietSec !== null) && secByStage.has(node.id)) {
       return { ...node, ...(runningSec !== null ? { runningSec } : {}), ...(quietSec !== null ? { quietSec } : {}) };
     }
     if (waitingSec !== null && node.id === `${REVIEW_NODE_PREFIX}${waitingStage}` && node.status === 'pending') {
@@ -683,15 +776,18 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
   const dev = isDevRecord(record);
   const stageLabels = stageLabelsOf(record, dev);
   const logs = readLogs(snapshot.stageLogs, withTools);
-  const runningLog = findRunningLog(logs, record);
+  const runningLogs = findRunningLogs(logs, record);
+  const runningLog = runningLogs.at(-1) ?? null;
   const runningStage = runningLog?.name.stage ?? null;
+  const runningStages = [...new Set(runningLogs.map((l) => l.name.stage))];
+  const running: ReadonlySet<Stage> = new Set(runningStages);
   const shown = runningLog ?? logs.at(-1) ?? null;
-  const baseNodes = dev
-    ? buildDevNodes(snapshot, record, runningStage)
-    : buildPipeNodes(snapshot, record, record.stages ?? [], runningStage);
+  const pipeStages = dev ? [] : (record.stages ?? []);
+  const baseNodes = dev ? buildDevNodes(snapshot, record, running) : buildPipeNodes(snapshot, record, pipeStages, running);
   // 印の元は 1 つ。節・時系列の帯・一覧の行は、どれもこの値から取る（節が作られない段名でも食い違わない）
   const quietSec = staleEligible(snapshot, record) ? quietSecOf(logs, runningLog, clock) : null;
-  const nodes = withLiveSeconds(baseNodes, runningLog, record.pendingReview, quietSec, clock);
+  const nodes = withLiveSeconds(baseNodes, runningLogs, record.pendingReview, quietSec, clock);
+  const frames = buildFrames(pipeStages, nodes);
 
   // 項目の有無だけ見る（値が新旧どちらの形でも同じ。symlink の 00_input.md は写しに項目が無い）
   const noRecords =
@@ -744,5 +840,8 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
     }),
     tools: withTools ? buildTools(logs, runningLog, record, stageLabels) : null,
     checkResults: buildCheckResults(record),
+    frames,
+    runningStages,
+    groupLogs: buildGroupLogs(frames, logs),
   };
 }

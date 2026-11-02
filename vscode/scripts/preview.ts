@@ -26,6 +26,8 @@ import {
   buildOmittedTree,
   checkPageHtml,
   checkSampleKind,
+  groupPageHtml,
+  groupSampleKind,
   buildRunsTree,
   panelKind,
   panelPreviewHtml,
@@ -229,6 +231,13 @@ for (const [page, theme] of PANEL_PAGES) {
     const checkKind = checkSampleKind(page);
     if (checkKind === null) throw new Error(`判定の見本の種類が読めません: ${page}`);
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('check', (dest) => checkPageHtml(dest, checkKind, theme)), 'utf8');
+    continue;
+  }
+  // 並列の枠の見本（D0063）：枠の中が同時に動く・完了と失敗と判定のやり直し・group の無い古い記録の 3 つ。記録とログは一時フォルダの中に書いて読む
+  if (kind === 'group') {
+    const groupKind = groupSampleKind(page);
+    if (groupKind === null) throw new Error(`並列の枠の見本の種類が読めません: ${page}`);
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('group', (dest) => groupPageHtml(dest, groupKind, theme)), 'utf8');
     continue;
   }
   // 上限と費用の表の見本（D0051）：10 段のパイプの記録を一時フォルダの中に書いて読む

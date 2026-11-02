@@ -23,6 +23,8 @@ import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
 import { budgetStateJson } from './budgetSamples.ts';
 import { checkStateJson } from './checkSamples.ts';
 import type { CheckSampleKind } from './checkSamples.ts';
+import { GROUP_BASE_AT, groupLogs, groupStateJson } from './groupSamples.ts';
+import type { GroupSampleKind } from './groupSamples.ts';
 import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
 import { bareRecordSample, freshSample, sdkSample, skillRecordSample } from './toolsSamples.ts';
 import type { SampleRun, ToolsVariant } from './toolsSamples.ts';
@@ -56,7 +58,7 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
  * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check' | 'group';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -84,7 +86,19 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-check-back-dark', 'dark'],
   ['run-panel-check-old-light', 'light'],
   ['run-panel-check-old-dark', 'dark'],
+  ['run-panel-group-running-light', 'light'],
+  ['run-panel-group-running-dark', 'dark'],
+  ['run-panel-group-failed-light', 'light'],
+  ['run-panel-group-failed-dark', 'dark'],
+  ['run-panel-group-old-light', 'light'],
+  ['run-panel-group-old-dark', 'dark'],
 ];
+
+/** 並列の枠の見本のページ（run-panel-group-<種類>-<テーマ>）の種類。ほかのページなら null。 */
+export function groupSampleKind(page: string): GroupSampleKind | null {
+  const m = /^run-panel-group-(running|failed|old)-/.exec(page);
+  return m === null ? null : (m[1] as GroupSampleKind);
+}
 
 /** 判定の見本のページ（run-panel-check-<種類>-<テーマ>）の種類。ほかのページなら null。 */
 export function checkSampleKind(page: string): CheckSampleKind | null {
@@ -97,6 +111,7 @@ export function panelKind(page: string): PanelKind {
   if (page.includes('-tools-')) return 'tools';
   if (page.includes('-budget-')) return 'budget';
   if (checkSampleKind(page) !== null) return 'check';
+  if (groupSampleKind(page) !== null) return 'group';
   if (page.includes('-artifacts-')) return 'artifacts';
   if (page.includes('-stale-soon-')) return 'stale-soon';
   if (page.includes('-stale-')) return 'stale';
@@ -276,6 +291,31 @@ export async function buildCheckDir(dest: string, kind: CheckSampleKind): Promis
 export async function checkPageHtml(dest: string, kind: CheckSampleKind, theme: Theme): Promise<string> {
   const view = await readShowcaseView(await buildCheckDir(dest, kind));
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
+}
+
+// ---- 並列の枠の見本（D0063）-------------------------------------------------------------------
+// 見本の記録と段のログ（groupSamples.ts）を一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。tests/fixtures/ には書かない。
+
+/** 並列の枠の見本の記録と段のログを dest の中に書き、その docs/pipeline の絶対パスを返す。 */
+export async function buildGroupDir(dest: string, kind: GroupSampleKind): Promise<string> {
+  const dir = path.join(dest, 'docs', 'pipeline');
+  await mkdir(path.join(dir, 'logs'), { recursive: true });
+  await writeFile(path.join(dir, 'state.json'), groupStateJson(kind), 'utf8');
+  await writeFile(path.join(dir, '00_input.md'), '並列の枠を実行の図に出す見本\n', 'utf8');
+  for (const log of groupLogs(kind)) await writeFile(path.join(dir, 'logs', log.fileName), log.text, 'utf8');
+  return dir;
+}
+
+/**
+ * 並列の枠の見本の確認用ページ。一時フォルダ（dest）に書いた見本を、本物の読み取りで読んで HTML にする。
+ * 動いている見本（running）は「今」を始まりから RUNNING_SEC 秒後に固定し、ログの更新時刻をそれにそろえる（更新なしの印が出ないように）。
+ */
+export async function groupPageHtml(dest: string, kind: GroupSampleKind, theme: Theme): Promise<string> {
+  const dir = await buildGroupDir(dest, kind);
+  if (kind !== 'running') return panelPreviewHtml(await readShowcaseView(dir), theme, undefined, STALE_AFTER_SEC);
+  const clock = previewClock(GROUP_BASE_AT, RUNNING_SEC);
+  await setLogTimes(dir, clock.nowMs);
+  return panelPreviewHtml(await readShowcaseView(dir, clock), theme, undefined, STALE_AFTER_SEC);
 }
 
 // ---- 実行の一覧の見本（D0019）----------------------------------------------------------------

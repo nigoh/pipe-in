@@ -116,6 +116,10 @@ class BasePipeline:
         """段の名前 → {"on_fail": 段の名前 | None, "max_retries": int}。判定のある段だけ。既定は空。"""
         return {}
 
+    def _stage_groups(self) -> dict[str, str]:
+        """段の名前 → 枠（並列の束）の名前。枠の中の段だけ。既定は空。"""
+        return {}
+
     def _summary_extra(self) -> list[str]:
         """まとめに足す節（開発フローのテストの判定など）。"""
         return []
@@ -156,9 +160,17 @@ class BasePipeline:
         if self.name is not None:
             state["name"] = self.name
         checks = self._stage_checks()
+        groups = self._stage_groups()
         state |= {
             "stages": [
-                {"name": n, "label": s.label, "output": s.output, "review": s.review, **({"check": checks[n]} if n in checks else {})}
+                {
+                    "name": n,
+                    "label": s.label,
+                    "output": s.output,
+                    "review": s.review,
+                    **({"check": checks[n]} if n in checks else {}),
+                    **({"group": groups[n]} if n in groups else {}),
+                }
                 for n, s in self.specs.items()
             ],
             # 確認待ちは終わりではないので final は空のまま（pending_review を見る）
