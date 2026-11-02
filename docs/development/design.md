@@ -14,7 +14,7 @@
 | 設定の読み込み（`max_budget_usd` の値の検査もここ。`pipe.toml` 側も同じ判定と文を使う） | `pipe_in/engine/config.py` |
 | セッション名の取り方と、セッション ID・受け持ちの検査（標準ライブラリだけ。拡張の `sessionName.ts` と同じ規則を、同じ表で確かめる） | `pipe_in/engine/session.py`・共通の表 `tests/fixtures/session_names.json` |
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
-| 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みなし）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
+| 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
 | パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/`（警告は `lint.py`。誤りの検査 `check_pipe` とは別で、`definition` だけを読む） |

@@ -2,11 +2,15 @@
 
 HTML は1枚で完結し、外部の読み込みが無く、外から来た文字を入れない。ここは文字の検査（構造・CSS・禁止語）。
 ページの JS の動きは tests/test_live_page_js.py（Node で動かす）。
+
+D0059：ブランド「プラグ」を入れた。外部の読み込みは、Google Fonts の <link> 2本（計画ボードと同じ文字）と、アイコンを作る
+createElementNS の SVG の名前空間の文字列 1 か所だけ許す（without_allowed が、この許した文字だけを取り除く）。それ以外は今までどおり禁止。
 """
 
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import re
 from pathlib import Path
@@ -18,6 +22,9 @@ from pipe_in.engine import live, live_page
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_PAGE_BYTES = 40 * 1024
+BOARD = ROOT / ".claude" / "skills" / "pipe-plan" / "board.html"
+DESIGN_README = ROOT / "docs" / "design" / "README.md"
+SVG_NS = "http://www.w3.org/2000/svg"
 
 
 @pytest.fixture(scope="module")
@@ -98,15 +105,44 @@ EXTERNAL = [
 ]
 
 
+def board_font_links() -> list[str]:
+    """計画ボード（.claude/skills/pipe-plan/board.html）の <head> にある Google Fonts の <link> 2本の文字（読むだけ）。"""
+    head = BOARD.read_text(encoding="utf-8").split("<style>", 1)[0]
+    links = re.findall(r"<link\b[^>]*>", head)
+    assert len(links) == 2 and all("fonts.googleapis.com" in x for x in links), links
+    return links
+
+
+def without_allowed(page: str) -> str:
+    """D0059：許した外部の文字だけを取り除いた HTML を返す。許すのは次の2つだけ（広げない）。
+    ・Google Fonts の <link> 2本（board.html と完全に同じ文字。1本ずつ最初の1か所だけ取り除く）
+    ・JS の SVG の名前空間の文字列 1 か所（createElementNS の第1引数に使う定数の定義、か第1引数そのもの。最初の1か所だけ）
+    取り除いたあとに、今までの禁止語（<link・http://・url( など）を全部かける。3本目の <link> や2か所目の URL は残るので、禁止語に当たる。"""
+    out = page
+    for link in board_font_links():
+        out = out.replace(link, "", 1)
+    definition = re.search(r"""\b(?:var|let|const)\s+SVG_NS\s*=\s*(["'])%s\1""" % re.escape(SVG_NS), out)
+    literal = re.search(r"""createElementNS\(\s*(["'])%s\1""" % re.escape(SVG_NS), out)
+    found = definition or literal
+    if found:
+        out = out[: found.start()] + found.group(0).replace(SVG_NS, "", 1) + out[found.end() :]
+    return out
+
+
+@pytest.fixture(scope="module")
+def stripped(html) -> str:
+    return without_allowed(html)
+
+
 @pytest.mark.parametrize("token", EXTERNAL, ids=repr)
-def test_d0027_ac47_page_has_no_external_loading(html, token):
-    """D0027-AC-47: HTML に外部の読み込み（script src・link・@import・url()・http(s)・iframe・img・fetch・XHR・WebSocket など）が無い。"""
-    assert token.lower() not in html.lower()
+def test_d0027_ac47_page_has_no_external_loading(stripped, token):
+    """D0027-AC-47・D0059-AC-06: 許した文字（Google Fonts の link 2本と SVG の名前空間 1 か所）を除いて、HTML に外部の読み込み（script src・link・@import・url()・http(s)・iframe・img・fetch・XHR・WebSocket など）が無い。"""
+    assert token.lower() not in stripped.lower()
 
 
-def test_d0027_ac47_no_url_like_text_anywhere(html):
-    """D0027-AC-47: スキーム付きの URL（http: ftp: data: javascript: blob: file: ws:）が、文字としても入っていない。"""
-    assert not re.search(r"\b(?:https?|ftp|wss?|data|javascript|blob|file|mailto):", html, re.I)
+def test_d0027_ac47_no_url_like_text_anywhere(stripped):
+    """D0027-AC-47・D0059-AC-06: 許した文字を除いて、スキーム付きの URL（http: ftp: data: javascript: blob: file: ws:）が、文字としても入っていない。"""
+    assert not re.search(r"\b(?:https?|ftp|wss?|data|javascript|blob|file|mailto):", stripped, re.I)
 
 
 def test_d0027_ac47_exactly_one_script_and_one_style(html):
@@ -115,6 +151,40 @@ def test_d0027_ac47_exactly_one_script_and_one_style(html):
     assert len(re.findall(r"</script", html, re.I)) == 1
     assert len(re.findall(r"<style\b", html, re.I)) == 1
     assert not re.search(r"<script[^>]*\b(?:src|type|async|defer|nomodule|integrity|crossorigin)\b", html, re.I)
+
+
+def test_d0059_ac06_only_the_allowed_external_text(html):
+    """D0059-AC-06: 外部の文字は、board.html と同じ Google Fonts の <link> 2本（<head> の中）と、SVG の名前空間 1 か所（createElementNS の第1引数）だけ。"""
+    links = board_font_links()
+    for link in links:
+        assert html.count(link) == 1, f"board.html と同じ link がページに1本ずつ無い: {link}"
+    assert len(re.findall(r"<link\b", html, re.I)) == 2
+    head = html.split("</head>", 1)[0]
+    assert all(link in head for link in links), "link は <head> の中に置く"
+    urls = re.findall(r"https?://[^\s\"'<>)]+", html)
+    fonts = [u for u in urls if u.startswith("https://fonts.googleapis.com")]
+    others = [u for u in urls if not u.startswith("https://fonts.googleapis.com")]
+    assert others == [SVG_NS], f"許したもの以外の URL: {others}"
+    assert len(fonts) == 2
+    script = parts(html)[1]
+    assert script.count(SVG_NS) == 1 and html.count(SVG_NS) == 1
+    calls = re.findall(r"createElementNS\(\s*([^,)]+),", script)
+    assert calls, "createElementNS を呼んでいない（アイコンを作っていない）"
+    assert all(first.strip() in ("SVG_NS", f'"{SVG_NS}"') for first in calls), calls
+    if "SVG_NS" in calls:
+        assert re.search(r"""\b(?:var|let|const)\s+SVG_NS\s*=\s*"%s"\s*;""" % re.escape(SVG_NS), script)
+
+
+def test_d0059_ac06_the_allowance_is_exact_and_does_not_widen(html):
+    """D0059-AC-06: 許可の取り除きは厳密：3本目の link や、2か所目の名前空間・別の URL は取り除かれず、禁止語に当たる。"""
+    extra_link = html + '<link rel="stylesheet" href="https://evil.example/x.css">'
+    assert "<link" in without_allowed(extra_link).lower() and "https://" in without_allowed(extra_link)
+    twice = html + f"<!-- {SVG_NS} -->"
+    assert "http://" in without_allowed(twice)
+    other_ns = html + "<!-- http://www.w3.org/1999/xhtml -->"
+    assert "http://" in without_allowed(other_ns)
+    changed = html.replace("display=swap", "display=block", 1) if "display=swap" in html else html + "<link>"
+    assert "<link" in without_allowed(changed).lower(), "board.html と違う link は許さない"
 
 
 def test_d0027_ac47_script_text_cannot_close_itself(html):
@@ -248,7 +318,10 @@ def test_d0027_ac51_ids_are_unique(html):
 
 # ---- AC-52 色のトークン ------------------------------------------------------------------------------------
 
-TOKENS = ["--bg", "--fg", "--muted", "--line", "--run", "--review", "--ok", "--ng"]
+# D0059：デザイン「プラグ」の 11 の役（docs/design/README.md の色の表）と、計画ボードと同じ補助のトークン
+TOKENS = ["--bg", "--panel", "--col", "--line", "--fg", "--muted", "--coral", "--teal", "--blue", "--bad", "--ok"]
+SUPPORT_TOKENS = ["--coral-soft", "--coral-text", "--on-coral", "--teal-soft", "--teal-text", "--ok-soft", "--ok-text", "--bad-soft", "--bad-text", "--shadow"]
+OLD_TOKEN_NAMES = ["--run", "--review", "--ng"]
 
 
 def css_of(page: str) -> str:
@@ -273,21 +346,67 @@ def data_theme_block(css: str, theme: str) -> str:
     return m.group(1) if m else ""
 
 
-def test_d0027_ac52_color_tokens_light_and_dark(html):
-    """D0027-AC-52: ライトの色は :root のトークン、ダークは prefers-color-scheme: dark と [data-theme="dark"]、ライトの強制は [data-theme="light"]。"""
-    css = css_of(html)
-    light = declarations(root_block(css))
-    assert set(TOKENS) <= set(light), f"ライトに無いトークン: {set(TOKENS) - set(light)}"
+def theme_blocks(css: str) -> dict[str, dict[str, str]]:
+    """4つのブロックの宣言：light（:root 既定）・dark_auto（prefers-color-scheme: dark の :root:not([data-theme="light"])）・dark（強制）・light_forced。"""
     media = dark_media_block(css)
-    assert ':root:not([data-theme="light"])' in media.replace("'", '"')
-    dark_auto = declarations(media)
-    dark_forced = declarations(data_theme_block(css, "dark"))
-    light_forced = declarations(data_theme_block(css, "light"))
-    for name, block in (("dark(media)", dark_auto), ("dark(forced)", dark_forced), ("light(forced)", light_forced)):
-        assert set(TOKENS) <= set(block), f"{name} に無いトークン: {set(TOKENS) - set(block)}"
-    assert {k: dark_auto[k] for k in TOKENS} == {k: dark_forced[k] for k in TOKENS}, "自動のダークと強制のダークで色が違う"
-    assert {k: light_forced[k] for k in TOKENS} == {k: light[k] for k in TOKENS}, "強制のライトと既定のライトで色が違う"
-    assert dark_forced["--bg"] != light["--bg"] and dark_forced["--fg"] != light["--fg"]
+    assert ':root:not([data-theme="light"])' in media.replace("'", '"'), "prefers-color-scheme: dark の中に :root:not([data-theme=\"light\"]) が無い"
+    return {
+        "light": declarations(root_block(css)),
+        "dark_auto": declarations(media),
+        "dark": declarations(data_theme_block(css, "dark")),
+        "light_forced": declarations(data_theme_block(css, "light")),
+    }
+
+
+def design_color_table() -> dict[str, tuple[str, str]]:
+    """docs/design/README.md の色の表：{--名前: (明るい, 暗い)}（読むだけ）。"""
+    text = DESIGN_README.read_text(encoding="utf-8")
+    rows = re.findall(r"\|\s*[^|]*\|\s*`(--[\w-]+)`\s*\|\s*`(#[0-9a-fA-F]{6})`\s*\|\s*`(#[0-9a-fA-F]{6})`\s*\|", text)
+    return {name: (light.lower(), dark.lower()) for name, light, dark in rows}
+
+
+def test_d0059_ac01_color_tokens_light_and_dark(html):
+    """D0059-AC-01: 11 の役が #rrggbb で :root（明るい既定）に定義され、暗い値は prefers-color-scheme: dark と [data-theme="dark"] で同じ、[data-theme="light"] は既定と同じ。"""
+    blocks = theme_blocks(css_of(html))
+    for name, block in blocks.items():
+        assert set(TOKENS) <= set(block), f"{name} に無いトークン: {sorted(set(TOKENS) - set(block))}"
+        for token in TOKENS:
+            assert re.fullmatch(r"#[0-9a-fA-F]{6}", block[token]), (name, token, block[token])
+    assert {k: blocks["dark_auto"][k] for k in TOKENS} == {k: blocks["dark"][k] for k in TOKENS}, "自動のダークと強制のダークで色が違う"
+    assert {k: blocks["light_forced"][k] for k in TOKENS} == {k: blocks["light"][k] for k in TOKENS}, "強制のライトと既定のライトで色が違う"
+    assert blocks["dark"]["--bg"] != blocks["light"]["--bg"] and blocks["dark"]["--fg"] != blocks["light"]["--fg"]
+
+
+def test_d0059_ac01_values_match_the_design_table(html):
+    """D0059-AC-01: 11 の役の値が、docs/design/README.md の色の表（明るい・暗い）と一致する。"""
+    table = design_color_table()
+    assert set(TOKENS) <= set(table), f"色の表が読めない: {sorted(set(TOKENS) - set(table))}"
+    blocks = theme_blocks(css_of(html))
+    for token in TOKENS:
+        light, dark = table[token]
+        assert blocks["light"][token].lower() == light, (token, blocks["light"][token], light)
+        assert blocks["light_forced"][token].lower() == light, (token, "light_forced")
+        assert blocks["dark"][token].lower() == dark, (token, blocks["dark"][token], dark)
+        assert blocks["dark_auto"][token].lower() == dark, (token, "dark_auto")
+
+
+def board_blocks() -> dict[str, dict[str, str]]:
+    """計画ボード（board.html）の明るい・暗い（強制）のトークン（読むだけ）。"""
+    css = strip_comments(parts(BOARD.read_text(encoding="utf-8"))[0])
+    return {"light": declarations(root_block(css)), "dark": declarations(data_theme_block(css, "dark"))}
+
+
+def test_d0059_ac02_support_tokens_match_board(html):
+    """D0059-AC-02: 補助のトークン（coral-soft・coral-text・on-coral・teal-soft・teal-text・ok-soft・ok-text・bad-soft・bad-text・shadow）が明暗の4ブロックで定義され、値が board.html と一致する。--col は board の --panel-2。"""
+    board = board_blocks()
+    blocks = theme_blocks(css_of(html))
+    norm = lambda v: " ".join(v.split()).lower()  # noqa: E731
+    for name, block in blocks.items():
+        assert set(SUPPORT_TOKENS) <= set(block), f"{name} に無い補助のトークン: {sorted(set(SUPPORT_TOKENS) - set(block))}"
+        ref = board["dark"] if name.startswith("dark") else board["light"]
+        for token in SUPPORT_TOKENS:
+            assert norm(block[token]) == norm(ref[token]), (name, token, block[token], ref[token])
+        assert norm(block["--col"]) == norm(ref["--panel-2"]), (name, "--col は board の --panel-2")
 
 
 COLOR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\(")
@@ -339,15 +458,79 @@ def contrast(a: str, b: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
+def contrast_failures(tokens: dict[str, str]) -> list[str]:
+    """D0059-AC-04 の組を測り、足りないものの一覧を返す（足りなければ空）。"""
+    bad = []
+    for fg in ("--fg", "--muted"):
+        for bg in ("--bg", "--panel"):
+            if contrast(tokens[fg], tokens[bg]) < 4.5:
+                bad.append(f"{fg} on {bg}")
+    for kind in ("coral", "teal", "ok", "bad"):
+        if contrast(tokens[f"--{kind}-text"], tokens[f"--{kind}-soft"]) < 4.5:
+            bad.append(f"--{kind}-text on --{kind}-soft")
+        if contrast(tokens[f"--{kind}"], tokens["--bg"]) < 3.0:
+            bad.append(f"--{kind} on --bg")
+    if contrast(tokens["--on-coral"], tokens["--coral"]) < 4.5:
+        bad.append("--on-coral on --coral")
+    return bad
+
+
 @pytest.mark.parametrize("theme", ["light", "dark"])
-def test_d0027_ac52_text_colors_are_readable_on_the_background(html, theme):
-    """D0027-AC-52: 本文と補助の文字は、背景に対して WCAG の 4.5 以上、状態の色は 3 以上のコントラスト（色トークンは 16 進で書く）。"""
+def test_d0059_ac04_contrast(html, theme):
+    """D0059-AC-04: 明暗それぞれで、fg・muted は bg と panel に 4.5 以上、状態の文字（coral/teal/ok/bad-text）は soft の地に 4.5 以上、
+    アイコンと枠の色（coral・teal・ok・bad）は bg に 3 以上、on-coral は coral に 4.5 以上（色トークンは 16 進で書く）。"""
+    blocks = theme_blocks(css_of(html))
+    tokens = blocks["light"] if theme == "light" else blocks["dark"]
+    needed = [*TOKENS, *SUPPORT_TOKENS]
+    assert set(needed) <= set(tokens), f"{theme} に無いトークン: {sorted(set(needed) - set(tokens))}"
+    assert contrast_failures(tokens) == []
+
+
+@pytest.mark.parametrize("theme", [0, 1], ids=["light", "dark"])
+def test_d0059_ac04_the_design_values_themselves_pass_the_contrast(theme):
+    """D0059-AC-04: 今のままで通る（設計の値そのものが基準を満たすことの確認。docs/design/README.md の表と board.html の値で測る。足りなければ、値は変えずに親へ知らせる）。"""
+    table = design_color_table()
+    board = board_blocks()["light" if theme == 0 else "dark"]
+    tokens = {name: table[name][theme] for name in TOKENS}
+    tokens.update({name: board[name] for name in SUPPORT_TOKENS})
+    assert contrast_failures(tokens) == []
+
+
+def test_d0059_ac04_contrast_check_catches_a_failure():
+    """D0059-AC-04: 測る組の一覧そのものが、足りない組を見つける（検査の自己検査）。"""
+    table = design_color_table()
+    board = board_blocks()["light"]
+    tokens = {name: table[name][0] for name in TOKENS}
+    tokens.update({name: board[name] for name in SUPPORT_TOKENS})
+    tokens["--muted"] = "#bbbbbb"
+    assert "--muted on --bg" in contrast_failures(tokens)
+
+
+def test_d0059_ac03_rgba_only_in_shadow_definition(html):
+    """D0059-AC-03: --shadow が明暗の4ブロックにあり、rgba() は --shadow の定義の中だけ（ほかの所に rgb( rgba( が無い）。"""
     css = css_of(html)
-    tokens = declarations(root_block(css)) if theme == "light" else declarations(data_theme_block(css, "dark"))
-    assert contrast(tokens["--fg"], tokens["--bg"]) >= 4.5
-    assert contrast(tokens["--muted"], tokens["--bg"]) >= 4.5
-    for name in ("--run", "--review", "--ok", "--ng"):
-        assert contrast(tokens[name], tokens["--bg"]) >= 3.0, name
+    blocks = theme_blocks(css)
+    for name, block in blocks.items():
+        assert "--shadow" in block and "rgba(" in block["--shadow"], name
+    rest = re.sub(r"--shadow\s*:\s*[^;}]*;?", "", css)
+    assert not re.search(r"\brgba?\(", rest)
+
+
+def test_d0059_ac03_used_vars_are_defined(html):
+    """D0059-AC-03: 使う var(--…) は、4ブロックのすべてで定義したトークンだけ。新しい役（panel・coral・teal・書体・角・影）が実際に使われている。"""
+    css = css_of(html)
+    used = set(re.findall(r"var\(\s*(--[\w-]+)", css))
+    blocks = theme_blocks(css)
+    defined = set.intersection(*(set(b) for b in blocks.values())) | set(declarations(root_block(css)))
+    assert used <= defined, sorted(used - defined)
+    assert {"--panel", "--coral", "--teal", "--f-body", "--f-mono", "--shadow", "--r-card"} <= used, sorted({"--panel", "--coral", "--teal", "--f-body", "--f-mono", "--shadow", "--r-card"} - used)
+
+
+def test_d0059_ac03_old_token_names_are_gone(html):
+    """D0059-AC-03: 古い名前（--run・--review・--ng）が CSS にも JS にも残っていない。"""
+    searched = css_of(html) + "\n" + parts(html)[1]
+    for name in OLD_TOKEN_NAMES:
+        assert not re.search(re.escape(name) + r"(?![\w-])", searched), name
 
 
 def test_d0027_ac52_contrast_function_is_correct():
@@ -357,7 +540,112 @@ def test_d0027_ac52_contrast_function_is_correct():
     assert contrast("#777", "#fff") < 4.5 < contrast("#595959", "#fff")
 
 
+# ---- D0059-AC-05 書体 ---------------------------------------------------------------------------------------
+
+
+def test_d0059_ac05_two_font_links_in_head(html):
+    """D0059-AC-05: <head> に fonts.googleapis.com への preconnect と stylesheet の <link> がちょうど2本あり、Zen Kaku Gothic New と JetBrains Mono を指す。
+    <title> の後・<style> の前に置く（board.html と同じ文字）。"""
+    head = html.split("</head>", 1)[0]
+    links = re.findall(r"<link\b[^>]*>", head)
+    assert len(links) == 2 and len(re.findall(r"<link\b", html, re.I)) == 2, links
+    pre = [x for x in links if 'rel="preconnect"' in x]
+    sheet = [x for x in links if 'rel="stylesheet"' in x]
+    assert len(pre) == 1 and 'href="https://fonts.googleapis.com"' in pre[0]
+    assert len(sheet) == 1 and 'href="https://fonts.googleapis.com/css2?' in sheet[0]
+    assert "Zen+Kaku+Gothic+New" in sheet[0] and "JetBrains+Mono" in sheet[0]
+    assert head.index("</title>") < head.index(links[0]) < head.index(links[1]) < html.index("<style")
+
+
+def test_d0059_ac05_font_stacks_have_fallbacks(html):
+    """D0059-AC-05: --f-body と --f-mono に代わりの書体が並ぶ（読み込めなくても読める）。"""
+    tokens = declarations(root_block(css_of(html)))
+    body, mono = tokens.get("--f-body", ""), tokens.get("--f-mono", "")
+    for name in ("Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "system-ui"):
+        assert name in body, (name, body)
+    for name in ("JetBrains Mono", "ui-monospace", "Menlo"):
+        assert name in mono, (name, mono)
+    assert body.rstrip().endswith("sans-serif") and mono.rstrip().endswith("monospace")
+
+
+def test_d0059_ac05_body_and_numbers_use_the_font_tokens(html):
+    """D0059-AC-05: 本文は --f-body、経過時間・費用・ターン・時刻（.elapsed .usage .attempt .updated .total）は --f-mono。"""
+    css = css_of(html)
+    body = decls_for(css, "body")
+    assert "var(--f-body)" in body.get("font", "") + body.get("font-family", ""), body
+    for selector in (".elapsed", ".usage", ".attempt", ".updated", ".total"):
+        decl = rule(css, selector)
+        assert "var(--f-mono)" in decl.get("font", "") + decl.get("font-family", ""), (selector, decl)
+
+
+# ---- D0059-AC-10 進み具合の帯（CSS の形） ----------------------------------------------------------------------
+
+
+def seg_rule(css: str, state: str) -> dict[str, str]:
+    """セレクタの最後が .seg-<状態> の規則（.seg-done・.seg.seg-done など。疑似要素つきは含めない）の宣言を重ねて返す。"""
+    merged: dict[str, str] = {}
+    for selectors, decls in css_rules(css):
+        if any(re.search(r"(?:^|[\s>.])seg-%s$" % state, s) or re.search(r"\.seg-%s$" % state, s) for s in selectors):
+            merged.update(decls)
+    return merged
+
+
+def test_d0059_ac10_band_patterns_differ(html):
+    """D0059-AC-10: 帯の区切りの模様が状態ごとに違う：完了＝塗り（--ok）、確認待ち＝斜めの縞（repeating-linear-gradient・coral）、作業中＝点（radial-gradient・teal）、まだ＝無地（--col）。
+    失敗は --bad の塗り、差し戻しは coral の枠、不明は点線の枠。形は互いに違う。"""
+    css = css_of(html)
+    shapes = {}
+    for state in ("done", "review", "running", "waiting", "failed", "revised", "unknown"):
+        decl = seg_rule(css, state)
+        shape = frozenset((k, v) for k, v in decl.items() if k.startswith(("background", "border", "outline")))
+        assert shape, f".seg-{state} に模様（background / border）が無い: {decl}"
+        shapes[state] = shape
+    values = lambda state: " ".join(v for _, v in shapes[state])  # noqa: E731
+    assert "var(--ok)" in values("done") and "gradient" not in values("done")
+    assert "repeating-linear-gradient" in values("review") and "var(--coral)" in values("review")
+    assert "radial-gradient" in values("running") and "var(--teal)" in values("running")
+    assert "var(--col)" in values("waiting") and "gradient" not in values("waiting")
+    assert "var(--bad)" in values("failed")
+    assert "var(--coral)" in values("revised") and "dashed" not in values("revised")
+    assert "dashed" in values("unknown") or "dotted" in values("unknown")
+    assert len(set(shapes.values())) == 7, "模様が同じ状態がある"
+
+
+def test_d0059_ac10_band_layout_has_gaps_and_no_inline_widths(html):
+    """D0059-AC-10: 帯は横に並び（flex・gap）、区切りは同じ幅で分け合い（flex: 1 1 0）、幅は style 属性や JS の style に頼らない。"""
+    css = css_of(html)
+    band, seg = rule(css, ".band"), rule(css, ".seg")
+    assert band.get("display") == "flex" and "gap" in band and band.get("height") == "8px", band
+    assert seg.get("flex", "").startswith("1 1 0"), seg
+    script = parts(html)[1]
+    assert ".style." not in script and 'setAttribute("style"' not in script.replace("'", '"')
+    band_tag = re.search(r'<div\b[^>]*\bclass="band"[^>]*>', html)
+    assert band_tag, "骨組みに <div class=\"band\"> が無い"
+    assert 'aria-hidden="true"' in band_tag.group(0), "帯は aria-hidden（下の文字の数が同じ内容を伝える）"
+
+
 # ---- AC-53 動き -------------------------------------------------------------------------------------------
+
+
+def test_d0059_ac17_spin_and_pulse_inside_no_preference(html):
+    """D0059-AC-17: 作業中の印の回転（@keyframes spin を .s-running .mark svg にかける）と脈打ち（.s-running .mark）は、どちらも no-preference の中だけにある。"""
+    css = css_of(html)
+    inside = block_after(css, MOTION_MEDIA)
+    assert re.search(r"@keyframes\s+spin\b", inside), "spin の @keyframes が no-preference の中に無い"
+    assert re.search(r"\.s-running\s+\.mark\s+svg\s*\{[^}]*animation[^}]*spin", inside), "回転が .s-running .mark svg にかかっていない"
+    assert re.search(r"\.s-running\s+\.mark\s*\{[^}]*animation[^}]*pulse", inside)
+    outside = css.replace(inside, "")
+    assert "spin" not in outside and "animation" not in outside
+
+
+def test_d0059_ac18_radius_values(html):
+    """D0059-AC-18: 角の丸みは札 6・カード 10・面 14・チップ 999（--r-tag・--r-card・--r-panel・--r-chip）。.stage はカード、.chip はチップを使う。"""
+    css = css_of(html)
+    root = declarations(root_block(css))
+    assert [root.get(k) for k in ("--r-tag", "--r-card", "--r-panel", "--r-chip")] == ["6px", "10px", "14px", "999px"], root
+    assert rule(css, ".stage").get("border-radius") == "var(--r-card)"
+    assert rule(css, ".chip").get("border-radius") == "var(--r-chip)"
+
 
 
 def test_d0027_ac53_motion_only_in_no_preference_media(html):
@@ -436,19 +724,46 @@ def test_d0027_ac55_page_is_valid_utf8_text_without_control_characters(html):
     assert not re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", html)
 
 
-@pytest.mark.parametrize("symbol", ["✓", "✕", "↩"])
-def test_d0027_ac55_status_symbols_are_in_the_script(html, symbol):
-    """D0027-AC-55: 状態は色だけで伝えない。文字の記号（終わり ✓・失敗 ✕・差し戻し ↩）が JS にある。
-    待ち・動いている・確認待ちの印は書体の字形に頼らず CSS の形で描く（AC-86）ので、○ ● ◐ は JS に無い。"""
-    assert symbol in parts(html)[1]
+@pytest.mark.parametrize("glyph", list("✓✕↩？○●◐"))
+def test_d0059_ac08_script_has_no_glyph_marks(html, glyph):
+    """D0059-AC-08: 状態の印は文字の字形でなくアイコン（SVG）で描くので、JS に ✓ ✕ ↩ ？ ○ ● ◐ の字形が無い（D0027-AC-55 の字形の検査を置き換え）。"""
+    assert glyph not in parts(html)[1]
 
 
-def test_d0027_ac55_status_symbols_are_distinct_per_status(html):
-    """D0027-AC-55: 6つの状態の記号は、どれも違う。"""
-    assert len({"○", "●", "◐", "✓", "✕", "↩"}) == 6
-    _style, script, _markup = parts(html)
-    for status in ("waiting", "running", "review", "done", "failed", "revised"):
-        assert status in script, status
+ICON_STATUSES = ["done", "running", "review", "waiting", "failed", "revised", "unknown"]
+
+
+def test_d0059_ac08_icon_shapes_are_constants(html):
+    """D0059-AC-08: アイコンの形（d の文字列）は ICONS という定数に、7つの状態ぶん、1本ずつの文字列で書かれ、組み立てる式（+ や テンプレート）が無い。
+    setAttribute("d", …) の値は ICONS から取るだけで、外から来た文字は入らない。"""
+    script = parts(html)[1]
+    block = re.search(r"\b(?:var|let|const)\s+ICONS\s*=\s*\{(.*?)\}\s*;", script, re.S)
+    assert block, "ICONS（状態 → d の文字列）の定数が無い"
+    entries = re.findall(r"""["']?([A-Za-z_]\w*)["']?\s*:\s*"([^"\\]*)\"""", block.group(1))
+    assert sorted(k for k, _ in entries) == sorted(ICON_STATUSES), entries
+    assert all(re.fullmatch(r"[MmLlHhVvCcSsQqTtAaZz0-9 ,.\-]+", d) for _, d in entries)
+    rest = re.sub(r"""["']?[A-Za-z_]\w*["']?\s*:\s*"[^"\\]*\"""", "", block.group(1))
+    assert not re.search(r"[^\s,]", rest), f"ICONS に文字列1本ずつ以外が混ざっている: {rest!r}"
+    sets = re.findall(r"""setAttribute\(\s*["']d["']\s*,\s*([^;]*?)\)\s*;""", script)
+    assert len(sets) == 1, sets
+    assert re.fullmatch(r"ICONS\[[\w.\[\]]+\]", sets[0].strip()), sets[0]
+
+
+def test_d0059_ac08_designed_new_functions_exist_at_top_level(html):
+    """D0059-AC-08: 設計の新しい関数（makeIcon・pickHead・totalText・updatedText・countText・buildBand）がトップレベルの関数宣言として JS にある（台が名前で呼ぶ）。"""
+    script = parts(html)[1]
+    for name in ("makeIcon", "pickHead", "totalText", "updatedText", "countText", "buildBand"):
+        assert re.search(r"^\s*(?:async\s+)?function\s+%s\s*\(" % name, script, re.M), name
+
+
+def test_d0059_ac08_icons_are_made_by_create_element_ns_and_never_by_inner_html(html):
+    """D0059-AC-08: アイコンは createElementNS で作り（innerHTML などは使わない）、属性は setAttribute で付ける（fill none・stroke currentColor・aria-hidden）。"""
+    script = parts(html)[1]
+    body = function_body(script, "makeIcon")
+    assert body, "makeIcon が無い"
+    assert "createElementNS" in body and "innerHTML" not in body
+    for token in ("viewBox", "currentColor", "stroke-width", "stroke-linecap", "stroke-linejoin", "aria-hidden", "none"):
+        assert token in body, token
 
 
 def test_d0027_ac55_designed_function_names_exist_at_top_level(html):
@@ -498,7 +813,7 @@ def length_of(value: str | None) -> float | None:
 
 
 def test_d0027_ac86_mark_has_a_fixed_width_and_height(html):
-    """D0027-AC-86: .mark は固定の幅と高さを持ち（どの状態でも印の列の幅が同じ）、360px を超えない。"""
+    """D0027-AC-86・D0059-AC-09: .mark は固定の幅と高さを持ち（どの状態でも印の列の幅が同じ）、360px を超えない。"""
     base = decls_for(css_of(html), ".mark")
     for prop in ("width", "height"):
         size = length_of(base.get(prop))
@@ -508,7 +823,7 @@ def test_d0027_ac86_mark_has_a_fixed_width_and_height(html):
 
 
 def test_d0027_ac86_mark_is_centered(html):
-    """D0027-AC-86: 印は枠の中で中央に寄る（text-align か flex/grid の中央寄せ）。"""
+    """D0027-AC-86・D0059-AC-09: 印は枠の中で中央に寄る（text-align か flex/grid の中央寄せ）。"""
     base = decls_for(css_of(html), ".mark")
     centered = (
         base.get("text-align") == "center"
@@ -520,14 +835,14 @@ def test_d0027_ac86_mark_is_centered(html):
 
 
 def test_d0027_ac86_mark_does_not_shrink(html):
-    """D0027-AC-86: 印の列は縮まない（flex の中で幅がつぶれて、表示名の位置がずれない）。"""
+    """D0027-AC-86・D0059-AC-09: 印の列は縮まない（flex の中で幅がつぶれて、表示名の位置がずれない）。"""
     base = decls_for(css_of(html), ".mark")
     assert base.get("flex-shrink") == "0" or base.get("flex", "").split()[:2] == ["0", "0"], f".mark が縮む: {base}"
 
 
 @pytest.mark.parametrize("status", ["waiting", "running", "review", "done", "failed", "revised", "unknown"])
 def test_d0027_ac86_states_do_not_change_the_mark_size(html, status):
-    """D0027-AC-86: 状態ごとの規則が、印の幅・高さを変えない（変えるなら基本と同じ値）。"""
+    """D0027-AC-86・D0059-AC-09: 状態ごとの規則が、印の幅・高さを変えない（変えるなら基本と同じ値）。"""
     css = css_of(html)
     base = decls_for(css, ".mark")
     state = decls_for(css, f".s-{status} .mark")
@@ -536,49 +851,45 @@ def test_d0027_ac86_states_do_not_change_the_mark_size(html, status):
             assert state[prop] == base.get(prop), (status, prop, state[prop], base.get(prop))
 
 
-@pytest.mark.parametrize("status", CSS_DRAWN_STATES)
-def test_d0027_ac86_waiting_running_review_marks_are_drawn_by_css_shapes(html, status):
-    """D0027-AC-86: 待ち・動いている・確認待ちの印は、書体の字形に頼らず CSS の形（枠線・塗り・半分の塗りなど）で描く。
-    .s-<状態> .mark（に疑似要素がついたもの）が border・background・box-shadow・clip-path などを持つ。content に字形（空でない文字）を入れない。"""
+MARK_COLORS = {
+    "done": ("--ok-text", "--ok-soft"),
+    "running": ("--teal-text", "--teal-soft"),
+    "review": ("--coral-text", "--coral-soft"),
+    "revised": ("--coral-text", "--coral-soft"),
+    "failed": ("--bad-text", "--bad-soft"),
+}
+
+
+@pytest.mark.parametrize("status", [*MARK_COLORS, "waiting", "unknown"])
+def test_d0059_ac03_mark_colors_use_the_state_tokens(html, status):
+    """D0059-AC-03・FR-04: 印の色と地は状態のトークンで書く（完了＝ok-text／ok-soft、作業中＝teal、確認待ち・差し戻し＝coral、失敗＝bad、まだ・不明＝muted）。16 進などの直書きをしない。
+    D0027-AC-86 の「CSS の形で描く」3本（形・形の違い・形の色）を、アイコンで描く形（D0059-AC-08）に置き換えた分。"""
     css = css_of(html)
     state = decls_for(css, f".s-{status} .mark")
-    shape = {k: v for k, v in state.items() if k.startswith(SHAPE_PROPS)}
-    assert shape, f".s-{status} .mark に CSS の形が無い: {state}"
-    content = state.get("content", '""').strip()
-    assert content in ('""', "''", "none", "normal"), f"content に字形を入れている: {content!r}"
+    for prop, value in state.items():
+        assert not COLOR_LITERAL.search(value), (status, prop, value)
+    if status in MARK_COLORS:
+        text, soft = MARK_COLORS[status]
+        assert state.get("color") == f"var({text})", (status, state)
+        assert state.get("background") == f"var({soft})", (status, state)
+    else:  # まだ・不明は控えめな色（基本の .mark の色でも、状態の規則でもよい）
+        assert {**decls_for(css, ".mark"), **state}.get("color") == "var(--muted)", (status, state)
 
 
-def test_d0027_ac86_waiting_running_review_shapes_differ(html):
-    """D0027-AC-86: 待ち・動いている・確認待ちの形は、互いに違う（色だけでなく形でも見分けられる）。"""
+def test_d0059_ac09_icon_inside_the_mark_has_a_fixed_size(html):
+    """D0059-AC-09: 印の中のアイコン（.mark svg）は 1rem の固定の大きさ（印は 1.75rem の円）。状態の規則はアイコンの大きさを変えない。"""
     css = css_of(html)
-    shapes = []
-    for status in CSS_DRAWN_STATES:
-        state = decls_for(css, f".s-{status} .mark")
-        shapes.append(frozenset((k, v) for k, v in state.items() if k.startswith(SHAPE_PROPS)))
-    assert all(shapes), shapes
-    assert len(set(shapes)) == 3, shapes
-
-
-def test_d0027_ac86_shapes_use_color_tokens(html):
-    """D0027-AC-86: 形の色もトークン（var(--…)）で書く。16 進などの直書きをしない（AC-52 と同じ決め）。"""
-    css = css_of(html)
-    for status in CSS_DRAWN_STATES:
-        for prop, value in decls_for(css, f".s-{status} .mark").items():
-            if prop.startswith(("border", "background", "box-shadow")):
-                assert not COLOR_LITERAL.search(value), (status, prop, value)
+    svg = decls_for(css, ".mark svg")
+    assert length_of(svg.get("width")) == 1 and length_of(svg.get("height")) == 1, svg
+    base = decls_for(css, ".mark")
+    assert length_of(base.get("width")) == 1.75 and length_of(base.get("height")) == 1.75, base
+    assert base.get("border-radius") == "var(--r-chip)", "印は円（チップの角）"
 
 
 def test_d0027_ac86_pulse_stays_on_the_running_mark(html):
-    """D0027-AC-86: 動いている印の脈打ち（AC-53）は、形になっても .s-running .mark にかかる（no-preference の中だけ）。"""
+    """D0027-AC-86: 動いている印の脈打ち（AC-53）は、形になっても .s-running .mark にかかる（no-preference の中だけ）。D0059-AC-17 も。"""
     inside = block_after(css_of(html), MOTION_MEDIA)
     assert re.search(r"\.s-running\s+\.mark(?:::?[\w-]+)?\s*\{[^}]*animation", inside)
-
-
-def test_d0027_ac86_script_does_not_use_glyph_marks_for_css_drawn_states(html):
-    """D0027-AC-86: JS の STATUS に、待ち・動いている・確認待ちの字形（○ ● ◐）を置かない。"""
-    script = parts(html)[1]
-    for glyph in "○●◐":
-        assert glyph not in script, glyph
 
 
 # ---- D0044：答えのボタン（コメントの機能で、確認待ちの行から承認・差し戻し・中止を送る） --------------------------------------
@@ -730,9 +1041,10 @@ def test_d0044_ac43_old_function_names_are_kept(html):
         assert re.search(r"^\s*(?:async\s+)?function\s+%s\s*\(" % name, script, re.M), name
 
 
-def test_d0044_ac43_names_avoid_words_the_forbidden_word_checks_would_match(html):
-    """D0044-AC-43: 関数名に confirm(・alert(・prompt( を含めず、キーの名前に data・file・blob を使わない（data: の形が URL と見なされるため）。"""
-    _style, script, _markup = parts(html)
+def test_d0044_ac43_names_avoid_words_the_forbidden_word_checks_would_match(html, stripped):
+    """D0044-AC-43・D0059-AC-06: 関数名に confirm(・alert(・prompt( を含めず、キーの名前に data・file・blob を使わない（data: の形が URL と見なされるため）。
+    許した SVG の名前空間の文字（http:）は取り除いてから調べる。"""
+    _style, script, _markup = parts(stripped)
     assert not re.search(r"(?i)(?:confirm|alert|prompt)\s*\(", script)
     assert not re.search(r"\b(?:data|file|blob|javascript|mailto|ftp|https?|wss?)\s*:", script)
 
@@ -778,11 +1090,11 @@ def test_d0044_ac43_page_size_under_the_limit(html):
     assert 14_000 < size <= MAX_PAGE_BYTES, size
 
 
-def test_d0044_ac43_page_is_still_one_script_one_style_without_external_loading(html):
-    """D0044-AC-43: ボタンを足しても、<script> は1つ・<style> は1つで、外部の読み込みも URL の形も無い。"""
+def test_d0044_ac43_page_is_still_one_script_one_style_without_external_loading(html, stripped):
+    """D0044-AC-43・D0059-AC-06: ボタンを足しても、<script> は1つ・<style> は1つで、許した文字（Google Fonts の link 2本と SVG の名前空間 1 か所）を除いて、外部の読み込みも URL の形も無い。"""
     assert len(re.findall(r"<script\b", html, re.I)) == 1 and len(re.findall(r"<style\b", html, re.I)) == 1
     for token in EXTERNAL:
-        assert token.lower() not in html.lower(), token
+        assert token.lower() not in stripped.lower(), token
     assert "</" not in parts(html)[1]
 
 
@@ -806,24 +1118,50 @@ def test_d0044_ac43_panel_wraps_below_the_row(html):
     assert rule(css_of(html), ".review").get("flex") == "1 1 100%"
 
 
-def test_d0044_ac43_buttons_are_tall_enough_and_use_tokens(html):
-    """D0044-AC-43: ボタン（.rv-btn）は min-height: 2.75rem・枠線 1px solid var(--line)・背景 var(--bg)・色 var(--fg)・font: inherit。"""
-    decl = rule(css_of(html), ".rv-btn")
-    assert decl.get("min-height") == "2.75rem"
-    assert decl.get("border") == "1px solid var(--line)"
-    assert decl.get("background") == "var(--bg)"
-    assert decl.get("color") == "var(--fg)"
-    assert decl.get("font") == "inherit"
+def border_values(decl: dict[str, str]) -> str:
+    return " ".join(v for k, v in decl.items() if k.startswith("border") and k != "border-radius")
 
 
-def test_d0044_ac43_approve_quit_and_go_are_told_apart_by_the_frame_not_by_color_alone(html):
-    """D0044-AC-43: 承認は枠線に var(--ok)、中止は枠線に var(--ng)、実行は枠線 2px。ボタンは枠線と文字ラベルがあるので、押せることは色だけに頼らない。"""
+def test_d0059_ac16_button_styles(html):
+    """D0059-AC-16: ボタン（.rv-btn）は面（--panel）の地・1px solid var(--line) の枠・角は札（--r-tag）・min-height 2.75rem・font: inherit・文字は --fg。
+    承認は --coral の塗り（文字は --on-coral）、中止は --bad の枠、実行するは 2px の --coral の枠、差し戻す・戻るは --line の枠のまま。入力欄も面の地。
+    （D0044-AC-43 のボタンの色の検査を、新しい配色に書き直したもの）"""
     css = css_of(html)
+    btn = rule(css, ".rv-btn")
+    assert btn.get("min-height") == "2.75rem" and btn.get("font") == "inherit"
+    assert btn.get("border") == "1px solid var(--line)"
+    assert btn.get("border-radius") == "var(--r-tag)"
+    assert btn.get("background") == "var(--panel)" and btn.get("color") == "var(--fg)"
     approve, quit_, go = rule(css, ".rv-approve"), rule(css, ".rv-quit"), rule(css, ".rv-go")
-    assert any("var(--ok)" in v for k, v in approve.items() if k.startswith("border")), approve
-    assert any("var(--ng)" in v for k, v in quit_.items() if k.startswith("border")), quit_
-    assert any("2px" in v for k, v in go.items() if k.startswith("border")), go
-    assert not any("var(--ng)" in v for k, v in approve.items() if k.startswith("border"))
+    assert approve.get("background") == "var(--coral)" and approve.get("color") == "var(--on-coral)", approve
+    assert "var(--bad)" in border_values(quit_), quit_
+    assert "2px" in border_values(go) and "var(--coral)" in border_values(go), go
+    for plain in (".rv-revise", ".rv-back"):
+        assert not re.search(r"var\(--(?:coral|bad|ok|teal)\)", border_values(rule(css, plain))), plain
+    inp = rule(css, ".rv-input")
+    assert inp.get("width") == "100%" and inp.get("resize") == "vertical" and inp.get("font") == "inherit"
+    assert inp.get("border") == "1px solid var(--line)"
+    assert inp.get("color") == "var(--fg)" and inp.get("background") == "var(--panel)"
+
+
+def test_d0059_ac16_focus_ring_is_teal(html):
+    """D0059-AC-16: :focus-visible は outline: 2px solid var(--teal)・outline-offset: 2px（ボタンも入力欄も。outline: none にしない）。"""
+    css = css_of(html)
+    for selector in (".rv-btn:focus-visible", ".rv-input:focus-visible"):
+        decl = rule(css, selector)
+        assert decl.get("outline") == "2px solid var(--teal)" and decl.get("outline-offset") == "2px", (selector, decl)
+    assert "outline: none" not in css and "outline:none" not in css.replace(" ", "")
+
+
+def test_d0059_ac16_buttons_are_not_told_apart_by_color_alone(html):
+    """D0059-AC-16: ボタンは枠か塗りと文字ラベルがあり、色だけで区別しない：どのボタンにも枠（1px 以上）と文字のラベルがあり、承認は塗り、実行するは太い枠で、中止の枠と形が違う。今のままで通る部分（ラベルの文字）を含む。"""
+    css = css_of(html)
+    script = parts(html)[1]
+    for label in ("承認", "直してほしい点を書いて差し戻す", "中止", "実行する", "戻る"):
+        assert re.search(r"""makeButton\([^)]*["']%s["']""" % re.escape(label), script), label
+    assert re.fullmatch(r"\d+px solid .*", rule(css, ".rv-btn").get("border", "")), "ボタンに枠が無い"
+    shapes = {name: (rule(css, f".{name}").get("background"), "2px" in border_values(rule(css, f".{name}"))) for name in ("rv-approve", "rv-quit", "rv-go")}
+    assert len(set(shapes.values())) == 3, f"承認・中止・実行するの形（塗り・枠の太さ）が同じ: {shapes}"
 
 
 def test_d0044_ac43_disabled_buttons_look_stopped(html):
@@ -833,29 +1171,18 @@ def test_d0044_ac43_disabled_buttons_look_stopped(html):
     assert decl.get("cursor") == "not-allowed"
 
 
-def test_d0044_ac43_focus_mark_is_visible(html):
-    """D0044-AC-43: :focus-visible は outline: 2px solid var(--run)・outline-offset: 2px（キーボードで操作でき、フォーカスの印が見える）。"""
-    decl = rule(css_of(html), ".rv-btn:focus-visible")
-    assert decl.get("outline") == "2px solid var(--run)" and decl.get("outline-offset") == "2px", decl
-    assert "outline: none" not in css_of(html) and "outline:none" not in css_of(html).replace(" ", "")
-
-
-def test_d0044_ac43_input_fits_the_width(html):
-    """D0044-AC-43: 入力欄（.rv-input）は width: 100%・resize: vertical・font: inherit・枠線 1px solid var(--line)・色と背景はトークン。"""
-    decl = rule(css_of(html), ".rv-input")
-    assert decl.get("width") == "100%" and decl.get("resize") == "vertical" and decl.get("font") == "inherit"
-    assert decl.get("border") == "1px solid var(--line)"
-    assert decl.get("color") == "var(--fg)" and decl.get("background") == "var(--bg)"
-
-
-def test_d0044_ac43_new_css_uses_only_the_existing_color_tokens(html):
-    """D0044-AC-43: 増えた規則が使う var(--…) は既存のトークンだけ（--bg・--fg・--muted・--line・--run・--review・--ok・--ng）。色の直書きが無い。"""
+def test_d0059_ac16_button_css_uses_only_defined_tokens(html):
+    """D0059-AC-16: ボタン・入力欄・パネル・文の欄の規則が使う var(--…) は、定義済みのトークンだけ。色の直書きが無い
+    （D0044-AC-43 の「既存のトークンだけ」を、新しいトークン名に書き直したもの）。"""
     css = css_of(html)
-    used = set(re.findall(r"var\(\s*(--[\w-]+)", css))
-    assert used <= set(TOKENS), used - set(TOKENS)
+    defined = set(declarations(root_block(css))) | set(theme_blocks(css)["dark"])
     for sel in (".review", ".rv-btn", ".rv-approve", ".rv-quit", ".rv-go", ".rv-back", ".rv-input", ".rv-msg"):
-        for prop, value in rule(css, sel).items():
+        decl = rule(css, sel)
+        assert decl or sel in (".rv-back", ".rv-revise"), f"{sel} の規則が無い"
+        for prop, value in decl.items():
             assert not COLOR_LITERAL.search(value), (sel, prop, value)
+            assert set(re.findall(r"var\(\s*(--[\w-]+)", value)) <= defined, (sel, prop, value)
+    assert {"--panel", "--coral", "--on-coral", "--teal", "--bad"} <= set(re.findall(r"var\(\s*(--[\w-]+)", css))
 
 
 def test_d0044_ac43_new_motion_stays_inside_the_no_preference_media(html):
@@ -888,3 +1215,37 @@ def test_d0044_ac43_build_page_is_deterministic_and_takes_no_arguments(html):
         live_page.build_page("x")  # type: ignore[call-arg]
     assert live_page.build_page() == live_page.build_page() == html
     assert "HOSTILE" not in html and str(ROOT) not in html
+
+
+# ---- D0059：見た目だけの変更で、振る舞い・守りは変えない ---------------------------------------------------------
+
+
+def test_d0059_ac14_build_page_is_unchanged_in_kind(html):
+    """D0059-AC-14: build_page() は引数を取らず、同じ呼び出しで同じ HTML。HTML に記録の文字・手元のパス・メールアドレス・写しの日時が入らない。今のままで通る（守り続ける検査）。"""
+    assert list(inspect.signature(live_page.build_page).parameters) == []
+    assert live_page.build_page() == html
+    assert not re.search(r"[A-Za-z]:[\\/]+Users", html) and str(ROOT) not in html and "HOSTILE" not in html
+    assert not re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]", html)
+    assert not re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", html)
+
+
+def test_d0059_ac15_skeleton_ids_and_one_comments_call(html):
+    """D0059-AC-15: _BODY の id は name・final・msg・stages の4つだけ（新しい入れ物は class で取る）。claude.use("comments") を呼ぶ場所は1つ、claude.use は db と comments の2回だけ、
+    onGo に await が無く sendToClaude を呼ぶ、confirm・alert・prompt を使わない。今のままで通る（守り続ける検査）。"""
+    _style, script, markup = parts(html)
+    body = re.search(r"<body[^>]*>(.*?)(?:</body>|$)", markup, re.S | re.I).group(1)
+    assert sorted(re.findall(r'\sid="([^"]+)"', body)) == ["final", "msg", "name", "stages"]
+    assert sorted(re.findall(r'\sid="([^"]+)"', html)) == ["final", "msg", "name", "stages"]
+    assert len(re.findall(r"""claude\s*\.\s*use\(\s*["']comments["']""", script)) == 1
+    assert len(re.findall(r"""claude\s*\.\s*use\(""", script)) == 2
+    on_go = function_body(script, "onGo")
+    assert "sendToClaude" in on_go and "await" not in on_go
+    assert not re.search(r"\b(?:window\.)?(?:confirm|alert|prompt)\s*\(", html)
+
+
+def test_d0059_new_containers_exist_without_ids(html):
+    """D0059-AC-10・AC-11・AC-12: 骨組みに、頭（header.head）・更新の時刻（.updated）・札（.chips）・帯（.band）・数（.counts）の入れ物がある（id は付けない。JS が class で取る）。"""
+    markup = parts(html)[2]
+    for token in (r"<header\b[^>]*\bclass=\"head\"", r"\bclass=\"updated\"", r"\bclass=\"chips\"", r"\bclass=\"band\"", r"\bclass=\"counts\""):
+        assert re.search(token, markup), token
+    assert "pipe-in · 進み具合" in markup

@@ -1594,13 +1594,27 @@ def test_d0044_ac48_unknown_keys_in_the_snapshot_are_ignored(node, html):
 
 
 def test_d0044_ac48_the_page_still_renders_the_old_snapshot_text_exactly(node, html):
-    """D0044-AC-48: 確認待ちの行の文字（待ち・確認待ち・経過・usage）は、ボタンがあっても前の版と同じ並びで出る（ボタンの文字は後ろに足されるだけ）。"""
+    """D0044-AC-48: 確認待ちの行の文字（確認待ち・経過・usage）は、ボタンがあっても前の版と同じ並びで出る（ボタンの文字は後ろに足されるだけ）。"""
     snap = snapshot([stage("requirements", "done", cost_usd=0.5, turns=3), stage("design", "running", started_at=iso(83)), stage("red", "review", pending_since=iso(40)), stage("implement"), stage("test")])
     plain = play(node, html, snap=snap, comments=None).last.view["lines"]
     with_buttons = play(node, html, snap=snap).last.view["lines"]
     assert "承認" in with_buttons and "承認" not in plain
     for ln in plain:
         assert ln in with_buttons, ln
+
+
+def test_d0059_ac15_review_row_text_unchanged_with_new_words(node, html):
+    """D0059-AC-15: 確認待ちの行の文字は、ボタンがあってもなくても同じ並びで出る（ボタンの文字は後ろに足されるだけ）。状態の言葉は「確認待ち」で、「待ち」だけ・「まだ」・「実行中」にならない。
+    今のままで通る（D0059 で言葉を直しても、行の文字がボタンの有無で変わらないことを守る検査）。"""
+    snap = snapshot()
+    probe = {"op": "query", "selector": ".s-review"}
+    with_buttons = play(node, html, [probe], snap=snap).result(0)
+    plain = play(node, html, [probe], snap=snap, comments=None).result(0)
+    assert len(with_buttons) == 1 and len(plain) == 1
+    row_with, row_plain = with_buttons[0]["text"], plain[0]["text"]
+    assert row_with.startswith(row_plain) and row_with != row_plain
+    assert "LABEL-red" in row_plain and "確認待ち" in row_plain
+    assert "待ち" not in row_plain.replace("確認待ち", "") and "まだ" not in row_plain and "実行中" not in row_plain
 
 
 # ================================================================================================

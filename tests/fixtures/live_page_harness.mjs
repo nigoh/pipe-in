@@ -46,7 +46,8 @@
 // 値の中の NaN・Infinity は {"$":"NaN"}・{"$":"Infinity"}・{"$":"-Infinity"} と書く（JSON に書けないため）。結果も同じ書き方で返す。
 //
 // view（画面の様子）: lines（文字の節。順番どおり）・text（lines を改行でつないだもの）・tags（要素の種類ごとの数）・attrs（使われた属性名）・
-//   created（createElement で作った要素の種類の一覧）・intervals（回っている setInterval の数）・timeouts・interval_ms・
+//   created（createElement / createElementNS で作った要素の種類の一覧）・created_ns（D0059：createElementNS で作った [名前空間, 種類] の一覧。
+//   名前空間が http://www.w3.org/2000/svg 以外なら台が投げる）・intervals（回っている setInterval の数）・timeouts・interval_ms・
 //   html_insertions（innerHTML などに書こうとした回数）・hidden・now_ms・
 //   shown_lines / shown_text（hidden の要素の中を除いた文字。画面に見える文字）
 // 結果の最上位: comments {use_calls, can_calls, anchor_calls[{el_tag, el_class, attached}], sends[{text, anchor, anchor_issued, in_gesture, n, keys, argc}],
@@ -70,7 +71,8 @@ function decodeEntities(s) {
 
 // ---- 偽の DOM -------------------------------------------------------------------------------------
 
-const counters = { htmlInsertions: 0, created: [], alerts: [], dialogs: [] };
+const SVG_NS = "http://www.w3.org/2000/svg";
+const counters = { htmlInsertions: 0, created: [], createdNS: [], alerts: [], dialogs: [] };
 const focusState = { el: null };
 const gesture = { active: false };
 const world = { root: null, body: null };
@@ -788,6 +790,14 @@ async function main() {
       counters.created.push(tag.toLowerCase());
       return new Element_(tag);
     },
+    // D0059：アイコンの svg を作る口。名前空間は SVG のものだけ許す（それ以外は投げる）。種類は created にも積む（createElement と同じ並びで比べられる）
+    createElementNS(ns, tag) {
+      if (ns !== SVG_NS) throw new Error("NamespaceError: 許すのは SVG の名前空間だけ: " + String(ns));
+      if (typeof tag !== "string" || !/^[a-zA-Z][\w-]*$/.test(tag)) throw new Error("InvalidCharacterError");
+      counters.created.push(tag.toLowerCase());
+      counters.createdNS.push([ns, tag.toLowerCase()]);
+      return new Element_(tag);
+    },
     createTextNode(t) {
       return new Text_(t);
     },
@@ -1083,6 +1093,7 @@ async function main() {
       tags,
       attrs: [...attrs].sort(),
       created: counters.created.slice(),
+      created_ns: counters.createdNS.map((x) => x.slice()),
       intervals: live.filter((t) => t.interval).length,
       timeouts: live.filter((t) => !t.interval).length,
       interval_ms: live.filter((t) => t.interval).map((t) => t.ms),
