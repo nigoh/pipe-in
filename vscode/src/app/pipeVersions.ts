@@ -3,7 +3,7 @@
 import { isPipeModel } from '../domain/pipeModel.ts';
 import type { PipeModel } from '../domain/pipeModel.ts';
 import { isVersionId, sortVersions, versionFile, versionFromFile, versionId, versionsToDrop } from '../domain/pipeVersions.ts';
-import type { VersionEntry } from '../domain/pipeVersions.ts';
+import type { VersionEntry, VersionKind } from '../domain/pipeVersions.ts';
 
 /** 版の置き場所の中の pipe-in-<名前>/ を読み書きする口。pipe はフォルダの名前、file は <id>.json */
 export interface VersionStore {
@@ -22,8 +22,8 @@ export async function listVersions(store: VersionStore, name: string): Promise<V
 }
 
 /** 版を1つ足し、残す数を超えた古い版を消して、新しい順の一覧を返す（savedAt は呼んだ側の時計） */
-export async function recordVersion(store: VersionStore, m: PipeModel, savedAt: number, draft = false): Promise<VersionEntry[]> {
-  await store.write(folder(m.name), versionFile(versionId(savedAt, draft)), JSON.stringify(m));
+export async function recordVersion(store: VersionStore, m: PipeModel, savedAt: number, kind: boolean | VersionKind = false): Promise<VersionEntry[]> {
+  await store.write(folder(m.name), versionFile(versionId(savedAt, kind)), JSON.stringify(m));
   const list = await listVersions(store, m.name);
   const drop = new Set(versionsToDrop(list));
   for (const id of drop) await store.remove(folder(m.name), versionFile(id));

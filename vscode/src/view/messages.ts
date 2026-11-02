@@ -1,6 +1,7 @@
 // パネルとの受け渡しの形。
 import { isPipeModel } from '../domain/pipeModel.ts';
 import type { PipeModel } from '../domain/pipeModel.ts';
+import type { ExternalNotice } from '../domain/pipeExternal.ts';
 import { isVersionId } from '../domain/pipeVersions.ts';
 import type { VersionEntry } from '../domain/pipeVersions.ts';
 import { isRunKey } from '../domain/runs.ts';
@@ -35,7 +36,9 @@ export type ToEditorMessage =
   /** 保存した版の一覧（新しい順） */
   | { type: 'versions'; list: VersionEntry[] }
   /** 選んだ版の中身 */
-  | { type: 'version'; id: string; model: PipeModel };
+  | { type: 'version'; id: string; model: PipeModel }
+  /** 外で書き換わったときの知らせ（D0065。型だけ。パネルは入口と同じ版で出る） */
+  | ExternalNotice;
 export type FromEditorMessage =
   | { type: 'ready' }
   | { type: 'save'; model: PipeModel }
@@ -43,7 +46,9 @@ export type FromEditorMessage =
   | { type: 'state'; dirty: boolean; model?: PipeModel }
   /** 保存済みの段の指示文を開く（name は段の name。場所は入口が保存済みのモデルから決める） */
   | { type: 'openPrompt'; name: string }
-  | { type: 'loadVersion'; id: string };
+  | { type: 'loadVersion'; id: string }
+  /** 外で書き換わった帯での選び（読み込む／自分の変更を残す） */
+  | { type: 'externalChoice'; choice: 'load' | 'keep' };
 
 const STAGE_NAME = /^[a-z0-9][a-z0-9_-]*$/;
 
@@ -59,5 +64,6 @@ export function parseEditorMessage(value: unknown): FromEditorMessage | null {
   }
   if (msg.type === 'openPrompt' && typeof msg.name === 'string' && STAGE_NAME.test(msg.name)) return { type: 'openPrompt', name: msg.name };
   if (msg.type === 'loadVersion' && typeof msg.id === 'string' && isVersionId(msg.id)) return { type: 'loadVersion', id: msg.id };
+  if (msg.type === 'externalChoice' && (msg.choice === 'load' || msg.choice === 'keep')) return { type: 'externalChoice', choice: msg.choice };
   return null;
 }
