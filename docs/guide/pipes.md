@@ -105,6 +105,28 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 `examples/video/` に、SNS 向けの短い紹介動画を人の確認を挟んで作るパイプの見本（`聞く → 台本 → 見本 → 書き出し → 確かめる`）があります。ひな形ではなく、`pipe-in --pipe examples/video/pipes/pipe-in-video` のようにフォルダのパスで指したときだけ読まれます。
 `ffmpeg` と Playwright が要ります。流し方・案のデータの形・ブラウザから答える受付（`examples/video/review_server.py`）は `examples/video/pipes/pipe-in-video/README.md`、台本の見本は `examples/video/pipe-in-intro-script.md` にあります。
 
+## パイプをつなぐ（--after）
+
+前のパイプが PASSED で終わった記録を受けて、次のパイプを流せます。たとえば `diagrams` で図を作ったあと、`spec-qa` でその図とソースを突き合わせる、という使い方です。どちらのパイプも単独で使えるまま、受け渡しだけを行います（パイプを呼ぶ段や、つなぎ方を書くファイルは作りません）。
+
+```bash
+pipe-in --pipe spec-qa --after diagrams --project ~/src/myapp --text "図と食い違う所を見つけたい"
+```
+
+- 渡すのは、前のパイプの各段の成果物のうち、ファイルがあるものの場所です。後ろの各段の指示文の「渡すもの」に、前の段の表示名つきで入ります。中身は渡しません（段が読みます）。
+- 前の依頼メモ（`00_input.md`）は渡しません。後ろの依頼メモは、後ろのパイプの `input` と、この実行の `--input`・`--text` で決まります。
+- 前の記録は、前のパイプの種類で探します。`kind = "linear"` は `<work_dir>/<前の名前>/`、`kind = "dev"` は `<work_dir>` 直下です。`work_dir` は、この実行の `--project`・`--config` で決まる場所です。
+- 流す前に、前のパイプの名前・結果（PASSED）・終わった日時を出します。古さは判定しません。
+- 受けた元は、後ろの `state.json` の `received_from` と、`99_summary.md` の「パイプ」の次の行に残ります（[記録](records.md)）。受けていない実行には残りません。
+- 確認待ちからの続き（`--review`）と、途中の段からの再開（`--from`）は、記録の `received_from` をそのまま使います。前の記録は読み直しません。そのため `--after` は、始めるときだけ付けられます（`--review`・`--from` と一緒には使えません）。
+- 後ろの段は、前の記録のファイル（前の `state.json`・`00_input.md`・`logs/`・成果物）を書けません。書こうとすると、止めます（[安全の仕組み](safety.md)）。
+
+使えないもの：
+
+- `--after` は1つだけ、名前で書きます。パス（`/` や `\` を含むもの）、2つ以上、自分と同じ名前は断ります。
+- 組み込みの開発フロー（`--pipe` なし）は、前にも後ろにも使えません。後ろのパイプが `kind = "dev"` のときも断ります（記録の場所が前と同じ作業フォルダになるため）。
+- 前の記録が無い（前と後ろで `--project`・`--config` が違う、など）・途中で止まっている・確認待ち・失敗で終わった、のときは断ります。理由と直し方を出し、後ろの記録は作りません。
+
 ## 定義の書き方（`pipe.toml`）
 
 ```toml
@@ -134,10 +156,10 @@ prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短け
 | `tests` | 自分の成果物とテストファイル |
 | `code` | 自分の成果物と製品コード（テストファイルは除く） |
 
-- 段は定義の順に流れ、各段には依頼メモと、前の段のうち成果物があるものの場所が渡されます。
+- 段は定義の順に流れ、各段には依頼メモと、前の段のうち成果物があるものの場所が渡されます。`--after` で前のパイプを受けたときは、前のパイプの成果物の場所も渡されます（[パイプをつなぐ](#パイプをつなぐ--after)）。
 - 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
 - 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
-- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。
+- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。`--after` で受けた前のパイプの記録（前の `state.json`・`00_input.md`・`logs/`・成果物）も、どの段も書けません。
 - MCP のサーバーは、Claude Code の設定から読みます。対象の `pipeline.toml` の `setting_sources` に `"project"`（`.mcp.json`）か `"user"` を入れてください。
 - 段の `max_budget_usd`（ドル）は 0 より大きい数で書きます。`pipeline.toml` と違い、`0` は未設定にならず誤りです。負の数・文字・真偽も誤りで、保存した `pipe.toml` は、`pipe-in --pipe` と `pipe-in-gen check` が流す前に止まって直し方を出します（パイプ作業台の入力欄は `0` を書き出せますが、作業台の「検査」も同じ決まりで誤りとして知らせます。誤りのまま保存したものは、ここで止まります）。書かなければ上限なしです。効いた上限は実行の記録に残り、図に出ます（くわしくは[設定](config.md)の `max_budget_usd`）。
 - `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。

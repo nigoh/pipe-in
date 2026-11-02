@@ -69,6 +69,12 @@ def one_line(text: str, limit: int = 100) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+def received_line(rec: dict[str, Any]) -> str:
+    """受けた元の1行（前の名前と終わった日時）。画面・まとめ・続きの表示で使う。"""
+    when = rec.get("updated_at") or "不明"
+    return f"「{rec.get('pipe')}」（終わった日時 {when}）"
+
+
 class BasePipeline:
     def __init__(
         self,
@@ -95,6 +101,26 @@ class BasePipeline:
         self.started_at = datetime.now().isoformat(timespec="seconds")
         # セッション名。--name で付けるか、要件メモの最初の行から作る。取れなければ None（state.json に書かない）
         self.name: str | None = None
+        # 前のパイプから受けた元（--after。state.json の received_from。D0069）。受けていなければ None
+        self.received: dict[str, Any] | None = None
+
+    def receive(self, record: dict[str, Any] | None) -> None:
+        """受けた元を持つ。受けていない（None・辞書でない）なら None のまま。子が受け方を変えてよい。"""
+        self.received = record if isinstance(record, dict) else None
+
+    def _state_data(self) -> dict[str, Any]:
+        """state.json を辞書で読む。無い・読めない・辞書でないときは空の辞書（続きを読むための道具）。"""
+        path = self.doc(STATE)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        except (OSError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _resume_note(self) -> None:
+        """続きを始めるとき、記録の受けた元を画面に1行出す（受けていなければ何も出さない）。"""
+        if self.received is not None:
+            print(f"  受けた元: {received_line(self.received)}", flush=True)
 
     # ---- 子が決めること ---------------------------------------------------
 
@@ -159,6 +185,9 @@ class BasePipeline:
         }
         if self.name is not None:
             state["name"] = self.name
+        # 受けた元は、受けた実行だけに書く（項目を足すだけ。受けていない記録には無い）
+        if self.received is not None:
+            state["received_from"] = self.received
         checks = self._stage_checks()
         groups = self._stage_groups()
         state |= {
@@ -288,6 +317,8 @@ class BasePipeline:
         if isinstance(kept, str) and kept:
             self.name = kept
         self.seq = max((h["seq"] for h in self.history if "seq" in h), default=0)
+        # 受けた元は前の記録を読み直さず、この記録の received_from をそのまま使う（D0069-FR-11）
+        self.receive(data.get("received_from"))
         return pending
 
     # ---- 終わり ---------------------------------------------------------
@@ -309,6 +340,7 @@ class BasePipeline:
             "",
             f"- 結果: **{self._exit_message(result)}**",
             f"- パイプ: {self.cfg.pipe}",
+            *([f"- 受けた元: {received_line(self.received)}"] if self.received is not None else []),
             f"- 開始: {self.started_at}",
             f"- 合計（概算）: ${self.total_cost:.3f}",
             "",
