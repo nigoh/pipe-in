@@ -32,6 +32,39 @@
         "icon": "$(type-hierarchy)"
       }
     ],
+    "walkthroughs": [
+      {
+        "id": "pipe-in.gettingStarted",
+        "title": "pipe-in をはじめる",
+        "description": "入れる → 見本を選ぶ → 流す → 確認に答える、までを順にたどります",
+        "steps": [
+          {
+            "id": "pipe-in.install",
+            "title": "入れる",
+            "description": "pipe-in を手元に入れます。",
+            "media": { "markdown": "walkthrough/01-install.md" }
+          },
+          {
+            "id": "pipe-in.choose",
+            "title": "見本を選ぶ",
+            "description": "実行の一覧から見本を選ぶか、パイプの作業台を開きます。\n[パネルを開く](command:pipe-in.showRun)\n[作業台を開く](command:pipe-in.editPipe)",
+            "media": { "markdown": "walkthrough/02-choose.md" }
+          },
+          {
+            "id": "pipe-in.run",
+            "title": "流す",
+            "description": "端末で1行を貼って流します。",
+            "media": { "markdown": "walkthrough/03-run.md" }
+          },
+          {
+            "id": "pipe-in.answer",
+            "title": "確認に答える",
+            "description": "段の区切りで止まったら、確認の画面に答えます。\n[パネルを開く](command:pipe-in.showRun)",
+            "media": { "markdown": "walkthrough/04-answer.md" }
+          }
+        ]
+      }
+    ],
     "configuration": {
       "title": "pipe-in",
       "properties": {

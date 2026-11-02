@@ -144,13 +144,13 @@ test('AC-57・D0014-AC-29: 拡張・README・ガイド・スキル・エージ�
   // この検査自体が古い名前を含まないよう、文字をつないで作る
   const OLD = new RegExp('作' + '図');
   const root = fileURLToPath(new URL('..', import.meta.url));
-  // README から移したガイドの文書（docs/guide/*.md）も見る。フォルダが空でも通ってしまわないよう、10個あることも確かめる
+  // README から移したガイドの文書（docs/guide/*.md）も見る。フォルダが空でも通ってしまわないよう、11個あることも確かめる（D0072：start-without-commands.md を足したので数だけ 10 → 11）
   const guide = path.join(root, '..', 'docs', 'guide');
   assert.ok(existsSync(guide), 'docs/guide/ が無い');
   const guideFiles = readdirSync(guide)
     .filter((name) => name.endsWith('.md'))
     .map((name) => path.join(guide, name));
-  assert.equal(guideFiles.length, 10, 'docs/guide/ の .md が10個でない');
+  assert.equal(guideFiles.length, 11, 'docs/guide/ の .md が11個でない');
   const files = [
     ...guideFiles,
     ...listFiles(path.join(root, 'src')),
@@ -238,4 +238,114 @@ test('D0024-AC-48: 設定 pipe-in.showOtherWorktrees の鍵・型・既定は同
   assert.ok(prop, 'pipe-in.showOtherWorktrees の設定項目があること');
   assert.equal(prop.type, 'boolean');
   assert.equal(prop.default, true);
+});
+
+// ---- D0072：初めての人向けの案内（walkthrough） ----
+// 宣言は contributes.walkthroughs（commands・configuration は変えない）。本文は vscode/walkthrough/ の Markdown。
+// 外から何も読み込まず、案内を自動で開かない（globalState に書かない）。実機での見え方は D0072-AC-09（実機。自動のテストでは見ない）。
+
+const WALKTHROUGH_STEP_IDS = ['pipe-in.install', 'pipe-in.choose', 'pipe-in.run', 'pipe-in.answer'];
+
+function walkthroughs(): any[] {
+  return readManifest().contributes?.walkthroughs ?? [];
+}
+
+function stepMarkdownPaths(): string[] {
+  const vscodeRoot = fileURLToPath(new URL('..', import.meta.url));
+  return (walkthroughs()[0]?.steps ?? []).map((s: any) => path.join(vscodeRoot, String(s?.media?.markdown ?? '')));
+}
+
+/** 案内の宣言（JSON の文字列）と、手順の本文の Markdown。本文が無ければ失敗にする。 */
+function walkthroughTexts(): string[] {
+  const decl = JSON.stringify(walkthroughs());
+  const bodies = stepMarkdownPaths().map((p) => {
+    assert.ok(existsSync(p), `${path.relative(fileURLToPath(new URL('..', import.meta.url)), p)} が無い`);
+    return readFileSync(p, 'utf8');
+  });
+  return [decl, ...bodies];
+}
+
+test('D0072-AC-01: walkthroughs が1つで id・title・description と steps 4つ', () => {
+  const list = walkthroughs();
+  assert.equal(list.length, 1, 'contributes.walkthroughs がちょうど1つ');
+  for (const key of ['id', 'title', 'description']) {
+    assert.equal(typeof list[0][key], 'string', `${key} が文字`);
+    assert.ok(list[0][key].length > 0, `${key} が空`);
+  }
+  assert.equal(list[0].steps?.length, 4, '手順が4つ');
+});
+
+test('D0072-AC-02: 手順の id が決めた4つの並びで、どれにも title・description・media.markdown がある', () => {
+  const steps: any[] = walkthroughs()[0]?.steps ?? [];
+  assert.deepEqual(
+    steps.map((s) => s.id),
+    WALKTHROUGH_STEP_IDS,
+  );
+  for (const s of steps) {
+    for (const key of ['title', 'description']) {
+      assert.ok(typeof s[key] === 'string' && s[key].length > 0, `${s.id} の ${key}`);
+    }
+    assert.ok(typeof s.media?.markdown === 'string' && s.media.markdown.length > 0, `${s.id} の media.markdown`);
+  }
+});
+
+test('D0072-AC-03: media.markdown のファイルが実在し空でない', () => {
+  const paths = stepMarkdownPaths();
+  assert.equal(paths.length, 4, '手順が4つ');
+  for (const p of paths) {
+    assert.ok(existsSync(p), `${p} が無い`);
+    assert.ok(readFileSync(p, 'utf8').trim().length > 0, `${p} が空`);
+  }
+});
+
+test('D0072-AC-04: 案内の宣言と本文に外の読み込みが無い', () => {
+  const texts = walkthroughTexts();
+  assert.ok(texts[0].length > 2, '案内の宣言が空');
+  for (const t of texts) {
+    for (const bad of ['http://', 'https://', '<img', '<script', '<iframe']) {
+      assert.ok(!t.includes(bad), `「${bad}」がある`);
+    }
+  }
+});
+
+test('D0072-AC-05: 案内の command: は contributes.commands の ID だけ', () => {
+  const ids: string[] = (readManifest().contributes?.commands ?? []).map((c: any) => c?.command);
+  assert.ok(ids.length > 0);
+  const used = walkthroughTexts().flatMap((t) => [...t.matchAll(/command:([\w.-]+)/g)].map((m) => m[1]));
+  assert.ok(used.length > 0, '案内に command: のリンクが1つも無い');
+  for (const u of used) assert.ok(ids.includes(u), `command:${u} は contributes.commands に無い`);
+});
+
+test('D0072-AC-06: コマンドは2つ・設定は5つのまま（今のまま通る。守る）', () => {
+  const manifest = readManifest();
+  assert.equal((manifest.contributes?.commands ?? []).length, 2);
+  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 5);
+});
+
+test('D0072-AC-07: 本番のコードに openWalkthrough と globalState が無い（今のまま通る。守る）', () => {
+  const srcDir = fileURLToPath(new URL('.', import.meta.url));
+  const prod = listFiles(srcDir).filter((f) => !f.endsWith('.test.ts') && !f.split(path.sep).includes('test'));
+  assert.ok(prod.length > 0, '本番の .ts が見つからない');
+  const hits = prod.filter((f) => {
+    const code = readFileSync(f, 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*(?:\/\/|\/\*|\*)/.test(line))
+      .join('\n');
+    return /openWalkthrough|globalState/.test(code);
+  });
+  assert.deepEqual(hits.map((f) => path.relative(srcDir, f)), []);
+});
+
+test('D0072-AC-08: 手順の本文に pip install -e .・pipe-in の1行・usage.md の確認の画面がある', () => {
+  const texts = walkthroughTexts();
+  assert.equal(texts.length, 5, '案内の宣言と、手順 4 つの本文が要る（手順が4つ宣言されていない）');
+  const [, install, , run, answer] = texts;
+  // README.md の塊と同じ綴りで書いてあること
+  const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
+  const pip = readme.split(/\r?\n/).find((l) => l.trim().startsWith('pip install -e .'));
+  assert.ok(pip, 'README.md に pip install -e . の行が無い');
+  assert.ok(install.includes('pip install -e .'), '「入れる」の手順に pip install -e . が無い');
+  assert.ok(/^\s*pipe-in\s+--project\b/m.test(run), '「流す」の手順に pipe-in --project … の1行が無い');
+  assert.ok(answer.includes('docs/guide/usage.md'), '「確認に答える」の手順に docs/guide/usage.md の案内が無い');
+  assert.ok(answer.includes('確認の画面'), '「確認に答える」の手順に確認の画面の案内が無い');
 });

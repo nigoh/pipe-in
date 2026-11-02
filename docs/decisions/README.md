@@ -73,6 +73,7 @@
 | [D0069](D0069-pipe-after.md) | パイプの成果物を次のパイプへ渡す（`--after <名前>`）。前が PASSED の記録だけを受け、全段の成果物の場所を後ろの各段に渡し、受けた元を `state.json` の `received_from` に書く。後ろの段は前の記録を書けない（#101）。 |
 | [D0070](D0070-example-pipes.md) | 見本のパイプ集（図を作る・仕様とソースの突き合わせ・調べものをまとめる）を `examples/` に置き、作業台の「見本から作る」で下書きとして写せるようにする（#25）。 |
 | [D0071](D0071-record-order-check.md) | 記録の順序の検査（`pipe-in record check`）。承認の前に次の段の `begin` が書かれていないかを、`state.json` と段のログから読むだけで確かめる。`review` の要素に時刻 `at` を足し、本体に残る `/pipe-dev` の言い方を `/pipe-in` に直す |
+| [D0072](D0072-english-docs.md) | 初めての人向けの案内（VSCode の walkthrough）とコマンドを打たない人向けの文書を足し、`README.en.md`・`vscode/README.en.md` を並べて置く。食い違い（見出し・コードの塊・コマンド・画像・リンク）は `tests/test_english_docs.py` で止める（#26）。 |
 
 ## ひな形
 
