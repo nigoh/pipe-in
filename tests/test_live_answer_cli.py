@@ -890,7 +890,7 @@ def test_d0044_ac31_fake_conversation_approve(tmp_path, capfdbinary):
     sc = scene(tmp_path)
     assert converse(sc, capfdbinary, text_of(sc, "approve"))["ok"] is True
     s = state_of(sc)
-    assert s["pending_review"] is None and s["runs"][-1] == {"stage": "requirements", "review": "approved"}
+    assert s["pending_review"] is None and ls.without_at(s["runs"][-1]) == {"stage": "requirements", "review": "approved"}
     ls.recorder(sc.root, T0).begin("design")
     assert state_of(sc)["open"]["stage"] == "design"
 
@@ -901,7 +901,7 @@ def test_d0044_ac31_fake_conversation_revise(tmp_path, capfdbinary):
     feedback = "ここを直して\n`$(x)` <b>😀</b>"
     assert converse(sc, capfdbinary, text_of(sc, "revise", feedback))["action"] == "revise"
     s = state_of(sc)
-    assert s["pending_review"] is None and s["runs"][-1] == {"stage": "requirements", "review": "revise", "feedback": feedback}
+    assert s["pending_review"] is None and ls.without_at(s["runs"][-1]) == {"stage": "requirements", "review": "revise", "feedback": feedback}
 
 
 def test_d0044_ac31_fake_conversation_quit(tmp_path, capfdbinary):
@@ -909,7 +909,7 @@ def test_d0044_ac31_fake_conversation_quit(tmp_path, capfdbinary):
     sc = scene(tmp_path)
     assert converse(sc, capfdbinary, text_of(sc, "quit"))["action"] == "quit"
     s = state_of(sc)
-    assert s["runs"][-1] == {"stage": "requirements", "review": "quit"} and s["final"] == "STOPPED_BY_HUMAN"
+    assert ls.without_at(s["runs"][-1]) == {"stage": "requirements", "review": "quit"} and s["final"] == "STOPPED_BY_HUMAN"
 
 
 @pytest.mark.parametrize("action,feedback", [("approve", None), ("quit", None), ("revise", "直して")])
@@ -1142,7 +1142,7 @@ def test_d0044_ac49_record_commands_and_watch_lines_are_unchanged(tmp_path, caps
     assert outputs == [f"記録しました: {a}（docs/pipeline/state.json）\n" for a in ("start", "begin", "done", "wait", "review", "begin", "done", "wait", "review", "finish")]
     state = json.loads((root / "docs" / "pipeline" / "state.json").read_text(encoding="utf-8"))
     assert list(state) == ["started_at", "updated_at", "pipe", "name", "driver", "stages", "final", "total_cost_usd", "usage_summary", "pending_review", "warnings", "open", "runs"]
-    assert state["runs"][-1] == {"stage": "design", "review": "revise", "feedback": "直して"}
+    assert ls.without_at(state["runs"][-1]) == {"stage": "design", "review": "revise", "feedback": "直して"}
     with pytest.raises(SystemExit) as e:
         record.main(["review", "design", "approved", "--project", str(root)])
     assert isinstance(e.value.code, str) and "もう終わっています" in e.value.code

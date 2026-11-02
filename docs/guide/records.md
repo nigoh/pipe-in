@@ -26,6 +26,7 @@
 |---|---|---|
 | `name` | セッション名。VSCode の実行の一覧の太字の名前 | `pipe-in --name "…"`、`pipe-in record start --name "…"`。付けなければ、要件メモ（`00_input.md`）の最初の行から作ります（先頭の `#` を取り、中の連続する空白を 1 つにし、60 文字を超えるときは 59 文字＋`…`）。取れなければ書きません。確認待ちからの再開（`--review`・`--from`）でも変わりません（`--review` に `--name` は付けられません。名前は始めるときだけ付けます） |
 | `session_id` | Claude Code の会話の ID（開発用スキルが残す） | `pipe-in record start --session-id <ID>`。付けなければ書きません。空白や改行を含む値、100 文字を超える値は断ります。パイプの記録には書かず、拡張が `runs[]` の `session_id` のうち、最後に動いた段のものを使います |
+| `at`（`runs[]` の `review` の要素） | 人の確認の結果（`approved`・`revise`・`quit`）を書いた時刻（UTC からのずれつき） | `pipe-in record review` が書きます。`pipe-in record check` が、次の段の `begin` との前後を比べるのに使います。項目の無い古い記録は、検査で「判定できなかった」として読みます（ほかの読み手は使いません） |
 | `agent`（`runs[]` の要素と `Prompt` 行） | その段を受け持ったエージェントの名前 | `pipe-in record begin <段> --agent <名前>`。付けなければ書きません。SDK で流す段には書きません。VSCode の時系列の行の名前と、エージェント・スキルの表のエージェントの行に出ます |
 | `max_budget_usd`（`runs[]` の要素） | その実行に効いた費用の上限（ドル。0 より大きい数） | SDK で流す段のうち、上限が効いた実行にだけ書きます（`pipeline.toml` の `[stages.<段>]` か `pipe.toml` の値。[設定](config.md)）。上限が無い実行には書きません（`null` も書きません）。項目の無い古い記録は、上限なしとして読みます。VSCode の図は 0.001〜10000 ドルの範囲だけを上限として読みます。VSCode の図が、費用を上限と比べるのに使います |
 | `resumed`（`runs[]` の要素） | 会話の続きの印 | 上限が効いた実行のうち、`resume` を渡した実行にだけ `true` を書きます（偽は書きません）。続きの会話の費用は前の回からの累計（Claude Code v2.1.277 以降の動き）なので、図は金額の対を出さず、止まったときだけ言葉を出します。項目の無い記録は、続きでないものとして読みます |
@@ -35,7 +36,7 @@
 
 名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。`stages[]` の `check` と `check` の `attempt` の鍵も、同じ作りで `tests/fixtures/check_record.json` の表で確かめています。`stages[]` の `group` の鍵も、`tests/fixtures/group_record.json` の表で確かめています。
 
-時刻は、`logs/*.jsonl` の `Prompt` の行の `at`（段の始まり。同じログに何度か流したときは最後の `Prompt` の行）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。
+時刻は、`logs/*.jsonl` の `Prompt` の行の `at`（段の始まり。同じログに何度か流したときは最後の `Prompt` の行）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。`runs[]` の `review` の要素にも、確認の結果を書いた時刻 `at` を同じ書き方で書きます。`pipe-in record check` が、確認のある段の承認より前に次の段の `begin` が書かれていないかを、この `at` と `Prompt` の行の `at` で比べます（読むだけ。`at` の無い古い記録は、違反ではなく「判定できなかった」として出します）。
 
 新しい開発フローを始めるとき、前の終わった記録は `archive/<開始日時>/`（例 `archive/20261017-100000/`。同じ日時が重なると `-2` が付く）に、`state.json`・各段の成果物・`logs/` ごと移されます。形は `docs/pipeline/` の直下と同じです。VSCode の拡張は、この `archive/` の中の記録を「前の実行」として実行の一覧に出します（読むだけで、移すのは本体です。くわしくは [VSCode の拡張](vscode.md#実行の一覧)）。パイプの実行（`docs/pipeline/<パイプ名>/`）は `archive/` へ移されません。
 
