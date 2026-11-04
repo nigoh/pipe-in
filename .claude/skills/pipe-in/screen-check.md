@@ -11,16 +11,24 @@
    npm --prefix vscode run preview
    ```
 
-   `out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、次のページができる。
-   - 作業台：`pipe-editor-*`（明るい・暗い・ひな形 diagrams）。
-   - パネル：`run-panel-*`（明るい・暗い。見本の記録 `tests/fixtures/showcase/` から）。
-   - 動いている・確認待ちのパネル：`run-panel-running-*`・`run-panel-waiting-*`（`tests/fixtures/showcase_running/` などから）。
-   - 実行の一覧のパネル：`run-panel-runs-*` と、前の実行を省いた `run-panel-runs-omitted-*`（見本から一時フォルダに主の checkout・別の worktree・`archive/` の木を組み立てて作る）。
-   - 更新なしの印が出るパネル：`run-panel-stale-*`（目安を過ぎた見本）と `run-panel-stale-soon-*`（目安の 5 秒手前の見本。`window.__previewNext()` で更新後の本体を送れる）。動いている見本は一時フォルダに写してログの更新時刻を「今」からの相対にそろえる。
-   - 成果物のタブのパネル：`run-panel-artifacts-*`（動いている開発フローと 12 個のパイプの 2 つの実行を持つ。`window.__previewNext()` で動いている段が進んだ本体を送れ、`window.__posted` に送ったメッセージの種類が貯まる。成果物は一時フォルダに作り、更新時刻を固定の値にそろえる）。
-   - エージェント・スキルのタブのパネル：`run-panel-tools-*`（4 つの実行を持つ）。
-   - 段ごとの費用の上限のパネル：`run-panel-budget-*`（10 段のパイプ。図の節の上限の表示と、使用量のタブの費用の表）。
-   - 判定と並列の枠のパネル：`run-panel-check-self-*`・`run-panel-check-back-*`・`run-panel-check-old-*`（D0062）と `run-panel-group-running-*`・`run-panel-group-failed-*`・`run-panel-group-old-*`（D0063）。
+   `out/preview/` に、本物の HTML・本物の CSP・本物のビルドで、次の種類のページができる。ページの種類の頭は 1 行に 1 つだけ書く。一覧（名前・何を見るか・画像に撮るか）は `docs/assets/README.md`。ページを足したら、ここに頭の行を 1 行足し、`docs/assets/README.md` の表にも 1 行足す（ここの足し忘れは `tests/test_skill_tidy_docs.py` の D0039-AC-17 が足す頭の名前を出して、README の表の足し忘れは `tests/test_guide.py` が知らせる）。
+   - `pipe-editor-*`：作業台（明るい・暗い・ひな形 diagrams）
+   - `run-panel-*`：完了した見本のパネル（明るい・暗い。見本の記録 `tests/fixtures/showcase/` から）
+   - `run-panel-running-*`：動いているパネル（`tests/fixtures/showcase_running/` などから）
+   - `run-panel-waiting-*`：確認待ちのパネル
+   - `run-panel-runs-*`：実行の一覧のパネル（主の checkout・別の worktree・`archive/` の木を一時フォルダに組み立てる）
+   - `run-panel-runs-omitted-*`：前の実行を省いた一覧
+   - `run-panel-stale-*`：更新なしの印が出るパネル（目安を過ぎた見本）
+   - `run-panel-stale-soon-*`：目安の 5 秒手前の見本（`window.__previewNext()` で更新後の本体を送れる）
+   - `run-panel-artifacts-*`：成果物のタブのパネル（動いている開発フローと 12 個のパイプの 2 つの実行）
+   - `run-panel-tools-*`：エージェント・スキルのタブのパネル（4 つの実行）
+   - `run-panel-budget-*`：段ごとの費用の上限のパネル（10 段のパイプ）
+   - `run-panel-check-self-*`：自分をやり直す判定のパネル（D0062）
+   - `run-panel-check-back-*`：前の段へ戻す判定のパネル
+   - `run-panel-check-old-*`：判定の無い古い記録のパネル
+   - `run-panel-group-running-*`：並列の枠の中が同時に動くパネル（D0063）
+   - `run-panel-group-failed-*`：枠の中に失敗の段があるパネル
+   - `run-panel-group-old-*`：`group` の無い古い記録のパネル
 2. 手元だけで配る。次のコマンドを裏で動かす（`file:` では開けない。外には出さない）：
 
    ```

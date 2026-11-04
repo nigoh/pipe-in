@@ -197,16 +197,31 @@ def test_D0039_AC_16_見本_完全なページ名を数える関数は2つ並ん
 # ---- AC-17：screen-check.md は、ページの完全な名前を一覧にして並べない -----------------------------------------
 
 
+SCREEN_CHECK_HINT = (
+    "足す場所：.claude/skills/pipe-in/screen-check.md の頭の一覧に `<頭>-*：<ひとこと>` の行を 1 行（1 行 1 頭）。"
+    "docs/assets/README.md の確認用のページの表にも 1 行足す"
+)
+
+
+def screen_check_message(problems: list[str], hint: str = SCREEN_CHECK_HINT) -> str:
+    """D0075-AC-11: 失敗の文。problems が空なら空の文字列。あれば、problems を改行でつなぎ、最後に足す場所の案内（hint）を付ける。"""
+    if not problems:
+        return ""
+    return "\n".join([*problems, hint])
+
+
 def test_D0039_AC_17_screen_check_md_の1行に完全なページ名が2つ以上並ばない():
     """D0039-AC-17: screen-check.md は、ページの完全な名前（PANEL_PAGES と PAGES の名前そのもの）を一覧にして並べない
     （1 行に 2 つ以上並ばない。ページの種類は頭の形で書き、一覧は docs/assets/README.md と指す）。"""
-    assert crowded_lines(read_doc(SCREEN_CHECK), real_full_names()) == []
+    bad = crowded_lines(read_doc(SCREEN_CHECK), real_full_names())
+    assert bad == [], screen_check_message(bad, "完全な名前は並べず、頭の形（<頭>-*）で 1 行 1 頭に書く")
 
 
 def test_D0039_AC_17_screen_check_md_に出るページ名は実在するページか種類の頭に等しい():
     """D0039-AC-17: screen-check.md に出る run-panel-… と pipe-editor-… の名前は、実在するページ（PANEL_PAGES か PAGES）か、その種類の頭に等しい
     （ページを足したり名前を変えたりして手順が古くなったときに落ちる）。"""
-    assert unknown_tokens(read_doc(SCREEN_CHECK), real_full_names(), real_heads()) == []
+    bad = unknown_tokens(read_doc(SCREEN_CHECK), real_full_names(), real_heads())
+    assert bad == [], screen_check_message(bad, "実在しない名前。screen-check.md から消すか、vscode/scripts/previewPages.ts の PANEL_PAGES にあるか確かめる")
 
 
 README_POINTER = "docs/assets/README.md"
@@ -226,7 +241,8 @@ def test_D0039_AC_17_screen_check_md_にページの種類の頭が全部あり_
     一覧は docs/assets/README.md と指す（完全な名前を並べない代わりに、種類を書き落とさない。成果物のタブの run-panel-artifacts を確かめる手順も、ここで守る）。"""
     heads = real_heads()
     assert len(heads) >= 2, "previewPages.ts から PANEL_PAGES の頭が読めない"
-    assert screen_check_problems(read_doc(SCREEN_CHECK), heads) == []
+    problems = screen_check_problems(read_doc(SCREEN_CHECK), heads)
+    assert problems == [], screen_check_message(problems)
 
 
 def test_D0039_AC_17_見本_頭が1つ欠けた手順はその頭を返し_README_の指しが無い手順も見つける_守る():

@@ -51,3 +51,4 @@
 - pipe-in を実際に流した記録（`docs/pipeline/`、とくに `logs/*.jsonl` と `state.json`）は、プロンプト・読んだコードの中身・セッション ID・手元のパスを含みます。サンプルとして載せるときは、中身を読んで手元の情報を消してから `examples/` に置きます。
 - 手元だけの設定は `.claude/settings.local.json` と `CLAUDE.local.md` に書きます（どちらも `.gitignore` 済み）。
 - 決定の記録にも、手元の事情は書きません（「手元の Windows で確かめた」のように書き、パスやユーザー名は書かない）。
+- 上の秘密と手元の事情は、`tests/test_rules.py` の `test_no_local_info_in_tracked_files` が、追跡しているファイルと、まだ追跡していない新しいファイル（`.gitignore` の外）で検査します（D0075）。手元だけのファイル（作業の残り・覚え書き）を `.gitignore` の外に置くと、コミットの前でもこの検査が落ちます。落ちたら、公開してよいかを確かめて直すか、`.gitignore` 済みの場所（`docs/talk/` など）へ移します。

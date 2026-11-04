@@ -1,0 +1,4 @@
+# 決定の記録の一覧（docs/decisions/README.md）は、1 記録 1 行を末尾に足していく表です。
+# 別々の枝が末尾に足した行どうしは、git が両方の行を残して自動で解きます（merge=union）。
+# 番号の昇順・重複・リンク先は tests/test_doc_shape.py が見ます（D0075）。
+docs/decisions/README.md merge=union

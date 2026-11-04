@@ -110,6 +110,7 @@ git rebase --autostash origin/main    # まだコミットしていない自分�
 
 - 文書をそろえるのは、`/pipe-docs [要点か範囲]` に任せられます。変えたファイル（`git diff --name-only main...HEAD` と `git status --short`）を集めて、文書係の `pipe-in-documenter` に上の表どおりに直させます。文書係が書けるのは `README.md`・`vscode/README.md`・`pipes/README.md`・`docs/assets/README.md` と `docs/guide/`・`docs/development/` の `.md` だけで、`CLAUDE.md`・`.claude/`（`/pipe-help` を含む）・決定の記録は、案を返して人の承認を得てからメインが直します。
 - `/pipe-in` では、実装の段でそろえたうえで、検証で合格したあと、監査の前にもう一度 `pipe-in-documenter` に見てもらいます。
+- 新しい節・行・テストを足す場所は、末尾でなく決まった所にします（「8. 並列の作業でぶつからない書き方」）。`docs/guide/` の節は、関連する節の隣か、決まった順の位置に足します。
 - コード（`pipe_in/`・`generator/`・`vscode/src/`・`vscode/scripts/`・`plugin/`・`.claude-plugin/`・`.claude/` の定義・設定・フック、`pyproject.toml`・`vscode/package.json`）を変えたのに、上の文書が1つも変わっていないまま会話が止まろうとすると、Stop のフック `.claude/hooks/docs_reminder.py` が、同じ変更の組で1回だけ知らせます。直す文書が無いときは、その理由を一言伝えて終えます。
 
 ## 5. 終える：確かめてコミットし、main に入れる
@@ -176,3 +177,19 @@ Settings → Actions → General の「Fork pull request workflows」で、初�
 5. **図（mermaid）**：図は**任意**。GitHub は ```` ```mermaid ```` のコードブロックを図として描く。図を勧めるのは、変更の流れ（何が何を呼ぶか）・依存の向きや層・段や状態の移り変わりを示すとき。小さな直しには要らない。PR の本文と issue に加えて、**決定の記録**でも図を勧める（記録の形の検査は変えないので、図の無い記録もこれまでどおり通る）。HTML コメントの中に図を置くときは、矢印を `==>` で書く（細い矢印はコメントの終わりの印と同じ文字になり、そこでコメントが終わってしまう）。VSCode の拡張は図を描かない（コードのまま見える）。
 6. **公開の注意**：PR・issue・コメントに、**秘密**（API キー・トークン・`.env`・鍵）と手元の事情（ユーザー名の入った絶対パス・社内や私的なプロジェクトの名前・メールアドレス）を書かない。ログやパスは消してから貼る。`docs/pipeline/` の記録は貼らない（[principles.md](principles.md) の「7. 公開する前提で書く」）。
 7. **`/pipe-in` との関わり**：仕上げで、コミットの文の案と一緒に、PR の本文の案（テンプレートの節に沿う。図が向く変更なら Mermaid の図の案つき）を見せる。PR を出す・push するのは、人に言われてから（無人の実行だけ例外。`CLAUDE.md`）。
+
+## 8. 並列の作業でぶつからない書き方
+
+夜のまとめ実行や、ほかの会話と同時に進める作業では、「同じファイルの末尾に書き足す」所でぶつかりやすい（D0075）。書き足しが別々の場所に入るように、次のとおりにします。
+
+| 足すもの | 足し先 | 守ること |
+| --- | --- | --- |
+| 決定の記録の一覧（`docs/decisions/README.md`） | 表の末尾に 1 記録 1 行 | 番号は `python -m pipe_in skill decision-number` で取る。番号の昇順。`.gitattributes` の `merge=union` で、別々の枝が足した行どうしは載せ直し・cherry-pick・merge で自動で解ける。順序・重複・リンク先は `tests/test_doc_shape.py` が見る（載せ直しで並び違いになったときは、行を並べ替える） |
+| 置き場所の表（[design.md](design.md)） | 近い部品の隣に、1 部品 1 行 | design.md と CLAUDE.md の表の行は 800 字まで（`tests/test_doc_shape.py`）。長くなる前に行を割る。拡張の部品は「層ごとの部品」の表に 1 行足し、層の表の行は書き足さない（D0051 の検査が層の行で読む語は残す）。テストが読む語を持つ行（先頭の言葉）は変えない |
+| ガイド（`docs/guide/`）の節 | 関連する節の隣か、決まった順の位置 | 文書の末尾に足さない。機械では見ない（節の位置は意味で決まるため） |
+| アーキテクチャのテスト | `tests/test_architecture_<名前>.py`（決定ごとに新しいファイル） | `tests/test_architecture.py` の末尾に足さない。`_imports`・`_module_name`・`_outside_stdlib` は `from test_architecture import …` で使う |
+| 確認用のページ | `docs/assets/README.md` の表に 1 行、`.claude/skills/pipe-in/screen-check.md` の頭の一覧に 1 行（1 行 1 頭） | screen-check.md の足し忘れは、`tests/test_skill_tidy_docs.py` の D0039-AC-17 が、足す頭の名前と足す場所を出して落ちる。README の表の足し忘れは `tests/test_guide.py` が落ちる |
+
+- 載せ直し（`worktree sync`）のあと、`pytest -q` を流す。union で自動に解けた一覧が壊れていれば、上の検査が落ちる。
+- `merge=union` が効くのは、git のマージの仕組みを使う手元の操作（`git rebase`・`git cherry-pick`・`git merge`）。GitHub の画面の merge で効くかは確かめていない。入れる直前に手元で載せ直す手順（「5. 終える」）なら、解けたものを GitHub に出せる。
+- 同じ番号を取り合うことは、`decision-number` が防ぐ（`merge=union` は番号の取り合いを解かない）。
