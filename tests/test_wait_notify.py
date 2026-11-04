@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test_unattended_run import EXPECTED_ASK
+
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / ".claude" / "skills" / "pipe-in"
 SKILL = SKILL_DIR / "SKILL.md"
@@ -154,23 +156,15 @@ def test_D0046_AC_28_通知ではありませんの古い文が残っていな�
 
 
 def test_D0046_AC_27_settings_json_の_hooks_は_PreToolUse_と_Stop_だけで_notify_py_が無い():
-    """D0046-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は今のまま（D0058 で ask に gh pr create・gh pr merge を、D0056 で gh issue create を足した）、.claude/hooks/notify.py が無い。今のまま通る。守る。"""
+    """D0046-AC-27: .claude/settings.json の hooks は PreToolUse と Stop だけ（Notification なし）、permissions は allow・deny が今のまま、ask は D0073 の 27 本（test_unattended_run.EXPECTED_ASK。D0058 で足した gh pr merge と D0056 で足した gh issue create は残る）、.claude/hooks/notify.py が無い。
+    ask の期待は D0073 で直した（allow・deny・hooks・set(perms) の期待は変えない）。"""
     data = json.loads(read(SETTINGS))
     assert set(data["hooks"]) == {"PreToolUse", "Stop"}
     assert not (ROOT / ".claude" / "hooks" / "notify.py").exists()
     perms = data["permissions"]
     assert set(perms) == {"allow", "ask", "deny"}
-    assert perms["ask"] == [
-        "Bash(git push:*)",
-        "Bash(git commit:*)",
-        "Bash(git merge:*)",
-        "Bash(gh pr create:*)",  # D0058 で足した
-        "Bash(gh pr merge:*)",  # D0058 で足した
-        "Bash(npm publish:*)",
-        "Bash(npx vsce publish:*)",
-        "Bash(twine upload:*)",
-        "Bash(gh issue create:*)",  # D0056 で足した
-    ]
+    # D0073 で git commit・git push:*・gh pr create の 3 本を外し、main へ届きうる git push の形などの 21 本を足した（27 本。並びも決まり）
+    assert perms["ask"] == EXPECTED_ASK
     assert perms["deny"] == [
         "Read(./.env)",
         "Read(./.env.*)",

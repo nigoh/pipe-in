@@ -278,12 +278,11 @@ def test_D0056_AC_18_allowにghのBashの規則が無い_守る():
     assert [r for r in allow if r.startswith("Bash(gh")] == []
 
 
-def test_D0056_AC_27_askにgh_issue_createがあり_既存の6つが残る():
-    """D0056-AC-27: permissions.ask に Bash(gh issue create:*) があり、既存の6つ（git push・git commit・git merge・npm publish・npx vsce publish・twine upload）が残る。"""
+def test_D0056_AC_27_askにgh_issue_createがあり_既存の4つが残る():
+    """D0056-AC-27: permissions.ask に Bash(gh issue create:*) があり、既存の4つ（git merge・npm publish・npx vsce publish・twine upload）が残る。
+    git push:* と git commit:* は D0073 で外した（外れていることは D0073-AC-01 が見る）。（今のまま通る。守る）"""
     want = [
         "Bash(gh issue create:*)",
-        "Bash(git push:*)",
-        "Bash(git commit:*)",
         "Bash(git merge:*)",
         "Bash(npm publish:*)",
         "Bash(npx vsce publish:*)",
