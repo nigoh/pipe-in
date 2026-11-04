@@ -112,6 +112,8 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 
 main に入れること・publish・`gh issue create` は、夜のまとめ実行でも無人ではしません（上の「無人の実行の始め方」の 3）。
 
+件ごとの変更がぶつかりにくいよう、決定の記録の一覧は表の最後の行の下に 1 行足す形で、`.gitattributes` の `merge=union` で自動に解けます。載せ直しのあとは `pytest -q` を流してください（並び違いは `tests/test_doc_shape.py` が知らせます。決めたことと理由は D0075、書き方は `docs/development/workflow.md` の「8. 並列の作業でぶつからない書き方」）。
+
 GitHub の設定は、人が前もってします。クラウドの入れ物からの push を止めるのは GitHub の設定だけです（入れ物の中継は、どの枝へ push するかを限りません）。
 
 - main は PR を必須にし、規則を迂回できる人・アプリを空にします。

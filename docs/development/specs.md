@@ -36,6 +36,7 @@
 | `## 確かめたこと` | テストの結果の要約と、手で・実機で確かめたこと（確かめていないものは、そう書く） |
 
 ひな形は [../decisions/README.md](../decisions/README.md) にあります。形は `tests/test_rules.py` が検査します。
+一覧（`docs/decisions/README.md`）には、表の最後の行の下に 1 記録 1 行を足します。`.gitattributes` の `merge=union` で、別々の枝が足した行どうしは自動で解けます。番号の昇順・重複・リンク先は `tests/test_doc_shape.py` が検査します（[workflow.md](workflow.md) の「8. 並列の作業でぶつからない書き方」。D0075）。
 
 - 決めたことを後から変えたときは、前の記録を書き換えず、新しい記録を作り、「Dnnnn を置き換える」と書きます。
 - 小さな直し（誤字・文書だけ・テストの足し）には、記録は要りません。

@@ -1,6 +1,6 @@
 """開発のルール（docs/development/）のうち、テストで守らせられるものの検査。
 
-- 追跡しているファイルに、手元の事情（ユーザー名の入った絶対パス・メールアドレス）や秘密のファイルが無い
+- 追跡しているファイルと、まだ追跡していない新しいファイル（.gitignore の外。D0075）に、手元の事情（ユーザー名の入った絶対パス・メールアドレス）や秘密のファイルが無い
 - 決定の記録（docs/decisions/）が決まった形で、テストに出てくる Dnnnn-AC-xx が記録にある
 - CLAUDE.md と docs/development/design.md の置き場所の表にあるパスが、実際にある
 - テストを流しても、リポジトリの実物のフォルダが変わらない（conftest.py が見張る。ここでは見張り方を確かめる）
@@ -23,11 +23,26 @@ DEVELOPMENT = ROOT / "docs" / "development"
 AC_ID = re.compile(r"\bD\d{4}-AC-\d{2,3}\b")
 
 
-def tracked_files() -> list[Path]:
-    if shutil.which("git") is None or not (ROOT / ".git").exists():
+def git_list(root: Path, *args: str) -> list[Path]:
+    """`git ls-files -z <args>` のパス（root からの相対を root に付けたもの）。git が無い・リポジトリでなければ、そのテストを飛ばす。"""
+    if shutil.which("git") is None or not (root / ".git").exists():
         pytest.skip("git が無い・リポジトリではないため、追跡しているファイルを調べられない")
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout
-    return [ROOT / p for p in out.decode("utf-8").split("\0") if p]
+    out = subprocess.run(["git", "ls-files", "-z", *args], cwd=root, capture_output=True, check=True).stdout
+    return [root / p for p in out.decode("utf-8").split("\0") if p]
+
+
+def tracked_files(root: Path = ROOT) -> list[Path]:
+    return git_list(root)
+
+
+def new_files(root: Path = ROOT) -> list[Path]:
+    """まだ追跡していない新しいファイル（.gitignore の外）。D0075：追跡したあとの CI で初めて落ちないように、手元でも見る。"""
+    return git_list(root, "--others", "--exclude-standard")
+
+
+def checked_files(root: Path = ROOT) -> list[Path]:
+    """秘密・手元の事情の検査が見るファイル：追跡しているファイルと、まだ追跡していない新しいファイル（重なりなし・並べて返す）。"""
+    return sorted(set(tracked_files(root)) | set(new_files(root)))
 
 
 def text_of(path: Path) -> str | None:
@@ -82,11 +97,11 @@ def test_local_info_pattern(text, bad):
     assert bool(local_info_in(text)) is bad
 
 
-def test_no_local_info_in_tracked_files():
-    """D0002-AC-01: 追跡しているファイルに、手元の事情と秘密のファイルが無い。"""
+def local_problems(files: list[Path], root: Path) -> list[str]:
+    """files（root の下）にある、手元の事情と秘密のファイル。「<相対パス>: <中身>」の文で返す。"""
     found = []
-    for path in tracked_files():
-        rel = path.relative_to(ROOT).as_posix()
+    for path in files:
+        rel = path.relative_to(root).as_posix()
         if SECRET_FILES.search(rel):
             found.append(f"{rel}: 秘密のファイル")
         if rel == "tests/test_rules.py":
@@ -95,6 +110,12 @@ def test_no_local_info_in_tracked_files():
         if text is None:
             continue
         found += [f"{rel}: {f}" for f in local_info_in(text)]
+    return found
+
+
+def test_no_local_info_in_tracked_files():
+    """D0002-AC-01・D0075: 追跡しているファイルと、まだ追跡していない新しいファイル（.gitignore の外）に、手元の事情と秘密のファイルが無い。"""
+    found = local_problems(checked_files(), ROOT)
     assert found == []
 
 
@@ -273,3 +294,88 @@ def test_pipe_in_rebases_when_main_moves():
     text = (ROOT / ".claude/skills/pipe-in/SKILL.md").read_text(encoding="utf-8")
     for word in ["worktree sync", "origin", "検証の段の前"]:
         assert word in text, word
+
+
+# ---- D0075-AC-17〜20: 秘密・手元の事情の検査は、まだ追跡していない新しいファイルも見る -----------------------
+# きっかけ：D0074 の PR で、新しいテストの偽の URL（ユーザー名とトークンの形の文字をアドレスにつないだもの）がメールアドレスに見え、
+# 手元では（まだ追跡していないので）通り、追跡したあとの CI で落ちた。
+# 見本の文字（偽のメールアドレス・パス）は、組み立てて書く。このファイルだけが検査から除かれている（上の test_no_local_info_in_tracked_files）。
+# 見るファイルの取り方は、上の git_list・tracked_files・new_files・checked_files、中身の検査は local_problems。
+
+
+def make_repo(root: Path) -> None:
+    """一時のフォルダを git のリポジトリにする（コミットはしない。git init と git ls-files はユーザー名の設定が要らない）。"""
+    if shutil.which("git") is None:
+        pytest.skip("git が無いため、一時のリポジトリを作れない")
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+
+
+def rel_set(files: list[Path], root: Path) -> set[str]:
+    return {p.relative_to(root).as_posix() for p in files}
+
+
+def test_D0075_AC_17_検査のファイル一覧は追跡中と未追跡の新しいファイルの両方を含む(tmp_path):
+    """D0075-AC-17: 一時のリポジトリで、git add した a.txt（追跡）と git add していない b.txt（未追跡）の両方が checked_files に出る。
+    tracked_files は a.txt だけ、new_files は b.txt だけ。"""
+    make_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    (tmp_path / "b.txt").write_text("b", encoding="utf-8")
+    checked = checked_files(tmp_path)
+    assert {"a.txt", "b.txt"} <= rel_set(checked, tmp_path)
+    assert rel_set(tracked_files(tmp_path), tmp_path) == {"a.txt"}
+    assert rel_set(new_files(tmp_path), tmp_path) == {"b.txt"}
+
+
+def test_D0075_AC_17_既存の検査は追跡中と未追跡の両方の一覧を使う():
+    """D0075-AC-17・D0075-AC-20: test_no_local_info_in_tracked_files（名前は変えない）は、見るファイルの取り方に checked_files を使う。"""
+    import inspect
+
+    source = inspect.getsource(test_no_local_info_in_tracked_files)
+    assert "checked_files(" in source, "test_no_local_info_in_tracked_files が checked_files() を使っていない（追跡中のファイルしか見ていない）"
+
+
+def test_D0075_AC_18_gitignoreの中のファイルは一覧に出ない(tmp_path):
+    """D0075-AC-18: 一時のリポジトリで、.gitignore に書いた docs/pipeline/ の中のファイルは checked_files に出ない（.gitignore 自身は出る）。"""
+    make_repo(tmp_path)
+    (tmp_path / ".gitignore").write_text("docs/pipeline/\n", encoding="utf-8")
+    (tmp_path / "docs" / "pipeline").mkdir(parents=True)
+    (tmp_path / "docs" / "pipeline" / "x.md").write_text("x", encoding="utf-8")
+    (tmp_path / "docs" / "note.md").write_text("n", encoding="utf-8")
+    found = rel_set(checked_files(tmp_path), tmp_path)
+    assert "docs/pipeline/x.md" not in found
+    assert {".gitignore", "docs/note.md"} <= found
+
+
+def test_D0075_AC_19_未追跡の新しいファイルの手元の事情と秘密の名前を見つけ_載せてよい書き方は見逃す(tmp_path):
+    """D0075-AC-19: 未追跡の note.md の偽のメールアドレス（URL の形）とユーザー名の入った Linux のパス、未追跡の .env を見つける。
+    載せてよい書き方（noreply@anthropic.com・@example.com）だけのファイルは見逃す。"""
+    make_repo(tmp_path)
+    fake_mail = "user:token" + "@" + "127.0.0.1"
+    fake_path = "/ho" + "me/jiro/app"
+    (tmp_path / "note.md").write_text(f"接続先 http://{fake_mail}:8080/ と {fake_path}\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("X=1\n", encoding="utf-8")
+    (tmp_path / "ok.md").write_text("Co-Authored-By: Claude <noreply@anthropic.com> と dev@example.com\n", encoding="utf-8")
+    problems = local_problems(checked_files(tmp_path), tmp_path)
+    text = "\n".join(problems)
+    assert "note.md: メールアドレス" in text, text
+    assert "note.md: ユーザー名の入った Linux のパス" in text, text
+    assert ".env: 秘密のファイル" in text, text
+    assert not [p for p in problems if p.startswith("ok.md")], text
+
+
+def test_D0075_AC_20_一時のリポジトリだけで確かめ_実物に書かない(tmp_path, monkeypatch):
+    """D0075-AC-20: checked_files の戻りはすべて一時のフォルダの下で、リポジトリの実物（ROOT）の下のものを含まない。
+    git が無い・リポジトリでないときは、今までどおり飛ばす（pytest.skip）。"""
+    make_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
+    files = checked_files(tmp_path)
+    assert files and all(p.is_relative_to(tmp_path) for p in files)
+    assert not any(p.is_relative_to(ROOT) for p in files)
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    with pytest.raises(pytest.skip.Exception):
+        checked_files(plain)  # .git が無いフォルダ
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    with pytest.raises(pytest.skip.Exception):
+        checked_files(tmp_path)  # git が無い環境
