@@ -4,8 +4,8 @@
 文書（CLAUDE.md・docs/）と決定の記録の検査は tests/test_skill_tidy_docs.py、
 フックの判断が変わらないことの総当たりは tests/test_pipe_in_guard.py の末尾にある。
 
-- 補助ファイル（record.md・artifact.md・screen-check.md）がまだ無いときは、read_doc が「が無い」で落とす。
-  そのテストだけが落ち、ファイルごと読めずに全部が落ちることはない。
+- 補助ファイル（record.md・artifact.md・screen-check.md・unattended.md）がまだ無いときは、read_doc が「が無い」で落とす。
+  そのテストだけが落ち、ファイルごと読めずに全部が落ちることはない（unattended.md は D0073 で 4 つ目に足した）。
 - 今の作りのままで通るテストは、名前の末尾を _守る にし、説明の末尾に「（今のまま通る。守る）」と書く。
 - 前の名前は、この文書に直接書かない（tests/test_rename.py の一覧に無いファイルなので）。
   探すときは test_rename.OLD_NAME を使い、語が要るときは文字をつないで作る。
@@ -29,7 +29,8 @@ AGENTS_DIR = ROOT / ".claude" / "agents"
 HOOKS_DIR = ROOT / ".claude" / "hooks"
 SETTINGS = ROOT / ".claude" / "settings.json"
 SKILL_REL = ".claude/skills/pipe-in/"
-HELPERS = ("record.md", "artifact.md", "screen-check.md")
+# D0073：無人の実行の手順を補助ファイル unattended.md に分けたので、4 つ目として足した（足さないと、合計の字数の検査から漏れる）。
+HELPERS = ("record.md", "artifact.md", "screen-check.md", "unattended.md")
 
 OLD = "dev" + "pipe"  # 前の名前（文字をつないで作る）
 
@@ -310,7 +311,7 @@ def referenced_helpers(md: str) -> set[str]:
 
 
 def helper_set_problems(md: str, folder_names: set[str]) -> list[str]:
-    """SKILL.md が指す補助ファイルと、フォルダにある SKILL.md 以外の .md の食い違い。3 つ（HELPERS）と違えば、それも。"""
+    """SKILL.md が指す補助ファイルと、フォルダにある SKILL.md 以外の .md の食い違い。HELPERS の名前と違えば、それも。"""
     referenced = referenced_helpers(md)
     others = set(folder_names) - {"SKILL.md"}
     problems = {f"{n} を指しているが、フォルダに無い" for n in referenced - others}
@@ -320,7 +321,7 @@ def helper_set_problems(md: str, folder_names: set[str]) -> list[str]:
 
 
 def pointer_problems(md: str) -> list[str]:
-    """「0. 始める前に」の節だけを見て、3 つの補助ファイルを「いつ読むか」を添えて指しているかの問題。"""
+    """「0. 始める前に」の節だけを見て、HELPERS の補助ファイル（4 つ）を「いつ読むか」を添えて指しているかの問題。"""
     zero = section_text(md, "0. 始める前に", depth=2, exact=True)
     if zero is None:
         return ["「## 0. 始める前に」の節が無い"]
@@ -331,6 +332,9 @@ def pointer_problems(md: str) -> list[str]:
     screen_lines = [line for line in zero.splitlines() if SKILL_REL + "screen-check.md" in line]
     if screen_lines and not any("画面の AC" in line for line in screen_lines):
         problems.append("screen-check.md を指す文に「画面の AC」が無い")
+    unattended_lines = [line for line in zero.splitlines() if SKILL_REL + "unattended.md" in line]
+    if unattended_lines and not any("無人の実行" in line for line in unattended_lines):
+        problems.append("unattended.md を指す文に「無人の実行」が無い")  # いつ読むか＝無人の実行のとき（D0073）
     first = md.find(SKILL_REL + "record.md")
     stage1 = find_head(md, "1. 要件定義", depth=3)
     if first == -1:
@@ -344,26 +348,28 @@ GOOD_POINTERS = (
     "## 0. 始める前に\n\n足したい機能: $ARGUMENTS\n\n"
     f"- `{SKILL_REL}record.md`（記録のコマンド）：最初の `record start` の前に1回読む。\n"
     f"- `{SKILL_REL}artifact.md`（`--artifact` の手順）：引数に `--artifact` があるときに読む。\n"
-    f"- `{SKILL_REL}screen-check.md`（画面の確認の手順）：検証で画面の AC があるときに読む。\n\n"
+    f"- `{SKILL_REL}screen-check.md`（画面の確認の手順）：検証で画面の AC があるときに読む。\n"
+    f"- `{SKILL_REL}unattended.md`（無人の実行の手順）：無人の実行（CLAUDE.md）のときに読む。\n\n"
     "### 1. 要件定義\n\n本文。\n"
 )
 
 
-def test_D0039_AC_05_補助ファイルが3つある():
-    """D0039-AC-05: .claude/skills/pipe-in/ に record.md・artifact.md・screen-check.md がある。"""
+def test_D0039_AC_05_補助ファイルが4つある():
+    """D0039-AC-05: .claude/skills/pipe-in/ に record.md・artifact.md・screen-check.md・unattended.md がある（unattended.md は D0073 で 4 つ目に足した）。"""
     absent = [n for n in HELPERS if not (SKILL_DIR / n).is_file()]
     assert absent == [], f"{SKILL_REL} に無い補助ファイル：{absent}"
 
 
-def test_D0039_AC_05_始める前にが3つの補助ファイルを_いつ読むかを添えて指す():
-    """D0039-AC-05: 「0. 始める前に」の節が 3 つの補助ファイルを（リポジトリからの相対パスで）指し、artifact.md の文に --artifact、
-    screen-check.md の文に「画面の AC」があり、record.md を指す文は「1. 要件定義」の見出しより前にある。"""
+def test_D0039_AC_05_始める前にが4つの補助ファイルを_いつ読むかを添えて指す():
+    """D0039-AC-05: 「0. 始める前に」の節が 4 つの補助ファイルを（リポジトリからの相対パスで）指し、artifact.md の文に --artifact、
+    screen-check.md の文に「画面の AC」、unattended.md の文に「無人の実行」（いつ読むか＝無人の実行のとき。D0073）があり、
+    record.md を指す文は「1. 要件定義」の見出しより前にある。"""
     assert pointer_problems(skill()) == []
 
 
 def test_D0039_AC_05_SKILLが指す補助ファイルはすべて実在し_フォルダの補助ファイルはすべて指される():
     """D0039-AC-05: SKILL.md が指す補助ファイルはすべて実在し、フォルダにある SKILL.md 以外の .md はすべて SKILL.md から指されている
-    （この 3 つだけ）。"""
+    （この 4 つだけ）。"""
     names = {p.name for p in SKILL_DIR.glob("*.md")}
     assert helper_set_problems(skill(), names) == []
 
@@ -390,7 +396,7 @@ def test_D0039_AC_05_旗の綴りが補助ファイルにしか無いコマン�
 
 def test_D0039_AC_05_見本_短い名前だけの行と他の文書は補助ファイルの集合に入れない_守る():
     """D0039-AC-05: 検査そのものの確かめ。.claude/skills/pipe-in/ の完全な形で書いたものだけを数え、短い名前だけの行・workflow.md・specs.md・
-    SKILL.md 自身は数えない。4 つ目の補助ファイルをフォルダに足したのに SKILL.md が指さない形は見つける。（今のまま通る。守る）"""
+    SKILL.md 自身は数えない。5 つ目の補助ファイルをフォルダに足したのに SKILL.md が指さない形は見つける。（今のまま通る。守る）"""
     text = "`record.md` と書くだけ。`docs/development/workflow.md`・`docs/development/specs.md`・`.claude/skills/pipe-in/SKILL.md`"
     assert referenced_helpers(text) == set()
     assert referenced_helpers(GOOD_POINTERS) == set(HELPERS)
@@ -402,19 +408,21 @@ def test_D0039_AC_05_見本_短い名前だけの行と他の文書は補助フ�
 
 
 def test_D0039_AC_05_見本_始める前にの外にだけ指しがある_SKILL_は見つける_守る():
-    """D0039-AC-05: 検査そのものの確かめ。3 つとも「0. 始める前に」の中で指す形は問題なし。「0.」の外（段の進め方）にだけ指しがある形は
-    3 つとも欠けとして返し、artifact.md の文に --artifact が無い形・screen-check.md の文に「画面の AC」が無い形・
-    record.md を指す文が「1. 要件定義」より後ろにしかない形も見つける。（今のまま通る。守る）"""
+    """D0039-AC-05: 検査そのものの確かめ。4 つとも「0. 始める前に」の中で指す形は問題なし。「0.」の外（段の進め方）にだけ指しがある形は
+    4 つとも欠けとして返し、artifact.md の文に --artifact が無い形・screen-check.md の文に「画面の AC」が無い形・
+    unattended.md の文に「無人の実行」が無い形（D0073）・record.md を指す文が「1. 要件定義」より後ろにしかない形も見つける。（今のまま通る。守る）"""
     assert pointer_problems(GOOD_POINTERS) == []
     outside = (
         "## 0. 始める前に\n\n足したい機能: $ARGUMENTS\n\n- 空。\n\n## 段の進め方\n\n"
         + "".join(f"- `{SKILL_REL}{n}`\n" for n in HELPERS)
     )
-    assert len(pointer_problems(outside)) >= 3
+    assert len(pointer_problems(outside)) >= len(HELPERS)
     no_flag = GOOD_POINTERS.replace("`--artifact` の手順", "手順").replace("引数に `--artifact` がある", "あるとき")
     assert "artifact.md を指す文に --artifact が無い" in pointer_problems(no_flag)
     no_screen = GOOD_POINTERS.replace("画面の AC", "画面")
     assert "screen-check.md を指す文に「画面の AC」が無い" in pointer_problems(no_screen)
+    no_unattended = GOOD_POINTERS.replace("無人の実行", "手順")
+    assert "unattended.md を指す文に「無人の実行」が無い" in pointer_problems(no_unattended)
     late = GOOD_POINTERS.replace(f"- `{SKILL_REL}record.md`（記録のコマンド）：最初の `record start` の前に1回読む。\n", "") + f"後ろで `{SKILL_REL}record.md`\n"
     assert any("record.md" in p for p in pointer_problems(late))
 
@@ -539,8 +547,8 @@ def test_D0039_AC_08_検証の節は前後だけが残り_手順は持たない(
 
 
 def test_D0039_AC_09_補助ファイルに置き換えの語が無い():
-    """D0039-AC-09: 3 つの補助ファイルに ${CLAUDE_SESSION_ID} も $ARGUMENTS も 0 件（補助ファイルは Read で読むので置き換えが効かず、文字のまま記録に入るおそれ。
-    効かないことは確かめていない）。"""
+    """D0039-AC-09: 補助ファイル（HELPERS の 4 つ。unattended.md は D0073 で足した）に ${CLAUDE_SESSION_ID} も $ARGUMENTS も 0 件
+    （補助ファイルは Read で読むので置き換えが効かず、文字のまま記録に入るおそれ。効かないことは確かめていない）。"""
     found = []
     for name in HELPERS:
         text = read_doc(SKILL_DIR / name)
@@ -588,7 +596,8 @@ SKILL_LIMIT = 12_300
 # D0050：main の確認待ちの知らせ（D0046）で合計が 17,758 字になり、エージェント・スキルのタブの確認の手順（228 字）が入らなかったので、人が決めて 18,000 字に上げた。
 # D0051：screen-check.md に確認用のページの新しい種類（run-panel-budget）の行を足すと 17,800 字を超えるので、設計の承認で人が決めて 18,300 字に上げた。
 # D0063：夜の作業のまとめで、screen-check.md に判定（D0062）と並列の枠（D0063）のページの頭の行を足すと 18,300 字を超えるので、人が決めて 18,500 字に上げた。
-TOTAL_LIMIT = 18_500
+# D0073：無人の実行の手順を補助ファイル unattended.md に分けたので合計が 18,500 字を超える。人が決めて 20,400 字に上げた（SKILL.md の上限 12,300 字は変えない）。
+TOTAL_LIMIT = 20_400
 
 
 def test_D0039_AC_11_SKILLは12300字以下():
@@ -597,9 +606,9 @@ def test_D0039_AC_11_SKILLは12300字以下():
     assert n <= SKILL_LIMIT, f"SKILL.md が {n} 字（上限 {SKILL_LIMIT}）"
 
 
-def test_D0039_AC_11_SKILLと3つの補助ファイルの合計は18500字以下():
-    """D0039-AC-11: SKILL.md と 3 つの補助ファイルの合計は 18,500 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に、D0050 で 18,000 字に、D0051 で 18,300 字に、D0063 で 18,500 字に上げた）。
-    3 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。"""
+def test_D0039_AC_11_SKILLと4つの補助ファイルの合計は20400字以下():
+    """D0039-AC-11: SKILL.md と 4 つの補助ファイルの合計は 20,400 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に、D0050 で 18,000 字に、D0051 で 18,300 字に、D0063 で 18,500 字に、D0073 で（無人の実行の手順を補助ファイル unattended.md に分けたので）20,400 字に上げた）。
+    4 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。"""
     total = len(skill()) + sum(len(read_doc(SKILL_DIR / n)) for n in HELPERS)
     assert total <= TOTAL_LIMIT, f"合計が {total} 字（上限 {TOTAL_LIMIT}）"
 
@@ -702,7 +711,7 @@ def missing_words(text: str, words) -> list[str]:
 
 def test_D0039_AC_13_移す前のバッククォートの語はSKILLと補助ファイルを合わせた中に全部残る():
     """D0039-AC-13: 移す前の SKILL.md にあった、コマンド・旗・道具名・URL のバッククォートの語は、除く 3 つ（前の名前を含む語・完全なページ名と頭の形・語尾だけの語）を除き、
-    SKILL.md と 3 つの補助ファイルを合わせた中に全部残る（長い語は部分文字列として、6 字以下の語は元どおり `…` で囲んだ形で）。補助ファイルが無いときは、そのことで落ちる。"""
+    SKILL.md と補助ファイル（HELPERS の 4 つ）を合わせた中に全部残る（長い語は部分文字列として、6 字以下の語は元どおり `…` で囲んだ形で）。補助ファイルが無いときは、そのことで落ちる。"""
     texts = [skill()]
     absent = []
     for name in HELPERS:
@@ -909,7 +918,8 @@ def test_D0039_AC_23_エージェントの定義8つの前置きにhooksを足�
 
 def parse_bash_rule(rule: str) -> tuple[str, str] | None:
     """Bash の規則を（当たり方, 本体）にする。当たり方は exact（完全一致）・word（':*' か ' *' で終わる。頭が合って語の切れ目で終わる）・
-    raw（'*' で終わる。頭が合えばよい）。Bash だけの規則は全部に当たる。Bash の規則でなければ None。"""
+    raw（'*' で終わる。頭が合えばよい）・glob（途中にも '*' がある。本体は規則の全体）。Bash だけの規則は全部に当たる。Bash の規則でなければ None。
+    glob（D0073）：末尾の ':*'・' *'・'*' の前に '*' が残る規則と、末尾が無くて '*' が中にある規則。公式の文書（permissions.md の Wildcard patterns）の読み。"""
     if rule == "Bash":
         return "raw", ""
     m = re.fullmatch(r"Bash\((.*)\)", rule, re.S)
@@ -918,8 +928,14 @@ def parse_bash_rule(rule: str) -> tuple[str, str] | None:
     body = m.group(1)
     for suffix, kind in ((":*", "word"), (" *", "word"), ("*", "raw")):
         if body.endswith(suffix):
-            return kind, body[: -len(suffix)]
-    return "exact", body
+            head = body[: -len(suffix)]
+            return ("glob", body) if "*" in head else (kind, head)
+    return ("glob", body) if "*" in body else ("exact", body)
+
+
+def glob_regex(body: str) -> re.Pattern[str]:
+    """glob の本体を正規表現にする。'*' は空白を含む任意の文字（改行にも当たる）、そのほかは文字そのまま（':' も文字）。"""
+    return re.compile(".*".join(re.escape(part) for part in body.split("*")), re.S)
 
 
 def rule_matches(rule: str, command: str) -> bool:
@@ -931,6 +947,8 @@ def rule_matches(rule: str, command: str) -> bool:
         return command == body
     if kind == "raw":
         return command.startswith(body)
+    if kind == "glob":
+        return glob_regex(body).fullmatch(command) is not None
     return command == body or command.startswith(body + " ")
 
 
@@ -938,9 +956,31 @@ BROAD_HEADS = {"", "python", "python -m", "npm", "npm --prefix", "npm run", "nod
 
 
 def is_broad(rule: str) -> bool:
-    """広すぎる規則か：前方一致の規則で、頭が空か、コマンドの頭の一語・二語だけ。完全一致の規則は広くない。"""
+    """広すぎる規則か：前方一致の規則で、頭が空か、コマンドの頭の一語・二語だけ。完全一致の規則は広くない。
+    途中に '*' を持つ規則（glob）は、最初の '*' の前の部分（空白と末尾の ':' を落とす）で見る（Bash(git * main) は広く、Bash(git push * main) は広くない）。"""
     parsed = parse_bash_rule(rule)
-    return parsed is not None and parsed[0] != "exact" and parsed[1].strip() in BROAD_HEADS
+    if parsed is None or parsed[0] == "exact":
+        return False
+    kind, body = parsed
+    head = body.split("*", 1)[0].strip().rstrip(":").strip() if kind == "glob" else body.strip()
+    return head in BROAD_HEADS
+
+
+COMPOUND_SPLIT = re.compile(r"&&|\|\||;|\||\n")
+LEADING_ASSIGNMENTS = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+")
+
+
+def subcommands(command: str) -> list[str]:
+    """つないだコマンドを部分に割る（&&・||・;・|・改行。簡易版：引用符・リダイレクト・& 単独は見ない。テストの入力は単純な形だけ）。
+    公式の文書では、つないだコマンドは分けて当て、ask はどれか 1 つの部分に当たれば確認になる（D0073）。"""
+    return [part.strip() for part in COMPOUND_SPLIT.split(command) if part.strip()]
+
+
+def ask_hits(rules: list[str], command: str) -> list[str]:
+    """command の部分のどれかに当たる規則（rules の順。重ならない）。部分の先頭の NAME=値 の代入は落としてから当てる
+    （ask・deny は先頭の環境変数の代入を越えて当たる）。timeout などのラッパーは外さない（テストの入力に使わない）。"""
+    parts = [LEADING_ASSIGNMENTS.sub("", part) for part in subcommands(command)]
+    return [rule for rule in rules if any(rule_matches(rule, part) for part in parts)]
 
 
 OLD_BASH_RULES = [
@@ -965,10 +1005,11 @@ def permissions() -> dict:
     return json.loads(read_doc(SETTINGS))["permissions"]
 
 
-def test_D0039_AC_25_ask_にgit_commitとgit_mergeが加わり_既存の4つが残る():
-    """D0039-AC-25: settings.json の permissions.ask に Bash(git commit:*) と Bash(git merge:*) が加わり、既存の 4 つ（git push・npm publish・npx vsce publish・twine upload）が残る。
-    （設定の検査）"""
-    want = ["Bash(git commit:*)", "Bash(git merge:*)", "Bash(git push:*)", "Bash(npm publish:*)", "Bash(npx vsce publish:*)", "Bash(twine upload:*)"]
+def test_D0039_AC_25_askにgit_mergeが残り_publishの3つも残る():
+    """D0039-AC-25: settings.json の permissions.ask に Bash(git merge:*) と、既存の publish の 3 つ（npm publish・npx vsce publish・twine upload）が残る。
+    git commit と git push の ':*' は D0073 で外した（外れていることは D0073-AC-01 が見る。main へ届く push の形は D0073-AC-03 が見る）。
+    （設定の検査。今のまま通る。守る）"""
+    want = ["Bash(git merge:*)", "Bash(npm publish:*)", "Bash(npx vsce publish:*)", "Bash(twine upload:*)"]
     assert lacking(permissions()["ask"], want) == [], f"ask の今の規則：{permissions()['ask']}"
 
 

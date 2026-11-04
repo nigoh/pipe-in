@@ -25,9 +25,9 @@ cd .claude/worktrees/<名前>
 
 ## 2. 進める：5つの段
 
-Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の区切りで止まって確認を取ります（止まらずに進めるのは `--auto` のときだけ）。
+Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の区切りで止まって確認を取ります（止まらずに進めるのは `--auto` のときだけ。人のいない無人の実行（`--auto` を付ける）では、止まって聞く場面が、推しで決めて朝に人が確かめる形に替わります。始め方は [docs/guide/develop.md](../guide/develop.md) の「無人の実行の始め方」）。
 段の中身は段ごとのサブエージェント（`.claude/agents/pipe-in-*`）が受け持ち、書ける場所と Bash は `.claude/hooks/pipe_in_guard.py` が絞ります。人とのやり取りと、決定の記録を書くのはメインの会話です。
-スキル（`.claude/skills/pipe-in/`）は、必ず守る決まりを `SKILL.md` の冒頭に置き、長い手順（記録のコマンド・`--artifact`・画面の確認）を同じフォルダの補助ファイル（`record.md`・`artifact.md`・`screen-check.md`）に分けています。
+スキル（`.claude/skills/pipe-in/`）は、必ず守る決まりを `SKILL.md` の冒頭に置き、長い手順（記録のコマンド・`--artifact`・画面の確認・無人の実行）を同じフォルダの補助ファイル（`record.md`・`artifact.md`・`screen-check.md`・`unattended.md`）に分けています。
 
 | 段 | 受け持つ | すること | 書けるもの |
 | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の�
 - `pipe-in-advisor`（助言）：Claude Code と Agent SDK の公式の文書と照らして、使いかたのずれを、出典の URL 付きで並べます。変えたファイルに `.claude/`・`plugin/`・`.claude-plugin/`・`pipe_in/engine/runner.py`・`pipe_in/engine/guard.py`・`generator/guard_hook.py` があるときだけ流し、無ければ流さなかった理由を書きます。
 - `pipe-in-judge`（審査）：助言を流したときだけ、続けて流します。助言の報告を、事実の正確さ・引用の正確さ・網羅性・情報源の質・ツール効率の5項目で 0.0〜1.0 に採点し、JSON で返します。合否は人が読む材料で、fail でも自動で直さず、差し戻しません。助言を流さなかったとき、または助言が0件のときは審査も流さず、その旨を書きます。
 - 3つとも読むだけで、どこにも書けず、直しません（報告は親に返すだけ）。Web はアドバイザーと審査役（WebFetch だけ）だけ、公式の文書の場所だけ（`.claude/hooks/pipe_in_guard.py` が絞ります）。
-- 報告（と採点）を見せて止まります。`--auto` でも止まります（直す項目は人にしか選べないため）。2つとも0件なら止まらずに進みます。
+- 報告（と採点）を見せて止まります。`--auto` でも止まります（直す項目は人にしか選べないため）。`--auto` を付けた無人の実行では止まらず、直さずに、決定の記録の「対象外・残った課題」に要約を書きます。2つとも0件なら止まらずに進みます。
 - 直すのはメインで、人が承認した項目だけです。直してよいのは文書・定義・コメントの食い違いまでで、コードの振る舞いを変える項目はテスト先行の段に戻すか、別の `/pipe-in` にします。直したら、触った側のテストを流し直します。
 - このブランチで変えたファイルに関わらない項目は直さず、決定の記録の「対象外・残った課題」に書いて、別の `fix/`・`docs/` のブランチで直します（1つの機能を1つのコミットにするため）。
 - 手で呼ぶときは `/pipe-audit [範囲]`・`/pipe-advise [テーマ]`・`/pipe-judge [ファイル]` を使います。監査と助言で承認した項目は、今のブランチで直します。`/pipe-judge` は採点を見せて止まるだけで、直しません。
@@ -117,8 +117,9 @@ git rebase --autostash main           # まだコミットしていない自分�
    - `feat(pipe-in): …`・`feat(pipe-in-vscode): …`・`fix(…): …`・`docs: …`・`chore: …`
    - 1行目は日本語で、何ができるようになるか。本文に、変えた点を箇条書きで。決定の記録があれば、その番号を書く
 6. main に入れる。**main に入れる直前**にもう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。PR を出してあれば、載せ直したあとの CI が緑かを見る。PR を出さずに入れるなら、手元で Python と拡張の全テストを流した結果を見る。そのうえで、main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ。マージのコミットは作らない）。
+   - main の保護で PR を必須にしていれば、手元の `git merge --ff-only` は使えない。GitHub の PR で入れる（下の「6. CI」の「ブランチの保護」）。
    - main の作業フォルダに、ほかの会話のまだコミットしていない変更があり、それが自分のブランチの変更と同じファイルなら、git が断ります。そのときは、**ほかの会話の作業を stash しない**（その会話の作業を壊すおそれがある）。自分のブランチ側からそのファイルの変更を外すか、その会話がコミットするのを待ってから載せ直します。
-7. コミット・PR を出す・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない（`git commit`・`gh pr create`・`gh pr merge`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある。公式の文書では、個人の許可があっても確認が出る。実機では確かめていない）。
+7. コミット・PR を出す・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない。例外は無人の実行（人が開始の指示で、無人であることと、commit・push・PR の作成の承認を書いた実行。定義と範囲は `CLAUDE.md`）だけで、その実行が切った枝への commit・push・PR の作成までする。main に入れること（`git merge`・`gh pr merge`・main への push）は、無人でもしない。`.claude/settings.json` の `ask` には、`git merge`・`gh pr merge`・main へ届きうる `git push` の形・`gh api` での merge と `refs/heads/main` の更新・publish・`gh issue create` を入れてある（commit・枝名を書く `git push`・`gh pr create` は入れていない）。実機で確かめたこと：`ask` に入れた操作は auto モードでも確認が出て、人が答えるまで進まない（2026-11-02 の夜の実行）。公式の文書によること（実機は未確認）：個人の許可・フックの許可も `ask` を越えない。
 
 ## 6. CI：main に入る前の確認
 
@@ -140,10 +141,22 @@ git rebase --autostash main           # まだコミットしていない自分�
 
 初めての CI の実行が緑になってから行う。画面の名前は GitHub の更新で変わりうる。
 
-1. Settings → Rules（または Branches）で、main を対象に「Require status checks to pass」を有効にし、必須のチェックに `python` と `extension` を選ぶ。
-2. 「Require a pull request before merging」を選ぶかを決める。
-   - 選ぶ場合：main に入れるのは PR 経由になる。今の「手元で `git merge --ff-only`」の運用はやめ、PR の CI が緑になってから GitHub で入れる。
-   - 選ばない場合：手元での `git merge --ff-only` を続ける。入れる前の確認は、上の「5. 終える」の6のとおり、PR があればその CI、無ければ手元の全テストで補う。保護は PR を出したときの目安にとどまる。
+main の本当の関所は、この保護である。`.claude/settings.json` の `ask` と `CLAUDE.md` の決まりは、Claude Code に向けた目安で、書かれた形にしか当たらず、別の書き方（下の「すり抜けの道」）は止められない。クラウドの Claude Code のプロキシは、push 先の枝を絞らない。無人の実行（`CLAUDE.md`）を使うなら、先にこの保護を入れる。
+
+1. Settings → Rules（または Branches）で、main を対象に「Require a pull request before merging」と「Require status checks to pass」を有効にし、必須のチェックに `python` と `extension` を選ぶ。
+2. 管理者が保護を回避できるか（「Do not allow bypassing the above settings」）は、人が GitHub で決める。保護は、迂回を許された人やアプリ（管理者・ルールセットの bypass の一覧）には効かない。無人の実行を使うなら、迂回を許す一覧を空にし、迂回できる権限のトークンを無人の実行に渡さない。
+3. PR を必須にすると、main に入れるのは PR 経由になる。手元で `git merge --ff-only` して main に入れる運用は使えなくなる。PR の CI が緑になってから、GitHub で入れる。
+
+#### すり抜けの道
+
+`ask` が止められないもの。止めるのは、`CLAUDE.md` の決まりと、この保護である。
+
+- git の別名（alias）・`sh -c` の中・スクリプトの中の git・フルパスの `git`・引用符で囲んだ書き方（`git push origin 'main'`）・短い旗をまとめた書き方（`git push -fu`）。
+- `gh api` の、merge も `refs/heads/main` も含まない書き方（ファイルを書き込む contents の API など）。
+- GitHub の MCP の `merge_pull_request`・`push_files`・`create_or_update_file`。サーバーの名前が人ごとに違い、規則で覆えない。
+- PowerShell ツールでの git・gh（Bash の規則は PowerShell に当たらない）。
+- `git -C <フォルダ> merge`・`gh -R <リポジトリ> pr merge` のように、push 以外の別の書き方。
+- `git -C <フォルダ> push`・`git -c k=v push` は、`ask` の規則（`git -* push*`）で当てた。
 
 ### 外からの PR の承認
 
@@ -159,4 +172,4 @@ Settings → Actions → General の「Fork pull request workflows」で、初�
 4. **issue**：不具合と機能の要望の form を使う。文書の誤りは不具合、文書を足す・書き直したいものは機能の要望で出す（どちらも「触る側」で文書を選ぶ）。どちらにも当たらないもの（質問など）は、白紙の issue で書く。ラベルは form が `bug`・`enhancement` を付ける（GitHub の既定のラベル。リポジトリに無いラベルは付かない）。新しいラベルは作らない。
 5. **図（mermaid）**：図は**任意**。GitHub は ```` ```mermaid ```` のコードブロックを図として描く。図を勧めるのは、変更の流れ（何が何を呼ぶか）・依存の向きや層・段や状態の移り変わりを示すとき。小さな直しには要らない。PR の本文と issue に加えて、**決定の記録**でも図を勧める（記録の形の検査は変えないので、図の無い記録もこれまでどおり通る）。HTML コメントの中に図を置くときは、矢印を `==>` で書く（細い矢印はコメントの終わりの印と同じ文字になり、そこでコメントが終わってしまう）。VSCode の拡張は図を描かない（コードのまま見える）。
 6. **公開の注意**：PR・issue・コメントに、**秘密**（API キー・トークン・`.env`・鍵）と手元の事情（ユーザー名の入った絶対パス・社内や私的なプロジェクトの名前・メールアドレス）を書かない。ログやパスは消してから貼る。`docs/pipeline/` の記録は貼らない（[principles.md](principles.md) の「7. 公開する前提で書く」）。
-7. **`/pipe-in` との関わり**：仕上げで、コミットの文の案と一緒に、PR の本文の案（テンプレートの節に沿う。図が向く変更なら Mermaid の図の案つき）を見せる。PR を出す・push するのは、人に言われてから。
+7. **`/pipe-in` との関わり**：仕上げで、コミットの文の案と一緒に、PR の本文の案（テンプレートの節に沿う。図が向く変更なら Mermaid の図の案つき）を見せる。PR を出す・push するのは、人に言われてから（無人の実行だけ例外。`CLAUDE.md`）。

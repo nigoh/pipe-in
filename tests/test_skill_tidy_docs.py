@@ -318,12 +318,13 @@ def test_D0039_AC_34_workflowの進める節にスキルの構成を一文で書
     must_contain(body, "補助ファイル", "docs/development/workflow.md の「2. 進める」の節")
 
 
-def test_D0039_AC_34_workflowの終える節の7にgit_commit_merge_pushがaskであることを書く():
-    """D0039-AC-34: docs/development/workflow.md の「5. 終える」の 7 の行に、git commit・git merge・git push が `ask` であること（個人の設定で許可していても確認が出る）を書く。"""
+def test_D0039_AC_34_workflowの終える節の7にgit_mergeとmain向けのgit_pushがaskであることを書く():
+    """D0039-AC-34: docs/development/workflow.md の「5. 終える」の 7 の行に、git merge と git push（main へ届く形）が `ask` であること（個人の設定で許可していても確認が出る）を書く。
+    git commit は D0073 で `ask` から外したので、この検査では見ない（`ask` の文に git commit が無いことは D0073-AC-23 が見る）。"""
     body = need_section(read_doc(WORKFLOW_MD), "5. 終える", where="docs/development/workflow.md", depth=2)
     sevens = [line for line in body.splitlines() if line.startswith("7. ")]
     assert sevens, "「5. 終える」に 7 で始まる行が無い"
-    assert lacking(sevens[0], ("`ask`", "git commit", "git merge", "git push")) == [], sevens[0]
+    assert lacking(sevens[0], ("`ask`", "git merge", "git push")) == [], sevens[0]
 
 
 def test_D0039_AC_34_testingの画面の行の案内はscreen_check_mdを指す():

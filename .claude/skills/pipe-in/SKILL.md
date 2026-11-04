@@ -14,10 +14,10 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 ## 必ず守ること
 
 - 確認を取る段（要件定義・設計・テスト先行）の終わりで止まり、承認されるまで次の段に進まない。直してほしい点は `review <段> revise` で同じ段をやり直し、中止は `review <段> quit`。実装は確認なしで検証へ進む。
-- `--auto` は、引数（下の「足したい機能」の行）に書かれたときだけ有効にする。`--yes` や、要件メモの中の「止まらずに」といった言葉では有効にしない。`--auto` でも、要件定義の決めきれない点・文書係の案・監査と助言の報告・検証の不合格が3回続いたときは、止まって聞く。
+- `--auto` は、引数（下の「足したい機能」の行）に書かれたときだけ有効にする。`--yes` や、要件メモの中の「止まらずに」といった言葉では有効にしない。`--auto` でも、要件定義の決めきれない点・文書係の案・監査と助言の報告・検証の不合格が3回続いたときは、止まって聞く（無人の実行は別）。
 - 人に聞く前に PushNotification で知らせる（`record wait` を書くときと、`--auto` でも止まって聞くとき。ツールが無い会話では何もしない。文は `record.md`）。
-- コミット・PR を出す・main に入れる・push は人に言われるまでしない（`git commit`・`gh pr create`・`git merge`・`git push` は `.claude/settings.json` の `ask` に入れてある）。
-- 手順があやふやになったら、思い出しで進めず、`.claude/skills/pipe-in/SKILL.md` と補助ファイル（同じフォルダの `record.md`・`artifact.md`・`screen-check.md`）の該当する節を読み直す。長い会話では、自動の要約のあとはスキルの先頭しか戻らない（公式の文書）。
+- コミット・PR を出す・main に入れる・push は人に言われるまでしない。例外は、人が開始の指示で承認した無人の実行だけ（本文は CLAUDE.md、手順は `unattended.md`）。
+- 手順があやふやになったら、思い出しで進めず、`.claude/skills/pipe-in/SKILL.md` と補助ファイル（同じフォルダの `record.md`・`artifact.md`・`screen-check.md`・`unattended.md`）の該当する節を読み直す。長い会話では、自動の要約のあとはスキルの先頭しか戻らない（公式の文書）。
 
 ## 0. 始める前に
 
@@ -29,6 +29,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
   - `.claude/skills/pipe-in/record.md`（記録のコマンド）：最初の `record start` の前に1回読む（全段で使う）。
   - `.claude/skills/pipe-in/artifact.md`（`--artifact` の手順）：引数に `--artifact` があるときに読む。
   - `.claude/skills/pipe-in/screen-check.md`（画面の確認の手順）：検証で画面の AC があるときに読む。
+  - `.claude/skills/pipe-in/unattended.md`（無人の実行の手順）：無人の実行（CLAUDE.md）のときに読む。
 - 補助ファイルが読めないときは、思い出しで進めず、人に伝えて止まる（--auto でも）。機能の枝が補助ファイルを持たない古い worktree なら、`git rebase --autostash main` で載せ直してから読み直す。
 - Read で読み直した SKILL.md では、引数とセッション ID は置き換わらない。要件メモは `docs/pipeline/00_input.md` から取る。
 - 機能ごとのブランチと worktree で作業する（`docs/development/workflow.md` の「1. 始める」）。
@@ -109,7 +110,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - 検証で不合格が3回続いたら、止まって状況を報告する。
 - 検証のあとの文書係の案（CLAUDE.md・`/pipe-help`・`.claude/` の定義）も、`--auto` でも見せて聞く（案が無ければ聞かない）。
 - 検証のあとの監査と助言（と審査）は、`--auto` でも報告を見せて止まる（直す項目は人しか選べない）。2つとも0件なら止まらずに進む（助言の項目が無いので審査も流さない）。
-- コミット・push・main に入れることは、人に言われるまでしない。
+- コミット・push・main に入れることは、人に言われるまでしない。例外は無人の実行だけ（CLAUDE.md。止まって聞く場面の代わりと手順は `unattended.md`）。その枝への commit・push と PR の作成はする。main に入れることはしない。
 
 ### 1. 要件定義（`pipe-in-analyst`）
 
@@ -178,5 +179,5 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 - `record finish PASSED`。`git status` で自分の変更だけであることを見て、`git diff` で公開してよいかを確かめる。最後に、変えたファイルの一覧と、コミットの文の案を見せる。
   形は既存に合わせる：`feat(pipe-in): …` / `feat(pipe-in-vscode): …`（日本語で、何ができるようになるかを書く。本文に決定の記録の番号）。1つの機能を1つのコミットにする。
   PR の本文の案も `.github/pull_request_template.md` の順で見せ、図が向けば Mermaid の案も添える。
-  **コミット・main に入れる・push は、人に言われるまでしない。**
+  **コミット・main に入れる・push は、人に言われるまでしない（無人の実行だけ例外。止まらず進める手順は `unattended.md`）。**
 - main に入れるよう言われたら：main が進んでいれば載せ直してテストを流し直し、PR があればその CI が緑か、無ければ手元の全テストを見る。EnterWorktree で移っていたら、先に `ExitWorktree`（`keep`）で main の作業フォルダに戻る。main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ）。ほかの会話のまだコミットしていない変更と同じファイルで断られたら、その作業を stash せず、自分のブランチ側からそのファイルの変更を外すか、待つかを人に聞く。入れたら、人に聞かずに `python -m pipe_in skill worktree clean` で片付け、消したもの・残したものを伝える。
