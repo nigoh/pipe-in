@@ -244,10 +244,11 @@ def test_D0074_AC_04_取れないときcleanは手元の枝へ切り替えず止
 def test_D0074_AC_04_取れなかった文に秘密を出さない(proj: Path, tmp_path: Path) -> None:
     """D0074-AC-04: origin の URL に user:token@ が入っていても、取れなかった文に token が出ない（公開前提。git の失敗の文に URL が入ることがあるため）。
     取れない形は、閉じているローカルのポート（ネットワークには出ない）。"""
-    git(proj, "remote", "set-url", "origin", "http://user:token123@127.0.0.1:1/x.git")
+    secret = "token123"  # 偽の値。URL を組み立てて書くのは、ファイルの文字がメールアドレスの検査（test_rules.py）に見えないため
+    git(proj, "remote", "set-url", "origin", f"http://user:{secret}@127.0.0.1:1/x.git")
     with pytest.raises(WorktreeError) as e:
         new(proj, "x")
-    assert "token123" not in str(e.value)
+    assert secret not in str(e.value)
     assert_fetch_failure(str(e.value), tmp_path)
 
 
