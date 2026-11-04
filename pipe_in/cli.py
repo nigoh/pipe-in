@@ -174,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
 
         return record_main(argv[1:])
     if argv and argv[0] == "skill":
-        # record と worktree を、今のフォルダだけを相手にする形で流す（allow に入れてよい入口）。Claude Code の /pipe-in が使う
+        # record・worktree・decision-number を、今のフォルダだけを相手にする形で流す（allow に入れてよい入口）。Claude Code の /pipe-in が使う
         from .dev.skill_cmd import main as skill_main
 
         return skill_main(argv[1:])
@@ -183,6 +183,11 @@ def main(argv: list[str] | None = None) -> int:
         from .dev.worktree import main as worktree_main
 
         return worktree_main(argv[1:])
+    if argv and argv[0] == "decision-number":
+        # 決定の記録の次の番号を出す（origin の main から。ファイルは作らない）。Claude Code の /pipe-in が使う
+        from .dev.decision_number import main as decision_main
+
+        return decision_main(argv[1:])
     if argv and argv[0] == "live":
         # 進み具合の写しとページを出す（記録は読むだけ）。Claude のアーティファクトで進み具合を見るのに使う
         from .engine.live_cmd import main as live_main

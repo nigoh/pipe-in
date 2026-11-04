@@ -9,12 +9,16 @@ python -m pipe_in worktree new <名前>     # .claude/worktrees/<名前> に fea
 cd .claude/worktrees/<名前>
 ```
 
+`worktree new` は、origin の main を取って、その先頭から切ります（手元の main が古くても、最新の main から始まります）。origin から取れなければ、手元の main へ黙って切り替えず、止まります。手元の main から切りたいときは `--no-fetch` を付けます（origin の remote が無いリポジトリは、取らずに手元の main から切ります）。単独の機能は、いつも main から切り、ほかの機能の枝の上に積み重ねません。
+
+夜のまとめ実行（D0074）だけは、1本のまとめの枝 `night/<日付>` を `python -m pipe_in worktree new <日付> --kind night` で切り、件ごとの 1 コミットをそこへ積みます。PR は、まとめの枝から main へ 1 つです（親の進め方は [docs/guide/develop.md](../guide/develop.md) の「夜のまとめ実行（親の進め方）」）。決定の記録の次の番号は `python -m pipe_in decision-number`（origin の main から出します）。
+
 `/pipe-in` は、会話が main の作業フォルダで始まっていれば、これを人に聞かずに流して、`EnterWorktree` でその worktree に移ります（D0048）。
 
 - このリポジトリでは、複数の会話を同時に動かすのがふつうです。1人で1つだけ進めるときも、worktree を切ります。
 - 切る前に、main の作業フォルダの `git status` を見ます。まだコミットされていない変更（ほかの会話の作業）があれば、それがどのファイルかを覚えておきます（あとで main に入れるときに重なりを確かめるため）。
 - 同じファイルを大きく触る機能は、同時に進めません（あとで合わせるのが難しくなる）。
-- 終わったら、main に入れたあとで、main の作業フォルダで `python -m pipe_in worktree clean` を流して片付けます（`/pipe-in` は人に聞かずに流します）。消すのは `.claude/worktrees/` の下で、main に入った・まだコミットしていない変更が無い・一度はコミットしたものだけで、worktree とブランチを一緒に消します。ほかは理由を出して残します。消す前に見るなら `--dry-run`。GitHub で merge したなら、`git fetch` してから `--base origin/main` を付けます。squash で入れたものは残るので、手で消します。
+- 終わったら、main に入れたあとで、main の作業フォルダで `python -m pipe_in worktree clean` を流して片付けます（`/pipe-in` は人に聞かずに流します）。消すのは `.claude/worktrees/` の下で、main に入った・まだコミットしていない変更が無い・一度はコミットしたものだけで、worktree とブランチを一緒に消します。ほかは理由を出して残します。消す前に見るなら `--dry-run`。GitHub で merge したなら、`--base` は要りません（origin の main を取って確かめます）。merge commit で入れたものだけ消えます。squash・rebase の merge は残るので、手で消します。
 - Claude Code で `/pipe-in` を進めるときは、始める前に `python --version` で `python` が動くことを確かめます。段のサブエージェントを絞るフック（`.claude/hooks/pipe_in_guard.py`）は `python` で動き、動かないとフックが効かず、絞りが外れて通るためです（[D0032](../decisions/D0032-guard-fail-closed.md)。くわしくは [docs/guide/develop.md](../guide/develop.md) の「フックが働く条件」）。
 
 ### worktree で気をつけること
@@ -71,18 +75,19 @@ Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の�
 
 | いつ | すること |
 | --- | --- |
-| 段の区切り（各段が終わって、人に確認を取る前） | `git log --oneline HEAD..main` で main が進んだかを見る。進んでいれば、何が入ったかを伝えて載せ直す |
+| 段の区切り（各段が終わって、人に確認を取る前） | `git log --oneline HEAD..origin/main` で main が進んだかを見る（先に `git fetch origin main`）。進んでいれば、何が入ったかを伝えて載せ直す |
 | 検証の段の前 | **必ず**載せ直す。新しい main の上でテストを流すため |
 | main に入れる直前 | **必ず**載せ直す。早送りで入れられる形にするため |
 
 ### どうやって
 
 ```bash
-git log --oneline HEAD..main          # main に入った、まだ取り込んでいないコミット
-git rebase --autostash main           # まだコミットしていない自分の変更は、いったんよけて戻す
+git fetch origin main                 # origin の main を取る
+git log --oneline HEAD..origin/main   # main に入った、まだ取り込んでいないコミット
+git rebase --autostash origin/main    # まだコミットしていない自分の変更は、いったんよけて戻す
 ```
 
-この2つは `python -m pipe_in worktree sync` 1つでもできます（main が進んでいなければ何もせず、進んでいれば入ったコミットを出して載せ直し、ぶつかったら止まります）。`/pipe-in` は段の区切りに、確認なしで通る形の `python -m pipe_in skill worktree sync` を流します（D0049）。
+この流れは `python -m pipe_in worktree sync` 1つでもできます（origin の main を取ってから、進んでいなければ何もせず、進んでいれば入ったコミットを出して載せ直し、ぶつかったら止まります）。取れなければ止まります。手元に取れている版（`origin/main`）で進めるときは `--no-fetch` を付けます。`/pipe-in` は段の区切りに、確認なしで通る形の `python -m pipe_in skill worktree sync` を流します（D0049）。
 
 - `--autostash` がよけるのは、この worktree の中の自分の変更だけです。main の作業フォルダ（ほかの会話の作業）には触れません。
 - ぶつかったら、その worktree の中で合わせます。どちらの意図も残すように合わせ、合わせ方に迷うとき（両方が同じ決まりを違う形で変えたなど）は人に聞きます。合わせたら `git add` → `git rebase --continue`。
@@ -116,10 +121,8 @@ git rebase --autostash main           # まだコミットしていない自分�
 5. **1つの機能を1つのコミット**にする。文の形は既存に合わせる：
    - `feat(pipe-in): …`・`feat(pipe-in-vscode): …`・`fix(…): …`・`docs: …`・`chore: …`
    - 1行目は日本語で、何ができるようになるか。本文に、変えた点を箇条書きで。決定の記録があれば、その番号を書く
-6. main に入れる。**main に入れる直前**にもう一度 main が進んでいないかを見て、進んでいれば載せ直してテストを流し直す。PR を出してあれば、載せ直したあとの CI が緑かを見る。PR を出さずに入れるなら、手元で Python と拡張の全テストを流した結果を見る。そのうえで、main の作業フォルダで `git merge --ff-only <ブランチ>` をする（早送りだけ。マージのコミットは作らない）。
-   - main の保護で PR を必須にしていれば、手元の `git merge --ff-only` は使えない。GitHub の PR で入れる（下の「6. CI」の「ブランチの保護」）。
-   - main の作業フォルダに、ほかの会話のまだコミットしていない変更があり、それが自分のブランチの変更と同じファイルなら、git が断ります。そのときは、**ほかの会話の作業を stash しない**（その会話の作業を壊すおそれがある）。自分のブランチ側からそのファイルの変更を外すか、その会話がコミットするのを待ってから載せ直します。
-7. コミット・PR を出す・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない。例外は無人の実行（人が開始の指示で、無人であることと、commit・push・PR の作成の承認を書いた実行。定義と範囲は `CLAUDE.md`）だけで、その実行が切った枝への commit・push・PR の作成までする。main に入れること（`git merge`・`gh pr merge`・main への push）は、無人でもしない。`.claude/settings.json` の `ask` には、`git merge`・`gh pr merge`・main へ届きうる `git push` の形・`gh api` での merge と `refs/heads/main` の更新・publish・`gh issue create` を入れてある（commit・枝名を書く `git push`・`gh pr create` は入れていない）。実機で確かめたこと：`ask` に入れた操作は auto モードでも確認が出て、人が答えるまで進まない（2026-11-02 の夜の実行）。公式の文書によること（実機は未確認）：個人の許可・フックの許可も `ask` を越えない。
+6. main に入れる。**main に入れる直前**にもう一度 `python -m pipe_in skill worktree sync` で載せ直し、テストを流し直す。PR を出してあれば、載せ直したあとの CI が緑かを見る。PR を出さずに入れるなら、手元で Python と拡張の全テストを流した結果を見る。そのうえで、GitHub の PR で入れる（`gh pr merge` は確認が出る。main の保護が関所。下の「6. CI」の「ブランチの保護」）。入れ方は merge commit（squash・rebase の merge は、`worktree clean` が「入った」と見分けられず枝が残る）。入ったら、main の作業フォルダに戻り、`python -m pipe_in worktree clean` で片付ける。手元で main を動かさないので、ほかの会話の変更と同じファイルで断られることはない。
+7. コミット・PR を出す・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない。例外は無人の実行（人が開始の指示で、無人であることと、commit・push・PR の作成の承認を書いた実行。定義と範囲は `CLAUDE.md`）だけで、その実行が切った枝への commit・push・PR の作成までする。夜のまとめ実行（D0074）では、開始の指示が名指しした `night/` のまとめの枝への早送りの push も、範囲に入る。main に入れること（`git merge`・`gh pr merge`・main への push）は、無人でもしない。`.claude/settings.json` の `ask` には、`git merge`・`gh pr merge`・main へ届きうる `git push` の形・`gh api` での merge と `refs/heads/main` の更新・publish・`gh issue create` を入れてある（commit・枝名を書く `git push`・`gh pr create` は入れていない）。実機で確かめたこと：`ask` に入れた操作は auto モードでも確認が出て、人が答えるまで進まない（2026-11-02 の夜の実行）。公式の文書によること（実機は未確認）：個人の許可・フックの許可も `ask` を越えない。
 
 ## 6. CI：main に入る前の確認
 

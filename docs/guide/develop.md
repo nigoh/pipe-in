@@ -70,10 +70,10 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 - `.claude/settings.json` の `allow` に、手元のテスト・型検査・ビルド・確認用ページの作成と配信の 5 つのコマンドを、完全に一致する形で足しました（`npm --prefix vscode test`・`npm --prefix vscode run typecheck`・`npm --prefix vscode run build`・`npm --prefix vscode run preview`・`python -m http.server 8765 --bind 127.0.0.1 --directory vscode/out/preview`）。コマンドは 1 つずつ流します（つないだときは、どの部分も規則に当たらないと確認が出ます）。
 - `ask`（確認を出す一覧）には、main に入れること（`git merge`・`gh pr merge`）・publish（`npm publish`・`npx vsce publish`・`twine upload`）・`gh issue create`・main へ届きうる `git push` の形（main への push・強制・全部・削除・枝名なしなど。`git -C <フォルダ> push` のような `git` の旗つきの書き方も）・`gh api` の merge と `refs/heads/main` を入れています。`git commit`・枝名を書く `git push -u origin <枝>`・`gh pr create` は入れていません（D0073）。`ask` に当たる操作は、公式の文書では auto モードでも必ず確認になり、実機でも、人が答えるまで進まないことを確かめました（2026-11-02 の夜の実行）。人のいない実行ではその確認で止まったままになるので、人が開始の指示で承認した「無人の実行」だけが、その枝への commit・push・PR の作成を確認なしでできるようにしました（定義と範囲は `CLAUDE.md`。下の「無人の実行の始め方」）。個人の設定（`.claude/settings.local.json`）の `allow` も PreToolUse フックの許可も `ask` を越えません。これは公式の文書によることで、実機では確かめていません。また `ask` は守りの境目ではありません。書かれた形にしか当たらず、別名・`sh -c`・引用符つきの書き方などは通ります。止めるのは `CLAUDE.md` の決まりと GitHub のブランチ保護です（すり抜けの道は [workflow.md](../development/workflow.md) の「6. CI」）。
 - `record` の規則（`python -m pipe_in record …`）は足していません。`--input` で任意のファイルを読め、`--project` で別のフォルダに書けるためです。
-- 代わりに、`python -m pipe_in skill record …`・`python -m pipe_in skill worktree …` の入口を許しています（`Bash(python -m pipe_in skill:*)`）。今のフォルダだけを相手にし、`--input`・`--feedback-file`・`--project`・`--config` を断る入口です。あわせて `python --version` と `npm --prefix vscode ci` も、完全に一致する形で許しています（[D0049](../decisions/D0049-skill-shell.md)）。
+- 代わりに、`python -m pipe_in skill record …`・`python -m pipe_in skill worktree …`・`python -m pipe_in skill decision-number` の入口を許しています（`Bash(python -m pipe_in skill:*)`）。今のフォルダだけを相手にし、`--input`・`--feedback-file`・`--project`・`--config` を断る入口です。あわせて `python --version` と `npm --prefix vscode ci` も、完全に一致する形で許しています（[D0049](../decisions/D0049-skill-shell.md)）。
 - 個人の許可は、`.claude/settings.local.json` に書きます（`.gitignore` 済みで、リポジトリには入りません）。worktree で作業するときも、main の作業フォルダのこのファイルが読まれ、すべての worktree に効きます（公式の文書。v2.1.211 以降）。
 - 足した `allow` の 5 つは、フックが効かないとき（`python` が無い・時間切れなど。下の「フックが働く条件」）と、フックが見ない呼び出し元（メインと、`pipe-in-` で始まらないサブエージェント）では、確認なしで流れます。手元のテスト・型検査・ビルド・確認用ページの作成と配信だけなので、このリスクを受け入れました。
-- 新しい worktree では、その枝の `.claude/settings.json` が読まれます。枝がこの変更より前の main から切られていると、5 つの `allow` はまだありません。共有の `allow` は作業フォルダの信頼のあとに効き、worktree の信頼は main の作業フォルダの場所で見ます（`ask` と `deny` は信頼を待たずに効きます）。どちらも公式の文書によるもので、実機では確かめていません。効かなくても、確認が今までどおり出るだけです。 同じく、D0073 より前の main から切った枝は、`ask` に `git commit`・`git push`・`gh pr create` がまだ残り、その枝では確認が出ます（無人の実行の前に `python -m pipe_in worktree sync` で載せ直します）。
+- 新しい worktree では、その枝の `.claude/settings.json` が読まれます。枝がこの変更より前の main から切られていると、5 つの `allow` はまだありません。共有の `allow` は作業フォルダの信頼のあとに効き、worktree の信頼は main の作業フォルダの場所で見ます（`ask` と `deny` は信頼を待たずに効きます）。どちらも公式の文書によるもので、実機では確かめていません。効かなくても、確認が今までどおり出るだけです。 同じく、D0073 より前の main から切った枝は、`ask` に `git commit`・`git push`・`gh pr create` がまだ残り、その枝では確認が出ます（無人の実行の前に `python -m pipe_in worktree sync` で載せ直します。`sync` は origin の main を取ってから載せます。取れなければ止まり、手元の main に載せるときは `--no-fetch` を付けます）。
 
 この決めたことと理由は [D0039](../decisions/D0039-skill-tidy.md) にあります。
 
@@ -82,7 +82,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 夜のまとめ実行のように、人が居ない間に `/pipe-in` を最後まで進めさせるときの始め方です。何が「無人の実行」か、何をしてよく何をしないかは `CLAUDE.md` の「必ず守ること」が決めていて、ここには使い方だけを書きます（スキルが流す手順は `.claude/skills/pipe-in/unattended.md`、決めたことと理由は D0073）。
 
 1. 始める前に、その枝を `python -m pipe_in worktree sync` で載せ直します。D0073 より前の main から切った枝は、`ask` に `git commit`・`git push`・`gh pr create` がまだ残っていて、確認で止まります。
-2. 開始の指示（`/pipe-in` の引数、または人が書いたルーチンのプロンプト）に、2つを書きます。人が答えない実行であること。commit・push・PR の作成を名指しして承認すること。無人の実行は `/pipe-in --auto` で始めます（`--auto` が無いと、最初の段の区切りで止まり、終わりの報告に書いて終えます）。ルーチン（クラウドの定期実行）は、指示が無いと `claude/` で始まる枝に push します。`/pipe-in` は `feat/<名前>` の枝を切ってそこに push するので、プロンプトでほかの枝を指さないでください。
+2. 開始の指示（`/pipe-in` の引数、または人が書いたルーチンのプロンプト）に、2つを書きます。人が答えない実行であること。commit・push・PR の作成を名指しして承認すること。無人の実行は `/pipe-in --auto` で始めます（`--auto` が無いと、最初の段の区切りで止まり、終わりの報告に書いて終えます）。ルーチン（クラウドの定期実行）は、指示が無いと `claude/` で始まる枝に push します。`/pipe-in` は `feat/<名前>` の枝を切ってそこに push するので、プロンプトでほかの枝を指さないでください（夜のまとめ実行だけは例外で、名指しした `night/<日付>` の枝を指します。下の「夜のまとめ実行（親の進め方）」）。
 
    ```text
    /pipe-in --auto 無人の実行です（夜のまとめ実行で、人は居ません）。commit・push・PR の作成を承認します。要件メモ：…
@@ -91,6 +91,32 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 3. 承認しても、範囲は広がりません。main に入れること（`git merge`・`gh pr merge`・main への push）・publish・`gh issue create` は、無人ではしません。main に入れるのは、朝に人が PR を見てします。
 4. 質問欄は使われません。決めきれない点は推しの案で決まり、監査と助言は直されずに残ります。朝は、終わりの報告（した操作としなかったこと）と、決定の記録の「対象外・残った課題」を読んで、直す項目を選びます。
 5. main の保護（PR を必須・必須のチェック）を入れておくと、`ask` や決まりをすり抜けた操作も GitHub が止めます（[workflow.md](../development/workflow.md) の「6. CI」）。
+
+### 夜のまとめ実行（親の進め方）
+
+夜のまとめ実行は、何件かの機能を、1本の「まとめの枝」`night/<日付>` に件ごとの 1 コミットで積み、main 向けの PR を 1 つにまとめる使い方です（決めたことと理由は D0074）。件ごとに PR を作らないので、朝の確認が 1 回で済みます。ここは親（メインの会話）の進め方で、子（件ごとの `/pipe-in`）の手順は `.claude/skills/pipe-in/unattended.md`、何をしてよいかの範囲は `CLAUDE.md` の「必ず守ること」にあります。
+
+1. **開始の指示**に、無人の実行であることと commit・push・PR の作成の承認（上の「無人の実行の始め方」の 2）に加えて、まとめの枝 `night/<日付>` を名指しして、その枝への早送りの push を承認する文を書きます。書式は決まっておらず、自由な文でかまいません。承認は名指しした枝だけに効きます。auto モードの判定が承認として読むのは、動作と相手を具体的に名指しした、人の書いた文です。枝の名前・早送りだけであること・push のコマンドの形まで書きます。
+
+   ```text
+   無人の実行です（夜のまとめ実行で、人は居ません）。commit・push・PR の作成を承認します。まとめの枝 night/2026-11-04 への早送りの push を承認します（git push origin HEAD:night/2026-11-04 の形だけ。強制の push はしない）。claude/ の枝は作らず、件ごとの枝は push せず、件ごとの PR も作らないでください。次の 3 件を順に流してください：…
+   ```
+
+   親は子を起こすたびに、この承認の文を範囲を変えずに写して、子の開始の指示に入れます（`CLAUDE.md` の「親が起こす子の実行」）。
+
+2. **子の作り方**：件ごとに 1 つ、順に起こします（並列にしない。後の件が前の件の積んだ番号と変更の上に載るため）。始めに、親がまとめの枝を `python -m pipe_in skill worktree new <日付> --kind night` で origin の main から切り、`git push -u origin night/<日付>` で出してから、子を起こします。同じ日の 2 回目は名前に `-2` を付けます（origin に同じ名前の枝があると断られます）。子は auto モードで起こします。auto でない起こし方（手動のモード・`claude -p` の既定など）では、`allow` に無い `git fetch`・`git commit`・`git push` が確認になり（`claude -p` では断られ）、夜のうちに止まります（`ask` に当たらないことと、確認が出ないことは同じではありません）。
+3. **待ち方**：子の完了の返事を待ちます。次の件は、前の件が積み終わってから起こします。
+4. **子が止まったとき**：`BLOCKED`・`TEST_FAILED` で止まった件は積まず、飛ばして次へ進みます。止まった理由と、積まなかったことを、終わりの報告に書きます。
+5. **まとめ**：全部の件が済んだら、親が main 向けの PR を 1 つ作ります。本文に、積んだ件と止まった件を書きます。件が積まれたあとは、`python -m pipe_in skill worktree clean --base night/<日付>` で、子の worktree を片付けられます。
+6. **朝の入れ方**：人が PR の CI を見て、merge commit で入れます。squash の merge は件ごとのコミットが 1 つに潰れ、`worktree clean` が「入った」と見分けられずに枝が残ります（rebase の merge も同じです）。入れたあとの `worktree clean` は、まとめの枝の worktree を「始めたばかりかもしれません」と残すことがあります（手元ではコミットしていないため）。そのときは、`git worktree remove` と `git branch -D night/<日付>` で手で消します。
+
+main に入れること・publish・`gh issue create` は、夜のまとめ実行でも無人ではしません（上の「無人の実行の始め方」の 3）。
+
+GitHub の設定は、人が前もってします。クラウドの入れ物からの push を止めるのは GitHub の設定だけです（入れ物の中継は、どの枝へ push するかを限りません）。
+
+- main は PR を必須にし、規則を迂回できる人・アプリを空にします。
+- `night/*` の枝には ruleset で、強制の push と削除を禁じます（早送りだけが通ります）。
+- つないだ GitHub のアカウントが、規則を迂回できる権限（管理者など）を持っていないかも確かめます。迂回できるアカウントからの push には、規則が効きません。
 
 ### 確認待ちの知らせ（`/pipe-in`）
 

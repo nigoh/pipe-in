@@ -250,10 +250,12 @@ def test_development_docs_exist():
 
 
 def test_workflow_documents_rebase():
-    """D0003-AC-01・D0006-AC-26: workflow.md に、載せ直す時と方法・main へは早送りで入れること・worktree の注意がある（コマンドは新しい名前）。"""
+    """D0003-AC-01・D0006-AC-26: workflow.md に、載せ直す時と方法・main へは早送りで入れること・worktree の注意がある（コマンドは新しい名前）。
+    D0074：載せ直す先は origin の main（git rebase --autostash origin/main）。手元の git merge --ff-only と stash の段落は「5. 終える」から外れ、
+    git merge --ff-only は「ブランチの保護」の節（手元では使えなくなる）に残る。"""
     text = (DEVELOPMENT / "workflow.md").read_text(encoding="utf-8")
     for word in [
-        "git rebase --autostash main",
+        "git rebase --autostash origin/main",
         "git merge --ff-only",
         "段の区切り",
         "検証の段の前",
@@ -261,13 +263,13 @@ def test_workflow_documents_rebase():
         "載せ直したら",
         "push したブランチ",
         "python -m pipe_in",
-        "stash しない",
     ]:
         assert word in text, word
 
 
 def test_pipe_in_rebases_when_main_moves():
-    """D0003-AC-02: /pipe-in は段の区切りで main が進んだかを見て、検証の前と入れる前には必ず載せ直す。"""
+    """D0003-AC-02: /pipe-in は段の区切りで main が進んだかを見て、検証の前と入れる前には必ず載せ直す。
+    D0074：載せ直しは worktree sync（origin の main を取ってから載せる）。手元の git merge --ff-only は書かず、PR と CI で入れる。"""
     text = (ROOT / ".claude/skills/pipe-in/SKILL.md").read_text(encoding="utf-8")
-    for word in ["git log --oneline HEAD..main", "git rebase --autostash main", "検証の段の前", "--ff-only"]:
+    for word in ["worktree sync", "origin", "検証の段の前"]:
         assert word in text, word
