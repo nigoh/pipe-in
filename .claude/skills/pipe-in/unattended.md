@@ -20,3 +20,13 @@
 3. `git push -u origin <その枝>` で push する（`git -C` を付けない。強制の push・main への push・push 済みの枝の載せ直しはしない）。
 4. PR を作る（`gh pr create`。`gh pr` が動かない環境では GitHub の MCP の PR 作成）。本文は `.github/pull_request_template.md` の節に沿い、タイトルは commit の1行目の形に（Dnnnn）を付ける。base は main でよい（出すだけで入れない）。
 5. 終わりの報告を会話に書く。した操作（commit・push した枝・PR）と、しなかったこと（承認の足りない操作・推しで決めた点・直さなかった監査と助言）を分けて書く。
+
+**夜のまとめの子（まとめの枝へ積む）。** 親の開始の指示が、まとめの枝 `night/<名前>` を名指しして、その枝への早送りの push を承認しているときの、子の手順。上の「仕上げ」の 2〜4 を、次に替える。
+
+- 枝は `python -m pipe_in skill worktree new <件の名前> --base night/<名前>` で、まとめの枝の最新から切る。決定の記録の番号は、始めに `python -m pipe_in skill decision-number --branch night/<名前>` で取る（前の件が積んだ番号の次になる）。
+- 段の区切りと検証の前の載せ直しも `python -m pipe_in skill worktree sync --base night/<名前>` で流す（`--base` が無いと origin の main に載せ、前の件が積んだコミットまで作り直して、早送りの push が通らなくなる）。
+- 検証が通ったら、自分の変更を 1 コミットにする（commit の前に `git diff --cached`）。件ごとの枝は push せず、PR も作らない。
+- `git push origin HEAD:night/<名前>` で、まとめの枝へ早送りだけで push する（強制はしない。`git -C` を付けない。名指しされた枝のほかへは push しない）。
+- 早送りでなく断られたら（ほかの子が先に積んだ）、`python -m pipe_in skill worktree sync --base night/<名前>` で載せ直し、テストを流し直して、もう 1 回だけ push する。それでも断られたら `record finish BLOCKED` で止め、変更は commit のまま残して終わりの報告に書く。
+- `BLOCKED`・`TEST_FAILED` で止まった子は、まとめの枝に積まれない。終わりの報告に、止まった理由と、積まなかったことを書く。
+- 子は auto モードで動く前提。`git fetch`・`git commit`・`git push` が確認になって断られたら（auto でない起こし方）、別の書き方で通そうとせず `record finish BLOCKED` で止め、終わりの報告に書く。リポジトリの設定からは、auto の判定に `night/` の枝を教えられない。判定が承認として読むのは、人の書いた開始の指示の名指し。

@@ -37,8 +37,8 @@
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
 | /pipe-in の記録の順序を読むだけで検べる（pipe-in record check。承認より前に次の段が始まっていないか） | `pipe_in/dev/record_order.py` |
-| 機能ごとの worktree を切る・main に入ったものを片付ける・main に載せ直す（pipe-in worktree new・clean・sync。D0048・D0049） | `pipe_in/dev/worktree.py` |
-| /pipe-in が打つ記録と worktree のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049） | `pipe_in/dev/skill_cmd.py` |
+| 機能ごとの worktree を切る・main に入ったものを片付ける・main に載せ直す（pipe-in worktree new・clean・sync。origin の main を取って使う。D0048・D0049・D0074）と、決定の記録の次の番号を出す（pipe-in decision-number。D0074） | `pipe_in/dev/worktree.py`・`pipe_in/dev/decision_number.py` |
+| /pipe-in が打つ記録・worktree・decision-number のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049） | `pipe_in/dev/skill_cmd.py` |
 | 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発・コマンドを打たない人向けの案内）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md`・`docs/guide/start-without-commands.md` |
 | 初めての人向けの案内（VSCode の「ようこそ」から開く walkthrough。宣言は `contributes.walkthroughs`、手順ごとの本文は Markdown。外から何も読み込まず、自動では開かない。D0072） | `vscode/package.json`・`vscode/walkthrough/` |
 | 英語の入口（`README.md`・`vscode/README.md` の英語版。人が書き、見出し・コードの塊・コマンドの行・画像の食い違いは `tests/test_english_docs.py` が見る。ほかの文書は日本語だけ。D0072） | `README.en.md`・`vscode/README.en.md`・`tests/test_english_docs.py` |

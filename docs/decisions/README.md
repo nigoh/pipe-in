@@ -75,6 +75,7 @@
 | [D0071](D0071-record-order-check.md) | 記録の順序の検査（`pipe-in record check`）。承認の前に次の段の `begin` が書かれていないかを、`state.json` と段のログから読むだけで確かめる。`review` の要素に時刻 `at` を足し、本体に残る `/pipe-dev` の言い方を `/pipe-in` に直す |
 | [D0072](D0072-english-docs.md) | 初めての人向けの案内（VSCode の walkthrough）とコマンドを打たない人向けの文書を足し、`README.en.md`・`vscode/README.en.md` を並べて置く。食い違い（見出し・コードの塊・コマンド・画像・リンク）は `tests/test_english_docs.py` で止める（#26）。 |
 | [D0073](D0073-unattended-run.md) | 人が開始の指示で commit・push・PR の作成を承認した無人の実行では、その枝への commit・push と PR の作成を確認で止めない。`ask` から `git commit`・`git push`・`gh pr create` を外し、main へ届きうる push の形を足す。main の本当の関所は GitHub のブランチ保護。手順は `.claude/skills/pipe-in/unattended.md` |
+| [D0074](D0074-merge-unit.md) | merge の単位を「main 向けの PR 1つ」にそろえる。夜のまとめ実行は1本の `night/<日付>` の枝に件ごとの1コミットを早送りで積み、単独の機能は main から切って積まない。`worktree new`・`sync`・`clean` は土台を origin から取り、取れなければ止まる（`--no-fetch`）。決定の記録の番号は `skill decision-number` で取る。スキルの補助ファイルの字数は、合計をやめて1つずつ 3,500 字にした。 |
 
 ## ひな形
 

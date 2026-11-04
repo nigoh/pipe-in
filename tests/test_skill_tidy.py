@@ -597,7 +597,9 @@ SKILL_LIMIT = 12_300
 # D0051：screen-check.md に確認用のページの新しい種類（run-panel-budget）の行を足すと 17,800 字を超えるので、設計の承認で人が決めて 18,300 字に上げた。
 # D0063：夜の作業のまとめで、screen-check.md に判定（D0062）と並列の枠（D0063）のページの頭の行を足すと 18,300 字を超えるので、人が決めて 18,500 字に上げた。
 # D0073：無人の実行の手順を補助ファイル unattended.md に分けたので合計が 18,500 字を超える。人が決めて 20,400 字に上げた（SKILL.md の上限 12,300 字は変えない）。
-TOTAL_LIMIT = 20_400
+# D0074：合計の上限（D0073 までは 20,400 字）をやめ、補助ファイル 1 つずつの上限に替えた。補助ファイルは要るときにだけ読まれ、合計は一度に読む量と
+# 結びつかず、足すたびに上限を上げていたため（D0046・D0050・D0051・D0063・D0073）。SKILL.md の上限 12,300 字は、要約のあとに戻る先頭が 5,000 トークンまでなので残す。
+SUPPORT_LIMIT = 3_500
 
 
 def test_D0039_AC_11_SKILLは12300字以下():
@@ -606,11 +608,14 @@ def test_D0039_AC_11_SKILLは12300字以下():
     assert n <= SKILL_LIMIT, f"SKILL.md が {n} 字（上限 {SKILL_LIMIT}）"
 
 
-def test_D0039_AC_11_SKILLと4つの補助ファイルの合計は20400字以下():
-    """D0039-AC-11: SKILL.md と 4 つの補助ファイルの合計は 20,400 字以下（分ける前の 15,333 字に、冒頭の節・案内・補助ファイルの見出しの分を足したもの。初めは 17,100 字で、設計の段で人が決めたとおり、監査と助言の直しのあとに 17,500 字に上げた。D0046 で人が決めて 17,800 字に、D0050 で 18,000 字に、D0051 で 18,300 字に、D0063 で 18,500 字に、D0073 で（無人の実行の手順を補助ファイル unattended.md に分けたので）20,400 字に上げた）。
-    4 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。"""
-    total = len(skill()) + sum(len(read_doc(SKILL_DIR / n)) for n in HELPERS)
-    assert total <= TOTAL_LIMIT, f"合計が {total} 字（上限 {TOTAL_LIMIT}）"
+def test_D0039_AC_11_補助ファイルは1つずつ3500字以下():
+    """D0039-AC-11: 4 つの補助ファイル（record.md・artifact.md・screen-check.md・unattended.md）は、1 つずつ 3,500 字以下
+    （D0074：合計の上限 20,400 字をやめて、1 つずつの上限に替えた。補助ファイルは要るときにだけ読まれ、合計は一度に読む量と結びつかないため。
+    1 つが読みきれない長さに育つことだけを止める）。4 つの補助ファイルは必ず読む（無ければ「が無い」で落ちる。無いものを飛ばして緑にしない）。
+    超えたら、ファイル名と字数を出す。（今のまま通る。守る）"""
+    sizes = {n: len(read_doc(SKILL_DIR / n)) for n in HELPERS}
+    over = {n: size for n, size in sizes.items() if size > SUPPORT_LIMIT}
+    assert over == {}, f"3,500 字を超えた補助ファイル（上限 {SUPPORT_LIMIT}）：{over}"
 
 
 # ---- AC-12：既存の検査が見る節の見出しを増やさない -------------------------------------------------------
@@ -677,6 +682,8 @@ ORIGINAL_BACKTICK_WORDS: tuple[str, ...] = (
 
 # D0048 で worktree の切り方を python -m pipe_in worktree new に置き換えたため、もう書かない語
 REPLACED_BY_D0048 = ("git worktree add ../pipe-in-<名前> -b feat/<名前>", "../pipe-in-<名前>", "git worktree add")
+# D0074 で main に入れる形を PR と CI にそろえ、載せ直しを worktree sync（origin から取る）に任せたため、もう書かない語
+REPLACED_BY_D0074 = ("git merge --ff-only <ブランチ>", "git log --oneline HEAD..main")
 
 
 def is_excluded(word: str) -> bool:
@@ -689,6 +696,7 @@ def is_excluded(word: str) -> bool:
         or "pipe-editor-" in word
         or word in ("-light.html", "-dark.html")
         or word in REPLACED_BY_D0048
+        or word in REPLACED_BY_D0074
     )
 
 
@@ -739,6 +747,8 @@ def test_D0039_AC_13_見本_語を1つ消した合算はその語を欠けとし
     assert missing_words("先に npm --prefix vscode run build を流す", ["npm --prefix vscode run build"]) == []
     assert is_excluded("run-panel-running-*.html") and is_excluded("-light.html") and is_excluded("-dark.html")
     assert is_excluded("http://127.0.0.1:8765/pipe-editor-dark.html")
+    assert is_excluded("git merge --ff-only <ブランチ>") and is_excluded("git log --oneline HEAD..main")  # D0074
+    assert not is_excluded("git rebase --autostash main") and not is_excluded("git merge --ff-only")
     assert is_excluded("python -m " + OLD) and is_excluded("feat(" + OLD + "): …") and is_excluded("." + OLD + "/")
     assert not is_excluded("window.__posted") and not is_excluded("tests/fixtures/showcase/") and not is_excluded("out/preview/")
     assert len(ORIGINAL_BACKTICK_WORDS) == len(set(ORIGINAL_BACKTICK_WORDS)), "埋め込んだ語に重なりがある"

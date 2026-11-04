@@ -13,6 +13,6 @@
 | [記録と使用量](records.md) | 作られるファイル・アーティファクトに出す写し・まとめに出る使用量・終了コード |
 | [設定](config.md) | `pipeline.toml` |
 | [前の名前から移る](migrate.md) | 入れ直す・古いコマンド・プラグイン・拡張・置き場所・環境変数 |
-| [pipe-in を開発する](develop.md) | 中身を直したいとき・Claude Code で開発するとき |
+| [pipe-in を開発する](develop.md) | 中身を直したいとき・Claude Code で開発するとき・夜のまとめ実行 |
 
 ほかの文書：拡張のくわしい操作は [vscode/README.md](../../vscode/README.md)、開発のルールは [docs/development/](../development/)、機能ごとに決めたことは [docs/decisions/](../decisions/)、画像の撮り直し方は [docs/assets/README.md](../assets/README.md) にあります。
