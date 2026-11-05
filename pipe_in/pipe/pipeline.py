@@ -62,6 +62,62 @@ def _judge_line(j: dict[str, Any]) -> str:
     return line + (f"（{'、'.join(parts)}）" if parts else "")
 
 
+def verdict_outcome(data: dict[str, Any] | None) -> tuple[list[str], dict[str, Any]]:
+    """判定（status・summary・problems）の読み。返すのは (直す点の一覧, 記録に足す項目)。合格なら直す点は空。"""
+    if data is None or data.get("status") not in ("pass", "fail"):
+        return ["判定（status: pass / fail）が返りませんでした"], {}
+    record: dict[str, Any] = {"summary": str(data.get("summary", ""))}
+    problems: list[str] = []
+    if data["status"] == "fail":
+        found = [str(p) for p in data.get("problems", []) if str(p).strip()]
+        problems = found or [record["summary"] or "判定が fail でした"]
+    return problems, record
+
+
+def command_outcome(
+    command: str, cwd: Path, timeout: int, shell: Callable[[str, Path, int], ShellResult]
+) -> tuple[list[str], dict[str, Any]]:
+    """確認用コマンドを流した結果。返すのは (直す点の一覧, 記録に足す項目)。終了コード 0 なら直す点は空。"""
+    res = shell(command, cwd, timeout)
+    record: dict[str, Any] = {"command": command, "returncode": res.returncode}
+    problems: list[str] = []
+    if res.returncode != 0:
+        problems.append(f"確認用コマンド `{command}` が失敗しました（終了コード {res.returncode}）\n```\n{res.output_tail[-2000:]}\n```")
+    return problems, record
+
+
+def stage_checks(pipe: PipeDef) -> dict[str, dict[str, Any]]:
+    """判定のある段の設定（記録の stages[].check）。自分をやり直すときの on_fail は None。"""
+    return {
+        s.name: {"on_fail": s.check.on_fail if s.check.on_fail not in (None, "", s.name) else None, "max_retries": s.check.max_retries}
+        for s in pipe.stages
+        if s.check
+    }
+
+
+def exit_message(result: Exit) -> str:
+    """パイプ（linear）の終了の文。"""
+    if result == Exit.TEST_FAILED:
+        return "差し戻しの上限まで検証に通りませんでした"
+    return EXIT_MESSAGES[result]
+
+
+def check_summary_lines(history: list[dict[str, Any]], labels: dict[str, str]) -> list[str]:
+    """99_summary.md の「検証」の節。検証の記録が無ければ空。"""
+    checks = [h for h in history if "check" in h]
+    if not checks:
+        return []
+    lines = ["", "## 検証", ""]
+    for h in checks:
+        c = h["check"]
+        mark = "✓" if c["status"] == "pass" else "✗"
+        detail = c.get("summary") or "; ".join(c.get("problems", [])[:2])
+        lines.append(f"- {mark} {labels.get(h['stage'], h['stage'])}: {c['status']}{' — ' + one_line(detail) if detail else ''}")
+        if c.get("judge"):
+            lines.append(_judge_line(c["judge"]))
+    return lines
+
+
 class LinearPipeline(BasePipeline):
     def __init__(
         self,
@@ -94,17 +150,11 @@ class LinearPipeline(BasePipeline):
         return [(INPUT, "依頼メモ")] + [(s.output, s.label) for s in self.pipe.stages]
 
     def _exit_message(self, result: Exit) -> str:
-        if result == Exit.TEST_FAILED:
-            return "差し戻しの上限まで検証に通りませんでした"
-        return EXIT_MESSAGES[result]
+        return exit_message(result)
 
     def _stage_checks(self) -> dict[str, dict[str, Any]]:
-        """判定のある段の設定（記録の stages[].check）。自分をやり直すときの on_fail は None。"""
-        return {
-            s.name: {"on_fail": s.check.on_fail if s.check.on_fail not in (None, "", s.name) else None, "max_retries": s.check.max_retries}
-            for s in self.pipe.stages
-            if s.check
-        }
+        """判定のある段の設定（記録の stages[].check）。"""
+        return stage_checks(self.pipe)
 
     def _stage_groups(self) -> dict[str, str]:
         """枠（並列の束）の中の段の枠の名前（記録の stages[].group）。"""
@@ -115,18 +165,7 @@ class LinearPipeline(BasePipeline):
         return sum(1 for h in self.history if h.get("stage") == stage and "check" in h) + 1
 
     def _summary_extra(self) -> list[str]:
-        checks = [h for h in self.history if "check" in h]
-        if not checks:
-            return []
-        lines = ["", "## 検証", ""]
-        for h in checks:
-            c = h["check"]
-            mark = "✓" if c["status"] == "pass" else "✗"
-            detail = c.get("summary") or "; ".join(c.get("problems", [])[:2])
-            lines.append(f"- {mark} {self.labels.get(h['stage'], h['stage'])}: {c['status']}{' — ' + one_line(detail) if detail else ''}")
-            if c.get("judge"):
-                lines.append(_judge_line(c["judge"]))
-        return lines
+        return check_summary_lines(self.history, self.labels)
 
     # ---- 入口 ---------------------------------------------------------
 
@@ -303,14 +342,9 @@ class LinearPipeline(BasePipeline):
         problems: list[str] = []
         record: dict[str, Any] = {}
         if c.verdict:
-            data = _structured(run)
-            if data is None or data.get("status") not in ("pass", "fail"):
-                problems.append("判定（status: pass / fail）が返りませんでした")
-            else:
-                record["summary"] = str(data.get("summary", ""))
-                if data["status"] == "fail":
-                    found = [str(p) for p in data.get("problems", []) if str(p).strip()]
-                    problems += found or [record["summary"] or "判定が fail でした"]
+            found, extra = verdict_outcome(_structured(run))
+            problems += found
+            record.update(extra)
         if c.judge:
             data = _structured(run)
             outcome = judge.evaluate(
@@ -323,12 +357,9 @@ class LinearPipeline(BasePipeline):
             record["judge"] = outcome.to_record()
         if c.command:
             print(f"  確認用コマンドを実行: {c.command}", flush=True)
-            res = self.shell(c.command, self.cfg.project_dir, c.timeout_sec)
-            record.update({"command": c.command, "returncode": res.returncode})
-            if res.returncode != 0:
-                problems.append(
-                    f"確認用コマンド `{c.command}` が失敗しました（終了コード {res.returncode}）\n```\n{res.output_tail[-2000:]}\n```"
-                )
+            found, extra = command_outcome(c.command, self.cfg.project_dir, c.timeout_sec, self.shell)
+            problems += found
+            record.update(extra)
         status = "fail" if problems else "pass"
         attempt = self._next_attempt(s.name)
         self.history.append({"stage": s.name, "check": {"attempt": attempt, "status": status, "problems": problems, **record}})

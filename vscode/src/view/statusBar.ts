@@ -79,7 +79,7 @@ function rateNow(view: PipelineView): string {
 
 /** 選んでいる実行の段と状態（今の出し方）。 */
 function viewLabel(view: PipelineView): StatusBarLabel {
-  const cost = `合計 $${view.totalCostUsd.toFixed(3)}${rateNow(view)}`;
+  const cost = view.usageUnavailable !== null ? '費用は取れません' : `合計 $${view.totalCostUsd.toFixed(3)}${rateNow(view)}`;
   if (view.noRecords) {
     return { text: `$(circuit-board) ${NAME}`, tooltip: `${NAME}：${NO_RECORDS_MESSAGE}（${view.noRecords.workDir}）\n${CLICK}` };
   }

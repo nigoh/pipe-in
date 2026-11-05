@@ -94,3 +94,8 @@ export function renderUsage(usage: UsageView | null): string {
   const lead = `出力 ${formatCount(s.tokens.output)}・キャッシュ再利用率 ${formatPercent(s.cacheReuseRate, 1)}${apiSec}`;
   return `<section><h2 class="terminal-title">使用量</h2><p class="usage-summary">${escapeHtml(lead)}</p>${renderStageTable(usage)}${renderModels(usage)}${renderRateLimits(usage)}</section>`;
 }
+
+/** 使用量が取れない記録（会話の中で流した記録）のときの使用量の欄（D0076）。零の表は出さず、理由だけを出す。理由は外から来た文字なので escapeHtml を通す。 */
+export function renderUsageUnavailable(reason: string): string {
+  return `<section data-usage-unavailable><h2 class="terminal-title">使用量</h2><p class="usage-summary">${escapeHtml(`使用量は取れません（${reason}）`)}</p></section>`;
+}
