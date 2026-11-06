@@ -39,9 +39,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。D0076: references/stage-rules.md に「2体の共通部分」の項を足し、同じ理由で 0.5.2。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.5.1"
+    assert manifest["version"] == "0.5.2"
 
 
 PLUGIN_TEXTS = [
@@ -649,13 +649,66 @@ def test_d0053_ac17_stage_rules_has_harness_section(label, pattern):
 
 
 D0053_RULE_FILES = ["plugin/skills/pipe-build/references/stage-rules.md", "generator/design_rules.md"]
-# 分かったこと 4（票）・6（3体の実装）・8（教訓のメモ）は、仕組みが無いので組む人の文書に書かない
-D0053_UNBUILT_WORDS = ["票", "3体", "教訓"]
+# 分かったこと 4（票）・6（3体の実装）・8（教訓のメモ）は、仕組みが無いので組む人の文書に書かない。
+# D0076: 2体の共通部分は仕組みができ、項で「3体目」を書くので、部分一致の "3体" を "3体の実装" に狭めた（守るのは「3回解かせて票を数える型を教えない」。"票" は残る）
+D0053_UNBUILT_WORDS = ["票", "3体の実装", "教訓"]
 
 
 @pytest.mark.parametrize("rel", D0053_RULE_FILES)
 @pytest.mark.parametrize("word", D0053_UNBUILT_WORDS)
 def test_d0053_ac18_rules_do_not_teach_unbuilt_methods(rel, word):
-    """D0053-AC-18: stage-rules.md と design_rules.md の全文に、まだ仕組みの無い組み方の目印（「票」「3体」「教訓」）が無い。（今の作りのままで通る。守る）"""
+    """D0053-AC-18・D0076-AC-17: stage-rules.md と design_rules.md の全文に、まだ仕組みの無い組み方（票を数える型・3体の実装・教訓のメモ）の目印（「票」「3体の実装」「教訓」）が無い。2体の共通部分は D0076 で仕組みができたので別。（今の作りのままで通る。守る）"""
     found = word in _read(rel)
     assert not found, f"{rel} に「{word}」がある（仕組みの無い組み方を教えない）"
+
+# D0076-AC-14: 「2体の共通部分」の項の目印（項は、その言葉を含む箇条書きの1項。次の「- 」で始まる行の手前まで）
+D0076_QUORUM_MARKS = [
+    ("same-instruction", "同じ指示"),
+    ("strong-model", "強いモデル"),
+    ("not-varied-readings", "読み方"),
+    ("no-arbitration", "裁定"),
+    ("one-agent-enough", "1体"),
+    ("post-hoc", "事後"),
+    ("haiku", "Haiku"),
+    ("command", "pipe-in-gen quorum"),
+    ("template", "review-quorum"),
+]
+
+
+def d0076_quorum_item(part: str) -> str:
+    """節の本文から、「2体の共通部分」を含む箇条書きの1項（次の「- 」の行の手前まで）。無ければ空。"""
+    lines = part.splitlines()
+    for i, ln in enumerate(lines):
+        if "2体の共通部分" in ln:
+            body = [ln]
+            for nxt in lines[i + 1 :]:
+                if nxt.startswith("- "):
+                    break
+                body.append(nxt)
+            return "\n".join(body)
+    return ""
+
+
+@pytest.mark.parametrize("label,word", D0076_QUORUM_MARKS, ids=[i for i, _ in D0076_QUORUM_MARKS])
+def test_d0076_ac14_stage_rules_quorum_marks(label, word):
+    """D0076-AC-14: stage-rules.md の「比較実験」の節に「2体の共通部分」の項があり、同じ指示・強いモデルでは使わない・読み方を変えない・裁定を足さない・1体で足りる課題には足さない・事後の解析・Haiku の目印がある。"""
+    part = rules_section("比較実験")
+    assert part, "references/stage-rules.md に「比較実験」の節が無い"
+    item = d0076_quorum_item(part)
+    assert item, "「比較実験」の節に「2体の共通部分」の項が無い"
+    found = word in item
+    assert found, f"「2体の共通部分」の項に、{label} が無い（探した言葉：{word}）"
+
+
+D0076_VOTE_FILES = [
+    "plugin/skills/pipe-build/references/stage-rules.md",
+    "generator/design_rules.md",
+    "docs/guide/pipes.md",
+]
+
+
+@pytest.mark.parametrize("rel", D0076_VOTE_FILES)
+def test_d0076_ac14_no_vote_counting_recommendation(rel):
+    """D0076-AC-14: 今の作りのままで通る。守る。「票を数える」を含む行は、置き換えた・足さない、と書くものだけで、3回解かせて票を数える型をすすめる文がない。"""
+    bad = [ln for ln in _read(rel).splitlines() if "票を数え" in ln and "置き換え" not in ln and "足さない" not in ln]
+    assert bad == [], f"{rel} に票を数える型をすすめる文がある: {bad}"

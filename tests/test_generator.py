@@ -27,7 +27,7 @@ def definition():
     return definition
 
 
-TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review"]
+TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review", "review-quorum"]
 
 
 def python_project(tmp_path: Path) -> Path:
@@ -937,3 +937,44 @@ def test_d0053_ac16_design_rules_has_harness_lessons(label, pattern):
     assert part, "design_rules.md に「組み方の目安」の節が無い"
     found = re.search(pattern, part) is not None  # 節の本文を assert の失敗の表示に出さない
     assert found, f"「組み方の目安」に、{label} が無い（探した言葉：{pattern}）"
+
+# D0076-AC-14: 「2体の共通部分」の項の目印（項は、その言葉を含む箇条書きの1項。次の「- 」で始まる行の手前まで）
+D0076_QUORUM_MARKS = [
+    ("same-instruction", "同じ指示"),
+    ("strong-model", "強いモデル"),
+    ("not-varied-readings", "読み方"),
+    ("no-arbitration", "裁定"),
+    ("one-agent-enough", "1体"),
+    ("post-hoc", "事後"),
+    ("haiku", "Haiku"),
+    ("command", "pipe-in-gen quorum"),
+    ("template", "review-quorum"),
+]
+
+
+def d0076_quorum_item(part: str) -> str:
+    """節の本文から、「2体の共通部分」を含む箇条書きの1項（次の「- 」の行の手前まで）。無ければ空。"""
+    lines = part.splitlines()
+    for i, ln in enumerate(lines):
+        if "2体の共通部分" in ln:
+            body = [ln]
+            for nxt in lines[i + 1 :]:
+                if nxt.startswith("- "):
+                    break
+                body.append(nxt)
+            return "\n".join(body)
+    return ""
+
+
+@pytest.mark.parametrize("label,word", D0076_QUORUM_MARKS, ids=[i for i, _ in D0076_QUORUM_MARKS])
+def test_d0076_ac14_design_rules_quorum_marks(label, word):
+    """D0076-AC-14: design_rules.md の「組み方の目安」の節に「2体の共通部分」の項があり、同じ指示・強いモデルでは使わない・読み方を変えない・裁定を足さない・1体で足りる課題には足さない・事後の解析・Haiku の目印がある。"""
+    from importlib import resources
+
+    rules = resources.files("pipe_in_generator").joinpath("design_rules.md").read_text(encoding="utf-8")
+    part = md_section(rules, "組み方の目安")
+    assert part, "design_rules.md に「組み方の目安」の節が無い"
+    item = d0076_quorum_item(part)
+    assert item, "「組み方の目安」の節に「2体の共通部分」の項が無い"
+    found = word in item
+    assert found, f"「2体の共通部分」の項に、{label} が無い（探した言葉：{word}）"

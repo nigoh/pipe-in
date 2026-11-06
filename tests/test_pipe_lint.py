@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review"]
+TEMPLATES = ["dev", "diagrams", "spec-qa", "spec-review", "review-quorum"]
 
 
 def lint():
@@ -183,6 +183,45 @@ def test_w5_not_raised_for_writable_self_or_missing(tmp_path, target_access):
     assert lint()(no_check) == []
 
 
+def test_w5_not_raised_when_check_command_names_target_output(tmp_path):
+    """D0076-AC-23: 戻り先が read の段でも、検査の command が戻り先の output（成果物のファイル名）を文字として含むときは、W5 を出さない（戻り先の成果物そのものを確かめていて、書き直せば直せる）。"""
+    pipe = make_pipe(
+        tmp_path,
+        [
+            stage_toml("survey", access="read"),
+            stage_toml("verify", access="read", command="pipe-in-gen findings-check out/survey.md", on_fail="survey"),
+        ],
+    )
+    assert lint()(pipe) == []
+
+
+def test_w5_still_raised_when_command_does_not_name_target_output(tmp_path):
+    """D0076-AC-23: 同じ形でも、command が戻り先の成果物のファイル名を含まないときは、今までどおり W5 が1件。"""
+    pipe = make_pipe(
+        tmp_path,
+        [
+            stage_toml("survey", access="read"),
+            stage_toml("verify", access="read", command="pytest -q", on_fail="survey"),
+        ],
+    )
+    warnings = lint()(pipe)
+    assert len(warnings) == 1
+    assert "verify" in warnings[0] and "survey" in warnings[0] and 'access = "read"' in warnings[0]
+
+
+def test_w5_still_raised_with_verdict_only(tmp_path):
+    """D0076-AC-23: command が無く verdict だけの検査なら、今までどおり W5 が1件（成果物を名指ししていない）。"""
+    pipe = make_pipe(
+        tmp_path,
+        [
+            stage_toml("survey", access="read"),
+            stage_toml("verify", access="read", verdict=True, on_fail="survey"),
+        ],
+    )
+    warnings = lint()(pipe)
+    assert len(warnings) == 1 and "survey" in warnings[0]
+
+
 # ---- AC-09: ひな形・見本 ---------------------------------------------------------------
 
 
@@ -199,7 +238,7 @@ def isolate_pipes(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("name", TEMPLATES)
 def test_templates_have_no_warnings(tmp_path, isolate_pipes, name):
-    """D0038-AC-09: ひな形 dev・diagrams・spec-qa・spec-review は警告 0 件。"""
+    """D0038-AC-09・D0076-AC-11: ひな形 dev・diagrams・spec-qa・spec-review・review-quorum は警告 0 件。"""
     from pipe_in.pipe.definition import load_pipe
     from pipe_in_generator import cli
 

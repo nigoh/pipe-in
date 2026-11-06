@@ -3,6 +3,7 @@
 check_pipe（誤りだけを返す）とは別にして、返り値は変えない。ファイルには書かず、
 読むのは定義と段の指示文だけ。標準ライブラリと .definition のほかは import しない。
 D0053 で W6（指摘を出す段に、引用の指示も findings-check も無い）を足した。
+D0076 で W5 に例外を足した（検査の command が戻り先の段の成果物を名指しするときは出さない）。
 """
 
 from __future__ import annotations
@@ -60,9 +61,14 @@ def lint_pipe(pipe: PipeDef) -> list[str]:
                 )
 
         # W5: 不合格の戻り先が read の段だと、指摘を直せない
+        # 例外（D0076-AC-23）: 検査の command が戻り先の output（成果物のファイル名）を含むときは、
+        # 戻り先の成果物そのものを確かめていて、書き直せば直せるので出さない
         if s.check is not None and s.check.on_fail and s.check.on_fail != s.name:
             target = by_name.get(s.check.on_fail)
-            if target is not None and target.access == "read":
+            names_output = bool(
+                target is not None and target.output and s.check.command and target.output in s.check.command
+            )
+            if target is not None and target.access == "read" and not names_output:
                 warnings.append(
                     at + f"不合格の戻り先「{target.name}」は access = \"read\" で、成果物のほかは書けず、指摘を直せません。"
                     "直せる段（docs・tests・code）に戻してください"
