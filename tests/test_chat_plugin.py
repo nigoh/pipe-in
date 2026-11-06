@@ -125,7 +125,7 @@ def test_d0077_ac34_plugin_jsonの説明に会話の中でパイプを流すが�
     """D0077-AC-34（設計 2.2）: plugin.json の description に「会話の中でパイプを流す」が出る。version は変えない（公開は人）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert "会話の中でパイプを流す" in manifest["description"]
-    assert manifest["version"] == "0.5.1"
+    assert manifest["version"] == "0.5.2"
 
 
 def test_d0077_ac34_スキルのfrontmatter():

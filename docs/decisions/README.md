@@ -77,6 +77,7 @@
 | [D0073](D0073-unattended-run.md) | 人が開始の指示で commit・push・PR の作成を承認した無人の実行では、その枝への commit・push と PR の作成を確認で止めない。`ask` から `git commit`・`git push`・`gh pr create` を外し、main へ届きうる push の形を足す。main の本当の関所は GitHub のブランチ保護。手順は `.claude/skills/pipe-in/unattended.md` |
 | [D0074](D0074-merge-unit.md) | merge の単位を「main 向けの PR 1つ」にそろえる。夜のまとめ実行は1本の `night/<日付>` の枝に件ごとの1コミットを早送りで積み、単独の機能は main から切って積まない。`worktree new`・`sync`・`clean` は土台を origin から取り、取れなければ止まる（`--no-fetch`）。決定の記録の番号は `skill decision-number` で取る。スキルの補助ファイルの字数は、合計をやめて1つずつ 3,500 字にした。 |
 | [D0075](D0075-doc-shape.md) | 並列の作業でぶつかる文書とテストの形を、書き足しが別々の場所に入る形に直す。決定の記録の一覧は `merge=union` と検査で守り、design.md の表は 1 部品 1 行（1 行 800 字まで）に割り、アーキテクチャの新しい検査は決定ごとの別ファイルに置き、`screen-check.md` はページの種類の頭を 1 行 1 頭で書く。秘密・手元の事情の検査は、まだ追跡していない新しいファイルも見る。 |
+| [D0076](D0076-review-quorum.md) | 同じ指示の2体の指摘から、両方が同じ節に挙げた指摘だけを残す `pipe-in-gen quorum`（LLM を呼ばない）と、ひな形 `review-quorum` を足し、比較実験 R7〜R14 の目安（2体の共通部分・強いモデルでは使わない）を入れる。W5 は検査が戻り先の成果物を名指しするとき出さない。プラグインは 0.5.2 |
 | [D0077](D0077-chat-run.md) | パイプを会話の中で流せる（Claude Agent SDK を子として起こせない VS Code の Claude ハーネスなど向け）。入口はプラグインのスキル `/pipe-in:pipe-run`、段の順番・確認・差し戻し・記録は `pipe-in-gen chat` が持ち、段は `pipe-stage` で流す。プラグインのフックが本体と同じ判断で段の範囲を絞り、流す前に `pipe-probe` で守りを確かめ、通らなければ流さない。使用量は「取れない」と記録し、拡張も $ の数を出さない。実機の確かめは #123 |
 
 ## ひな形

@@ -133,14 +133,14 @@ claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write E
 - `claude -p` で `/スキル名` が展開されることは公式の文書にありますが、`claude plugin eval` の中で `/pipe-in:<スキル>` の形が展開されるかは、まだ実機で確かめていません。`file_exists` の `path` の基準と、サブエージェントが書いたファイルや呼んだ道具が採点に数えられるかも、まだです。`scaffold.sh` には実行ビットを付けてあります。
 - ケースを足しても、プラグインの版は上げません（ケースは 0.5.0 のときに足しました）。スキル・エージェント・フックの動きは変わりません。`pytest` が見るのはケースのファイルの形だけで、`claude plugin eval` は流しません。
 
-## 0.5.0 から更新するとき
+## 0.5.0・0.5.1 から更新するとき
 
-0.5.1 で `references/stage-rules.md` に「比較実験から分かった組み方の目安」が増えました。スキル・エージェント・フックの動きは変わりません。入れ方によって、更新のしかたが違います。
+0.5.1 で `references/stage-rules.md` に「比較実験から分かった組み方の目安」が増え、0.5.2 でその中に「2体の共通部分」の項（`pipe-in-gen quorum`・ひな形 `review-quorum`）が増えました。スキル・エージェント・フックの動きは変わりません。入れ方によって、更新のしかたが違います。
 
 - **手元のフォルダからマーケットプレイスを足した人**（`/plugin marketplace add ./`）：プラグインはその場から読まれるので、pipe-in のフォルダで `git pull` をしたあと、次の会話を始めるか `/reload-plugins` をすれば効きます。
-- **GitHub からマーケットプレイスを足した人**：版が変わったときだけ入れ直されます。会話の中なら `/plugin marketplace update pipe-in`、シェルなら `claude plugin update pipe-in@pipe-in` で更新し、開いている会話には `/reload-plugins` で反映します。`/plugin` の Marketplaces で自動の更新（Enable auto-update）を入れておくと、自分で更新しなくても届きます。
+- **GitHub からマーケットプレイスを足した人**：版が変わったときだけ入れ直されます。会話の中なら `/plugin marketplace update pipe-in`、シェルなら `claude plugin update pipe-in@pipe-in` で更新し、開いている会話には `/reload-plugins` で反映します。`/plugin` の Marketplaces で自動の更新（Enable auto-update）を入れておくと、自分で更新しなくても届きます。Anthropic の公式のマーケットプレイスのほかは、自動の更新は既定で切れています。
 
-あわせて、警告 W6 を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
+あわせて、警告 W6・W5 の例外・`pipe-in-gen quorum`・ひな形 `review-quorum` を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
 
 ## 0.4.0 以前から更新するとき
 

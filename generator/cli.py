@@ -8,6 +8,7 @@
 guard-hook は、Claude Code のプラグイン（plugin/hooks/hooks.json）から呼ぶフック。
 judge-score は、プラグインの pipe-judge が審査役の採点（標準入力の JSON）から総合点・合否を計算させるのに呼ぶ。
 findings-check は、仕様書レビューの指摘のファイルを、形・出典・引用・役割の決まりで検査する（LLM を呼ばない）。
+quorum は、同じ指示で流した2体（か3体）の指摘のファイルから、同じ節への指摘だけを残す（LLM を呼ばない）。
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     sub.add_parser("judge-score", help="審査役の採点（標準入力の JSON）から総合点・合否・ばらつきを出す（プラグインの pipe-judge が呼ぶ）")
 
     sub.add_parser("findings-check", help="指摘のファイルを、形・出典・引用・役割の決まりで検査する（LLM を呼ばない）")
+    sub.add_parser("quorum", help="2体（か3体）の指摘のファイルから、同じ節への指摘だけを残す（LLM を呼ばない）")
 
     new = sub.add_parser("new", help="ひな形から .pipe-in/pipes/pipe-in-<名前>/ を作る")
     new.add_argument("name", help="作るパイプの名前（英小文字・数字・-）")
@@ -228,6 +230,11 @@ def main(argv: list[str] | None = None) -> int:
         from .findings_check import main as findings_main
 
         return findings_main(argv[1:])
+    if argv[:1] == ["quorum"]:
+        # 指摘のファイルだけで動く（--project は持たないので、プロジェクトの検めより前に分ける）
+        from .quorum import main as quorum_main
+
+        return quorum_main(argv[1:])
     args = _parse_args(argv)
     given = args.pipes_dir.expanduser() if args.pipes_dir else None
     project = _project(args.project)
