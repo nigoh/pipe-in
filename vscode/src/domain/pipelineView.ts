@@ -213,9 +213,9 @@ export interface PipelineView {
   usage: UsageView | null;
   /** 段ごとの費用の表（runs[] の費用から。費用のある段が無ければ null） */
   stageCosts: StageCostsView | null;
-  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0076） */
+  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0077） */
   usageUnavailable: string | null;
-  /** 会話の道（driver が pipe-chat）の記録なら、そのパイプ名（state.json の pipe。無ければ空の文字）。ほかは null（D0076） */
+  /** 会話の道（driver が pipe-chat）の記録なら、そのパイプ名（state.json の pipe。無ければ空の文字）。ほかは null（D0077） */
   chatPipe: string | null;
   /** 確認待ち（state.json の pending_review）。なければ null */
   pendingReview: PendingReviewView | null;

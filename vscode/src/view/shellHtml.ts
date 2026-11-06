@@ -199,7 +199,7 @@ function renderNotice(view: PipelineView): string {
     '<span class="notice-sub">読んで、承認か修正の依頼を返してください</span>' +
     open;
   if (view.chatPipe !== null) {
-    // 会話の道（D0076）：答えは /pipe-in:pipe-run を流している会話で返す。コマンドは pipe-in-gen chat review
+    // 会話の道（D0077）：答えは /pipe-in:pipe-run を流している会話で返す。コマンドは pipe-in-gen chat review
     const chatCmd = `pipe-in-gen chat review --pipe ${view.chatPipe} approved`;
     return (
       head +

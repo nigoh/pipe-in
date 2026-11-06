@@ -1,4 +1,4 @@
-"""D0076-AC-01〜06：会話の中でパイプを流す道の「始める・断る」（pipe-in-gen chat start）。
+"""D0077-AC-01〜06：会話の中でパイプを流す道の「始める・断る」（pipe-in-gen chat start）。
 
 SDK は呼ばない（no_sdk）。パイプは tmp_path の下の .pipe-in/pipes/pipe-in-<名前>/ に作り、--project で流す。
 外の入口 chat_cmd.main(argv) だけを通す（標準出力の JSON と終了コードを読む）。
@@ -32,8 +32,8 @@ def full_pipe() -> str:
     )
 
 
-def test_d0076_ac01_扱える形のパイプで始めると記録ができる(tmp_path):
-    """D0076-AC-01: 扱える形のパイプで chat start すると、00_input.md と state.json ができ、driver が pipe-chat、stages が定義の並びになる。"""
+def test_d0077_ac01_扱える形のパイプで始めると記録ができる(tmp_path):
+    """D0077-AC-01: 扱える形のパイプで chat start すると、00_input.md と state.json ができ、driver が pipe-chat、stages が定義の並びになる。"""
     r = Run(tmp_path)
     r.make(full_pipe())
     out = r.start(memo="図を描いてほしい")
@@ -49,8 +49,8 @@ def test_d0076_ac01_扱える形のパイプで始めると記録ができる(tm
     assert "図を描いてほしい" in (r.run_dir / "00_input.md").read_text(encoding="utf-8")
 
 
-def test_d0076_ac01_dry_runの表は段の並びを見せる(tmp_path):
-    """D0076-AC-01: 段の表を見せる（開始の確認の前に使う）。"""
+def test_d0077_ac01_dry_runの表は段の並びを見せる(tmp_path):
+    """D0077-AC-01: 段の表を見せる（開始の確認の前に使う）。"""
     r = Run(tmp_path)
     r.make(full_pipe())
     out = r.start("--dry-run")
@@ -104,8 +104,8 @@ def bad_pipe(extra: str, more: str, head: str) -> str:
 
 
 @pytest.mark.parametrize("shape", BAD_SHAPES, ids=[s[0] for s in BAD_SHAPES])
-def test_d0076_ac02_扱わない形を1つだけ持つパイプは記録を作らず断る(tmp_path, shape):
-    """D0076-AC-02: group・routes・check.judge・agents・mcp・mcp_servers・web・max_budget_usd・前の実行の受け取り・kind=dev は、
+def test_d0077_ac02_扱わない形を1つだけ持つパイプは記録を作らず断る(tmp_path, shape):
+    """D0077-AC-02: group・routes・check.judge・agents・mcp・mcp_servers・web・max_budget_usd・前の実行の受け取り・kind=dev は、
     記録を作らず、その形の名前を含む文で断る（終了コードは 0 以外）。"""
     _, extra, more, head, pipeline_toml, args, needle = shape
     r = Run(tmp_path)
@@ -119,8 +119,8 @@ def test_d0076_ac02_扱わない形を1つだけ持つパイプは記録を作�
     assert not (r.run_dir / "00_input.md").exists()
 
 
-def test_d0076_ac02_dry_runでも扱わない形は断る(tmp_path):
-    """D0076-AC-02: --dry-run でも、扱わない形は断る（何も書かない）。"""
+def test_d0077_ac02_dry_runでも扱わない形は断る(tmp_path):
+    """D0077-AC-02: --dry-run でも、扱わない形は断る（何も書かない）。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("s", extra="web = true\n")))
     out = r.start("--dry-run")
@@ -128,8 +128,8 @@ def test_d0076_ac02_dry_runでも扱わない形は断る(tmp_path):
     assert not (tmp_path / "docs").exists()
 
 
-def test_d0076_ac03_断る形が複数あると理由が全部出る(tmp_path):
-    """D0076-AC-03: 断る形を複数持つパイプでは、最初の1つで止まらず、理由が全部出る。"""
+def test_d0077_ac03_断る形が複数あると理由が全部出る(tmp_path):
+    """D0077-AC-03: 断る形を複数持つパイプでは、最初の1つで止まらず、理由が全部出る。"""
     r = Run(tmp_path)
     r.make(
         pipe_toml(
@@ -160,8 +160,8 @@ INEFFECTIVE = [
 
 
 @pytest.mark.parametrize("key,line", INEFFECTIVE, ids=[k for k, _ in INEFFECTIVE])
-def test_d0076_ac04_効かない設定は断らず一覧に出す(tmp_path, key, line):
-    """D0076-AC-04: model・max_turns・max_thinking_tokens・fallback_model・permission_mode・add_dirs は、断らず、start の出力の「効かない設定」の一覧に出る。"""
+def test_d0077_ac04_効かない設定は断らず一覧に出す(tmp_path, key, line):
+    """D0077-AC-04: model・max_turns・max_thinking_tokens・fallback_model・permission_mode・add_dirs は、断らず、start の出力の「効かない設定」の一覧に出る。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("s", extra=line)))
     out = r.start()
@@ -172,8 +172,8 @@ def test_d0076_ac04_効かない設定は断らず一覧に出す(tmp_path, key,
     assert (r.run_dir / "state.json").exists()
 
 
-def test_d0076_ac04_pipeline_tomlの段の設定も効かない設定に出る(tmp_path):
-    """D0076-AC-04: pipeline.toml の [stages.<段>] の model・max_turns も、断らず一覧に出る。"""
+def test_d0077_ac04_pipeline_tomlの段の設定も効かない設定に出る(tmp_path):
+    """D0077-AC-04: pipeline.toml の [stages.<段>] の model・max_turns も、断らず一覧に出る。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("s")))
     (tmp_path / "pipeline.toml").write_text('[stages.s]\nmodel = "sonnet"\nmax_turns = 3\n', encoding="utf-8")
@@ -183,8 +183,8 @@ def test_d0076_ac04_pipeline_tomlの段の設定も効かない設定に出る(t
     assert "効かない設定" in text and "model" in text and "max_turns" in text, text
 
 
-def test_d0076_ac04_dry_runは何も書かずに表と効かない設定を返す(tmp_path):
-    """D0076-AC-04: --dry-run は、段の表と効かない設定を返し、何も書かない（開始の確認の前に見せるため）。"""
+def test_d0077_ac04_dry_runは何も書かずに表と効かない設定を返す(tmp_path):
+    """D0077-AC-04: --dry-run は、段の表と効かない設定を返し、何も書かない（開始の確認の前に見せるため）。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("s", extra='model = "sonnet"\n')))
     out = r.start("--dry-run")
@@ -196,8 +196,8 @@ def test_d0076_ac04_dry_runは何も書かずに表と効かない設定を返�
 # ---- AC-05：定義の誤り ------------------------------------------------------------------------
 
 
-def test_d0076_ac05_段の名前の重複で断る(tmp_path):
-    """D0076-AC-05: check_pipe が誤りを返す定義（段の名前の重複）では、記録を作らず、その誤りを出して断る。"""
+def test_d0077_ac05_段の名前の重複で断る(tmp_path):
+    """D0077-AC-05: check_pipe が誤りを返す定義（段の名前の重複）では、記録を作らず、その誤りを出して断る。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("a", output="1.md"), stage_toml("a", output="2.md")), valid=False)
     out = r.start()
@@ -206,8 +206,8 @@ def test_d0076_ac05_段の名前の重複で断る(tmp_path):
     assert not (r.run_dir / "state.json").exists()
 
 
-def test_d0076_ac05_飛び先の段が無いと断る(tmp_path):
-    """D0076-AC-05: next の飛び先の段が無い定義では、記録を作らず、その誤りを出して断る。"""
+def test_d0077_ac05_飛び先の段が無いと断る(tmp_path):
+    """D0077-AC-05: next の飛び先の段が無い定義では、記録を作らず、その誤りを出して断る。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("a", extra='next = "nowhere"\n')), valid=False)
     out = r.start()
@@ -216,16 +216,16 @@ def test_d0076_ac05_飛び先の段が無いと断る(tmp_path):
     assert not (r.run_dir / "state.json").exists()
 
 
-def test_d0076_ac05_パイプが見つからないと断る(tmp_path):
-    """D0076-AC-05: パイプが見つからないときも、記録を作らず断る。"""
+def test_d0077_ac05_パイプが見つからないと断る(tmp_path):
+    """D0077-AC-05: パイプが見つからないときも、記録を作らず断る。"""
     r = Run(tmp_path)
     out = r.start()
     assert r.code != 0 and out["ok"] is False, out
     assert not (r.run_dir / "state.json").exists()
 
 
-def test_d0076_ac05_input_requiredで要件メモが無いと断る(tmp_path):
-    """D0076-AC-05: input = "required" のパイプは、要件メモ（--memo）が無いと、記録を作らず断る。"""
+def test_d0077_ac05_input_requiredで要件メモが無いと断る(tmp_path):
+    """D0077-AC-05: input = "required" のパイプは、要件メモ（--memo）が無いと、記録を作らず断る。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("a"), head='input = "required"\n'))
     out = r.cmd("start")
@@ -236,8 +236,8 @@ def test_d0076_ac05_input_requiredで要件メモが無いと断る(tmp_path):
 # ---- AC-06：途中の記録 ------------------------------------------------------------------------
 
 
-def test_d0076_ac06_途中の記録があると断り記録は変わらない(tmp_path):
-    """D0076-AC-06: 段が開いたままの途中の記録があるとき chat start は断る（record start と同じ）。記録は変わらない。"""
+def test_d0077_ac06_途中の記録があると断り記録は変わらない(tmp_path):
+    """D0077-AC-06: 段が開いたままの途中の記録があるとき chat start は断る（record start と同じ）。記録は変わらない。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a"), stage_toml("b")))
     r.run_next("a")
@@ -250,8 +250,8 @@ def test_d0076_ac06_途中の記録があると断り記録は変わらない(tm
     assert not (r.run_dir / "archive").exists(), "断ったのに archive へ移した"
 
 
-def test_d0076_ac06_終わった記録はarchiveへ移り新しい記録が始まる(tmp_path):
-    """D0076-AC-06: 終わった記録は archive/ へ移る（state.json・00_input.md・logs・99_summary.md と、hook/・probe/ も）。新しい記録はまっさら。"""
+def test_d0077_ac06_終わった記録はarchiveへ移り新しい記録が始まる(tmp_path):
+    """D0077-AC-06: 終わった記録は archive/ へ移る（state.json・00_input.md・logs・99_summary.md と、hook/・probe/ も）。新しい記録はまっさら。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a")))
     r.run_and_finish("a")
@@ -269,8 +269,8 @@ def test_d0076_ac06_終わった記録はarchiveへ移り新しい記録が始�
     assert "次のメモ" in (r.run_dir / "00_input.md").read_text(encoding="utf-8")
 
 
-def test_d0076_ac06_始めたばかりで段が無い記録は途中ではなくやり直せる(tmp_path):
-    """D0076-AC-06: 段をまだ始めていない記録（runs・open・pending_review が空）は途中ではなく、もう一度 start できる。"""
+def test_d0077_ac06_始めたばかりで段が無い記録は途中ではなくやり直せる(tmp_path):
+    """D0077-AC-06: 段をまだ始めていない記録（runs・open・pending_review が空）は途中ではなく、もう一度 start できる。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("a")))
     assert r.start(memo="一つ目")["ok"] is True

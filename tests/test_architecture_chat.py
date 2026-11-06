@@ -1,4 +1,4 @@
-"""D0076-AC-35：会話の中でパイプを流す司会役のコードは SDK を読まず、依存の向きを守り、依存を増やさない。
+"""D0077-AC-35：会話の中でパイプを流す司会役のコードは SDK を読まず、依存の向きを守り、依存を増やさない。
 
 新しいアーキテクチャの検査は、並列の作業でぶつからないよう、別のファイル（これ）に置く（docs/development/testing.md）。
 空の形のファイル（pipe_in/pipe/chat.py など）は今は何も import しないので、ここは今のまま通る検査（守り続けるための検査）。
@@ -67,16 +67,16 @@ def violations(source: str, module: str, allowed: tuple[str, ...]) -> list[str]:
 
 
 @pytest.mark.parametrize("rel", sorted(CHAT_FILES))
-def test_d0076_ac35_司会役のコードはSDKを読まず依存の向きを守る_守る(rel):
-    """D0076-AC-35: chat.py・chat_record.py・chat_cmd.py・chat_hook.py は、claude_agent_sdk・engine.runner・subprocess を import せず、
+def test_d0077_ac35_司会役のコードはSDKを読まず依存の向きを守る_守る(rel):
+    """D0077-AC-35: chat.py・chat_record.py・chat_cmd.py・chat_hook.py は、claude_agent_sdk・engine.runner・subprocess を import せず、
     run_stage_sdk・StageRunner を使わず、pipe_in.engine / pipe_in.pipe の下の層だけを読む（今のまま通る。守る）。"""
     path = ROOT / rel
     assert path.is_file(), rel
     assert violations(path.read_text(encoding="utf-8"), MODULES[rel], CHAT_FILES[rel]) == []
 
 
-def test_d0076_ac35_検査そのものが違反を見つけられる():
-    """D0076-AC-35: 検査そのものが、SDK の import・subprocess・開発フローや入口への import・runner の名前を見つける。"""
+def test_d0077_ac35_検査そのものが違反を見つけられる():
+    """D0077-AC-35: 検査そのものが、SDK の import・subprocess・開発フローや入口への import・runner の名前を見つける。"""
     bad = (
         "import subprocess\n"
         "from claude_agent_sdk import ClaudeSDKClient\n"
@@ -108,8 +108,8 @@ print("SDK:" + ",".join(bad))
 """
 
 
-def test_d0076_ac35_chat_cmdとchat_hookを読んでもSDKは読み込まれない_守る():
-    """D0076-AC-35: 別のプロセスで pipe_in_generator.chat_cmd と chat_hook を import したあと、claude_agent_sdk が sys.modules に無い（今のまま通る。守る）。"""
+def test_d0077_ac35_chat_cmdとchat_hookを読んでもSDKは読み込まれない_守る():
+    """D0077-AC-35: 別のプロセスで pipe_in_generator.chat_cmd と chat_hook を import したあと、claude_agent_sdk が sys.modules に無い（今のまま通る。守る）。"""
     done = subprocess.run(
         [sys.executable, "-I", "-c", _PROBE_CODE, str(ROOT), str(ROOT / "generator")],
         capture_output=True,
@@ -120,8 +120,8 @@ def test_d0076_ac35_chat_cmdとchat_hookを読んでもSDKは読み込まれな�
     assert done.stdout.strip() == "SDK:", done.stdout
 
 
-def test_d0076_ac35_依存は増えない_守る():
-    """D0076-AC-35: pyproject.toml の依存と、vscode/package.json の依存が増えていない（今のまま通る。守る）。"""
+def test_d0077_ac35_依存は増えない_守る():
+    """D0077-AC-35: pyproject.toml の依存と、vscode/package.json の依存が増えていない（今のまま通る。守る）。"""
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert pyproject["project"]["dependencies"] == ["claude-agent-sdk>=0.2.159,<0.3"]
     assert pyproject["project"]["optional-dependencies"] == {"dev": ["pytest>=8"]}

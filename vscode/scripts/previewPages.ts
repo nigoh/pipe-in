@@ -297,7 +297,7 @@ export async function checkPageHtml(dest: string, kind: CheckSampleKind, theme: 
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
 }
 
-// ---- 会話の中で流した記録の見本（D0076）--------------------------------------------------------
+// ---- 会話の中で流した記録の見本（D0077）--------------------------------------------------------
 // 見本の記録（chatSamples.ts）を一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。tests/fixtures/ には書かない。
 
 /** 会話の道の見本の記録を dest の中に書き、その docs/pipeline の絶対パスを返す。 */

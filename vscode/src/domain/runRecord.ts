@@ -149,7 +149,7 @@ export interface RunRecord {
   pipe: string | null;
   /** 外の会話（/pipe-in のスキル）が書いた記録か。state.json の driver が項目として有り、null でないこと（値は見ない。本体と同じ判定）。無い・読めない写しでは false */
   hasDriver: boolean;
-  /** 会話の道（/pipe-in:pipe-run）が書いた記録か。state.json の driver が "pipe-chat" のとき true（D0076） */
+  /** 会話の道（/pipe-in:pipe-run）が書いた記録か。state.json の driver が "pipe-chat" のとき true（D0077） */
   isChat: boolean;
   /** 段の並び。パイプを持つ前の記録では null */
   stages: StageDef[] | null;
@@ -168,7 +168,7 @@ export interface RunRecord {
   startedAt: string | null;
   /** 本体 0.2 から。古い記録では null */
   usage: UsageSummary | null;
-  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0076） */
+  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0077） */
   usageUnavailable: string | null;
 }
 
@@ -485,7 +485,7 @@ const UNAVAILABLE_DEFAULT_REASON = '使用量は記録されていません';
 const UNAVAILABLE_REASON_MAX = 100;
 
 /**
- * 使用量が「取れない」記録（usage_summary.available === false。会話の中で流した記録）なら理由の文、そうでなければ null（D0076）。
+ * 使用量が「取れない」記録（usage_summary.available === false。会話の中で流した記録）なら理由の文、そうでなければ null（D0077）。
  * 理由が文字でない・空なら既定の文。長ければ 100 文字までに切る。
  */
 export function usageUnavailableReason(value: unknown): string | null {

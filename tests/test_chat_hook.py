@@ -1,4 +1,4 @@
-"""D0076-AC-26〜32：プラグインの PreToolUse フックが、会話の中で流す段（pipe-stage）の書ける範囲を、今の段の定義から絞る。
+"""D0077-AC-26〜32：プラグインの PreToolUse フックが、会話の中で流す段（pipe-stage）の書ける範囲を、今の段の定義から絞る。
 
 フックは本物の入口 chat_hook.main()（標準入力のフックの入力 → 標準出力の deny）を通す。今の段は、本物の chat start / probe / next で開く。
 判断は本体の道（build_pipe_specs → guard.check_tool）と同じ結果になることを、同じ定義から作った表で突き合わせる。
@@ -114,8 +114,8 @@ BASH_COMMANDS = [
 
 
 @pytest.mark.parametrize("config", sorted(CONFIGS))
-def test_d0076_ac26_pipe_stageの書ける範囲はcheck_toolと同じ結果になる(tmp_path, config):
-    """D0076-AC-26: read は成果物以外、docs は成果物と docs_dir の下、tests はテストファイルと成果物、code はテスト以外と成果物だけに書ける。
+def test_d0077_ac26_pipe_stageの書ける範囲はcheck_toolと同じ結果になる(tmp_path, config):
+    """D0077-AC-26: read は成果物以外、docs は成果物と docs_dir の下、tests はテストファイルと成果物、code はテスト以外と成果物だけに書ける。
     writes はその範囲をさらに絞る。判断は guard.check_tool と同じ結果になる（同じ定義から作った表で突き合わせる）。"""
     r, sdk = prepared(tmp_path, CONFIGS[config]())
     assert r.start()["ok"] is True
@@ -141,8 +141,8 @@ def test_d0076_ac26_pipe_stageの書ける範囲はcheck_toolと同じ結果に�
 
 
 @pytest.mark.parametrize("config", sorted(CONFIGS))
-def test_d0076_ac26_範囲外は止まり止める文に書ける範囲が出る(tmp_path, config):
-    """D0076-AC-26: 範囲外の書き込みは止まり、止める文に書ける範囲（その段の成果物の場所）が出る。"""
+def test_d0077_ac26_範囲外は止まり止める文に書ける範囲が出る(tmp_path, config):
+    """D0077-AC-26: 範囲外の書き込みは止まり、止める文に書ける範囲（その段の成果物の場所）が出る。"""
     r, sdk = opened(tmp_path, CONFIGS[config]())
     assert r.hook("Write", {"file_path": str(r.output_path("s")), "content": "x"}) is None, "成果物にはどの段でも書ける"
     blocked = [p for p in WRITE_PATHS if sdk("Write", {"file_path": str(r.project / p)})]
@@ -167,8 +167,8 @@ ALLOWED_BY_SDK = {
 
 
 @pytest.mark.parametrize("config", sorted(CONFIGS))
-def test_d0076_ac26_前提_本体の道の判断の表は書ける範囲の説明どおり_守る(tmp_path, config):
-    """D0076-AC-26（前提）: 本体の道（build_pipe_specs → check_tool）の判断が、要件の説明（read は成果物以外、docs は成果物と docs_dir の下、
+def test_d0077_ac26_前提_本体の道の判断の表は書ける範囲の説明どおり_守る(tmp_path, config):
+    """D0077-AC-26（前提）: 本体の道（build_pipe_specs → check_tool）の判断が、要件の説明（read は成果物以外、docs は成果物と docs_dir の下、
     tests はテストファイルと成果物、code はテスト以外と成果物、writes はさらに絞る）どおりであること。突き合わせの表が意味を持つための前提（今のまま通る。守る）。"""
     r, sdk = prepared(tmp_path, CONFIGS[config]())
     allowed = {p for p in WRITE_PATHS if sdk("Write", {"file_path": str(r.project / p)}) is None}
@@ -177,8 +177,8 @@ def test_d0076_ac26_前提_本体の道の判断の表は書ける範囲の説�
     assert (sdk("Bash", {"command": "ls"}) is None) == (config in ("read_bash", "tests_b", "code_b", "code_w"))
 
 
-def test_d0076_ac26_止めた操作は跡に残り段の記録とまとめに写る(tmp_path):
-    """D0076-AC-26（設計 4.2・5.3）: pipe-stage が止められた操作は hook/trace.jsonl に残り、chat done で段の記録の denials とまとめの「止めた操作」に写る。"""
+def test_d0077_ac26_止めた操作は跡に残り段の記録とまとめに写る(tmp_path):
+    """D0077-AC-26（設計 4.2・5.3）: pipe-stage が止められた操作は hook/trace.jsonl に残り、chat done で段の記録の denials とまとめの「止めた操作」に写る。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     assert r.hook("Write", {"file_path": str(r.project / "src" / "a.py"), "content": "x"})
     rows = [json.loads(x) for x in (r.run_dir / "hook" / "trace.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
@@ -253,8 +253,8 @@ ESCAPE_CONFIGS = {**{k: v for k, v in CONFIGS.items()}, "docs_wide_bash": lambda
 
 
 @pytest.mark.parametrize("name,config,tool,tool_input,sdk_blocks", ESCAPES, ids=[e[0] for e in ESCAPES])
-def test_d0076_ac27_すり抜けの道は止まる(tmp_path, name, config, tool, tool_input, sdk_blocks):
-    """D0076-AC-27: 書ける範囲の外を、Bash（bash = false の段）・危険なコマンド・PowerShell・MCP・Agent・Task・Web・ノートブック・.. を含むパス・
+def test_d0077_ac27_すり抜けの道は止まる(tmp_path, name, config, tool, tool_input, sdk_blocks):
+    """D0077-AC-27: 書ける範囲の外を、Bash（bash = false の段）・危険なコマンド・PowerShell・MCP・Agent・Task・Web・ノートブック・.. を含むパス・
     パイプのフォルダ・記録・前のパイプの記録・.claude/・.git/・pipeline.toml・Skill のどの道で書こうとしても止まる。"""
     r, sdk = prepared(tmp_path, ESCAPE_CONFIGS[config]())
     data = fill(tool_input, r.project)
@@ -268,8 +268,8 @@ def test_d0076_ac27_すり抜けの道は止まる(tmp_path, name, config, tool,
     assert r.hook(tool, data), f"{name} が止まらなかった"
 
 
-def test_d0076_ac27_bashのcdをまたいだ覚えは呼び出しをまたいで効く(tmp_path):
-    """D0076-AC-27: bash = true の段で cd tests したあとの相対パスの書き込みは、別の呼び出し（別プロセスのフック）でも覚えていて、テストへの書き込みとして止まる。"""
+def test_d0077_ac27_bashのcdをまたいだ覚えは呼び出しをまたいで効く(tmp_path):
+    """D0077-AC-27: bash = true の段で cd tests したあとの相対パスの書き込みは、別の呼び出し（別プロセスのフック）でも覚えていて、テストへの書き込みとして止まる。"""
     (tmp_path / "tests").mkdir()
     r, sdk = prepared(tmp_path, CONFIGS["code_b"]())
     state = BashState.new(sdk.cfg.project_dir)
@@ -282,8 +282,8 @@ def test_d0076_ac27_bashのcdをまたいだ覚えは呼び出しをまたいで
     assert r.hook("Bash", {"command": "echo x > a.py"}), "cd を覚えていない（別の呼び出しで忘れた）"
 
 
-def test_d0076_ac27_覚えは新しい段で作り直す(tmp_path):
-    """D0076-AC-27: Bash の覚え（hook/bash_state.json）は段が変わると作り直す。前の段の cd を次の段に持ち越さない。"""
+def test_d0077_ac27_覚えは新しい段で作り直す(tmp_path):
+    """D0077-AC-27: Bash の覚え（hook/bash_state.json）は段が変わると作り直す。前の段の cd を次の段に持ち越さない。"""
     (tmp_path / "tests").mkdir()
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("s1", access="code", extra="bash = true\n"), stage_toml("s2", access="code", extra="bash = true\n")))
@@ -295,8 +295,8 @@ def test_d0076_ac27_覚えは新しい段で作り直す(tmp_path):
     assert r.hook("Bash", {"command": "echo x > a.py"}) is None, "次の段にも cd を持ち越した"
 
 
-def test_d0076_ac27_覚えが壊れていれば相対パスの書き込みを止める(tmp_path):
-    """D0076-AC-27: hook/bash_state.json が壊れて読めないときは、相対パスの書き込みを止める（安全側）。壊れる前は同じ書き込みが通る。"""
+def test_d0077_ac27_覚えが壊れていれば相対パスの書き込みを止める(tmp_path):
+    """D0077-AC-27: hook/bash_state.json が壊れて読めないときは、相対パスの書き込みを止める（安全側）。壊れる前は同じ書き込みが通る。"""
     r, _ = opened(tmp_path, CONFIGS["code_b"]())
     assert r.hook("Bash", {"command": "echo x > src/a.py"}) is None, "前提：壊れる前は通る"
     state_file = r.run_dir / "hook" / "bash_state.json"
@@ -319,8 +319,8 @@ READS = [
 
 
 @pytest.mark.parametrize("config", ["read", "docs", "tests_w", "code_w"])
-def test_d0076_ac28_読む道具はどの段でも通る(tmp_path, config):
-    """D0076-AC-28: Read・Glob・Grep は、どの段でも（記録や範囲外のパスに対しても）通る。"""
+def test_d0077_ac28_読む道具はどの段でも通る(tmp_path, config):
+    """D0077-AC-28: Read・Glob・Grep は、どの段でも（記録や範囲外のパスに対しても）通る。"""
     r, _ = opened(tmp_path, CONFIGS[config]())
     for tool, data in READS:
         assert r.hook(tool, fill(data, r.project)) is None, (tool, data)
@@ -339,22 +339,22 @@ def _write_own(r: Run) -> str | None:
 
 
 @pytest.mark.parametrize("text", ["{not json", "", "[]", "null", '"x"', "1"], ids=["broken", "empty", "list", "null", "string", "number"])
-def test_d0076_ac29_標準入力がJSONとして読めないと止める(tmp_path, text):
-    """D0076-AC-29: 標準入力が JSON（の辞書）として読めないときは止める。"""
+def test_d0077_ac29_標準入力がJSONとして読めないと止める(tmp_path, text):
+    """D0077-AC-29: 標準入力が JSON（の辞書）として読めないときは止める。"""
     reason = hook_decision(text)
     assert reason
 
 
 @pytest.mark.parametrize("agent_type", [1, True, 3.5, ["pipe-stage"], {"a": "pipe-stage"}], ids=["int", "bool", "float", "list", "dict"])
-def test_d0076_ac29_agent_typeが文字列でないと段が開いている間は止まる(tmp_path, agent_type):
-    """D0076-AC-29: agent_type が文字列でない呼び出しは pipe-stage とは判定できないが、段が開いているので FR-12 で止まる。"""
+def test_d0077_ac29_agent_typeが文字列でないと段が開いている間は止まる(tmp_path, agent_type):
+    """D0077-AC-29: agent_type が文字列でない呼び出しは pipe-stage とは判定できないが、段が開いているので FR-12 で止まる。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     _control(r)
     assert r.hook("Write", {"file_path": str(r.output_path("s")), "content": "x"}, agent_type)
 
 
-def test_d0076_ac29_openが無いとpipe_stageをすべて止める(tmp_path):
-    """D0076-AC-29: open（今の段）が無い（確かめだけ済んで、まだ段が始まっていない）ときは、pipe-stage の呼び出しをすべて止める。"""
+def test_d0077_ac29_openが無いとpipe_stageをすべて止める(tmp_path):
+    """D0077-AC-29: open（今の段）が無い（確かめだけ済んで、まだ段が始まっていない）ときは、pipe-stage の呼び出しをすべて止める。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("s", output="out.md")))
     assert r.state()["open"] is None
@@ -366,8 +366,8 @@ def test_d0076_ac29_openが無いとpipe_stageをすべて止める(tmp_path):
     assert _write_own(r), "段が閉じたあとも通ってはいけない"
 
 
-def test_d0076_ac29_state_jsonが壊れているとpipe_stageをすべて止める(tmp_path):
-    """D0076-AC-29: state.json が壊れて読めないときは、pipe-stage の呼び出しをすべて止める（読む道具も）。"""
+def test_d0077_ac29_state_jsonが壊れているとpipe_stageをすべて止める(tmp_path):
+    """D0077-AC-29: state.json が壊れて読めないときは、pipe-stage の呼び出しをすべて止める（読む道具も）。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     _control(r)
     (r.run_dir / "state.json").write_text("{壊れた", encoding="utf-8")
@@ -376,8 +376,8 @@ def test_d0076_ac29_state_jsonが壊れているとpipe_stageをすべて止め�
 
 
 @pytest.mark.parametrize("which", ["pipe.toml", "pipeline.toml"])
-def test_d0076_ac29_定義が始めたときと違うとpipe_stageをすべて止める(tmp_path, which):
-    """D0076-AC-29: pipe.toml（と pipeline.toml）が始めたときと違うときは、pipe-stage の呼び出しをすべて止める。"""
+def test_d0077_ac29_定義が始めたときと違うとpipe_stageをすべて止める(tmp_path, which):
+    """D0077-AC-29: pipe.toml（と pipeline.toml）が始めたときと違うときは、pipe-stage の呼び出しをすべて止める。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     _control(r)
     if which == "pipe.toml":
@@ -389,8 +389,8 @@ def test_d0076_ac29_定義が始めたときと違うとpipe_stageをすべて�
     assert r.hook("Read", {"file_path": str(tmp_path / "x")})
 
 
-def test_d0076_ac29_openの段が定義に無いとpipe_stageをすべて止める(tmp_path):
-    """D0076-AC-29: open の段の名前が定義に無いときは、pipe-stage の呼び出しをすべて止める。"""
+def test_d0077_ac29_openの段が定義に無いとpipe_stageをすべて止める(tmp_path):
+    """D0077-AC-29: open の段の名前が定義に無いときは、pipe-stage の呼び出しをすべて止める。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     _control(r)
     state = r.state()
@@ -399,8 +399,8 @@ def test_d0076_ac29_openの段が定義に無いとpipe_stageをすべて止め�
     assert _write_own(r)
 
 
-def test_d0076_ac29_openが2つあるとpipe_stageをすべて止める(tmp_path):
-    """D0076-AC-29: 別のパイプの記録にも open があり、どちらの段か決められないときは、pipe-stage の呼び出しをすべて止める。"""
+def test_d0077_ac29_openが2つあるとpipe_stageをすべて止める(tmp_path):
+    """D0077-AC-29: 別のパイプの記録にも open があり、どちらの段か決められないときは、pipe-stage の呼び出しをすべて止める。"""
     a, b = Run(tmp_path, "hp"), Run(tmp_path, "hq")
     for r in (a, b):
         r.make(CONFIGS["read"]())
@@ -413,8 +413,8 @@ def test_d0076_ac29_openが2つあるとpipe_stageをすべて止める(tmp_path
     assert _write_own(a) and _write_own(b)
 
 
-def test_d0076_ac29_記録が見つからないとpipe_stageを止める(tmp_path):
-    """D0076-AC-29: 記録（docs/pipeline/<パイプ>/state.json）が見つからない作業フォルダでの pipe-stage の呼び出しは止める。"""
+def test_d0077_ac29_記録が見つからないとpipe_stageを止める(tmp_path):
+    """D0077-AC-29: 記録（docs/pipeline/<パイプ>/state.json）が見つからない作業フォルダでの pipe-stage の呼び出しは止める。"""
     assert call_hook(tmp_path, "Write", {"file_path": str(tmp_path / "src" / "a.py"), "content": "x"})
     assert call_hook(tmp_path, "Read", {"file_path": str(tmp_path / "src" / "a.py")})
 
@@ -431,8 +431,8 @@ ANY_TOOLS = [
 
 
 @pytest.mark.parametrize("agent_type", OTHERS)
-def test_d0076_ac30_段が開いている間は他のエージェントを止める(tmp_path, agent_type):
-    """D0076-AC-30: 段が開いている間、pipe-stage・pipe-probe 以外の agent_type の道具の呼び出しは止まる（読む道具も）。段が閉じれば止めない。"""
+def test_d0077_ac30_段が開いている間は他のエージェントを止める(tmp_path, agent_type):
+    """D0077-AC-30: 段が開いている間、pipe-stage・pipe-probe 以外の agent_type の道具の呼び出しは止まる（読む道具も）。段が閉じれば止めない。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     for tool, data in ANY_TOOLS:
         assert r.hook(tool, fill(data, r.project), agent_type), f"{agent_type} の {tool} が段の間に通った"
@@ -445,15 +445,15 @@ def test_d0076_ac30_段が開いている間は他のエージェントを止め
     ), "段が閉じたあとは何もしない"
 
 
-def test_d0076_ac30_会話本体は何もされない(tmp_path):
-    """D0076-AC-30: agent_type の無い呼び出し（会話本体）は、段が開いている間も何もしない。"""
+def test_d0077_ac30_会話本体は何もされない(tmp_path):
+    """D0077-AC-30: agent_type の無い呼び出し（会話本体）は、段が開いている間も何もしない。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     for tool, data in ANY_TOOLS:
         assert r.hook(tool, fill(data, r.project), None) is None, tool
 
 
-def test_d0076_ac30_pipe_chatでない記録の作業フォルダでは何もしない(tmp_path):
-    """D0076-AC-30: 記録が pipe-chat でない作業フォルダ（開発フローの記録・記録なし）では、他のエージェントの呼び出しに何もしない。"""
+def test_d0077_ac30_pipe_chatでない記録の作業フォルダでは何もしない(tmp_path):
+    """D0077-AC-30: 記録が pipe-chat でない作業フォルダ（開発フローの記録・記録なし）では、他のエージェントの呼び出しに何もしない。"""
     from pipe_in.dev.record import Recorder
 
     rec = Recorder(load_config(tmp_path))
@@ -472,8 +472,8 @@ def test_d0076_ac30_pipe_chatでない記録の作業フォルダでは何もし
 
 
 @pytest.mark.parametrize("agent_type", ["pipe-stage", "pipe-in:pipe-stage", "xyz:pipe-stage"])
-def test_d0076_ac31_プラグイン付きの名前はpipe_stageと同じ扱い(tmp_path, agent_type):
-    """D0076-AC-31: <プラグイン>:pipe-stage の形でも pipe-stage と同じに扱う（成果物には書け、範囲外は止まる）。"""
+def test_d0077_ac31_プラグイン付きの名前はpipe_stageと同じ扱い(tmp_path, agent_type):
+    """D0077-AC-31: <プラグイン>:pipe-stage の形でも pipe-stage と同じに扱う（成果物には書け、範囲外は止まる）。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     assert r.hook("Write", {"file_path": str(r.output_path("s")), "content": "x"}, agent_type) is None
     assert r.hook("Write", {"file_path": str(r.project / "src" / "a.py"), "content": "x"}, agent_type)
@@ -484,8 +484,8 @@ def test_d0076_ac31_プラグイン付きの名前はpipe_stageと同じ扱い(t
     "agent_type",
     ["pipe-stage-x", "my-pipe-stage", "pipe-stage2", "Pipe-Stage", "pipe-stages", "pipe-stage:x", "pipe-stage ", "pipe-probe-x", "my-pipe-probe"],
 )
-def test_d0076_ac31_前方一致と部分一致はpipe_stageではなく段の間は止まる(tmp_path, agent_type):
-    """D0076-AC-31: 名前の前方一致・部分一致（pipe-stage-x・my-pipe-stage など）は pipe-stage として扱わない（成果物にも書けず、段の間は FR-12 で止まる）。"""
+def test_d0077_ac31_前方一致と部分一致はpipe_stageではなく段の間は止まる(tmp_path, agent_type):
+    """D0077-AC-31: 名前の前方一致・部分一致（pipe-stage-x・my-pipe-stage など）は pipe-stage として扱わない（成果物にも書けず、段の間は FR-12 で止まる）。"""
     r, _ = opened(tmp_path, CONFIGS["read"]())
     assert r.hook("Write", {"file_path": str(r.output_path("s")), "content": "x"}, agent_type)
     assert r.hook("Read", {"file_path": str(r.project / "src" / "a.py")}, agent_type)
@@ -528,8 +528,8 @@ GUARD_TABLE = [
 ]
 
 
-def test_d0076_ac32_前提_今のguard_hookの結果が表と同じ_守る(tmp_path, monkeypatch):
-    """D0076-AC-32（前提）: 表の各行が、今の guard_hook.decide の結果と同じであること（表の期待が正しいことの確かめ。今のまま通る。守る）。"""
+def test_d0077_ac32_前提_今のguard_hookの結果が表と同じ_守る(tmp_path, monkeypatch):
+    """D0077-AC-32（前提）: 表の各行が、今の guard_hook.decide の結果と同じであること（表の期待が正しいことの確かめ。今のまま通る。守る）。"""
     from pipe_in_generator import guard_hook
 
     monkeypatch.delenv("PIPE_IN_PIPES_DIR", raising=False)
@@ -540,8 +540,8 @@ def test_d0076_ac32_前提_今のguard_hookの結果が表と同じ_守る(tmp_p
 
 
 @pytest.mark.parametrize("with_record", [False, True], ids=["no-record", "chat-record-no-open-stage"])
-def test_d0076_ac32_既存のpipe_builderとpipe_judgeの判断は変わらない(tmp_path, monkeypatch, with_record):
-    """D0076-AC-32: 会話の記録が無い作業フォルダ（と、記録はあるが段が開いていない作業フォルダ）では、chat_hook.main 経由でも
+def test_d0077_ac32_既存のpipe_builderとpipe_judgeの判断は変わらない(tmp_path, monkeypatch, with_record):
+    """D0077-AC-32: 会話の記録が無い作業フォルダ（と、記録はあるが段が開いていない作業フォルダ）では、chat_hook.main 経由でも
     pipe-builder・pipe-judge の絞りと、ほかのエージェントへの無干渉が、今の guard_hook.decide と同じ結果になる。"""
     from pipe_in_generator import guard_hook
 

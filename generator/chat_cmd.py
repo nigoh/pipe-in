@@ -1,4 +1,4 @@
-"""pipe-in-gen chat …：会話の中でパイプを流す司会役の入口（D0076）。
+"""pipe-in-gen chat …：会話の中でパイプを流す司会役の入口（D0077）。
 
 start / probe / next / done / review / status を受け、司会役（pipe_in.pipe.chat）を呼び、
 1つの JSON（ok・action・message ほか）を標準出力に書く。終了コードは ok なら 0、断り・誤りなら 1。

@@ -1,4 +1,4 @@
-"""D0076-AC-22・23・25：会話の道の記録（state.json・logs/・99_summary.md）の形と、古い記録を今までどおり読めること。
+"""D0077-AC-22・23・25：会話の道の記録（state.json・logs/・99_summary.md）の形と、古い記録を今までどおり読めること。
 
 記録は chat_cmd.main を通して作り、本体の読み手（record_order.check_dir・LinearPipeline.review・usage.estimate.actual_usd）で読む。
 今の作りのままで通るもの（古い記録を読む検査）は、名前の末尾を _守る にし、説明の末尾に「（今のまま通る。守る）」と書く。
@@ -47,8 +47,8 @@ class NeverRunner:
 # ---- AC-22 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac22_記録はrecord_orderを通りdriverがpipe_chatになる(tmp_path):
-    """D0076-AC-22: chat の記録は record check（record_order.check_dir）が通り（承認の前に次の段の begin が無い）、driver が pipe-chat、段のログの最初の行が Prompt 行になる。"""
+def test_d0077_ac22_記録はrecord_orderを通りdriverがpipe_chatになる(tmp_path):
+    """D0077-AC-22: chat の記録は record check（record_order.check_dir）が通り（承認の前に次の段の begin が無い）、driver が pipe-chat、段のログの最初の行が Prompt 行になる。"""
     r = Run(tmp_path)
     r.ready(reviewed())
     r.run_and_finish("a")
@@ -70,8 +70,8 @@ def test_d0076_ac22_記録はrecord_orderを通りdriverがpipe_chatになる(tm
         assert first["_type"] == "Prompt" and first["driver"] == "pipe-chat" and first["stage"] in ("a", "b") and first.get("at"), first
 
 
-def test_d0076_ac22_本体のreviewはこの記録の続きを流さない(tmp_path):
-    """D0076-AC-22: pipe-in --review（LinearPipeline.review）は、確認待ちの chat の記録の続きを流さず、記録を変えない。"""
+def test_d0077_ac22_本体のreviewはこの記録の続きを流さない(tmp_path):
+    """D0077-AC-22: pipe-in --review（LinearPipeline.review）は、確認待ちの chat の記録の続きを流さず、記録を変えない。"""
     r = Run(tmp_path)
     r.ready(reviewed())
     r.run_and_finish("a")
@@ -87,8 +87,8 @@ def test_d0076_ac22_本体のreviewはこの記録の続きを流さない(tmp_p
     assert r.state_text() == before
 
 
-def test_d0076_ac22_本体のreviewの案内はchat_nextで続けると伝える(tmp_path):
-    """D0076-AC-22（設計 2.2）: driver が pipe-chat の記録に pipe-in --review を向けると、断り方は「会話の中で流した記録です。pipe-in-gen chat next で続けてください」になる。"""
+def test_d0077_ac22_本体のreviewの案内はchat_nextで続けると伝える(tmp_path):
+    """D0077-AC-22（設計 2.2）: driver が pipe-chat の記録に pipe-in --review を向けると、断り方は「会話の中で流した記録です。pipe-in-gen chat next で続けてください」になる。"""
     pipe_dir = tmp_path / ".pipe-in" / "pipes" / "pipe-in-hp"
     pipe_dir.mkdir(parents=True)
     (pipe_dir / "pipe.toml").write_text(reviewed(), encoding="utf-8")
@@ -108,8 +108,8 @@ def test_d0076_ac22_本体のreviewの案内はchat_nextで続けると伝える
 # ---- AC-23 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac23_usage_summaryはavailableがfalseで費用は無しになりまとめに合計が出ない(tmp_path):
-    """D0076-AC-23: chat の記録の usage_summary は available: false と理由を持ち、段の実行の cost_usd は 0 ではなく無し（null）になる。
+def test_d0077_ac23_usage_summaryはavailableがfalseで費用は無しになりまとめに合計が出ない(tmp_path):
+    """D0077-AC-23: chat の記録の usage_summary は available: false と理由を持ち、段の実行の cost_usd は 0 ではなく無し（null）になる。
     99_summary.md に費用の合計は出ず、「使用量は取れない」と書かれる。"""
     r = Run(tmp_path)
     r.ready(reviewed())
@@ -134,8 +134,8 @@ def test_d0076_ac23_usage_summaryはavailableがfalseで費用は無しになり
     assert "使用量は取れ" in text
 
 
-def test_d0076_ac23_段のログは費用を数で書かない(tmp_path):
-    """D0076-AC-23: 段のログの ResultMessage の total_cost_usd は null（数の 0 ではない）。"""
+def test_d0077_ac23_段のログは費用を数で書かない(tmp_path):
+    """D0077-AC-23: 段のログの ResultMessage の total_cost_usd は null（数の 0 ではない）。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a")))
     r.run_and_finish("a", summary="要点です")
@@ -164,8 +164,8 @@ OLD_DIRS = [
 
 
 @pytest.mark.parametrize("rel", OLD_DIRS)
-def test_d0076_ac25_古い記録は今までどおり読める_守る(rel):
-    """D0076-AC-25: 古い記録（usage_summary が無い・cost_usd が数）は、record check（check_dir）と前の実績（actual_usd）で今までどおり読める（今のまま通る。守る）。"""
+def test_d0077_ac25_古い記録は今までどおり読める_守る(rel):
+    """D0077-AC-25: 古い記録（usage_summary が無い・cost_usd が数）は、record check（check_dir）と前の実績（actual_usd）で今までどおり読める（今のまま通る。守る）。"""
     d = FIXTURES / rel
     report = check_dir(d)
     assert isinstance(report, OrderReport)
@@ -174,8 +174,8 @@ def test_d0076_ac25_古い記録は今までどおり読める_守る(rel):
     assert value is None or isinstance(value, float)
 
 
-def test_d0076_ac25_availableがfalseの記録も読み手は落ちない_守る(tmp_path):
-    """D0076-AC-25: usage_summary.available が false・total_cost_usd と cost_usd が null の記録も、actual_usd は例外なく None を返す（今のまま通る。守る）。"""
+def test_d0077_ac25_availableがfalseの記録も読み手は落ちない_守る(tmp_path):
+    """D0077-AC-25: usage_summary.available が false・total_cost_usd と cost_usd が null の記録も、actual_usd は例外なく None を返す（今のまま通る。守る）。"""
     state = {
         "pipe": "hp",
         "driver": "pipe-chat",
@@ -194,8 +194,8 @@ def test_d0076_ac25_availableがfalseの記録も読み手は落ちない_守る
 
 @pytest.mark.parametrize("rel", ["pipe_dev/running", "pipe_dev/finished", "pipe_in/waiting", "showcase"])
 @pytest.mark.parametrize("sub", ["next", "probe", "status", "done", "review"])
-def test_d0076_ac25_chatの各コマンドはdriverが違う記録を断り書き換えない(tmp_path, rel, sub):
-    """D0076-AC-25: chat の各コマンドは、driver が pipe-chat でない記録（開発フロー・本体の実行）を「会話の道の記録ではありません」と断り、書き換えない。"""
+def test_d0077_ac25_chatの各コマンドはdriverが違う記録を断り書き換えない(tmp_path, rel, sub):
+    """D0077-AC-25: chat の各コマンドは、driver が pipe-chat でない記録（開発フロー・本体の実行）を「会話の道の記録ではありません」と断り、書き換えない。"""
     r = Run(tmp_path)
     r.make(pipe_toml(stage_toml("a")))
     r.run_dir.mkdir(parents=True)

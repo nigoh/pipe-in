@@ -1,4 +1,4 @@
-"""会話の中でパイプを流す道（D0076）の記録の読み書き。司会役（chat.py）とフック（generator/chat_hook.py）が共有する。
+"""会話の中でパイプを流す道（D0077）の記録の読み書き。司会役（chat.py）とフック（generator/chat_hook.py）が共有する。
 
 state.json を探す・読む、定義の指紋、段の書ける範囲（chat_specs）、フックが残す跡（hook/trace.jsonl）、
 Bash の cd をまたいだ覚え（hook/bash_state.json）を持つ。SDK は読まない。

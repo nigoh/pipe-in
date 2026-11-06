@@ -1,4 +1,4 @@
-"""プラグインの PreToolUse フックのうち、会話の中で流す段（pipe-stage・pipe-probe）を絞る部分（D0076）。
+"""プラグインの PreToolUse フックのうち、会話の中で流す段（pipe-stage・pipe-probe）を絞る部分（D0077）。
 
 標準入力の JSON（Claude Code のフックの入力）を読み、今の段の範囲の外なら deny の JSON を出す。
 - pipe-stage：開いている段（記録の open）の範囲を、本体の判断（guard.check_tool）と同じ関数で絞る。

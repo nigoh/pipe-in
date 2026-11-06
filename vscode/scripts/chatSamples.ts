@@ -1,4 +1,4 @@
-// 会話の中で流したパイプの記録の見本（D0076）。確認用ページ（run-panel-chat-*）に使う state.json の中身だけを持つ。
+// 会話の中で流したパイプの記録の見本（D0077）。確認用ページ（run-panel-chat-*）に使う state.json の中身だけを持つ。
 // tests/fixtures/ には見本の記録を足さない。previewPages.ts の buildChatDir が、一時フォルダに書いて本物の読み取りで読む。
 // 本体（pipe-in-gen chat）が書く形：driver が pipe-chat、usage_summary は available=false と理由、total_cost_usd と段の cost_usd は null。
 // 流れは、下書き（確認あり）→ 直す（revise 1 回）→ 承認 → 確かめ（不合格）→ 下書きへ戻る → 確かめ（合格）→ 次の段の確認待ち。

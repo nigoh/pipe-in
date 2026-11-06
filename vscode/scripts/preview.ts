@@ -261,7 +261,7 @@ for (const [page, theme] of PANEL_PAGES) {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('group', (dest) => groupPageHtml(dest, groupKind, theme)), 'utf8');
     continue;
   }
-  // 会話の中で流した記録の見本（D0076）：使用量が取れない・検査の不合格→やり直し→合格・revise 1 回・確認待ち。記録は一時フォルダの中に書いて読む
+  // 会話の中で流した記録の見本（D0077）：使用量が取れない・検査の不合格→やり直し→合格・revise 1 回・確認待ち。記録は一時フォルダの中に書いて読む
   if (kind === 'chat') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('chat', (dest) => chatPageHtml(dest, theme)), 'utf8');
     continue;

@@ -1,4 +1,4 @@
-"""D0076-AC-12〜21・AC-36：段の順番・確認・差し戻し・終わり（pipe-in-gen chat next / done / review / status）。
+"""D0077-AC-12〜21・AC-36：段の順番・確認・差し戻し・終わり（pipe-in-gen chat next / done / review / status）。
 
 SDK は呼ばない（no_sdk）。サブエージェントの仕事は、テストが成果物のファイルを書くことで真似る。
 確認用コマンド（check.command）は、tmp_path の中の小さな python スクリプトを本物で流す。
@@ -44,8 +44,8 @@ def cmd_check(command: str, retries: int, on_fail: str | None = None) -> str:
 # ---- AC-12 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac12_nextは最初の段を返しopenに記録しもう一度呼んでも二重に始めない(tmp_path):
-    """D0076-AC-12: 確かめ済みなら chat next は最初の段の指示（段の名前・pipe-stage を呼ぶこと・指示文・書ける範囲の説明）を返し、
+def test_d0077_ac12_nextは最初の段を返しopenに記録しもう一度呼んでも二重に始めない(tmp_path):
+    """D0077-AC-12: 確かめ済みなら chat next は最初の段の指示（段の名前・pipe-stage を呼ぶこと・指示文・書ける範囲の説明）を返し、
     open に段が記録される。段が開いている間にもう一度 chat next しても、同じ段を返し、二重に始めない。"""
     r = Run(tmp_path)
     r.ready(two())
@@ -68,8 +68,8 @@ def test_d0076_ac12_nextは最初の段を返しopenに記録しもう一度呼�
     assert r.logs() == logs, "二重に始めた（ログが増えた）"
 
 
-def test_d0076_ac12_本体の段の指示文と同じ決まりを先頭に置く(tmp_path):
-    """D0076-AC-12: 指示文には、段の決まり（system_append）と、渡すもの（依頼メモ・前の段の成果物）が入る。"""
+def test_d0077_ac12_本体の段の指示文と同じ決まりを先頭に置く(tmp_path):
+    """D0077-AC-12: 指示文には、段の決まり（system_append）と、渡すもの（依頼メモ・前の段の成果物）が入る。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra='system_append = "ここだけの決まり"\n'), stage_toml("b")))
     first = r.run_next("a")
@@ -83,8 +83,8 @@ def test_d0076_ac12_本体の段の指示文と同じ決まりを先頭に置く
 # ---- AC-13 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac13_reviewのある段が閉じるとnextは確認待ちを返す(tmp_path):
-    """D0076-AC-13: review = true の段が chat done で閉じると、chat next は「人の確認を待つ」を返し、pending_review が記録される。承認の前に次の段は始まらない。"""
+def test_d0077_ac13_reviewのある段が閉じるとnextは確認待ちを返す(tmp_path):
+    """D0077-AC-13: review = true の段が chat done で閉じると、chat next は「人の確認を待つ」を返し、pending_review が記録される。承認の前に次の段は始まらない。"""
     from pipe_in.dev.record_order import check_dir
 
     r = Run(tmp_path)
@@ -104,8 +104,8 @@ def test_d0076_ac13_reviewのある段が閉じるとnextは確認待ちを返�
 # ---- AC-14 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac14_approvedで次の段へ進む(tmp_path):
-    """D0076-AC-14: chat review approved で次の段へ進む。"""
+def test_d0077_ac14_approvedで次の段へ進む(tmp_path):
+    """D0077-AC-14: chat review approved で次の段へ進む。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_and_finish("a")
@@ -118,8 +118,8 @@ def test_d0076_ac14_approvedで次の段へ進む(tmp_path):
     assert r.state()["chat"]["steps"] == 2
 
 
-def test_d0076_ac14_reviseはfeedbackが無いと断られ記録は変わらない(tmp_path):
-    """D0076-AC-14: revise は --feedback が無ければ断られる（記録は変わらない）。"""
+def test_d0077_ac14_reviseはfeedbackが無いと断られ記録は変わらない(tmp_path):
+    """D0077-AC-14: revise は --feedback が無ければ断られる（記録は変わらない）。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_and_finish("a")
@@ -133,8 +133,8 @@ def test_d0076_ac14_reviseはfeedbackが無いと断られ記録は変わらな�
     assert r.state_text() == before
 
 
-def test_d0076_ac14_reviseは同じ段を直す点つきで何回目かを増やして返す(tmp_path):
-    """D0076-AC-14: revise は同じ段が「直してほしい点」つきで、何回目かを増やして返る。steps・retries は変わらない。"""
+def test_d0077_ac14_reviseは同じ段を直す点つきで何回目かを増やして返す(tmp_path):
+    """D0077-AC-14: revise は同じ段が「直してほしい点」つきで、何回目かを増やして返る。steps・retries は変わらない。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_and_finish("a")
@@ -156,8 +156,8 @@ def test_d0076_ac14_reviseは同じ段を直す点つきで何回目かを増や
     r.run_next("b")
 
 
-def test_d0076_ac14_quitで中止になる(tmp_path):
-    """D0076-AC-14: quit で終了の種類が中止（STOPPED_BY_HUMAN）になり、99_summary.md ができ、次は「終わり」を返す。"""
+def test_d0077_ac14_quitで中止になる(tmp_path):
+    """D0077-AC-14: quit で終了の種類が中止（STOPPED_BY_HUMAN）になり、99_summary.md ができ、次は「終わり」を返す。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_and_finish("a")
@@ -172,8 +172,8 @@ def test_d0076_ac14_quitで中止になる(tmp_path):
     assert done["action"] == "finished", done
 
 
-def test_d0076_ac14_最後の段の承認で終わる(tmp_path):
-    """D0076-AC-14: 確認のある最後の段を承認すると、その場で PASSED で終わる。"""
+def test_d0077_ac14_最後の段の承認で終わる(tmp_path):
+    """D0077-AC-14: 確認のある最後の段を承認すると、その場で PASSED で終わる。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra="review = true\n")))
     r.run_and_finish("a")
@@ -186,8 +186,8 @@ def test_d0076_ac14_最後の段の承認で終わる(tmp_path):
 # ---- AC-15 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac15_確認待ちでないreviewは断る(tmp_path):
-    """D0076-AC-15: 確認待ちでないときの chat review は断られ、記録は変わらない。"""
+def test_d0077_ac15_確認待ちでないreviewは断る(tmp_path):
+    """D0077-AC-15: 確認待ちでないときの chat review は断られ、記録は変わらない。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_next("a")
@@ -200,8 +200,8 @@ def test_d0076_ac15_確認待ちでないreviewは断る(tmp_path):
     assert r.state_text() == before
 
 
-def test_d0076_ac15_開いていない段のdoneは断る(tmp_path):
-    """D0076-AC-15: 開いていない段への chat done は断られ、記録は変わらない。"""
+def test_d0077_ac15_開いていない段のdoneは断る(tmp_path):
+    """D0077-AC-15: 開いていない段への chat done は断られ、記録は変わらない。"""
     r = Run(tmp_path)
     r.ready(two())
     before = r.state_text()
@@ -215,8 +215,8 @@ def test_d0076_ac15_開いていない段のdoneは断る(tmp_path):
     assert r.state_text() == after
 
 
-def test_d0076_ac15_別の段へのdoneは断る(tmp_path):
-    """D0076-AC-15: 開いている段と別の段への chat done は断られ、開いた段はそのまま。"""
+def test_d0077_ac15_別の段へのdoneは断る(tmp_path):
+    """D0077-AC-15: 開いている段と別の段への chat done は断られ、開いた段はそのまま。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_next("a")
@@ -232,8 +232,8 @@ def test_d0076_ac15_別の段へのdoneは断る(tmp_path):
 
 
 @pytest.mark.parametrize("text", [None, "", " \n\n"], ids=["missing", "empty", "blank"])
-def test_d0076_ac16_成果物が無いままdoneすると失敗として記録される(tmp_path, text):
-    """D0076-AC-16: 成果物（段の output）が無い・空のまま chat done すると、段は失敗として記録される（STAGE_ERROR で終わる）。"""
+def test_d0077_ac16_成果物が無いままdoneすると失敗として記録される(tmp_path, text):
+    """D0077-AC-16: 成果物（段の output）が無い・空のまま chat done すると、段は失敗として記録される（STAGE_ERROR で終わる）。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_next("a")
@@ -246,8 +246,8 @@ def test_d0076_ac16_成果物が無いままdoneすると失敗として記録�
     assert not r.output_path("b").exists()
 
 
-def test_d0076_ac16_errorを付けると成果物があっても失敗になる(tmp_path):
-    """D0076-AC-16: --error を付けた chat done は、成果物があっても失敗（STAGE_ERROR）として記録される。"""
+def test_d0077_ac16_errorを付けると成果物があっても失敗になる(tmp_path):
+    """D0077-AC-16: --error を付けた chat done は、成果物があっても失敗（STAGE_ERROR）として記録される。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_next("a")
@@ -259,8 +259,8 @@ def test_d0076_ac16_errorを付けると成果物があっても失敗になる(
 # ---- AC-17 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac17_commandが失敗したら自分へ戻り出力の末尾が次の指示に入る(tmp_path):
-    """D0076-AC-17: check.command が 0 以外なら on_fail（省くと自分）の段へ戻り、直す点として出力の末尾が次の指示に入る。0 なら合格で次へ進む。"""
+def test_d0077_ac17_commandが失敗したら自分へ戻り出力の末尾が次の指示に入る(tmp_path):
+    """D0077-AC-17: check.command が 0 以外なら on_fail（省くと自分）の段へ戻り、直す点として出力の末尾が次の指示に入る。0 なら合格で次へ進む。"""
     command, flag = check_command(tmp_path)
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra=cmd_check(command, 2))))
@@ -281,8 +281,8 @@ def test_d0076_ac17_commandが失敗したら自分へ戻り出力の末尾が�
     assert r.next()["action"] == "finished"
 
 
-def test_d0076_ac17_max_retriesを超えるとTEST_FAILEDで終わる(tmp_path):
-    """D0076-AC-17: 不合格が max_retries を超えると、本体と同じ終了の種類（TEST_FAILED）で終わる。max_retries = 1 なら、2回目の不合格で終わる。"""
+def test_d0077_ac17_max_retriesを超えるとTEST_FAILEDで終わる(tmp_path):
+    """D0077-AC-17: 不合格が max_retries を超えると、本体と同じ終了の種類（TEST_FAILED）で終わる。max_retries = 1 なら、2回目の不合格で終わる。"""
     command, _ = check_command(tmp_path)
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra=cmd_check(command, 1))))
@@ -298,8 +298,8 @@ def test_d0076_ac17_max_retriesを超えるとTEST_FAILEDで終わる(tmp_path):
     assert r.next()["action"] == "finished"
 
 
-def test_d0076_ac17_max_retriesが0なら最初の不合格で終わる(tmp_path):
-    """D0076-AC-17: max_retries = 0 なら、最初の不合格で TEST_FAILED で終わる。"""
+def test_d0077_ac17_max_retriesが0なら最初の不合格で終わる(tmp_path):
+    """D0077-AC-17: max_retries = 0 なら、最初の不合格で TEST_FAILED で終わる。"""
     command, _ = check_command(tmp_path)
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra=cmd_check(command, 0))))
@@ -308,8 +308,8 @@ def test_d0076_ac17_max_retriesが0なら最初の不合格で終わる(tmp_path
     assert r.state()["final"] == "TEST_FAILED"
 
 
-def test_d0076_ac17_on_failの段へ戻る(tmp_path):
-    """D0076-AC-17: on_fail の段（前の段）へ戻り、直す点はその段の指示に入る。"""
+def test_d0077_ac17_on_failの段へ戻る(tmp_path):
+    """D0077-AC-17: on_fail の段（前の段）へ戻り、直す点はその段の指示に入る。"""
     command, flag = check_command(tmp_path)
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("draft"), stage_toml("verify", extra=cmd_check(command, 2, on_fail="draft"))))
@@ -329,8 +329,8 @@ def test_d0076_ac17_on_failの段へ戻る(tmp_path):
 # ---- AC-18 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac18_verdictの段はstatusとproblemsで戻り進む(tmp_path):
-    """D0076-AC-18: verdict の段は --status fail と --problems で戻り（直す点が次の指示に入る）、--status pass で進む。"""
+def test_d0077_ac18_verdictの段はstatusとproblemsで戻り進む(tmp_path):
+    """D0077-AC-18: verdict の段は --status fail と --problems で戻り（直す点が次の指示に入る）、--status pass で進む。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("v", extra="[stages.check]\nverdict = true\nmax_retries = 2\n")))
     r.run_next("v")
@@ -346,8 +346,8 @@ def test_d0076_ac18_verdictの段はstatusとproblemsで戻り進む(tmp_path):
 
 
 @pytest.mark.parametrize("status", [None, "maybe", "PASS", "ok", ""], ids=["none", "maybe", "upper", "ok", "empty"])
-def test_d0076_ac18_statusが無いかpassとfail以外なら断られ記録は変わらない(tmp_path, status):
-    """D0076-AC-18: --status が無いか、pass・fail 以外なら断られる（記録は変わらず、段は開いたまま）。"""
+def test_d0077_ac18_statusが無いかpassとfail以外なら断られ記録は変わらない(tmp_path, status):
+    """D0077-AC-18: --status が無いか、pass・fail 以外なら断られる（記録は変わらず、段は開いたまま）。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("v", extra="[stages.check]\nverdict = true\n")))
     r.run_next("v")
@@ -359,8 +359,8 @@ def test_d0076_ac18_statusが無いかpassとfail以外なら断られ記録は�
     assert r.state()["open"]["stage"] == "v"
 
 
-def test_d0076_ac18_verdictの無い段にstatusを渡すと断る(tmp_path):
-    """D0076-AC-18: verdict の無い段に --status を渡すと断られる。"""
+def test_d0077_ac18_verdictの無い段にstatusを渡すと断る(tmp_path):
+    """D0077-AC-18: verdict の無い段に --status を渡すと断られる。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_next("a")
@@ -374,8 +374,8 @@ def test_d0076_ac18_verdictの無い段にstatusを渡すと断る(tmp_path):
 # ---- AC-19 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac19_nextで別の段へ飛べる(tmp_path):
-    """D0076-AC-19: next で別の段へ飛べる（飛ばされた段は始まらない）。"""
+def test_d0077_ac19_nextで別の段へ飛べる(tmp_path):
+    """D0077-AC-19: next で別の段へ飛べる（飛ばされた段は始まらない）。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra='next = "c"\n'), stage_toml("b"), stage_toml("c")))
     r.run_and_finish("a")
@@ -385,8 +385,8 @@ def test_d0076_ac19_nextで別の段へ飛べる(tmp_path):
     assert [x["stage"] for x in r.state()["runs"] if "seq" in x] == ["a", "c"]
 
 
-def test_d0076_ac19_endで終われる(tmp_path):
-    """D0076-AC-19: next = "end" で終われる（後ろの段は始まらない）。"""
+def test_d0077_ac19_endで終われる(tmp_path):
+    """D0077-AC-19: next = "end" で終われる（後ろの段は始まらない）。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra='next = "end"\n'), stage_toml("b")))
     r.run_and_finish("a")
@@ -396,8 +396,8 @@ def test_d0076_ac19_endで終われる(tmp_path):
     assert not any("_b" in name for name in r.logs())
 
 
-def test_d0076_ac19_max_stepsを超えると本体と同じ終了の種類で終わる(tmp_path):
-    """D0076-AC-19: 段を流した回数が max_steps を超えると、STAGE_ERROR で終わり、警告に残る。"""
+def test_d0077_ac19_max_stepsを超えると本体と同じ終了の種類で終わる(tmp_path):
+    """D0077-AC-19: 段を流した回数が max_steps を超えると、STAGE_ERROR で終わり、警告に残る。"""
     r = Run(tmp_path)
     r.ready(pipe_toml(stage_toml("a", extra="[stages.check]\nverdict = true\nmax_retries = 5\n"), head="max_steps = 2\n"))
     r.run_next("a")
@@ -415,8 +415,8 @@ def test_d0076_ac19_max_stepsを超えると本体と同じ終了の種類で終
 # ---- AC-20 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac20_全段が終わると99_summaryができfinalが入る(tmp_path):
-    """D0076-AC-20: 全段が終わると 99_summary.md ができ、final が入り、chat next は「終わり」を返す。"""
+def test_d0077_ac20_全段が終わると99_summaryができfinalが入る(tmp_path):
+    """D0077-AC-20: 全段が終わると 99_summary.md ができ、final が入り、chat next は「終わり」を返す。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_and_finish("a")
@@ -434,8 +434,8 @@ def test_d0076_ac20_全段が終わると99_summaryができfinalが入る(tmp_p
 # ---- AC-21 ----------------------------------------------------------------------------------
 
 
-def test_d0076_ac21_statusは今どこかを返す(tmp_path):
-    """D0076-AC-21: chat status が、段の名前・何回目か・確認待ちかを返す。"""
+def test_d0077_ac21_statusは今どこかを返す(tmp_path):
+    """D0077-AC-21: chat status が、段の名前・何回目か・確認待ちかを返す。"""
     r = Run(tmp_path)
     r.ready(two(review=True))
     r.run_next("a")
@@ -454,8 +454,8 @@ def test_d0076_ac21_statusは今どこかを返す(tmp_path):
     assert "2" in text_of(again), "何回目か（2回目）が出る"
 
 
-def test_d0076_ac21_statusは読むだけで記録を変えない(tmp_path):
-    """D0076-AC-21: chat status は読むだけで、記録を書き換えない。"""
+def test_d0077_ac21_statusは読むだけで記録を変えない(tmp_path):
+    """D0077-AC-21: chat status は読むだけで、記録を書き換えない。"""
     r = Run(tmp_path)
     r.ready(two())
     r.run_next("a")
@@ -464,8 +464,8 @@ def test_d0076_ac21_statusは読むだけで記録を変えない(tmp_path):
     assert r.state_text() == before
 
 
-def test_d0076_ac21_記録が無いと始め方を伝えて断る(tmp_path):
-    """D0076-AC-21: 記録が無いときの chat status は、始め方を伝えて断る。"""
+def test_d0077_ac21_記録が無いと始め方を伝えて断る(tmp_path):
+    """D0077-AC-21: 記録が無いときの chat status は、始め方を伝えて断る。"""
     r = Run(tmp_path)
     r.make(two())
     out = r.cmd("status")
@@ -477,8 +477,8 @@ def test_d0076_ac21_記録が無いと始め方を伝えて断る(tmp_path):
 # ---- 本体と同じ数え方（設計 5.6） ----------------------------------------------------------------
 
 
-def test_d0076_revise_の数え方は本体のLinearPipelineと同じ(tmp_path):
-    """D0076-AC-14（設計 5.6）: revise は steps も retries も増やさず、revise のあとも検査がかかる（落ちれば retries に数える）。
+def test_d0077_revise_の数え方は本体のLinearPipelineと同じ(tmp_path):
+    """D0077-AC-14（設計 5.6）: revise は steps も retries も増やさず、revise のあとも検査がかかる（落ちれば retries に数える）。
     check の attempt は revise をまたいで続く。"""
     command, flag = check_command(tmp_path)
     r = Run(tmp_path)
@@ -508,8 +508,8 @@ def test_d0076_revise_の数え方は本体のLinearPipelineと同じ(tmp_path):
 
 
 @pytest.mark.parametrize("which", ["pipe.toml", "pipeline.toml"])
-def test_d0076_ac29_始めたあとに定義が変わるとnextも断る(tmp_path, which):
-    """D0076-AC-29（司会役の側）: pipe.toml・pipeline.toml が始めたときから変わると、chat next は断る（フックが止めるのと同じ条件）。"""
+def test_d0077_ac29_始めたあとに定義が変わるとnextも断る(tmp_path, which):
+    """D0077-AC-29（司会役の側）: pipe.toml・pipeline.toml が始めたときから変わると、chat next は断る（フックが止めるのと同じ条件）。"""
     r = Run(tmp_path)
     r.ready(two())
     if which == "pipe.toml":

@@ -1,4 +1,4 @@
-# D0076 パイプを会話の中で流せる（SDK を子として起こせない場所向け。#123）
+# D0077 パイプを会話の中で流せる（SDK を子として起こせない場所向け。#123）
 
 ## 目的
 
@@ -7,52 +7,52 @@ Copilot の契約で使う VS Code の Claude ハーネスなど、Claude Agent 
 ## 機能要件と受け入れ基準
 
 - FR-01〜03 始める・断る：`pipe-in-gen chat start` が定義を読んで検査し、扱える形なら記録を始め、扱えない形は理由を全部出して断る。会話では効かない設定は断らずに一覧で見せる。
-  - D0076-AC-01：扱える形（linear・access の4種・writes・bash・review・check の verdict と command・next）で始めると、`driver: "pipe-chat"` で段の並びどおりの記録ができる（`tests/test_chat_start.py`）。
-  - D0076-AC-02：group・routes・check.judge・agents・mcp・mcp_servers・web（true とドメインの一覧）・max_budget_usd・前の実行の受け取り・kind = "dev" を1つ持つパイプは、記録を作らず、形の名前と理由で断る（同上）。
-  - D0076-AC-03：断る形が複数あると、理由が全部出る（同上）。
-  - D0076-AC-04：model・max_turns・permission_mode などの効かない設定は断らず、「効かない設定」の一覧に出る（同上）。
-  - D0076-AC-05：`check_pipe` の誤りがあると、記録を作らずに断る（同上）。
-  - D0076-AC-06：途中の記録があると断り、終わった記録は `archive/` へ移す（同上）。
+  - D0077-AC-01：扱える形（linear・access の4種・writes・bash・review・check の verdict と command・next）で始めると、`driver: "pipe-chat"` で段の並びどおりの記録ができる（`tests/test_chat_start.py`）。
+  - D0077-AC-02：group・routes・check.judge・agents・mcp・mcp_servers・web（true とドメインの一覧）・max_budget_usd・前の実行の受け取り・kind = "dev" を1つ持つパイプは、記録を作らず、形の名前と理由で断る（同上）。
+  - D0077-AC-03：断る形が複数あると、理由が全部出る（同上）。
+  - D0077-AC-04：model・max_turns・permission_mode などの効かない設定は断らず、「効かない設定」の一覧に出る（同上）。
+  - D0077-AC-05：`check_pipe` の誤りがあると、記録を作らずに断る（同上）。
+  - D0077-AC-06：途中の記録があると断り、終わった記録は `archive/` へ移す（同上）。
 - FR-04 流す前の守りの確かめ（`chat probe`）。
-  - D0076-AC-07：確かめが済むまで、`chat next` は段の指示を出さない（`tests/test_chat_probe.py`）。
-  - D0076-AC-08：確かめの1回目は乱数入りの範囲外のパスを出し、どの access の範囲にも入らない。失敗のあとに出し直すと乱数が変わる（同上）。
-  - D0076-AC-09：範囲外のファイルが無く、フックの跡に pipe-probe を止めた行があり、乱数が合うときだけ確かめ済みになる（同上）。
-  - D0076-AC-10：ファイルがある・跡が無い・乱数違い・agent_type が違う・道具が違う、のどれかなら確かめ済みにならず理由を返す（同上）。
-  - D0076-AC-11：確かめ済みの印は、その実行だけに効く（同上）。
+  - D0077-AC-07：確かめが済むまで、`chat next` は段の指示を出さない（`tests/test_chat_probe.py`）。
+  - D0077-AC-08：確かめの1回目は乱数入りの範囲外のパスを出し、どの access の範囲にも入らない。失敗のあとに出し直すと乱数が変わる（同上）。
+  - D0077-AC-09：範囲外のファイルが無く、フックの跡に pipe-probe を止めた行があり、乱数が合うときだけ確かめ済みになる（同上）。
+  - D0077-AC-10：ファイルがある・跡が無い・乱数違い・agent_type が違う・道具が違う、のどれかなら確かめ済みにならず理由を返す（同上）。
+  - D0077-AC-11：確かめ済みの印は、その実行だけに効く（同上）。
 - FR-05〜07 順番・確認・差し戻し・終わり（`chat next / done / review`）。
-  - D0076-AC-12：`chat next` は最初の段を返し、開いている間に呼び直しても二重に始めない（`tests/test_chat_flow.py`）。
-  - D0076-AC-13：review = true の段が閉じると確認待ちになり、承認の前に次の段は始まらない（同上）。
-  - D0076-AC-14：approved で進み、revise は直す点が要り同じ段を直す点つきで返し、quit で中止になる（同上）。
-  - D0076-AC-15：確認待ちでない review、開いていない・別の段への done は断る（同上）。
-  - D0076-AC-16：成果物が無いまま done すると失敗になる（同上）。
-  - D0076-AC-17：check.command の合否で進む・戻り、max_retries を超えると本体と同じ終了の種類で終わる（同上）。
-  - D0076-AC-18：verdict の段は `--status` と `--problems` で戻り・進み、`--status` が無い・誤りなら断る（同上）。
-  - D0076-AC-19：next で飛び、end で終わり、max_steps を超えると本体と同じ終了の種類で終わる（同上）。
-  - D0076-AC-20：全段が終わると `99_summary.md` ができ、final が入る（同上）。
-  - D0076-AC-21：`chat status` が段・何回目・確認待ちを返し、記録が無ければ始め方を伝えて断る（同上）。
+  - D0077-AC-12：`chat next` は最初の段を返し、開いている間に呼び直しても二重に始めない（`tests/test_chat_flow.py`）。
+  - D0077-AC-13：review = true の段が閉じると確認待ちになり、承認の前に次の段は始まらない（同上）。
+  - D0077-AC-14：approved で進み、revise は直す点が要り同じ段を直す点つきで返し、quit で中止になる（同上）。
+  - D0077-AC-15：確認待ちでない review、開いていない・別の段への done は断る（同上）。
+  - D0077-AC-16：成果物が無いまま done すると失敗になる（同上）。
+  - D0077-AC-17：check.command の合否で進む・戻り、max_retries を超えると本体と同じ終了の種類で終わる（同上）。
+  - D0077-AC-18：verdict の段は `--status` と `--problems` で戻り・進み、`--status` が無い・誤りなら断る（同上）。
+  - D0077-AC-19：next で飛び、end で終わり、max_steps を超えると本体と同じ終了の種類で終わる（同上）。
+  - D0077-AC-20：全段が終わると `99_summary.md` ができ、final が入る（同上）。
+  - D0077-AC-21：`chat status` が段・何回目・確認待ちを返し、記録が無ければ始め方を伝えて断る（同上）。
 - FR-08・09・16 記録と使用量。
-  - D0076-AC-22：記録は `record check` を通り、`pipe-in --review` はこの記録の続きを流さない（`tests/test_chat_record.py`）。
-  - D0076-AC-23：`usage_summary` は available = false と理由を持ち、費用は 0 ではなく null。`99_summary.md` に合計が出ない（同上・`vscode/src/domain/usageUnavailable.test.ts`）。
-  - D0076-AC-24（画面）：拡張で、段の流れ・確認待ち・差し戻しが本体の記録と同じ形で出て、使用量は「取れない」と読め、`$` の数も「0 ターン」も出ない。確認待ちの答え方は会話の道のもの（`vscode/src/domain/usageUnavailable.test.ts`・`pipelineViewChat.test.ts`・`vscode/src/view/usageUnavailableHtml.test.ts`・`chatNotice.test.ts`。画面はプレビュー `run-panel-chat-*` で確かめた）。
-  - D0076-AC-25：古い記録は、拡張でも `record check` でも今までどおり読める（`tests/test_chat_record.py`・`vscode/src/domain/usageUnavailable.test.ts`）。
+  - D0077-AC-22：記録は `record check` を通り、`pipe-in --review` はこの記録の続きを流さない（`tests/test_chat_record.py`）。
+  - D0077-AC-23：`usage_summary` は available = false と理由を持ち、費用は 0 ではなく null。`99_summary.md` に合計が出ない（同上・`vscode/src/domain/usageUnavailable.test.ts`）。
+  - D0077-AC-24（画面）：拡張で、段の流れ・確認待ち・差し戻しが本体の記録と同じ形で出て、使用量は「取れない」と読め、`$` の数も「0 ターン」も出ない。確認待ちの答え方は会話の道のもの（`vscode/src/domain/usageUnavailable.test.ts`・`pipelineViewChat.test.ts`・`vscode/src/view/usageUnavailableHtml.test.ts`・`chatNotice.test.ts`。画面はプレビュー `run-panel-chat-*` で確かめた）。
+  - D0077-AC-25：古い記録は、拡張でも `record check` でも今までどおり読める（`tests/test_chat_record.py`・`vscode/src/domain/usageUnavailable.test.ts`）。
 - FR-10〜13 フック（`pipe-in-gen guard-hook`）。
-  - D0076-AC-26：pipe-stage の書ける範囲は、本体の `guard.check_tool` と同じ結果になる（`tests/test_chat_hook.py`）。
-  - D0076-AC-27：すり抜けの道（Bash・危険なコマンド・PowerShell・MCP・Agent・Task・Web・ノートブック・`..`・パイプのフォルダ・記録・前のパイプの記録・`.claude/`）は止まる（同上）。
-  - D0076-AC-28：読む道具は、どの段でも通る（同上）。
-  - D0076-AC-29：入力が読めない・agent_type が文字でない・開いている段が無い・記録が壊れている・`pipe.toml` が変わった・段が定義に無い、のときは止める（同上）。
-  - D0076-AC-30：段の間は pipe-stage・pipe-probe 以外のエージェントを止め、会話本体と会話の道の記録の無い作業フォルダには何もしない（同上）。
-  - D0076-AC-31：`pipe-in:pipe-stage` も pipe-stage と同じに扱い、前方・部分一致は pipe-stage と扱わない（同上）。
-  - D0076-AC-32：pipe-builder・pipe-judge の判断と、`.claude/hooks/pipe_in_guard.py`・`guard.py` は変わらない（同上・`tests/test_guard_hook.py`・検証の段の `git diff`）。
+  - D0077-AC-26：pipe-stage の書ける範囲は、本体の `guard.check_tool` と同じ結果になる（`tests/test_chat_hook.py`）。
+  - D0077-AC-27：すり抜けの道（Bash・危険なコマンド・PowerShell・MCP・Agent・Task・Web・ノートブック・`..`・パイプのフォルダ・記録・前のパイプの記録・`.claude/`）は止まる（同上）。
+  - D0077-AC-28：読む道具は、どの段でも通る（同上）。
+  - D0077-AC-29：入力が読めない・agent_type が文字でない・開いている段が無い・記録が壊れている・`pipe.toml` が変わった・段が定義に無い、のときは止める（同上）。
+  - D0077-AC-30：段の間は pipe-stage・pipe-probe 以外のエージェントを止め、会話本体と会話の道の記録の無い作業フォルダには何もしない（同上）。
+  - D0077-AC-31：`pipe-in:pipe-stage` も pipe-stage と同じに扱い、前方・部分一致は pipe-stage と扱わない（同上）。
+  - D0077-AC-32：pipe-builder・pipe-judge の判断と、`.claude/hooks/pipe_in_guard.py`・`guard.py` は変わらない（同上・`tests/test_guard_hook.py`・検証の段の `git diff`）。
 - FR-13〜15 道具・プラグイン・依存。
-  - D0076-AC-33：pipe-stage・pipe-probe の `tools` は決めたとおりで、Agent・Task・PowerShell・Web・MCP を含まない。前書きの鍵は name・description・tools・model だけ（`tests/test_chat_plugin.py`）。
-  - D0076-AC-34：`hooks.json` の形は変えず、スキル `pipe-run` は chat の順と人の確認を書いている（同上）。
-  - D0076-AC-35：司会役とフックは SDK を読まず、依存の向きを守り、依存が増えない（`tests/test_architecture_chat.py`）。
-  - D0076-AC-36：テストは SDK を呼ばず、リポジトリの実物に書かない（`tests/test_chat_flow.py`・`tests/conftest.py`）。
+  - D0077-AC-33：pipe-stage・pipe-probe の `tools` は決めたとおりで、Agent・Task・PowerShell・Web・MCP を含まない。前書きの鍵は name・description・tools・model だけ（`tests/test_chat_plugin.py`）。
+  - D0077-AC-34：`hooks.json` の形は変えず、スキル `pipe-run` は chat の順と人の確認を書いている（同上）。
+  - D0077-AC-35：司会役とフックは SDK を読まず、依存の向きを守り、依存が増えない（`tests/test_architecture_chat.py`）。
+  - D0077-AC-36：テストは SDK を呼ばず、リポジトリの実物に書かない（`tests/test_chat_flow.py`・`tests/conftest.py`）。
 - 実機・手で（#123）。
-  - D0076-AC-37（実機）：VS Code の Claude ハーネスで `/pipe-in:pipe-run` を呼ぶと守りの確かめが走り、効いていれば最初の段が流れ、効いていなければ理由を伝えて流れない。
-  - D0076-AC-38（実機）：確かめが通った実行で、access = "docs" の段の範囲外への書き込みが止まり、範囲内は書ける。
-  - D0076-AC-39（実機）：人の確認（質問欄か会話の文か）・サブエージェントの呼び出し・プラグインのスキルが、ハーネスで動くか。
-  - D0076-AC-40（手で）：Claude Code（端末）でも、小さなパイプが最後まで流れ、拡張で記録が見える。
+  - D0077-AC-37（実機）：VS Code の Claude ハーネスで `/pipe-in:pipe-run` を呼ぶと守りの確かめが走り、効いていれば最初の段が流れ、効いていなければ理由を伝えて流れない。
+  - D0077-AC-38（実機）：確かめが通った実行で、access = "docs" の段の範囲外への書き込みが止まり、範囲内は書ける。
+  - D0077-AC-39（実機）：人の確認（質問欄か会話の文か）・サブエージェントの呼び出し・プラグインのスキルが、ハーネスで動くか。
+  - D0077-AC-40（手で）：Claude Code（端末）でも、小さなパイプが最後まで流れ、拡張で記録が見える。
 
 ## 決めたことと理由
 

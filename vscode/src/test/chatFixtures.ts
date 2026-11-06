@@ -1,4 +1,4 @@
-// D0076：会話の中でパイプを流した記録（driver が pipe-chat・使用量が「取れない」）の見本。テストの中で文字列として作る（tests/fixtures/ には足さない）。
+// D0077：会話の中でパイプを流した記録（driver が pipe-chat・使用量が「取れない」）の見本。テストの中で文字列として作る（tests/fixtures/ には足さない）。
 // 本体（pipe-in-gen chat）が書く形は docs/pipeline/02_design.md の 4.1。古い記録（費用が数・usage_summary あり）の対照も作る。
 import type { WorkDirSnapshot } from '../domain/pipelineView.ts';
 import { snapshot, stageRunEntry, usageSummaryDict } from './fixtures.ts';
