@@ -1,0 +1,54 @@
+# pipe-in のパイプ：仕様書の指摘（同じ指示の2体を同時に流し、両方が挙げた指摘だけを残す）
+#
+# 仕様書は docs/review-quorum/spec.md、出典の台帳は docs/review-quorum/sources.json に置きます。くわしくは README.md を見てください。
+# 2体（review-a・review-b）は同じ指示文で同時に流れます。共通部分は pipe-in-gen quorum が機械で取ります。
+# model = "haiku" は別名で、指す版は実行するときの Claude Code と Agent SDK の版で変わることがあります。版を決めたいときは完全なモデル ID を書いてください。
+# docs/pipeline/{{name}}/ は作業の記録の既定の置き場所です。work_dir を変えたら、command のこの部分を書き換えてください。
+
+[pipe]
+kind = "linear"
+label = "仕様書の指摘（同じ指示の2体の共通部分）"
+description = "同じ指示の2体が仕様書の指摘を挙げ、両方が同じ節に挙げた指摘だけを残す。誤指摘が多いモデルのときに使う"
+input = "optional"  # 依頼メモで、見てほしい範囲や背景を伝えられる
+
+[[stages]]
+# 1体目。引用と出典は pipe-in-gen findings-check が機械で確かめ、合わなければ自分へ戻す（2回まで）
+name = "review-a"
+label = "指摘 A"
+output = "01_review_a.json"
+access = "read"
+model = "haiku"
+group = "review"
+prompt_file = "prompts/01_review.md"
+[stages.check]
+command = "pipe-in-gen findings-check docs/pipeline/{{name}}/01_review_a.json --sources docs/review-quorum/sources.json --spec docs/review-quorum/spec.md"
+on_fail = "review-a"
+max_retries = 2
+
+[[stages]]
+# 2体目。1体目と同じ指示文（読み方は変えない）
+name = "review-b"
+label = "指摘 B"
+output = "02_review_b.json"
+access = "read"
+model = "haiku"
+group = "review"
+prompt_file = "prompts/01_review.md"
+[stages.check]
+command = "pipe-in-gen findings-check docs/pipeline/{{name}}/02_review_b.json --sources docs/review-quorum/sources.json --spec docs/review-quorum/spec.md"
+on_fail = "review-b"
+max_retries = 2
+
+[[stages]]
+# 共通部分を書く。仕事は check.command がする（モデルは確かめて1行書くだけ）。3体目は流さない（--no-third）
+name = "quorum"
+label = "共通部分"
+output = "03_quorum.md"
+access = "read"
+model = "haiku"
+max_turns = 3
+prompt_file = "prompts/02_quorum.md"
+[stages.check]
+command = "pipe-in-gen quorum docs/pipeline/{{name}}/01_review_a.json docs/pipeline/{{name}}/02_review_b.json --no-third --out docs/pipeline/{{name}}/04_common.json && pipe-in-gen findings-check docs/pipeline/{{name}}/04_common.json --sources docs/review-quorum/sources.json --spec docs/review-quorum/spec.md"
+on_fail = "review-a"
+max_retries = 1

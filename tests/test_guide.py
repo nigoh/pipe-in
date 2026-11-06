@@ -251,7 +251,7 @@ OLD_CODE_LINES = [
     "└─ README.md         何をするパイプか・流し方",
     "pipe-in のリポジトリ",
     "├─ generator/              ジェネレーター（環境の検出・ひな形・パイプの生成と検査）",
-    "│  └─ templates/           ひな形（dev / diagrams / spec-qa / spec-review）",
+    "│  └─ templates/           ひな形（dev / diagrams / spec-qa / spec-review / review-quorum）",
     "└─ plugin/                 Claude Code のプラグイン（/pipe-in:pipe-build と pipe-builder）",
     # パイプ（コマンド）
     "pipe-in-gen list --project ~/src/myapp                          # ひな形と、作ったパイプの一覧",
@@ -424,7 +424,7 @@ TABLE_ITEMS = [
     # プラグインで入るもの
     "スキル `/pipe-in:pipe-build`", "エージェント `pipe-builder`", "フック（`pipe-in-gen guard-hook`）",
     # ひな形
-    "`dev`", "`diagrams`", "`spec-qa`", "`spec-review`",
+    "`dev`", "`diagrams`", "`spec-qa`", "`spec-review`", "`review-quorum`",
     # 中身を直したいとき
     "開発フローの各段への指示（文書の構成、守ること）",
     "開発フローの段の順番、確認、差し戻しの流れ",
@@ -2369,3 +2369,41 @@ def test_D0053_AC_20_組み方の目安の節がある(label, pattern):
     assert "警告" not in part.splitlines()[0], "「組み方の目安」の見出しに「警告」を入れない（「検査の警告」の節の拾い方が変わる）"
     found = re.search(pattern, part) is not None  # 節の本文を assert の失敗の表示に出さない
     assert found, f"pipes.md の「組み方の目安」の節に、{label} が無い（探した言葉：{pattern}）"
+
+# D0076-AC-14: 「2体の共通部分」の項の目印（項は、その言葉を含む箇条書きの1項。次の「- 」で始まる行の手前まで）
+D0076_QUORUM_MARKS = [
+    ("same-instruction", "同じ指示"),
+    ("strong-model", "強いモデル"),
+    ("not-varied-readings", "読み方"),
+    ("no-arbitration", "裁定"),
+    ("one-agent-enough", "1体"),
+    ("post-hoc", "事後"),
+    ("haiku", "Haiku"),
+    ("command", "pipe-in-gen quorum"),
+    ("template", "review-quorum"),
+]
+
+
+def d0076_quorum_item(part: str) -> str:
+    """節の本文から、「2体の共通部分」を含む箇条書きの1項（次の「- 」の行の手前まで）。無ければ空。"""
+    lines = part.splitlines()
+    for i, ln in enumerate(lines):
+        if "2体の共通部分" in ln:
+            body = [ln]
+            for nxt in lines[i + 1 :]:
+                if nxt.startswith("- "):
+                    break
+                body.append(nxt)
+            return "\n".join(body)
+    return ""
+
+
+@pytest.mark.parametrize("label,word", D0076_QUORUM_MARKS, ids=[i for i, _ in D0076_QUORUM_MARKS])
+def test_d0076_ac14_pipes_guide_quorum_marks(label, word):
+    """D0076-AC-14: pipes.md の「組み方の目安」の節に「2体の共通部分」の項があり、同じ指示・強いモデルでは使わない・読み方を変えない・裁定を足さない・1体で足りる課題には足さない・事後の解析・Haiku の目印がある。"""
+    part = heading_part(read_doc(GUIDE / "pipes.md"), "組み方の目安")
+    assert part, "pipes.md に「組み方の目安」の節が無い"
+    item = d0076_quorum_item(part)
+    assert item, "「組み方の目安」の節に「2体の共通部分」の項が無い"
+    found = word in item  # 項の本文を assert の失敗の表示に出さない
+    assert found, f"「2体の共通部分」の項に、{label} が無い（探した言葉：{word}）"
