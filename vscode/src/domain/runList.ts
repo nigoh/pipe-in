@@ -69,6 +69,8 @@ export const WORKTREE_LIMIT = 8;
 
 const DASH = '—';
 const DEV_LABEL = '開発フロー';
+/** 使用量が「取れない」記録（会話の中で流した記録）の費用の文 */
+export const UNAVAILABLE_COST_TEXT = '取れない';
 
 /** 本体の終了の名前（state.json の final）→ 短い言葉。ステータスバーもここから読む。 */
 export const FINAL_WORDS: Readonly<Record<string, string>> = {
@@ -211,7 +213,12 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
     state,
     result: state === 'done' && view.final !== null ? finalWord(view.final) : null,
     sessionId: record.sessionId ?? lastStageRun(record)?.sessionId ?? null,
-    costText: typeof raw.total_cost_usd === 'number' && Number.isFinite(raw.total_cost_usd) ? `$${raw.total_cost_usd.toFixed(3)}` : DASH,
+    costText:
+      record.usageUnavailable !== null
+        ? UNAVAILABLE_COST_TEXT
+        : typeof raw.total_cost_usd === 'number' && Number.isFinite(raw.total_cost_usd)
+          ? `$${raw.total_cost_usd.toFixed(3)}`
+          : DASH,
     costUsd: typeof raw.total_cost_usd === 'number' && Number.isFinite(raw.total_cost_usd) ? raw.total_cost_usd : null,
     updatedText,
     updatedDate: updatedText === DASH ? DASH : updatedText.slice(0, 5),

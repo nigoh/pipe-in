@@ -1,6 +1,6 @@
 ---
 name: pipe-help
-description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・/pipe-plan・/pipe-talk・プラグインの /pipe-in:pipe-build・/pipe-in:pipe-eval・/pipe-in:pipe-judge・/pipe-in:pipe-live）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
+description: pipe-in の使いかたの一覧を出す。Claude Code のコマンド（/pipe-in・/pipe-docs・/pipe-audit・/pipe-advise・/pipe-judge・/pipe-plan・/pipe-talk・プラグインの /pipe-in:pipe-build・/pipe-in:pipe-eval・/pipe-in:pipe-judge・/pipe-in:pipe-live・/pipe-in:pipe-run）、pipe-in と pipe-in-gen の CLI、VSCode 拡張のコマンドを、何をしたいときに何を使うかで案内する。
 argument-hint: [知りたいこと（例: パイプ・作業台・再開・--auto）]
 disable-model-invocation: true
 ---
@@ -35,6 +35,7 @@ disable-model-invocation: true
 | `/pipe-in:pipe-eval <パイプ名>` | パイプの成果物を、検査のコマンド（`pipe.toml` の `[stages.check]` の `command`、または渡したコマンド）で確かめる。流す前に一覧を見せて返事を待つ。成果物は直さない。プラグインを入れて使う |
 | `/pipe-in:pipe-judge <成果物> [--rubric …] [--runs 1〜5]` | 成果物を依頼とルーブリックに照らして 0.0〜1.0 で審査する。must の違反は即不合格。総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算し、JSON で返す。直さない。開発用の `/pipe-judge`（助言の報告の採点）とは別物 |
 | `/pipe-in:pipe-live [--work-dir 記録のフォルダ]` | ターミナルで流している pipe-in の進み具合を、Claude のアーティファクトでも見る。ページを1回だけ公開し、Monitor で `pipe-in live watch` を動かして、行のたびに写しを書く。見るだけで、止める・進める・承認はできない。Artifact・ArtifactData・Monitor がある、claude.ai にログインした Claude Code で使う |
+| `/pipe-in:pipe-run <パイプ名> [要件メモ]` | 作ったパイプを会話の中で流す。Claude Agent SDK を起こせない場所（VS Code の Claude など）向け。段の順番・確認・記録は `pipe-in-gen chat` が持ち、会話は段をエージェント `pipe-stage` で流すだけ。流す前に守りを確かめ、確かめられなければ流れない。使用量は取れない。人が呼んだときだけ動く。実機の確かめはこれから（#123） |
 | `/pipe-help [知りたいこと]` | この一覧。知りたいことを付けると、そこだけ詳しく |
 
 ### 会話を開かずに流す（`claude -p`）
@@ -80,6 +81,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | 定義の誤りを調べる（流すと詰まりやすい段の形は ⚠ の警告で知らせる。警告だけなら終了コード 0。くわしくは docs/guide/pipes.md の「検査の警告」） | `pipe-in-gen check <名前> --project <対象>` |
 | 仕様書レビューの指摘の誤りを調べる（LLM は呼ばない） | `pipe-in-gen findings-check <指摘のファイル> --sources <台帳> --spec <仕様書> [--spec …]`（終了コード 0＝誤りなし・1＝誤りあり・2＝入力を受け取れない。くわしくは `docs/guide/pipes.md` の「指摘の検査」） |
 | 2体（か3体）の指摘から、同じ節への指摘だけを残す（LLM は呼ばない） | `pipe-in-gen quorum <指摘のファイル> <指摘のファイル> [<3体目>] --out <書き出す先> [--threshold 0.8] [--no-third]`（終了コード 0＝書いた・3＝書いたが3体目が要る・2＝入力を受け取れない。くわしくは `docs/guide/pipes.md` の「2体の共通部分」） |
+| 会話の中でパイプを流す司会役（`/pipe-in:pipe-run` の会話が呼ぶ。人が端末で打つものではない。くわしくは `docs/guide/plugin.md`） | `pipe-in-gen chat start｜probe｜next｜done｜review｜status` |
 
 作ったパイプは対象の `.pipe-in/pipes/pipe-in-<名前>/`（pipe.toml・prompts/・README.md）に置かれる（`--pipes-dir` か `PIPE_IN_PIPES_DIR` で変えられる。前の版の置き場所も読む。`docs/guide/migrate.md` を参照）。
 

@@ -28,6 +28,12 @@
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
+| 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
+| 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
+| 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
+| 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
+| 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
+| 会話の中で段を受け持つ・守りを確かめるエージェントと、流すスキル `/pipe-in:pipe-run` | `plugin/agents/pipe-stage.md`・`pipe-probe.md`、`plugin/skills/pipe-run/SKILL.md` |
 | プラグインの採点の計算（総合点・合否・`--runs` のばらつき。標準ライブラリだけ） | `generator/judge_score.py` |
 | 仕様書レビューの指摘の検査（指摘の形 v1。形・出典・引用の一致・役割の決まりを LLM なしで調べる `pipe-in-gen findings-check`。標準ライブラリだけ。Schema は他の道具に渡す契約で、実行時には読まない。ひな形 `generator/templates/spec-review/` の `verify` 段が呼ぶ） | `generator/findings_check.py`・`generator/schemas/` |
 | 2体の共通部分（指摘の形 v1 のファイル2つか3つから、`location.source` と正規化した `location.section` が合う指摘を残す `pipe-in-gen quorum`。標準ライブラリと findings_check だけ。ひな形 `generator/templates/review-quorum/` の `quorum` 段が呼ぶ） | `generator/quorum.py` |
@@ -50,6 +56,7 @@
 | アーキテクチャの検査（依存の向き・標準ライブラリだけ。新しい検査は決定ごとの別ファイル。D0075） | `tests/test_architecture.py`・新しい検査は `tests/test_architecture_<名前>.py`（例：`tests/test_architecture_doc_shape.py`） |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
+| 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
 | 画面のデザインの土台（ブランド「プラグ」の色の決まり・部品と画面の見本。Claude のデザインのキャンバスの写し） | `docs/design/`・`docs/design/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
@@ -210,6 +217,7 @@ pipe_in.usage
 - D0065 は記録の形・設定・パイプの形を変えません。作業台の「保存した版」のファイル名の種別に `-external`（外で書き換わる前）を足しただけです（`<13桁の時刻>-external.json`。中身は同じ `PipeModel` の JSON）。今の拡張は `-external` の無い古い版をそのまま読みます。`-external` を知らない前の拡張は、形の違うファイルとして読み飛ばし、50 版の数にも入れず消しません（前の拡張に戻すと残るだけで、害は容量だけ。手で消せます）。内側の型 `VersionEntry` に `external?: true`（省ける）を足しました。
 - D0069 で `state.json` に `received_from`（`--after` で前のパイプの記録を受けた実行だけ。前の名前・終わった日時・種類・成果物の場所）を足しました。足すだけで、無い古い記録は受けた元の無い実行として読みます。続きの `--review`・`--from` は、この項目をそのまま使い、前の記録を読み直しません。拡張は知らない項目として読み捨てるので、拡張の画面は変えません。
 - D0071 で `state.json` の `runs[]` の `review` の要素に `at`（書いた時刻。`Prompt` 行の `at` と同じ書き方）を足しました。足すだけで、無い古い記録は `record check` が「判定できなかった」として読みます。ほかの読み手（`--review`・`live`・拡張）は `at` を使いません。古い版の拡張は知らない項目を読まずに捨てます。`driver` の値 `"pipe-dev"` は変えません。`Prompt` 行の `prompt` と `99_summary.md` の1行目の呼び名が `/pipe-dev` から `/pipe-in` に変わりますが、文字として読むだけなので古い記録もそのまま読めます。`runs[]` の要素の鍵の集まりを比べているテスト（`test_d0019_ac50_state_only_adds_keys`）は、`at` を含める形に直しました。
+- D0077 で、会話の中でパイプを流す道（`pipe-in-gen chat`）の記録を足しました。`state.json` の `driver` に `"pipe-chat"`、`chat` の節、`usage_summary` の `available: false` と理由（`total_cost_usd`・`runs[]` の `cost_usd` は `null`）、実行のフォルダの `hook/`・`probe/` です。足すだけで、無い古い記録は今までどおり読めます。拡張は `usage_summary.available === false` のときだけ「取れない」を出し、それ以外は変わりません。`available` を知らない古い拡張は、使用量の表を零で出し、図の段に `$0.000` が出ることがあります（見た目だけで、記録は壊れません）。`--review` は `driver` があれば続きを流さず、`pipe-chat` のときは `chat next` を案内します。`guard_hook.py` の `decide` と `engine/guard.py` は変えません。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

@@ -289,6 +289,33 @@ pipe-in-gen quorum a.json b.json [c.json] --out common.json [--threshold 0.8] [-
 
 ひな形 `review-quorum` の `quorum` 段が、`--no-third` を付けて呼びます。3体目をパイプで流す仕組みは無く、要るかどうかは `--no-third` なしで手で流すと分かります。
 
+## 会話の中で流すとき
+
+プラグインの `/pipe-in:pipe-run`（[Claude Code のプラグイン](plugin.md#pipe-inpipe-run)）は、`pipe-in` を端末で流せない場所で、パイプを会話の中で流します。構造化出力や子の実行を起こせないので、扱えない形があります。
+
+**扱えない形**は、始める前に理由を全部出して断ります（記録は作りません）。
+
+| 形 | 理由 |
+| --- | --- |
+| `kind = "dev"`（組み込みの開発フロー） | 会話の中では流せない |
+| `--after`（前の実行の受け取り） | 会話の中では使えない |
+| `group`（並列の段） | 同時に流せない |
+| `routes`（分岐） | 構造化出力が無い |
+| `check.judge`（審査） | 構造化出力が無い |
+| `agents`（段の中のサブエージェント） | 会話の中では流せない |
+| `mcp`・`mcp_servers`（MCP） | 会話の中では流せない |
+| `web`（`true` でもドメインの一覧でも） | 会話の中では流せない |
+| `max_budget_usd`（`pipe.toml` の段、`pipeline.toml` の `[stages.<段>]`） | 費用が取れず、上限を守れない |
+
+**効かない設定**は、断らずに、始める前に一覧で見せます。
+
+| 設定 | 場所 |
+| --- | --- |
+| `model`・`max_turns` | `pipe.toml`・`pipeline.toml` |
+| `max_thinking_tokens`・`fallback_model`・`permission_mode`・`add_dirs` | `pipe.toml` |
+
+そのほかは扱えます：`access` の 4 つの型・`writes`・`bash = true`・`review`・`check`（`verdict`・`command`・`on_fail`・`max_retries`）・`next`・`max_steps`。判定（`verdict`）は、構造化出力が無いので、段の返事の先頭の `STATUS: pass` か `STATUS: fail` と、`PROBLEM:` の行から読みます。`bash = true` の段は、本体と同じ判断で Bash の書き込みを絞ります（[安全のしくみ](safety.md#会話の中で流すときの守り)）。人の `revise` は、本体と同じく、段を流す回数（`max_steps`）にも検査の戻りの回数（`max_retries`）にも数えません。
+
 ## 分岐・飛び先・並列
 
 - `[stages.routes]`：段に choice を返させ、行き先を選びます（`"end"` で終わり）。

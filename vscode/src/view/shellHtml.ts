@@ -8,7 +8,7 @@
 // 実際にスクロールする外側の枠（<main class="detail">・「成果物」と「エージェント・スキル」のタブパネル）は data-scroll を持ち、パネルのスクリプトが描き直しのあとも位置を覚える。
 import { WAITING_MESSAGE, pickableLogStages, reasonNodeIds, terminalFor } from '../domain/pipelineView.ts';
 import type { Elapsed, PipelineView, TerminalView } from '../domain/pipelineView.ts';
-import { stateWord } from '../domain/runList.ts';
+import { UNAVAILABLE_COST_TEXT, stateWord } from '../domain/runList.ts';
 import type { RunListView, RunRow } from '../domain/runList.ts';
 import type { OutputItem } from '../domain/stageLog.ts';
 import { renderArtifacts } from './artifactsHtml.ts';
@@ -29,7 +29,7 @@ import {
 } from './staleMark.ts';
 import { renderTimes } from './timesHtml.ts';
 import { renderTools } from './toolsHtml.ts';
-import { renderStageCosts, renderUsage } from './usageHtml.ts';
+import { renderStageCosts, renderUsage, renderUsageUnavailable } from './usageHtml.ts';
 
 export const SHELL_STYLE = `
 .app { display: flex; flex-direction: column; height: 100vh; min-width: 0; }
@@ -151,7 +151,7 @@ function renderMeta(view: PipelineView, row: RunRow | null): string {
   const item = (label: string, body: string): string => `<span>${label} ${body}</span>`;
   const strong = (text: string): string => `<strong>${escapeHtml(text)}</strong>`;
   if (row === null) {
-    return `<div class="detail-meta">${item('経過', `<strong>${renderElapsed(view.elapsed)}</strong>`)}${item('費用', strong(`$${view.totalCostUsd.toFixed(3)}`))}</div>`;
+    return `<div class="detail-meta">${item('経過', `<strong>${renderElapsed(view.elapsed)}</strong>`)}${item('費用', strong(view.usageUnavailable !== null ? UNAVAILABLE_COST_TEXT : `$${view.totalCostUsd.toFixed(3)}`))}</div>`;
   }
   const sid = row.sessionId === null ? DASH : `<code>${escapeHtml(row.sessionId)}</code>`;
   return (
@@ -193,12 +193,24 @@ function renderNotice(view: PipelineView): string {
   const open = view.artifacts.some((a) => a.name === file && a.ready)
     ? `<button type="button" class="secondary" data-artifact="${escapeHtml(file)}">${OPEN_DOC_LABEL}</button>`
     : '';
-  const cmd = `python -m pipe_in record review ${stage}`;
-  return (
+  const head =
     '<div class="notice" role="status">' +
     `<strong>${escapeHtml(`${label}の確認を待っている：${doc}`)}</strong>` +
     '<span class="notice-sub">読んで、承認か修正の依頼を返してください</span>' +
-    open +
+    open;
+  if (view.chatPipe !== null) {
+    // 会話の道（D0077）：答えは /pipe-in:pipe-run を流している会話で返す。コマンドは pipe-in-gen chat review
+    const chatCmd = `pipe-in-gen chat review --pipe ${view.chatPipe} approved`;
+    return (
+      head +
+      '<span class="notice-sub">答え方：<code>/pipe-in:pipe-run</code> を流している会話で返す。コマンドなら ' +
+      `<code>${escapeHtml(chatCmd)}</code>（直してほしいときは <code>revise --feedback "…"</code>、やめるときは <code>quit</code>）</span>` +
+      '</div>'
+    );
+  }
+  const cmd = `python -m pipe_in record review ${stage}`;
+  return (
+    head +
     '<span class="notice-sub">答え方：会話で返す。コマンドなら ' +
     `<code>${escapeHtml(`${cmd} approved`)}</code>（直してほしいときは <code>revise --feedback "…"</code>、やめるときは <code>quit</code>）。` +
     '<code>/pipe-in --artifact</code> のときは、アーティファクトのボタンでも答えられます</span>' +
@@ -351,7 +363,10 @@ export function renderShell(view: PipelineView, list: RunListView, staleAfterSec
     panel('diagram', renderDiagramPanel(view, staleAfterSec)) +
     panel('artifacts', renderArtifacts(view), 'panel-artifacts') +
     panel('tools', renderTools(view.tools ?? null), 'panel-tools') +
-    panel('usage', renderStageCosts(view.stageCosts) + renderUsage(view.usage)) +
+    panel(
+      'usage',
+      view.usageUnavailable !== null ? renderUsageUnavailable(view.usageUnavailable) : renderStageCosts(view.stageCosts) + renderUsage(view.usage),
+    ) +
     '</main></div></div>'
   );
 }

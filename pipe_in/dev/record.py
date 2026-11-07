@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import stat
 from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
@@ -18,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..engine import clock
+from ..engine.archive import ARCHIVE, archive_run  # noqa: F401 - ARCHIVE は今までの名前で読めるように残す
 from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
 from ..engine.session import check_token, name_from_memo, normalize_name
@@ -25,7 +25,6 @@ from .record_order import LOGS, check_dir, format_report
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
 
 DRIVER = "pipe-dev"
-ARCHIVE = "archive"
 OUTPUTS = {"requirements": REQUIREMENTS, "design": DESIGN, "red": RED, "implement": IMPLEMENTATION, "test": TEST_REPORT}
 REVIEWED = ("requirements", "design", "red")
 REVIEWS = {"approved": "approved", "approve": "approved", "revise": "revise", "quit": "quit"}
@@ -142,18 +141,7 @@ class Recorder:
         self._save(state)
 
     def _archive(self, old: dict[str, Any]) -> None:
-        w = self.work_dir
-        stamp = str(old.get("started_at") or self._stamp()).replace("-", "").replace(":", "").replace("T", "-")
-        dest = w / ARCHIVE / stamp
-        n = 2
-        while dest.exists():
-            dest = w / ARCHIVE / f"{stamp}-{n}"
-            n += 1
-        dest.mkdir(parents=True)
-        for name in (STATE, INPUT, *OUTPUTS.values(), SUMMARY, LOGS):
-            src = w / name
-            if src.exists():
-                shutil.move(str(src), str(dest / name))
+        archive_run(self.work_dir, old.get("started_at"), (STATE, INPUT, *OUTPUTS.values(), SUMMARY, LOGS), self._stamp())
 
     # ---- 段 -------------------------------------------------------------
 

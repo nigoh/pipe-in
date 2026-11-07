@@ -21,6 +21,7 @@ import { parseStageLog, parseStageLogName } from '../src/domain/stageLog.ts';
 import { createFsRunsSource, createFsWorkDirSource } from '../src/infra/fsWorkDirSource.ts';
 import { renderPanelHtml, renderViewBody } from '../src/view/panelHtml.ts';
 import { budgetStateJson } from './budgetSamples.ts';
+import { chatStateJson } from './chatSamples.ts';
 import { checkStateJson } from './checkSamples.ts';
 import type { CheckSampleKind } from './checkSamples.ts';
 import { GROUP_BASE_AT, groupLogs, groupStateJson } from './groupSamples.ts';
@@ -58,7 +59,7 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
  * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check' | 'group';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check' | 'group' | 'chat';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -92,6 +93,8 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-group-failed-dark', 'dark'],
   ['run-panel-group-old-light', 'light'],
   ['run-panel-group-old-dark', 'dark'],
+  ['run-panel-chat-light', 'light'],
+  ['run-panel-chat-dark', 'dark'],
 ];
 
 /** 並列の枠の見本のページ（run-panel-group-<種類>-<テーマ>）の種類。ほかのページなら null。 */
@@ -110,6 +113,7 @@ export function checkSampleKind(page: string): CheckSampleKind | null {
 export function panelKind(page: string): PanelKind {
   if (page.includes('-tools-')) return 'tools';
   if (page.includes('-budget-')) return 'budget';
+  if (page.includes('-chat-')) return 'chat';
   if (checkSampleKind(page) !== null) return 'check';
   if (groupSampleKind(page) !== null) return 'group';
   if (page.includes('-artifacts-')) return 'artifacts';
@@ -290,6 +294,24 @@ export async function buildCheckDir(dest: string, kind: CheckSampleKind): Promis
 /** 判定の見本の確認用ページ。一時フォルダ（dest）に書いた見本の記録を、本物の読み取りで読んで HTML にする。 */
 export async function checkPageHtml(dest: string, kind: CheckSampleKind, theme: Theme): Promise<string> {
   const view = await readShowcaseView(await buildCheckDir(dest, kind));
+  return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
+}
+
+// ---- 会話の中で流した記録の見本（D0077）--------------------------------------------------------
+// 見本の記録（chatSamples.ts）を一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。tests/fixtures/ には書かない。
+
+/** 会話の道の見本の記録を dest の中に書き、その docs/pipeline の絶対パスを返す。 */
+export async function buildChatDir(dest: string): Promise<string> {
+  const dir = path.join(dest, 'docs', 'pipeline');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, 'state.json'), chatStateJson(), 'utf8');
+  await writeFile(path.join(dir, '00_input.md'), '会話の中で流した記録（使用量は取れない）を実行の図に出す見本\n', 'utf8');
+  return dir;
+}
+
+/** 会話の道の見本の確認用ページ。一時フォルダ（dest）に書いた見本の記録を、本物の読み取りで読んで HTML にする。 */
+export async function chatPageHtml(dest: string, theme: Theme): Promise<string> {
+  const view = await readShowcaseView(await buildChatDir(dest));
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
 }
 

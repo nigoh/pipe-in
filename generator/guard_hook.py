@@ -11,6 +11,8 @@ pipe-judge（審査役）に許すのは読む道具（Read・Glob・Grep）だ�
 置き場所の環境変数も、PIPE_IN_PIPES_DIR と前の版の DEVPIPE_PIPES_DIR の両方を同じ決まりで見る。
 Bash で許すのは新しい名前の pipe-in-gen だけ（前の名前の別名は同じ中身なので、許す形を増やさない）。
 
+会話の中で流す段（pipe-stage・pipe-probe）の判断は chat_hook.py が decide の前にする（このファイルは標準ライブラリだけのまま）。
+
 道具を呼ぶたびに動くので、標準ライブラリだけを使う（本体や SDK を読み込まない）。
 """
 
@@ -20,12 +22,14 @@ import json
 import os
 import re
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 AGENT = "pipe-builder"
 JUDGE = "pipe-judge"
+STAGE = "pipe-stage"
+PROBE = "pipe-probe"
 READ_TOOLS = {"Read", "Glob", "Grep"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 
@@ -63,6 +67,16 @@ def is_builder(agent_type: Any) -> bool:
 def is_judge(agent_type: Any) -> bool:
     """pipe-judge（審査役）の呼び出しか。"""
     return _is_agent(agent_type, JUDGE)
+
+
+def is_stage(agent_type: Any) -> bool:
+    """pipe-stage（会話の中で段を受け持つエージェント）の呼び出しか。判断は chat_hook.py がする。"""
+    return _is_agent(agent_type, STAGE)
+
+
+def is_probe(agent_type: Any) -> bool:
+    """pipe-probe（守りの確かめ役）の呼び出しか。判断は chat_hook.py がする。"""
+    return _is_agent(agent_type, PROBE)
 
 
 def _in_pipe(rest: tuple[str, ...]) -> bool:
@@ -155,8 +169,12 @@ def _read_stdin() -> str:
     return buffer.read().decode("utf-8") if buffer is not None else sys.stdin.read()
 
 
-def main() -> int:
-    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。終了コードはいつも 0。"""
+def main(decide_fn: Callable[..., str | None] | None = None) -> int:
+    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。終了コードはいつも 0。
+
+    decide_fn は止める理由を決める関数（decide と同じ引数）。省くと decide。会話の道は chat_hook.py が渡す。
+    """
+    decide_fn = decide_fn or decide
     try:
         payload = json.loads(_read_stdin())
     except (ValueError, UnicodeDecodeError):
@@ -166,7 +184,7 @@ def main() -> int:
         sys.stdout.write(_deny("フックへの入力が読めないため止めました"))
         return 0
     try:
-        reason = decide(payload, pipes_env=env_pipes_dirs(os.environ))
+        reason = decide_fn(payload, pipes_env=env_pipes_dirs(os.environ))
     except Exception:  # noqa: BLE001 - 想定外の入力で落ちると止めない側に倒れるので、止める
         reason = "フックが入力を判断できなかったため止めました"
     if reason:

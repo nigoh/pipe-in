@@ -27,6 +27,8 @@ from .spec import StageSpec, stage_budget_usd
 INPUT = "00_input.md"
 SUMMARY = "99_summary.md"
 STATE = "state.json"
+# 会話の中で流した記録（pipe-in-gen chat）の driver。pipe-in --review はこの記録の続きを流さない
+CHAT_DRIVER = "pipe-chat"
 
 
 class Exit(IntEnum):
@@ -300,6 +302,12 @@ class BasePipeline:
     def _load_pending(self) -> dict[str, Any]:
         path = self.doc(STATE)
         data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        if data.get("driver") == CHAT_DRIVER:
+            pipe_name = data.get("pipe") if isinstance(data.get("pipe"), str) and data.get("pipe") else "<パイプ名>"
+            raise SystemExit(
+                f"この記録（{self.cfg.rel(path)}）は会話の中で流した記録です。"
+                f"pipe-in-gen chat next --pipe {pipe_name} で続けてください（pipe-in --review では流せません）"
+            )
         if data.get("driver") is not None:
             # 開発用スキル（pipe-in record）の記録には会話の続きがないので、ここから SDK で流さない。
             # 値は見ない（前の版の "pipe-in" も、この先名前が変わっても漏れないように）

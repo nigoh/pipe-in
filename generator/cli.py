@@ -52,6 +52,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
     common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=True)
     sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder と pipe-judge の操作を絞る）")
+    sub.add_parser("chat", help="会話の中でパイプを流す司会役（start / probe / next / done / review / status。pipe-in-gen chat --help）")
     sub.add_parser("judge-score", help="審査役の採点（標準入力の JSON）から総合点・合否・ばらつきを出す（プラグインの pipe-judge が呼ぶ）")
 
     sub.add_parser("findings-check", help="指摘のファイルを、形・出典・引用・役割の決まりで検査する（LLM を呼ばない）")
@@ -210,9 +211,15 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["guard-hook"]:
         # 道具を呼ぶたびに動くので、引数の解釈もせずにすぐ答える
-        from .guard_hook import main as hook_main
+        # 会話の中で流す段（pipe-stage・pipe-probe）の判断も、chat_hook が受けて、残りは guard_hook に渡す
+        from .chat_hook import main as hook_main
 
         return hook_main()
+    if argv[:1] == ["chat"]:
+        # 会話の中でパイプを流す司会役（--project は自分で持つので、プロジェクトの検めより前に分ける）
+        from .chat_cmd import main as chat_main
+
+        return chat_main(argv[1:])
     if argv[:1] == ["judge-score"]:
         # 標準入力の JSON だけで動く（--project は持たないので、プロジェクトの検めより前に分ける）
         from .judge_score import main as judge_main

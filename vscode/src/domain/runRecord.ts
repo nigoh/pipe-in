@@ -149,6 +149,8 @@ export interface RunRecord {
   pipe: string | null;
   /** 外の会話（/pipe-in のスキル）が書いた記録か。state.json の driver が項目として有り、null でないこと（値は見ない。本体と同じ判定）。無い・読めない写しでは false */
   hasDriver: boolean;
+  /** 会話の道（/pipe-in:pipe-run）が書いた記録か。state.json の driver が "pipe-chat" のとき true（D0077） */
+  isChat: boolean;
   /** 段の並び。パイプを持つ前の記録では null */
   stages: StageDef[] | null;
   pendingReview: PendingReview | null;
@@ -166,6 +168,8 @@ export interface RunRecord {
   startedAt: string | null;
   /** 本体 0.2 から。古い記録では null */
   usage: UsageSummary | null;
+  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0077） */
+  usageUnavailable: string | null;
 }
 
 export const EMPTY_RUN_RECORD: RunRecord = {
@@ -173,6 +177,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   sessionId: null,
   pipe: null,
   hasDriver: false,
+  isChat: false,
   stages: null,
   pendingReview: null,
   warnings: [],
@@ -186,6 +191,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   totalCostUsd: 0,
   startedAt: null,
   usage: null,
+  usageUnavailable: null,
 };
 
 /** EMPTY_RUN_RECORD の写し（配列は新しく作る。読み取りの途中で足していくため）。 */
@@ -251,6 +257,7 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.totalCostUsd = num(data.total_cost_usd);
   record.startedAt = strOrNull(data.started_at);
   record.usage = parseUsageSummary(data.usage_summary);
+  record.usageUnavailable = usageUnavailableReason(data.usage_summary);
   record.name = nameOrNull(data.name);
   record.sessionId = tokenOrNull(data.session_id);
   record.pipe = strOrNull(data.pipe);
@@ -259,6 +266,7 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.pendingReview = parsePendingReview(data.pending_review);
   record.warnings = Array.isArray(data.warnings) ? data.warnings.filter((w): w is string => typeof w === 'string') : [];
   record.hasDriver = Object.hasOwn(data, 'driver') && data.driver !== null;
+  record.isChat = data.driver === 'pipe-chat';
   if (!Array.isArray(data.runs)) return record;
 
   // 段の並びを持たない記録はパイプを持つ前の開発フローのものなので、開発の5段だけを受け付ける
@@ -444,7 +452,7 @@ function rateOrder(name: string): number {
 
 /** usage_summary を読む。ない・オブジェクトでないなら null。中の読めない値は 0・空にする。 */
 function parseUsageSummary(value: unknown): UsageSummary | null {
-  if (!isJsonObject(value)) return null;
+  if (!isJsonObject(value) || usageUnavailableReason(value) !== null) return null;
   const byModel: ModelUsage[] = [];
   if (isJsonObject(value.by_model)) {
     for (const [model, mu] of Object.entries(value.by_model)) {
@@ -469,4 +477,20 @@ function parseUsageSummary(value: unknown): UsageSummary | null {
     byModel,
     rateLimits,
   };
+}
+
+/** 理由が書かれていないときの既定の文 */
+const UNAVAILABLE_DEFAULT_REASON = '使用量は記録されていません';
+/** 理由の文字数の上限 */
+const UNAVAILABLE_REASON_MAX = 100;
+
+/**
+ * 使用量が「取れない」記録（usage_summary.available === false。会話の中で流した記録）なら理由の文、そうでなければ null（D0077）。
+ * 理由が文字でない・空なら既定の文。長ければ 100 文字までに切る。
+ */
+export function usageUnavailableReason(value: unknown): string | null {
+  if (!isJsonObject(value) || value.available !== false) return null;
+  const reason = typeof value.reason === 'string' ? value.reason.trim() : '';
+  if (reason === '') return UNAVAILABLE_DEFAULT_REASON;
+  return Array.from(reason).slice(0, UNAVAILABLE_REASON_MAX).join('');
 }

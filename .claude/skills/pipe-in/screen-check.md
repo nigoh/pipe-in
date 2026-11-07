@@ -29,6 +29,7 @@
    - `run-panel-group-running-*`：並列の枠の中が同時に動くパネル（D0063）
    - `run-panel-group-failed-*`：枠の中に失敗の段があるパネル
    - `run-panel-group-old-*`：`group` の無い古い記録のパネル
+   - `run-panel-chat-*`：会話の中で流したパイプの記録のパネル（D0077。使用量が「取れない」記録）
 2. 手元だけで配る。次のコマンドを裏で動かす（`file:` では開けない。外には出さない）：
 
    ```

@@ -86,7 +86,8 @@ export const NODE_LABELS: Readonly<Record<string, string>> = {
 
 export interface StageMetrics {
   numTurns: number;
-  costUsd: number;
+  /** 費用（ドル）。使用量が「取れない」記録（会話の中で流した記録）では null（0 ではない） */
+  costUsd: number | null;
   durationSec: number;
 }
 
@@ -212,6 +213,10 @@ export interface PipelineView {
   usage: UsageView | null;
   /** 段ごとの費用の表（runs[] の費用から。費用のある段が無ければ null） */
   stageCosts: StageCostsView | null;
+  /** 使用量が「取れない」記録（会話の中で流した記録）なら理由の文。ほかは null（D0077） */
+  usageUnavailable: string | null;
+  /** 会話の道（driver が pipe-chat）の記録なら、そのパイプ名（state.json の pipe。無ければ空の文字）。ほかは null（D0077） */
+  chatPipe: string | null;
   /** 確認待ち（state.json の pending_review）。なければ null */
   pendingReview: PendingReviewView | null;
   /** 注意（state.json の warnings） */
@@ -426,14 +431,14 @@ function findRunningLogs(logs: ReadLog[], record: RunRecord): ReadLog[] {
   return [...inFrame, ...(lastPlain === undefined ? [] : [lastPlain])].sort((a, b) => a.name.seq - b.name.seq);
 }
 
-function sumMetrics(runs: StageRun[]): StageMetrics | null {
+function sumMetrics(runs: StageRun[], costUnavailable: boolean): StageMetrics | null {
   if (runs.length === 0) return null;
   const numTurns = runs.reduce((s, r) => s + r.numTurns, 0);
   const costUsd = runs.reduce((s, r) => s + r.costUsd, 0);
   const durationSec = runs.reduce((s, r) => s + r.durationSec, 0);
   return {
     numTurns,
-    costUsd: Math.round(costUsd * 1e4) / 1e4,
+    costUsd: costUnavailable ? null : Math.round(costUsd * 1e4) / 1e4,
     durationSec: Math.round(durationSec * 10) / 10,
   };
 }
@@ -468,7 +473,7 @@ function stageNode(
     running.has(stage) ? 'running' : last === undefined ? 'pending' : last.isError ? 'failed' : 'done';
   // 動いている段には上限の表示を出さない（動いている間の費用はまだ記録に無い）
   const extra: Partial<PipelineNode> = {
-    metrics: sumMetrics(runs),
+    metrics: sumMetrics(runs, record.usageUnavailable !== null),
     budget: status === 'running' ? null : pickStageBudget(runs),
     ...extraNode,
   };
@@ -806,7 +811,12 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
     waiting: record.final === null && runningStage === null && record.stageRuns.length >= 1,
     noRecords,
     usage: buildUsage(record, stageLabels),
-    stageCosts: buildStageCosts(record.stageRuns, dev ? STAGES : (record.stages ?? []).map((s) => s.name), stageLabels),
+    stageCosts:
+      record.usageUnavailable !== null
+        ? null
+        : buildStageCosts(record.stageRuns, dev ? STAGES : (record.stages ?? []).map((s) => s.name), stageLabels),
+    usageUnavailable: record.usageUnavailable,
+    chatPipe: record.isChat ? (record.pipe ?? '') : null,
     pendingReview:
       record.pendingReview === null
         ? null

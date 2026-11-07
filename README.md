@@ -100,7 +100,7 @@ Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、
 | [VSCode の拡張](docs/guide/vscode.md) | 入れ方・実行を見る・パイプ作業台 |
 | [コマンドを打たない人向けの案内](docs/guide/start-without-commands.md) | 拡張とブラウザ・会話だけで見る・見本を選ぶ・確認に答える道と、端末で 1 行貼る手順が要る範囲 |
 | [パイプ](docs/guide/pipes.md) | 作り方・検査の警告・組み方の目安（比較実験から）・ひな形・見本のパイプ（図・仕様の突き合わせ・調べもの・動画）・`pipe.toml`・検証と差し戻し・指摘の検査（`findings-check`）・2体の共通部分（`quorum`）・分岐・Agent SDK の設定 |
-| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査と進み具合を見る `/pipe-in:pipe-live` のスキル・フック。プラグイン自身の確かめのケース `plugin/evals/` の流し方も） |
+| [Claude Code のプラグイン](docs/guide/plugin.md) | 入れ方・入るもの（`/pipe-in:pipe-build`・pipe-builder・検査と審査と進み具合を見る `/pipe-in:pipe-live` のスキル・フック。SDK を起こせない場所向けに、会話の中でパイプを流す `/pipe-in:pipe-run`（実機の確かめはこれから）。プラグイン自身の確かめのケース `plugin/evals/` の流し方も） |
 | [安全のしくみ](docs/guide/safety.md) | 段ごとの書き込める範囲・どの段でも止める操作 |
 | [記録と使用量](docs/guide/records.md) | 作られるファイル・アーティファクトに出す写し・まとめに出る使用量・終了コード |
 | [設定](docs/guide/config.md) | `pipeline.toml` |

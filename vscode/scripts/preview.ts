@@ -24,6 +24,7 @@ import {
   artifactsPageHtml,
   budgetPageHtml,
   buildOmittedTree,
+  chatPageHtml,
   checkPageHtml,
   checkSampleKind,
   groupPageHtml,
@@ -258,6 +259,11 @@ for (const [page, theme] of PANEL_PAGES) {
     const groupKind = groupSampleKind(page);
     if (groupKind === null) throw new Error(`並列の枠の見本の種類が読めません: ${page}`);
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('group', (dest) => groupPageHtml(dest, groupKind, theme)), 'utf8');
+    continue;
+  }
+  // 会話の中で流した記録の見本（D0077）：使用量が取れない・検査の不合格→やり直し→合格・revise 1 回・確認待ち。記録は一時フォルダの中に書いて読む
+  if (kind === 'chat') {
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('chat', (dest) => chatPageHtml(dest, theme)), 'utf8');
     continue;
   }
   // 上限と費用の表の見本（D0051）：10 段のパイプの記録を一時フォルダの中に書いて読む

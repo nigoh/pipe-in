@@ -213,10 +213,17 @@ def _judge_prompt(j: StageJudge) -> list[str]:
 
 
 def stage_prompt(
-    cfg: Config, pipe: PipeDef, index: int, failure_note: str | None = None, *, received: dict[str, Any] | None = None
+    cfg: Config,
+    pipe: PipeDef,
+    index: int,
+    failure_note: str | None = None,
+    *,
+    received: dict[str, Any] | None = None,
+    structured: bool = True,
 ) -> str:
     """段への依頼文。渡すものは、依頼メモと、前の段のうち成果物がもうあるもの（分岐で通らなかった段は除く）。
-    received（--after で受けた前のパイプの記録）があれば、その成果物の場所も足す。前の依頼メモは渡さない（D0069-FR-08・FR-09）。"""
+    received（--after で受けた前のパイプの記録）があれば、その成果物の場所も足す。前の依頼メモは渡さない（D0069-FR-08・FR-09）。
+    structured が False のときは、判定を構造化出力ではなく返事の中で書かせる（会話の中で流す道には構造化出力が無い。D0077）。"""
     w = cfg.rel(cfg.work_dir)
     stage = pipe.stages[index]
     given: list[str] = []
@@ -244,7 +251,10 @@ def stage_prompt(
         docs = cfg.rel((cfg.project_dir / stage.docs_dir).resolve())
         lines.append(f"図や文書のファイルは `{docs}/` の下に置き、成果物からリンクしてください。")
     if stage.check and stage.check.verdict:
-        lines.append("最後に、判定（status: pass / fail・summary・problems）を構造化出力で返してください。")
+        if structured:
+            lines.append("最後に、判定（status: pass / fail・summary・problems）を構造化出力で返してください。")
+        else:
+            lines.append("最後に、判定（pass か fail か、fail なら直す点）を返事の中で書いてください。")
     if stage.check and stage.check.judge:
         lines += _judge_prompt(stage.check.judge)
     if stage.routes:

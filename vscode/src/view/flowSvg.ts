@@ -388,7 +388,12 @@ function renderNode(p: Placed, pickable: ReadonlySet<NodeId>, logPickable: Reado
         `<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">経過 <tspan class="elapsed" data-elapsed="${sec}">${formatDuration(sec)}</tspan></text>`,
       );
     } else {
-      const detail = m ? `${m.numTurns} ターン・$${m.costUsd.toFixed(3)}・${formatDuration(m.durationSec)}` : '';
+      // 費用が null（使用量が取れない記録）のときは、ターン数も 0 になるので、$ もターンも外して時間だけにする
+      const detail = !m
+        ? ''
+        : m.costUsd == null
+          ? formatDuration(m.durationSec)
+          : `${m.numTurns} ターン・$${m.costUsd.toFixed(3)}・${formatDuration(m.durationSec)}`;
       if (detail) parts.push(`<text class="node-detail" x="${LEFT + 12}" y="${y + 38}">${escapeHtml(detail)}</text>`);
     }
     // 印の文字は 2 行目の同じ位置に置く。is-stale が付くまで CSS で隠し、付くと経過の文字と入れ替わる

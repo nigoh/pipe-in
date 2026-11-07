@@ -18,10 +18,13 @@
 | スキル `/pipe-in:pipe-judge` | 成果物を、依頼とルーブリックに照らして審査する。点は審査役 `pipe-judge` が付け、総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算する。結果は JSON で返し、成果物は直さない・パイプへ差し戻さない |
 | スキル `/pipe-in:pipe-live` | ターミナルで流している pipe-in の進み具合を、Claude のアーティファクトでも見る。ページを1回だけ公開し、Monitor で `pipe-in live watch` を動かして、行を受けるたびに ArtifactData へ写しを書く。見るだけで、止める・進める・承認はできない。使えるのは claude.ai にログインした Claude Code で、Artifact・ArtifactData・Monitor が要る（無ければ何もせず止まる）。人が呼んだときだけ動く。使い方は[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch) |
 | エージェント `pipe-judge` | 項目ごとに、先に理由、次に 5 段階の点（0.0・0.25・0.5・0.75・1.0。採点できなければ null）を返す審査役。must は違反の有無と根拠。読む道具（Read・Grep・Glob）だけを持つ |
-| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。ほかのエージェントには何もしない。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない） |
+| スキル `/pipe-in:pipe-run` | 会話の中でパイプを流す（SDK を起こせない場所向け。[下の節](#pipe-inpipe-run)）。段の順番・検査・差し戻し・人の確認・記録は `pipe-in-gen chat` が持ち、会話は返事の `action` に従って、指示を `pipe-stage` に渡し、結果を返すだけ。人が呼んだときだけ動く。段は Claude の利用料がかかる |
+| エージェント `pipe-stage` | `pipe-run` から呼ばれ、渡された指示で 1 つの段を受け持って成果物を書く。道具は読む・書く・Bash で、サブエージェントは呼べない。書ける範囲は段の定義から決まり、フックが絞る |
+| エージェント `pipe-probe` | `pipe-run` が流す前に 1 回だけ呼ぶ確かめ役。渡された範囲外のパスへ `Write` を 1 回だけ試し、守りが効いているかを見る。道具は Write・Read だけ |
+| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない）。会話の中で流している段があるときは、`pipe-stage` を今開いている段の範囲に、`pipe-probe` を読む道具だけに絞り、段が開いている間のほかのエージェントは止める（[安全のしくみ](safety.md#会話の中で流すときの守り)）。それ以外のエージェントには何もしない |
 
 フックは `pipe-in-gen` で動くので、`pipe-in-gen` が無い環境では効きません（スキルは、はじめに `pipe-in-gen` を確かめて、無ければ止まります。`/pipe-in:pipe-eval` は `pipe-in-gen` を使いません）。
-フックが起動できない（`pipe-in-gen` が PATH に無い・壊れている・時間切れ）とき、Claude Code は操作を止めずに進めます。そのあいだ pipe-builder の書き込みは絞られず、審査役 pipe-judge はエージェントの `tools:`（Read・Grep・Glob）だけで絞られます。プラグインを入れたら、先に `pipe-in-gen --help` が動くことを確かめてください。
+フックが起動できない（`pipe-in-gen` が PATH に無い・壊れている・時間切れ）とき、Claude Code は操作を止めずに進めます。そのあいだ pipe-builder の書き込みは絞られず、審査役 pipe-judge はエージェントの `tools:`（Read・Grep・Glob）だけで絞られます。`/pipe-in:pipe-run` の段（pipe-stage）も同じで、フックが動かないあいだは絞られません。ただし `/pipe-in:pipe-run` は流す前に毎回、守りが効くかを確かめ（`chat probe`）、フックが動いていなければ確かめが通らないので、段を流しません。プラグインを入れたら、先に `pipe-in-gen --help` が動くことを確かめてください。
 
 ## 検査と審査
 
@@ -52,6 +55,38 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 - ページは `pipe-in live page` で作って1回だけ公開し、Monitor で `pipe-in live watch` を動かします。行を受けるたびに、その写しを ArtifactData の `runs/current` に書きます。
 - `final` の行で終わります。Monitor は1回の見張りが最長30分なので、`--timeout 1750` で見張り、`timeout` の行（または Monitor の期限）で止まったときは、実行が続いていれば起こし直します。行の形と終了コードは[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch)。
 - 書くのは一時フォルダのファイルと ArtifactData だけです。利用料はかかりません。
+
+## `/pipe-in:pipe-run`
+
+使い方は `/pipe-in:pipe-run <パイプ名> [要件メモ]` です。作ったパイプを、会話の中で流します。端末の `pipe-in --pipe` と同じ段・同じ記録の場所（`docs/pipeline/<パイプ名>/`）を使うので、VSCode の拡張で図が見られます。人が呼んだときだけ動きます。段は Claude の利用料がかかります。
+
+- 対象は、SDK を起こせない場所（VS Code の Claude など）です。端末で `pipe-in` を使えるなら、そちらを使ってください。
+- 段の順番・次の段・やり直し・人の確認・記録は、`pipe-in-gen chat` が持ちます。会話は、返事の `action` に従って、指示を `pipe-stage` に渡し、結果を `chat done` に返し、人の確認を聞いて `chat review` に渡すだけです。
+- 流れは、(1) `chat start --dry-run` で段の表と「効かない設定」を見せて、開始の確認を取る、(2) `chat start` で記録を作り、`chat probe` と `pipe-probe` で守りを確かめる（確かめられなければ流さない。[安全のしくみ](safety.md#会話の中で流すときの守り)）、(3) `chat next` の `action`（`run_stage`・`await_review`・`probe`・`finished`）に従って繰り返す、(4) 結果と `99_summary.md` を伝えて終わる、です。
+- 扱えない形と効かない設定は、[パイプ](pipes.md#会話の中で流すとき)の表にあります。扱えない形のパイプは、始める前に理由を全部出して断ります。
+- 記録は `driver: "pipe-chat"` で書かれます。使用量は取れないので、記録は「取れない」と書かれます。くわしくは[記録と使用量](records.md#会話の中で流した記録)。
+- `pipe-in --review` では続けられません。続きは `pipe-in-gen chat next --pipe <パイプ名>` です。会話が途切れても、`chat status` で今どこかを見て、`chat next` から続けられます（開いている段は、同じ指示がもう一度出ます）。
+
+### `pipe-in-gen chat`
+
+`/pipe-in:pipe-run` の会話が呼ぶコマンドです。人が端末で打つものではありません（出力は 1 つの JSON で、終了コードは成功が 0、断り・誤りが 1）。
+
+| コマンド | すること |
+| --- | --- |
+| `chat start <パイプ> [--memo T｜--memo-file F] [--name N] [--session-id S] [--dry-run]` | 記録を作って始める。`--dry-run` なら何も書かず、段の表と効かない設定を返す。途中の記録があれば断り、終わった記録は `archive/` へ移す。`--after` は会話の中では使えず、断る |
+| `chat probe --pipe P` | 守りの確かめ。1 回目は確かめ役への指示（乱数入りの範囲外のパス）を出し、確かめ役を呼んだあとの 2 回目で、結果を読んで `probe_ok` か `probe_failed` を返す |
+| `chat next --pipe P` | 次にすることを返す（`run_stage`・`await_review`・`probe`・`finished`）。開いている段で呼び直すと、同じ指示がもう一度出る |
+| `chat done --pipe P --stage S [--summary T] [--status pass｜fail] [--problems P] [--error]` | 段を閉じる。成果物と検査を調べて、次の段・やり直し・終わりを決める。`--status`・`--problems` は、判定（`verdict`）のある段だけ |
+| `chat review --pipe P approved｜revise｜quit [--feedback T]` | 人の確認の答えを記録する。`revise` には直してほしい点（`--feedback`）が要る |
+| `chat status --pipe P` | 今どこかを返す（読むだけ） |
+
+### 使える場所と使えない場所
+
+- **VS Code の Claude 拡張（Claude のハーネス）**：使える見込みです。ただし**実機ではまだ確かめていません**（#123 で確かめます）。フックが `agent_type` を受け取り、`pipe-stage` の道具の呼び出しを止められることが前提で、確かめられなければ `chat probe` が `probe_failed` を返し、流れません。
+- **Copilot 本来の側（Local ハーネス）**：フックの入力に `agent_type` が来ないため、守りの確かめで止まり、流れません。
+- **会社などの管理設定**：管理設定で Claude のハーネス自体が使えない環境では、使えません。
+- **端末の Claude Code**：同じ手順で使える見込みですが、実機の確かめはこれからです。`pipe-in` を直接使えるので、通常は要りません。
+- **メインのスレッドを `--agent` で動かしているとき**：段が開いている間、道具の呼び出しはすべて止まります（フックが `agent_type` のある呼び出しを全部絞るため）。使わないでください。
 
 ## プラグインの eval
 
