@@ -155,9 +155,10 @@ def test_D0010_AC_03_型の読み方が型のユニオンを取れる(tmp_path):
 
 
 def test_D0010_AC_03_型の読み方は実物のmessages_tsを読める():
-    """D0010-AC-03: 実物の messages.ts で、4つの型とも空にならない（型の書き方が変わったら気づく）。"""
+    """D0010-AC-03: 実物の messages.ts で、4つの型とも空にならない（型の書き方が変わったら気づく）。
+    D0079 で、拡張からパネルへの知らせに replyRefused（返事を断ったことを知らせる）を足した。"""
     source = src_text("view/messages.ts")
-    assert ts_union_types(source, "ToPanelMessage") == {"render"}
+    assert ts_union_types(source, "ToPanelMessage") == {"render", "replyRefused"}
     for _, type_name in MESSAGE_ROWS:
         assert ts_union_types(source, type_name), type_name
 

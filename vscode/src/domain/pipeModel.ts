@@ -494,7 +494,7 @@ export function pipeFiles(m: PipeModel): Record<string, string> {
 // ---- 検査 ------------------------------------------------------------------
 
 /** 本体が書くファイル名（pipe_in/pipe/definition.py の RESERVED_OUTPUTS の写し。output には使えない） */
-const RESERVED_OUTPUTS = new Set(['00_input.md', '99_summary.md', 'state.json']);
+const RESERVED_OUTPUTS = new Set(['00_input.md', '99_summary.md', 'state.json', 'reply.json']);
 
 /**
  * check の command に書けない語と理由（pipe_in/engine/guard.py の DANGEROUS_BASH の写し）。

@@ -757,11 +757,11 @@ test('D0025-AC-63: パネルのスクリプトに、保存の道（workspaceStat
   assert.deepEqual(findStorage(SCRIPT_SRC), []);
 });
 
-test('D0025-AC-63: パネルのスクリプトが postMessage で送る type は ready・openArtifact・selectRun だけ（新しい種類を足さない）（今のまま通る。守る）', () => {
+test('D0025-AC-63: パネルのスクリプトが postMessage で送る type は ready・openArtifact・selectRun・reply の 4 種類だけ（reply は D0079 で足した。ほかの新しい種類は足さない）', () => {
   const sent = callArgs(withoutComments(SCRIPT_SRC), 'postMessage').map((args) => /\btype\s*:\s*'([^']+)'/.exec(args)?.[1] ?? null);
   assert.ok(sent.length >= 3, `postMessage の呼び出しが読めている（${sent.length} 件）`);
   assert.ok(sent.every((t) => t !== null), 'type を直に書いている');
-  assert.deepEqual([...new Set(sent)].sort(), ['openArtifact', 'ready', 'selectRun']);
+  assert.deepEqual([...new Set(sent)].sort(), ['openArtifact', 'ready', 'reply', 'selectRun']);
 });
 
 test('D0025-AC-63: 選びの操作（行を押す・描き直し・タブ・焦点）を一通りしても、保存の口（getState・setState）を呼ばない：スクリプトに渡る vscode の API は postMessage だけ', () => {

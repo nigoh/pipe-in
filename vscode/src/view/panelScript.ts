@@ -1,5 +1,7 @@
 // パネルの中で動く小さなスクリプト（文字列）。panelHtml.ts が <script nonce> に入れる。外部の読み込みはしない。
-// render を受けたら本体を差し替え、ボタンで openArtifact・selectRun、読み込み後に ready を送る。拡張へ送るメッセージはこの 3 種類だけ。
+// render を受けたら本体を差し替え、ボタンで openArtifact・selectRun、読み込み後に ready を送る。確認待ちの帯のボタンでは reply（D0079）を送る。拡張へ送るメッセージはこの 4 種類だけ。
+// D0079：確認待ちの帯の返事（承認・修正を依頼・中止）。状態（choose・revise・confirm・sent）と入力中の文字は変数だけで持ち、識別子（data-reply-id）が同じ描き直しなら保つ。
+// 日本語入力の変換中の描き直しは、返事の入力欄（data-keep="reply-feedback"）でも取っておき、終わったあとに 1 回だけ適用する。拡張が書けなかったとき（replyRefused）は押す前の状態に戻す。
 // 理由を持つ節（data-reasons）を押す・Enter・Space で、その節の理由の欄を開け閉めする。選びはこの中だけで持ち、拡張へは送らない。
 // 枠の中の段の節（data-logpick。D0063）を押す・Enter・Space で、右の出力の欄をその段のログ（data-log-for）に替える。もう一度押す・ほかの節を押すと既定の欄に戻る。
 // 理由の選び（picked）とログの選び（pickedLog）は排他。選びはこの変数だけで持ち、拡張へは送らず、保存もしない。
@@ -54,6 +56,14 @@ export const PANEL_SCRIPT = `
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
   let zoom = 100;
+  // 確認待ちの帯の返事の状態（D0079。パネルの中だけで持ち、保存しない）：choose（最初の 3 つのボタン）・revise（修正の入力）・confirm（中止の確かめ）・sent（送った）
+  const REPLY_MAX = 1000;
+  const REPLY_BAD = /(?![\\n\\t])[\\p{Cc}\\p{Cf}\\p{Cs}\\p{Zl}\\p{Zp}]/u;
+  let replyMode = 'choose';
+  let replyText = '';
+  let replyId = null;
+  let replyBefore = 'choose';
+  let seenFile = false;
   function fmt(sec) {
     const t = isFinite(sec) && sec > 0 ? Math.floor(sec) : 0;
     const h = Math.floor(t / 3600);
@@ -212,6 +222,78 @@ export const PANEL_SCRIPT = `
     });
     applyPick();
     applyArtifacts();
+    applyReply();
+  }
+
+  // ---- 確認待ちの帯の返事（承認・修正を依頼・中止） ----
+  // 識別子（data-reply-id）が同じ描き直しなら、押した状態と入力中の文字を保つ。識別子が替わる・帯が無くなると最初に戻す。
+  // 送ったあと、サーバーが返事のファイルを見た（data-reply-sent=1）のに消えた（0）描き直しは、本体が断った印として最初に戻す。
+  function replyValid() {
+    const t = replyText.trim();
+    if (t === '' || REPLY_BAD.test(replyText)) return false;
+    return Array.from(t).length <= REPLY_MAX;
+  }
+  function applyReply() {
+    const notice = root.querySelector('[data-reply-id]');
+    if (!notice) {
+      replyMode = 'choose';
+      replyText = '';
+      replyId = null;
+      seenFile = false;
+      return;
+    }
+    const id = notice.getAttribute('data-reply-id');
+    const sent = notice.getAttribute('data-reply-sent') === '1';
+    if (id !== replyId) {
+      replyId = id;
+      replyMode = 'choose';
+      replyText = '';
+      seenFile = false;
+    }
+    if (sent) {
+      replyMode = 'sent';
+      seenFile = true;
+    } else if (seenFile) {
+      replyMode = 'choose';
+      replyText = '';
+      seenFile = false;
+    }
+    root.querySelectorAll('[data-reply-pane]').forEach(function (p) {
+      p.hidden = p.getAttribute('data-reply-pane') !== replyMode;
+    });
+    const area = root.querySelector('textarea[data-keep="reply-feedback"]');
+    if (area && area.value !== replyText) area.value = replyText;
+    root.querySelectorAll('button[data-reply="revise-send"]').forEach(function (b) { b.disabled = !replyValid(); });
+  }
+  function onReply(kind) {
+    if (replyMode === 'sent') return;
+    if (replyMode === 'choose' && kind === 'approve') {
+      replyBefore = 'choose';
+      replyMode = 'sent';
+      vscode.postMessage({ type: 'reply', action: 'approve' });
+    } else if (replyMode === 'choose' && kind === 'revise-open') {
+      replyMode = 'revise';
+    } else if (replyMode === 'choose' && kind === 'quit-open') {
+      replyMode = 'confirm';
+    } else if ((replyMode === 'revise' || replyMode === 'confirm') && kind === 'back') {
+      replyMode = 'choose';
+      replyText = '';
+    } else if (replyMode === 'revise' && kind === 'revise-send' && replyValid()) {
+      replyBefore = 'revise';
+      replyMode = 'sent';
+      vscode.postMessage({ type: 'reply', action: 'revise', feedback: replyText.trim() });
+    } else if (replyMode === 'confirm' && kind === 'quit-send') {
+      replyBefore = 'choose';
+      replyMode = 'sent';
+      vscode.postMessage({ type: 'reply', action: 'quit' });
+    } else {
+      return;
+    }
+    applyReply();
+    if (replyMode === 'revise') {
+      const area = root.querySelector('textarea[data-keep="reply-feedback"]');
+      if (area) area.focus();
+    }
   }
 
   // ---- 成果物のタブ（選びと、選んだ行へ寄せること） ----
@@ -363,6 +445,7 @@ export const PANEL_SCRIPT = `
     composing = false;
     const t = event && event.target;
     if (t && typeof t.matches === 'function' && t.matches('input[data-keep="filter"]')) filterText = t.value;
+    if (t && typeof t.matches === 'function' && t.matches('textarea[data-keep="reply-feedback"]')) replyText = t.value;
     if (pendingHtml !== null) {
       const html = pendingHtml;
       pendingHtml = null;
@@ -373,6 +456,15 @@ export const PANEL_SCRIPT = `
   }
   window.addEventListener('message', function (event) {
     const msg = event.data;
+    if (msg && msg.type === 'replyRefused') {
+      // 拡張が返事を書けなかった：押す前の状態（最初か修正の入力）に戻し、もう一度答えられるようにする
+      if (replyMode === 'sent') {
+        replyMode = replyBefore;
+        seenFile = false;
+        applyReply();
+      }
+      return;
+    }
     if (!msg || msg.type !== 'render' || typeof msg.html !== 'string') return;
     if (composing) { pendingHtml = msg.html; return; }
     applyRender(msg.html);
@@ -398,6 +490,8 @@ export const PANEL_SCRIPT = `
     if (detailBtn) switchTab(function () { detailTab = detailBtn.getAttribute('data-detail-tab'); });
     const open = target.closest('button[data-open-artifacts]');
     if (open) switchTab(function () { detailTab = 'artifacts'; });
+    const replyBtn = target.closest('button[data-reply]');
+    if (replyBtn && !replyBtn.disabled) onReply(replyBtn.getAttribute('data-reply'));
     const zoomBtn = target.closest('button[data-zoom]');
     if (zoomBtn) {
       const kind = zoomBtn.getAttribute('data-zoom');
@@ -428,7 +522,14 @@ export const PANEL_SCRIPT = `
   });
   root.addEventListener('input', function (event) {
     const t = event.target;
-    if (!t || typeof t.matches !== 'function' || !t.matches('input[data-keep="filter"]')) return;
+    if (!t || typeof t.matches !== 'function') return;
+    if (t.matches('textarea[data-keep="reply-feedback"]')) {
+      if (composing || event.isComposing) return;
+      replyText = t.value;
+      applyReply();
+      return;
+    }
+    if (!t.matches('input[data-keep="filter"]')) return;
     if (composing || event.isComposing) return;
     filterText = t.value;
     applyUi();
@@ -436,7 +537,7 @@ export const PANEL_SCRIPT = `
   root.addEventListener('compositionstart', function () { composing = true; });
   root.addEventListener('compositionend', endComposition);
   root.addEventListener('focusout', function (event) {
-    if (composing && event.target && typeof event.target.matches === 'function' && event.target.matches('input[data-keep="filter"]')) endComposition(event);
+    if (composing && event.target && typeof event.target.matches === 'function' && event.target.matches('input[data-keep="filter"],textarea[data-keep="reply-feedback"]')) endComposition(event);
   });
   root.addEventListener('animationend', function (event) {
     const flashing = event.target && event.target.closest ? event.target.closest('.is-new') : null;

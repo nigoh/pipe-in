@@ -12,6 +12,8 @@ import { pickStageBudget } from './stageBudget.ts';
 import type { NodeBudget } from './stageBudget.ts';
 import { buildStageCosts } from './stageCosts.ts';
 import type { StageCostsView } from './stageCosts.ts';
+import { canReply, isReplyStalled } from './replyWait.ts';
+import type { ReplyFileInfo, ReplyView } from './replyWait.ts';
 import { parseStageLog, parseStageLogName } from './stageLog.ts';
 import type { OutputItem, StageLog, StageLogName } from './stageLog.ts';
 import { elapsedSec, parseInstant } from './timestamp.ts';
@@ -41,6 +43,10 @@ export interface WorkDirSnapshot {
   artifacts: Partial<Record<ArtifactName, ArtifactContent>>;
   /** archive/ の前の実行の写し。止まっているかもの印の対象から外す。省けば false */
   previous?: boolean;
+  /** 別の worktree の実行の写し。返事のボタンを出さない（D0079）。省けば false */
+  other?: boolean;
+  /** reply.json が通常のファイルとして有るときの情報（有るか・更新時刻）。無い・読まなかった写しでは null か項目なし（D0079） */
+  replyFile?: ReplyFileInfo | null;
 }
 
 export type NodeStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
@@ -249,6 +255,12 @@ export interface PipelineView {
   runningStages?: Stage[];
   /** 枠の中の段ごとの、いちばん新しいログの出力（押して選ぶ欄の元） */
   groupLogs?: Readonly<Record<Stage, TerminalView>>;
+  /** 返事を受け付けている確認待ち（state.json の reply_wait と canReply から）。なければ null か無し（D0079） */
+  reply?: ReplyView | null;
+  /** state.json に driver がある記録か（/pipe-in や会話の道）。帯の出し分けに使う。省けば false（D0079） */
+  hasDriver?: boolean;
+  /** 端末の記録（driver なし）の --pause の案内に付ける --pipe 用のパイプ名。開発フロー・名前なしは null（D0079） */
+  pausePipe?: string | null;
 }
 
 /** 図の状態の組み立て方。 */
@@ -700,7 +712,7 @@ function quietSecOf(logs: ReadLog[], running: ReadLog | null, clock: ViewClock |
 function withLiveSeconds(
   nodes: PipelineNode[],
   runningLogs: readonly ReadLog[],
-  pending: RunRecord['pendingReview'],
+  pending: { stage: string; since: string | null } | null,
   quietSec: number | null,
   clock: ViewClock | undefined,
 ): PipelineNode[] {
@@ -728,10 +740,11 @@ function overallElapsed(
   runningLog: ReadLog | null,
   nodes: PipelineNode[],
   clock: ViewClock | undefined,
+  waiting: { stage: string; since: string | null } | null,
 ): Elapsed | null {
   const from = instantOf(record.startedAt, clock);
   if (from === null) return null;
-  const active = record.final === null && (runningLog !== null || record.pendingReview !== null);
+  const active = record.final === null && (runningLog !== null || waiting !== null);
   if (active && clock !== undefined) {
     // 段の始まりの時刻・待ち始めの時刻が読めない記録（古い版）では数え上げない（FR-18）
     const counting = nodes.some((n) => n.runningSec !== null || n.waitingSec !== null);
@@ -791,7 +804,10 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
   const baseNodes = dev ? buildDevNodes(snapshot, record, running) : buildPipeNodes(snapshot, record, pipeStages, running);
   // 印の元は 1 つ。節・時系列の帯・一覧の行は、どれもこの値から取る（節が作られない段名でも食い違わない）
   const quietSec = staleEligible(snapshot, record) ? quietSecOf(logs, runningLog, clock) : null;
-  const nodes = withLiveSeconds(baseNodes, runningLogs, record.pendingReview, quietSec, clock);
+  const reply = buildReply(snapshot, record, stageLabels, runningStages.length > 0, clock);
+  // 返事を受け付けている確認待ちの印も、pending_review と同じに待ちとして数える（節の待ち時間・全体の経過）
+  const waitingMark = record.pendingReview ?? (reply !== null ? record.replyWait : null);
+  const nodes = withLiveSeconds(baseNodes, runningLogs, waitingMark, quietSec, clock);
   const frames = buildFrames(pipeStages, nodes);
 
   // 項目の有無だけ見る（値が新旧どちらの形でも同じ。symlink の 00_input.md は写しに項目が無い）
@@ -828,7 +844,7 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
     warnings: record.warnings,
     sendBacks: buildSendBacks(record, stageLabels),
     revisions: buildRevisions(record, stageLabels),
-    elapsed: overallElapsed(record, runningLog, nodes, clock),
+    elapsed: overallElapsed(record, runningLog, nodes, clock, waitingMark),
     quietSec,
     stageTimes: buildStageTimes(record, stageLabels),
     gantt: buildGantt({
@@ -853,5 +869,43 @@ export function buildPipelineView(snapshot: WorkDirSnapshot, clock?: ViewClock, 
     frames,
     runningStages,
     groupLogs: buildGroupLogs(frames, logs),
+    reply,
+    hasDriver: record.hasDriver,
+    pausePipe: record.pipe !== null && record.pipe !== '' && record.pipe !== 'dev' ? record.pipe : null,
+  };
+}
+
+/** 返事を受け付けている確認待ち。canReply の条件が揃うときだけ作る。 */
+function buildReply(
+  snapshot: WorkDirSnapshot,
+  record: RunRecord,
+  stageLabels: Readonly<Record<Stage, string>>,
+  running: boolean,
+  clock: ViewClock | undefined,
+): ReplyView | null {
+  const mark = record.replyWait;
+  const offered = canReply({
+    mark,
+    final: record.final,
+    hasDriver: record.hasDriver,
+    hasPendingReview: record.pendingReview !== null,
+    running,
+    previous: snapshot.previous === true,
+    other: snapshot.other === true,
+  });
+  if (!offered || mark === null) return null;
+  const file = snapshot.replyFile ?? null;
+  const doc =
+    record.stages?.find((s) => s.name === mark.stage)?.output ??
+    artifactDefsFor(record).find((d) => d.stage === mark.stage)?.name ??
+    '';
+  return {
+    stage: mark.stage,
+    label: stageLabels[mark.stage] ?? mark.stage,
+    id: mark.id,
+    doc,
+    waitingSec: secondsSince(mark.since, clock),
+    sent: file !== null,
+    stalled: file !== null && isReplyStalled(file.mtimeMs, clock?.nowMs),
   };
 }

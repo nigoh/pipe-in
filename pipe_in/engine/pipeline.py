@@ -19,6 +19,7 @@ from ..usage.report import usage_sections
 from . import clock
 from .checkpoint import Decision, ask_human
 from .config import Config
+from .reply import REPLY_FILE, ReplyEnv, ReplyWait
 from .runner import StageRun, StageRunner, run_stage_sdk
 from .session import name_from_memo
 from .spec import StageSpec, stage_budget_usd
@@ -93,8 +94,11 @@ class BasePipeline:
         self.stage_order: list[str] = list(specs)
         self.labels: dict[str, str] = {name: spec.label for name, spec in specs.items()}
         self.runner = runner
-        self.ask = ask or (lambda stage, doc: ask_human(stage, doc, label=self.labels[stage]))
+        self.ask = ask or self._ask_terminal
         self.shell = shell
+        # 実行パネルの返事のファイルを待つ環境と、待っている間の印（state.json の reply_wait。D0079）
+        self.reply_env = ReplyEnv()
+        self.reply_wait: dict[str, str] | None = None
         self.history: list[dict[str, Any]] = []
         self.warnings: list[str] = []
         self.seq = 0
@@ -105,6 +109,49 @@ class BasePipeline:
         self.name: str | None = None
         # 前のパイプから受けた元（--after。state.json の received_from。D0069）。受けていなければ None
         self.received: dict[str, Any] | None = None
+
+    def _ask_terminal(self, stage: str, doc: Path) -> Decision:
+        """既定の確認（端末の入力）。ask を差し替えていないときの ask の中身。"""
+        return ask_human(stage, doc, label=self.labels[stage])
+
+    def _clear_reply(self, *, mark: bool = False) -> None:
+        """返事のファイルを消す（消せなくても止めない）。mark=True（流し始め・再開の入口）では、
+        強制終了で state.json に残った印（reply_wait）の鍵だけも外す。"""
+        try:
+            self.reply_env.remove(self.doc(REPLY_FILE))
+        except Exception:
+            pass
+        if not mark:
+            return
+        data = self._state_data()
+        if "reply_wait" not in data:
+            return
+        del data["reply_wait"]
+        try:
+            self.doc(STATE).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _confirm(self, stage: str, doc: Path) -> Decision:
+        """人の確認を取る。端末の入力と実行パネルの返事のファイルの両方を待つ（D0079）。
+        ask を差し替えたとき・標準入力が端末でないときは、印も返事も扱わず、今までの道そのまま。"""
+        if self.ask != self._ask_terminal or not self.reply_env.usable():
+            return self.ask(stage, doc)
+        self._clear_reply()  # 待ち始めの掃除（先回りして置かれた返事を使わない）
+        wait_id = self.reply_env.new_id()
+        self.reply_wait = {"stage": stage, "id": wait_id, "since": clock.now_with_offset()}
+        self._save_state()
+        try:
+            return ask_human(
+                stage,
+                doc,
+                label=self.labels[stage],
+                reply=ReplyWait(self.doc(REPLY_FILE), stage, wait_id, self.reply_env),
+            )
+        finally:
+            self.reply_wait = None
+            self._clear_reply()
+            self._save_state()
 
     def receive(self, record: dict[str, Any] | None) -> None:
         """受けた元を持つ。受けていない（None・辞書でない）なら None のまま。子が受け方を変えてよい。"""
@@ -212,6 +259,8 @@ class BasePipeline:
             "warnings": self.warnings,
             "runs": self.history,
         }
+        if self.reply_wait is not None:
+            state["reply_wait"] = self.reply_wait
         self.doc(STATE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
     async def _run(self, stage: str, prompt: str, *, resume: str | None = None, attempt: int | None = None, note: str = "") -> StageRun:
@@ -265,7 +314,7 @@ class BasePipeline:
                 return None
             if self.cfg.pause_for_review:
                 return self._pause(stage, doc_name, run)
-            decision = self.ask(stage, self.doc(doc_name))
+            decision = self._confirm(stage, self.doc(doc_name))
             if decision.action == "approve":
                 self.history.append({"stage": stage, "review": "approved"})
                 self._save_state()
@@ -283,6 +332,7 @@ class BasePipeline:
     async def review(self, decision: Decision) -> Exit:
         """確認で止まった実行に答えて、続きを流す（--pause で止めたあとの --review）。"""
         pending = self._load_pending()
+        self._clear_reply(mark=True)
         stage = pending["stage"]
         self.pending = None
         start = self.stage_order.index(stage)

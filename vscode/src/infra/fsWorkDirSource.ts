@@ -6,6 +6,8 @@ import type { WorkDirSource } from '../app/refreshView.ts';
 import { ARTIFACT_MAX_BYTES, ARTIFACT_TOTAL_MAX_BYTES, artifactNamesFor } from '../domain/artifacts.ts';
 import type { ArtifactFile } from '../domain/artifacts.ts';
 import type { StageLogFile, WorkDirSnapshot } from '../domain/pipelineView.ts';
+import { REPLY_FILE_NAME } from '../domain/replyFile.ts';
+import type { ReplyFileInfo } from '../domain/replyWait.ts';
 import { validMtime } from '../domain/quiet.ts';
 import { parseRunRecord } from '../domain/runRecord.ts';
 import { ARCHIVE_LIMIT, WORKTREE_LIMIT } from '../domain/runList.ts';
@@ -239,13 +241,14 @@ export async function listRunCandidates(workDirAbs: string): Promise<RunCandidat
  * 1 回の読みで写しに入れる文字の合計が上限に届いたら、残りは lstat もせず読まない（一覧の後ろの成果物から「まだない」になる）。
  * 項目の名前は外から来る（記録の output）ので、Object.defineProperty で自分のキーとして入れる（__proto__ でも原型が替わらない）。
  * options.previous が true のとき（archive/ の前の実行）だけ、写しに previous: true を入れる。持たせないときは項目ごと無い。
+ * options.other が true のとき（別の worktree の実行）は、写しに other: true を入れる。previous か other のときは reply.json を見ない（D0079）。
  * どの実行が前の実行かは、基盤は知らない。呼ぶ側（一覧の行）が渡す。
  * options.fs は読み取りの口（既定は本物）。state.json・段のログ・成果物の読みはすべてこの口を通る。
  */
 export function createFsWorkDirSource(
   workDirAbs: string,
   workDirForDisplay: string,
-  options: { previous?: boolean; fs?: ReadOnlyFs } = {},
+  options: { previous?: boolean; other?: boolean; fs?: ReadOnlyFs } = {},
 ): WorkDirSource {
   const fs = options.fs ?? nodeReadOnlyFs;
   return {
@@ -253,20 +256,38 @@ export function createFsWorkDirSource(
       const stateJson = await readText(path.join(workDirAbs, STATE), fs);
       const artifacts: WorkDirSnapshot['artifacts'] = {};
       let total = 0;
-      for (const name of artifactNamesFor(parseRunRecord(stateJson))) {
+      const record = parseRunRecord(stateJson);
+      for (const name of artifactNamesFor(record)) {
         if (total >= ARTIFACT_TOTAL_MAX_BYTES) break;
         const file = await readArtifact(path.join(workDirAbs, name), fs);
         if (file === null) continue;
         total += Buffer.byteLength(file.text, 'utf8');
         Object.defineProperty(artifacts, name, { value: file, enumerable: true, writable: true, configurable: true });
       }
+      // 返事のファイルは、形の合う印（reply_wait）がある記録だけで見る。前の実行（archive/）と別の worktree の写しでは見ない（lstat もしない）
+      const replyFile = options.previous === true || options.other === true || record.replyWait === null ? null : await readReplyFile(workDirAbs, fs);
       return {
         workDir: workDirForDisplay,
         stateJson,
         stageLogs: await readStageLogs(path.join(workDirAbs, 'logs'), fs),
         artifacts,
         ...(options.previous === true ? { previous: true } : {}),
+        ...(options.other === true ? { other: true } : {}),
+        ...(replyFile !== null ? { replyFile } : {}),
       };
     },
   };
+}
+
+/**
+ * 返事のファイル（reply.json）が有るかと更新時刻だけを読む（D0079）。lstat を 1 回だけ呼び、中身は読まない。
+ * 通常のファイルだけを「有る」に数える（リンク・フォルダ・無い・読めないは null）。更新時刻が読めなければ { mtimeMs: null }。
+ */
+export async function readReplyFile(dir: string, fs: ReadOnlyFs = nodeReadOnlyFs): Promise<ReplyFileInfo | null> {
+  try {
+    const info = await fs.lstat(path.join(dir, REPLY_FILE_NAME));
+    return info.isFile() ? { mtimeMs: validMtime(info.mtimeMs) } : null;
+  } catch {
+    return null;
+  }
 }

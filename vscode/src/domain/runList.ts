@@ -177,9 +177,14 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
   const record = parseRunRecord(input.stateJson);
   const stageLogs = input.previous ? [] : input.stageLogs;
   // 一覧の行は表（エージェント・スキル・道具）を使わないので、表も呼び出しの取り出しも頼まない（行ごと・約 5 秒ごとの読み直しを重くしない）
-  const view = buildPipelineView({ workDir: '', stateJson: input.stateJson, stageLogs, artifacts: {} }, clock, { tools: false });
+  // 別の worktree の行は、印があってもボタンの対象でないので、そのことを図に伝える（D0079。previous は下で先に done にする）
+  const view = buildPipelineView(
+    { workDir: '', stateJson: input.stateJson, stageLogs, artifacts: {}, ...(input.other ? { other: true } : {}) },
+    clock,
+    { tools: false },
+  );
 
-  // 判定の順は図の帯・ステータスバーと同じ：final → 動いている → 確認待ち → それ以外
+  // 判定の順は図の帯・ステータスバーと同じ：final → 動いている → 確認待ち（pending_review）→ 返事を受け付けている確認待ち（印）→ それ以外
   let state: RunState;
   let stage: string;
   const source = view.terminal.source;
@@ -192,6 +197,9 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
   } else if (view.pendingReview !== null) {
     state = 'waiting';
     stage = view.pendingReview.label;
+  } else if (view.reply != null) {
+    state = 'waiting';
+    stage = view.reply.label;
   } else {
     state = 'idle';
     stage = lastStageLabel(view, record);
@@ -224,7 +232,8 @@ export function summarizeRun(input: SummarizeInput, clock: ViewClock): RunRow {
     updatedDate: updatedText === DASH ? DASH : updatedText.slice(0, 5),
     updatedMs: updated === null ? null : parseInstant(updated, clock.localOffsetMin),
     elapsed: elapsedOf(record, state, clock),
-    waitingSec: waitingNode === undefined ? null : (waitingNode.waitingSec ?? null),
+    waitingSec:
+      state === 'waiting' && view.reply != null ? view.reply.waitingSec : waitingNode === undefined ? null : (waitingNode.waitingSec ?? null),
     // 節を探さず view から取る（節が作られない段名でも、時系列の帯と同じ値になる）
     quietSec: state === 'running' ? (view.quietSec ?? null) : null,
   };

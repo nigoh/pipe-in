@@ -19,3 +19,9 @@ name = "state"
 output = "state.json"
 access = "read"
 prompt = "調べてください"
+
+[[stages]]
+name = "reply"
+output = "reply.json"
+access = "read"
+prompt = "調べてください"

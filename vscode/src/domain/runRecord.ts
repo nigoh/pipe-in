@@ -5,6 +5,7 @@ import { STAGES, isStage, isStageName } from './stage.ts';
 import type { Stage } from './stage.ts';
 import { isSafeToken } from './sessionName.ts';
 import { isTimestampText } from './timestamp.ts';
+import { REPLY_ID_RE, REPLY_STAGE_RE } from './replyFile.ts';
 
 export type ReviewAction = 'approved' | 'revise' | 'quit';
 export type VerdictStatus = 'pass' | 'fail' | 'blocked';
@@ -140,6 +141,15 @@ export interface PendingReview {
   since: string | null;
 }
 
+/** 端末の pipe-in が確認の段で人の入力を待っている間だけ書く印（state.json の reply_wait。D0079）。 */
+export interface ReplyWaitMark {
+  stage: string;
+  /** 待ちごとの識別子（10 文字の小文字の 16 進） */
+  id: string;
+  /** 待ち始めた時刻。読めないときは null（印は有効のまま） */
+  since: string | null;
+}
+
 export interface RunRecord {
   /** セッション名（本体が書く name）。無い・読めない記録では null */
   name: string | null;
@@ -154,6 +164,8 @@ export interface RunRecord {
   /** 段の並び。パイプを持つ前の記録では null */
   stages: StageDef[] | null;
   pendingReview: PendingReview | null;
+  /** 返事を受け付けている確認待ちの印（reply_wait）。無い・形違いは null（D0079） */
+  replyWait: ReplyWaitMark | null;
   warnings: string[];
   updatedAt: string | null;
   stageRuns: StageRun[];
@@ -180,6 +192,7 @@ export const EMPTY_RUN_RECORD: RunRecord = {
   isChat: false,
   stages: null,
   pendingReview: null,
+  replyWait: null,
   warnings: [],
   updatedAt: null,
   stageRuns: [],
@@ -264,6 +277,7 @@ export function parseRunRecord(text: string | null): RunRecord {
   record.updatedAt = strOrNull(data.updated_at);
   record.stages = parseStages(data.stages);
   record.pendingReview = parsePendingReview(data.pending_review);
+  record.replyWait = parseReplyWait(data.reply_wait);
   record.warnings = Array.isArray(data.warnings) ? data.warnings.filter((w): w is string => typeof w === 'string') : [];
   record.hasDriver = Object.hasOwn(data, 'driver') && data.driver !== null;
   record.isChat = data.driver === 'pipe-chat';
@@ -405,6 +419,15 @@ export function isDevRecord(record: RunRecord): boolean {
 function parsePendingReview(value: unknown): PendingReview | null {
   if (!isJsonObject(value) || !isStageName(value.stage) || typeof value.doc !== 'string') return null;
   return { stage: value.stage, doc: value.doc, since: isTimestampText(value.since) ? value.since : null };
+}
+
+/** reply_wait（返事を受け付けている確認待ちの印）を読む。段と識別子の形が合うときだけ有効。since は読めなければ null。 */
+function parseReplyWait(value: unknown): ReplyWaitMark | null {
+  if (!isJsonObject(value)) return null;
+  const { stage, id, since } = value;
+  if (typeof stage !== 'string' || !REPLY_STAGE_RE.test(stage)) return null;
+  if (typeof id !== 'string' || !REPLY_ID_RE.test(id)) return null;
+  return { stage, id, since: isTimestampText(since) ? since : null };
 }
 
 // ---- 使用量（本体 0.2 の metrics・usage_summary） ----------------------------

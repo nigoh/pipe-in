@@ -9,6 +9,7 @@ from typing import Any
 
 from .config import Config, positive_budget
 from .guard import DEFAULT_MAX_AGENT_CALLS
+from .reply import REPLY_FILE
 
 READ_TOOLS = ["Read", "Glob", "Grep"]
 EDIT_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
@@ -57,12 +58,25 @@ def stage_budget_usd(spec: StageSpec, cfg: Config) -> float | None:
 
 
 def protect(specs: dict[str, StageSpec], cfg: Config) -> dict[str, StageSpec]:
-    """protected_paths を、どの段の書き込み範囲からも外す。"""
+    """返事の場所（実行のフォルダの reply.json。D0079）と protected_paths を、どの段の書き込み範囲からも外す。"""
+    reply_rel = f"{cfg.rel(cfg.work_dir)}/{REPLY_FILE}"
+    for spec in specs.values():
+        spec.can_write = _unless_reply(spec.can_write, reply_rel)
     if cfg.protected_paths:
         for spec in specs.values():
             spec.can_write = _unless_protected(spec.can_write, cfg.protected_paths)
             spec.write_scope_hint += f"（{', '.join(cfg.protected_paths)} はどの段も変更できません）"
     return specs
+
+
+def _unless_reply(can_write: Callable[[str], bool], reply_rel: str) -> Callable[[str], bool]:
+    """返事の場所だけを書けなくする。Windows・macOS では REPLY.JSON も同じファイルなので、大文字小文字は区別しない。"""
+    target = reply_rel.casefold()
+
+    def wrapped(rel: str) -> bool:
+        return rel.casefold() != target and can_write(rel)
+
+    return wrapped
 
 
 def _unless_protected(can_write: Callable[[str], bool], globs: list[str]) -> Callable[[str], bool]:

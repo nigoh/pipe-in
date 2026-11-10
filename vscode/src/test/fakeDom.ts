@@ -270,6 +270,11 @@ export class FakeNode {
   get disabled(): boolean {
     return this.attrs.has('disabled');
   }
+  /** 本物の button.disabled = … と同じく、disabled の属性を付け外しする（D0079：返事の「送る」の押せる・押せないをスクリプトが決める） */
+  set disabled(value: boolean) {
+    if (value) this.attrs.set('disabled', '');
+    else this.attrs.delete('disabled');
+  }
 
   get classList() {
     const node = this;

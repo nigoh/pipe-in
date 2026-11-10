@@ -14,6 +14,7 @@ import { refreshView } from '../src/app/refreshView.ts';
 import { chooseEntry, isPreviousRun, loadRunList, toListView } from '../src/app/runList.ts';
 import { DEFAULT_STALE_AFTER_MINUTES } from '../src/app/staleness.ts';
 import type { PipelineView, ViewClock } from '../src/domain/pipelineView.ts';
+import { REPLY_FILE_NAME, buildReplyText } from '../src/domain/replyFile.ts';
 import { parseRunRecord } from '../src/domain/runRecord.ts';
 import type { RunListView } from '../src/domain/runList.ts';
 import { HERE, makeRunKey } from '../src/domain/runs.ts';
@@ -26,6 +27,7 @@ import { checkStateJson } from './checkSamples.ts';
 import type { CheckSampleKind } from './checkSamples.ts';
 import { GROUP_BASE_AT, groupLogs, groupStateJson } from './groupSamples.ts';
 import type { GroupSampleKind } from './groupSamples.ts';
+import { REPLY_NEXT_ID, REPLY_NEXT_SINCE, REPLY_NOW_SEC, REPLY_SAMPLES, REPLY_SINCE, REPLY_ID } from './replySamples.ts';
 import { PIPE_STAGES, hostileSample, implementationSample, longDesignSample, pipeMemoSample, pipeSummarySample } from './artifactSamples.ts';
 import { bareRecordSample, freshSample, sdkSample, skillRecordSample } from './toolsSamples.ts';
 import type { SampleRun, ToolsVariant } from './toolsSamples.ts';
@@ -37,8 +39,8 @@ const NONCE = 'preview';
 // VSCode のテーマの色の仮の値（Dark Modern・Light Modern に近いもの）。作業台とパネルが使う色をすべて決める
 const COMMON = '--vscode-font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;--vscode-font-size:13px;--vscode-editor-font-family:Consolas,"SF Mono",monospace;--vscode-button-foreground:#ffffff;--vscode-button-background:#0078d4;--vscode-button-hoverBackground:#026ec1;--vscode-focusBorder:#0078d4;';
 export const THEMES: Record<Theme, string> = {
-  dark: COMMON + '--vscode-editor-background:#1f1f1f;--vscode-foreground:#cccccc;--vscode-descriptionForeground:#9d9d9d;--vscode-editorWidget-background:#202020;--vscode-panel-border:#2b2b2b;--vscode-editorIndentGuide-background:#404040;--vscode-charts-blue:#3794ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#f14c4c;--vscode-charts-green:#89d185;--vscode-charts-purple:#b180d7;--vscode-charts-yellow:#cca700;--vscode-editor-selectionBackground:#264f78;--vscode-button-secondaryBackground:#313131;--vscode-button-secondaryForeground:#cccccc;--vscode-button-secondaryHoverBackground:#3c3c3c;--vscode-input-background:#313131;--vscode-input-foreground:#cccccc;--vscode-notifications-background:#1f1f1f;--vscode-notifications-foreground:#cccccc;--vscode-textCodeBlock-background:#2b2b2b;--vscode-list-hoverBackground:#2a2d2e;--vscode-dropdown-background:#313131;--vscode-dropdown-foreground:#cccccc;--vscode-inputValidation-errorBackground:#5a1d1d;--vscode-errorForeground:#f85149;--vscode-terminal-background:#181818;--vscode-terminal-foreground:#cccccc;--vscode-textLink-foreground:#4daafc;--vscode-list-activeSelectionBackground:#04395e;--vscode-list-activeSelectionForeground:#ffffff;--vscode-inputValidation-warningBackground:#352a05;',
-  light: COMMON + '--vscode-editor-background:#ffffff;--vscode-foreground:#3b3b3b;--vscode-descriptionForeground:#717171;--vscode-editorWidget-background:#f8f8f8;--vscode-panel-border:#e5e5e5;--vscode-editorIndentGuide-background:#d3d3d3;--vscode-charts-blue:#1a85ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#e51400;--vscode-charts-green:#388a34;--vscode-charts-purple:#652d90;--vscode-charts-yellow:#bf8803;--vscode-editor-selectionBackground:#add6ff;--vscode-button-secondaryBackground:#e5e5e5;--vscode-button-secondaryForeground:#3b3b3b;--vscode-button-secondaryHoverBackground:#cccccc;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-notifications-background:#ffffff;--vscode-notifications-foreground:#3b3b3b;--vscode-textCodeBlock-background:#f2f2f2;--vscode-list-hoverBackground:#f2f2f2;--vscode-dropdown-background:#ffffff;--vscode-dropdown-foreground:#3b3b3b;--vscode-inputValidation-errorBackground:#f2dede;--vscode-errorForeground:#e51400;--vscode-terminal-background:#f8f8f8;--vscode-terminal-foreground:#3b3b3b;--vscode-textLink-foreground:#005fb8;--vscode-list-activeSelectionBackground:#e8e8e8;--vscode-list-activeSelectionForeground:#000000;--vscode-inputValidation-warningBackground:#f6f0d4;',
+  dark: COMMON + '--vscode-editor-background:#1f1f1f;--vscode-foreground:#cccccc;--vscode-descriptionForeground:#9d9d9d;--vscode-editorWidget-background:#202020;--vscode-panel-border:#2b2b2b;--vscode-editorIndentGuide-background:#404040;--vscode-charts-blue:#3794ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#f14c4c;--vscode-charts-green:#89d185;--vscode-charts-purple:#b180d7;--vscode-charts-yellow:#cca700;--vscode-editor-selectionBackground:#264f78;--vscode-button-secondaryBackground:#313131;--vscode-button-secondaryForeground:#cccccc;--vscode-button-secondaryHoverBackground:#3c3c3c;--vscode-input-background:#313131;--vscode-input-foreground:#cccccc;--vscode-input-border:#3c3c3c;--vscode-notifications-background:#1f1f1f;--vscode-notifications-foreground:#cccccc;--vscode-textCodeBlock-background:#2b2b2b;--vscode-list-hoverBackground:#2a2d2e;--vscode-dropdown-background:#313131;--vscode-dropdown-foreground:#cccccc;--vscode-inputValidation-errorBackground:#5a1d1d;--vscode-errorForeground:#f85149;--vscode-terminal-background:#181818;--vscode-terminal-foreground:#cccccc;--vscode-textLink-foreground:#4daafc;--vscode-list-activeSelectionBackground:#04395e;--vscode-list-activeSelectionForeground:#ffffff;--vscode-inputValidation-warningBackground:#352a05;',
+  light: COMMON + '--vscode-editor-background:#ffffff;--vscode-foreground:#3b3b3b;--vscode-descriptionForeground:#717171;--vscode-editorWidget-background:#f8f8f8;--vscode-panel-border:#e5e5e5;--vscode-editorIndentGuide-background:#d3d3d3;--vscode-charts-blue:#1a85ff;--vscode-charts-orange:#d18616;--vscode-charts-red:#e51400;--vscode-charts-green:#388a34;--vscode-charts-purple:#652d90;--vscode-charts-yellow:#bf8803;--vscode-editor-selectionBackground:#add6ff;--vscode-button-secondaryBackground:#e5e5e5;--vscode-button-secondaryForeground:#3b3b3b;--vscode-button-secondaryHoverBackground:#cccccc;--vscode-input-background:#ffffff;--vscode-input-foreground:#3b3b3b;--vscode-input-border:#cecece;--vscode-notifications-background:#ffffff;--vscode-notifications-foreground:#3b3b3b;--vscode-textCodeBlock-background:#f2f2f2;--vscode-list-hoverBackground:#f2f2f2;--vscode-dropdown-background:#ffffff;--vscode-dropdown-foreground:#3b3b3b;--vscode-inputValidation-errorBackground:#f2dede;--vscode-errorForeground:#e51400;--vscode-terminal-background:#f8f8f8;--vscode-terminal-foreground:#3b3b3b;--vscode-textLink-foreground:#005fb8;--vscode-list-activeSelectionBackground:#e8e8e8;--vscode-list-activeSelectionForeground:#000000;--vscode-inputValidation-warningBackground:#f6f0d4;',
 };
 
 /** 画面用の見本の記録の置き場所（<リポジトリ>/tests/fixtures/showcase）。 */
@@ -57,9 +59,10 @@ export const WAITING_DIR = path.join(FIXTURES_DIR, 'showcase_waiting');
  * 更新なしの印の見本（stale）・目安の数秒手前から印が付く見本（stale-soon。更新後の本体を送る補助つき）、
  * 「成果物」タブの見本（artifacts。実行の一覧つき。更新後の本体を送る補助と、送ったメッセージを貯める window.__posted つき）、
  * 「エージェント・スキル」タブの見本（tools。同じく実行の一覧つき。実行は 4 つ）。
- * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）。
+ * 上限と費用の表の見本（budget。10 段のパイプの記録を一時フォルダに書いて読む）、
+ * 返事を受け付けている確認待ちの見本（reply。承認・修正を依頼・中止のボタン。実行の一覧つき。描き直しを送る補助 window.__previewReply つき）。
  */
-export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check' | 'group' | 'chat';
+export type PanelKind = 'done' | 'running' | 'waiting' | 'runs' | 'runs-omitted' | 'stale' | 'stale-soon' | 'artifacts' | 'tools' | 'budget' | 'check' | 'group' | 'chat' | 'reply';
 
 /** パネルのページ（ファイル名の頭とテーマ）。 */
 export const PANEL_PAGES: readonly [string, Theme][] = [
@@ -95,6 +98,8 @@ export const PANEL_PAGES: readonly [string, Theme][] = [
   ['run-panel-group-old-dark', 'dark'],
   ['run-panel-chat-light', 'light'],
   ['run-panel-chat-dark', 'dark'],
+  ['run-panel-reply-runs-light', 'light'],
+  ['run-panel-reply-runs-dark', 'dark'],
 ];
 
 /** 並列の枠の見本のページ（run-panel-group-<種類>-<テーマ>）の種類。ほかのページなら null。 */
@@ -111,6 +116,8 @@ export function checkSampleKind(page: string): CheckSampleKind | null {
 
 /** ページの名前から、どの見本のページかを決める。 */
 export function panelKind(page: string): PanelKind {
+  // -reply- は -runs- より先に見る（run-panel-reply-runs-* は実行の一覧つきの返事の見本）
+  if (page.includes('-reply-')) return 'reply';
   if (page.includes('-tools-')) return 'tools';
   if (page.includes('-budget-')) return 'budget';
   if (page.includes('-chat-')) return 'chat';
@@ -313,6 +320,112 @@ export async function buildChatDir(dest: string): Promise<string> {
 export async function chatPageHtml(dest: string, theme: Theme): Promise<string> {
   const view = await readShowcaseView(await buildChatDir(dest));
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
+}
+
+// ---- 返事を受け付けている確認待ちの見本（D0079）---------------------------------------------
+// 確認待ちの見本（tests/fixtures/showcase_waiting）を一時フォルダ（dest）の中に写し、行ごとの差し分け（replySamples.ts）を当てて、置き場所の木を作る。
+// tests/fixtures/ には何も足さない・書かない。描き直しと送ったあとの補助 window.__previewReply(name) は、同じ木の少しだけ違う版から本体を作って埋める。
+
+/** 見本の木の版：base（最初の待ち）・other（次の待ち）・sent（返事のファイルが 29 秒前）・stalled（30 秒前）・gone（承認されて次の段が動いている） */
+type ReplyVariant = 'base' | 'other' | 'sent' | 'stalled' | 'gone';
+
+/** 次の段（設計）が動いている見本のログ（承認のあと）。Prompt の時刻は、最初の待ちを始めてから 15 秒後。 */
+const REPLY_GONE_LOG =
+  `${JSON.stringify({ _type: 'Prompt', stage: 'design', resume: null, prompt: '要件定義書を読み、設計書を書いてください。', at: '2026-10-17T10:02:30+00:00' })}\n` +
+  `${JSON.stringify({ content: [{ text: '要件定義書を読みます。' }], model: 'claude-opus-5-5', parent_tool_use_id: null, _type: 'AssistantMessage' })}\n`;
+
+/** 直下の開発フローの記録を、版に合わせて少しだけ書き換える（base は何もしない）。 */
+async function tuneReplyHere(here: string, variant: ReplyVariant, nowMs: number): Promise<void> {
+  if (variant === 'base') return;
+  const file = path.join(here, 'state.json');
+  const state = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
+  const runs = Array.isArray(state.runs) ? [...(state.runs as Record<string, unknown>[])] : [];
+  if (variant === 'other') {
+    // 修正の依頼のあと、同じ段の 2 回目の確認待ち（識別子が替わる）
+    runs.push({ stage: 'requirements', review: 'revise', feedback: '見出しの付け方を直してください' });
+    if (runs[0] !== undefined) runs.push({ ...runs[0], seq: 2, attempt: 2, note: '指摘を反映' });
+    state.runs = runs;
+    state.reply_wait = { stage: 'requirements', id: REPLY_NEXT_ID, since: REPLY_NEXT_SINCE };
+  } else if (variant === 'gone') {
+    // 承認されて、印が消え、設計の段が動いている
+    runs.push({ stage: 'requirements', review: 'approved' });
+    state.runs = runs;
+    delete state.reply_wait;
+  }
+  await writeFile(file, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  if (variant === 'gone') {
+    await mkdir(path.join(here, 'logs'), { recursive: true });
+    await writeFile(path.join(here, 'logs', '02_design.jsonl'), REPLY_GONE_LOG, 'utf8');
+    await setLogTimes(here, nowMs);
+  }
+  if (variant === 'sent' || variant === 'stalled') {
+    const text = buildReplyText({ action: 'approve', stage: 'requirements', id: REPLY_ID });
+    if (!text.ok) throw new Error('見本の返事を作れません');
+    const reply = path.join(here, REPLY_FILE_NAME);
+    await writeFile(reply, text.text, 'utf8');
+    const at = new Date(Math.floor((nowMs - (variant === 'sent' ? 29 : 30) * 1000) / 1000) * 1000);
+    await utimes(reply, at, at);
+  }
+}
+
+async function buildReplyTreeFor(dest: string, variant: ReplyVariant): Promise<{ workspace: string }> {
+  const workspace = path.join(dest, 'main');
+  const here = path.join(workspace, 'docs', 'pipeline');
+  await writeMainGit(workspace);
+  const nowMs = Date.parse(REPLY_SINCE) + REPLY_NOW_SEC * 1000;
+  const updatedAt = Date.parse(`${WAITING_UPDATED_AT}Z`);
+  // 直下の開発フローを先に写す（ほかの実行のフォルダはその中に作る）
+  for (const sample of REPLY_SAMPLES) {
+    const dir = sample.worktree === undefined ? path.join(here, sample.folder) : path.join(await writeWorktree(dest, sample.worktree.name, sample.worktree.branch), sample.folder);
+    await copyRun(WAITING_DIR, dir, { shiftMs: sample.shiftMs, name: sample.sessionName, sessionId: sample.sessionId, patch: sample.patch });
+    if (sample.files !== undefined) {
+      await writeFiles(dir, sample.files);
+      await setArtifactTimes(dir, updatedAt + sample.shiftMs);
+    }
+  }
+  await tuneReplyHere(here, variant, nowMs);
+  return { workspace };
+}
+
+/** 確認待ちの見本の記録の updated_at（時刻のずれなしの書き方）。ほかの行の時刻のずらしの基準 */
+const WAITING_UPDATED_AT = '2026-10-17T10:03:00';
+
+/** 返事を受け付けている確認待ちの見本の木を dest の中に作る。 */
+export async function buildReplyTree(dest: string): Promise<{ workspace: string }> {
+  return buildReplyTreeFor(dest, 'base');
+}
+
+/** window.__previewReply(name) の script：name の本体を render のメッセージで送る。< は < にして、</script> などでページが切れないようにする。 */
+function previewReplyScript(bodies: Readonly<Record<string, string>>): string {
+  const json = JSON.stringify(bodies).replace(/</g, '\\u003c');
+  return (
+    `\n<script nonce="${NONCE}">window.__previewReply=(function(){const B=${json};` +
+    "return function(name){const html=B[name];if(typeof html!=='string')return false;window.postMessage({type:'render',html:html},'*');return true;};})();</script>"
+  );
+}
+
+/**
+ * 返事を受け付けている確認待ちの確認用ページ。木を dest の中に組み立て、本番と同じ読み取りで読み、実行の一覧のページにする。
+ * 初めに見るのは直下の開発フロー（最初の待ち）。window.__previewReply(name)：same（同じ識別子の描き直し・待ち秒だけ進む）・other（次の待ち）・
+ * sent（返事のファイルが有る・29 秒前）・stalled（30 秒前）・gone（印が消えて次の段が動いている）。window.__posted にパネルが送った知らせのオブジェクトが貯まる。
+ */
+export async function replyPageHtml(dest: string, theme: Theme): Promise<string> {
+  const devKey = makeRunKey(HERE, '');
+  const bodyOf = (entries: readonly RunsPreviewEntry[]): string => {
+    const entry = entries.find((e) => e.key === devKey);
+    if (entry === undefined) throw new Error('見本に開発フローの行がありません');
+    return renderViewBody(entry.view, entry.listView, STALE_AFTER_SEC);
+  };
+  const clockAt = (sec: number): ViewClock => previewClock(REPLY_SINCE, sec);
+  const base = await buildReplyTreeFor(path.join(dest, 'base'), 'base');
+  const entries = await readRunsView(base.workspace, clockAt(REPLY_NOW_SEC));
+  const bodies: Record<string, string> = { same: bodyOf(await readRunsView(base.workspace, clockAt(REPLY_NOW_SEC + 5))) };
+  for (const variant of ['other', 'sent', 'stalled', 'gone'] as const) {
+    const tree = await buildReplyTreeFor(path.join(dest, variant), variant);
+    bodies[variant] = bodyOf(await readRunsView(tree.workspace, clockAt(REPLY_NOW_SEC)));
+  }
+  const page = panelRunsPreviewHtml(entries, theme, { staleAfterSec: STALE_AFTER_SEC, recordFull: true });
+  return page.replace('</body>', () => `${previewReplyScript(bodies)}\n</body>`);
 }
 
 // ---- 並列の枠の見本（D0063）-------------------------------------------------------------------
@@ -578,7 +691,11 @@ export async function readRunsView(workspace: string, clock: ViewClock, options:
   const chosen = chooseEntry(list, options.selected ?? null, { key: HERE, label: null, workDirAbs });
   const entries: RunsPreviewEntry[] = [];
   for (const entry of list.entries) {
-    const source = createFsWorkDirSource(entry.dirAbs, 'docs/pipeline', { previous: isPreviousRun(list, entry.row.key) });
+    // 別の worktree の行は返事のボタンの対象外なので、本番の入口と同じく other を伝える（D0079）
+    const source = createFsWorkDirSource(entry.dirAbs, 'docs/pipeline', {
+      previous: isPreviousRun(list, entry.row.key),
+      other: !entry.row.key.startsWith(`${HERE}|`),
+    });
     const view = await refreshView(source, 'docs/pipeline', clock);
     entries.push({ key: entry.row.key, view, listView: toListView(list, entry.row.key, 'docs/pipeline'), selected: entry.row.key === chosen.key });
   }
@@ -597,10 +714,12 @@ export async function readRunsView(workspace: string, clock: ViewClock, options:
 export function panelRunsPreviewHtml(
   entries: readonly RunsPreviewEntry[],
   theme: Theme,
-  options: { staleAfterSec?: number | null; next?: RunsPreviewEntry; recordPosted?: boolean } = {},
+  options: { staleAfterSec?: number | null; next?: RunsPreviewEntry; recordPosted?: boolean; recordFull?: boolean } = {},
 ): string {
   const staleAfterSec = options.staleAfterSec ?? null;
   const record = options.recordPosted === true;
+  // recordFull が true のときは、送られた知らせのオブジェクトをそのまま window.__posted に貯める（返事の知らせの動作・直してほしい点まで見る。D0079）
+  const full = options.recordFull === true;
   const initial = entries.find((e) => e.selected) ?? entries[0];
   if (initial === undefined) throw new Error('一覧の見本の行がありません');
   const bodies: Record<string, string> = {};
@@ -608,8 +727,8 @@ export function panelRunsPreviewHtml(
   // 本体の HTML を文字として埋める。< は < にして、</script> などでページが切れないようにする
   const json = JSON.stringify(bodies).replace(/</g, '\\u003c');
   const stub =
-    `<script nonce="${NONCE}">window.acquireVsCodeApi=(()=>{const BODIES=${json};${record ? 'window.__posted=[];' : ''}` +
-    `return()=>({postMessage(m){${record ? "if(m&&typeof m.type==='string')window.__posted.push(m.type);" : ''}` +
+    `<script nonce="${NONCE}">window.acquireVsCodeApi=(()=>{const BODIES=${json};${record || full ? 'window.__posted=[];' : ''}` +
+    `return()=>({postMessage(m){${full ? "if(m&&typeof m==='object')window.__posted.push(m);" : record ? "if(m&&typeof m.type==='string')window.__posted.push(m.type);" : ''}` +
     `if(m&&m.type==='selectRun'&&typeof BODIES[m.id]==='string')window.postMessage({type:'render',html:BODIES[m.id]},'*')}})})();</script>`;
   // 関数で置き換える（埋める文字に本体の HTML が入る。$ を置き換えの特別な書き方と取り違えない）
   const page = withTheme(renderPanelHtml(initial.view, NONCE, initial.listView, staleAfterSec), theme).replace('<body>', () => `<body>\n${stub}`);

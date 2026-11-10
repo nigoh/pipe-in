@@ -100,6 +100,14 @@ function viewLabel(view: PipelineView): StatusBarLabel {
       tooltip: `${NAME}：${label}の確認を待っている（${doc}）・${cost}\n${CLICK}`,
     };
   }
+  // 返事を受け付けている確認待ち（印だけの実行。D0079）：一覧の行の「確認待ち」と食い違わないようにする
+  if (view.reply != null) {
+    const { label, doc } = view.reply;
+    return {
+      text: `$(${ICONS.waiting}) ${NAME}: ${label}の確認待ち`,
+      tooltip: `${NAME}：${label}の確認を待っている${doc === '' ? '' : `（${doc}）`}・${cost}\n${CLICK}`,
+    };
+  }
   if (view.waiting) {
     return { text: `$(${ICONS.idle}) ${NAME}: 待ち`, tooltip: `${NAME}：${WAITING_MESSAGE}・${cost}\n${CLICK}` };
   }

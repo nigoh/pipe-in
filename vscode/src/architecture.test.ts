@@ -274,10 +274,13 @@ test('D0065-AC-22: app/externalReload.ts は node:fs を読まない。app の 2
   assert.deepEqual(specs('view/externalHtml.ts').filter((s) => /^\.\.\/(?:app|infra)\b/.test(s) || s === 'vscode'), []);
 });
 
-test('D0065-AC-22: 拡張の書き込み先は増えない（infra/ で書く関数を持つのは fsPipes.ts・fsVersions.ts だけ。新しい部品は fs を使わない）（今のまま通る。守る）', () => {
+// D0079 で直した：返事のファイル（reply.json）だけを書く口 infra/fsReplies.ts が増えるので、書く関数を持つ infra/ のファイルを 2 つから 3 つにした（D0079-AC-57）。
+// ほかの新しい部品は fs を使わない決まりのまま。この口が vscode・child_process・時計・乱数を読み込まないことは architectureReply.test.ts が見る。
+test('D0065-AC-22: 拡張の書き込み先は増えない（infra/ で書く関数を持つのは fsPipes.ts・fsVersions.ts・fsReplies.ts の 3 つだけ。新しい部品は fs を使わない）', () => {
   const writers = listTsFiles(path.join(SRC, 'infra')).filter((f) => !f.endsWith('.test.ts') && /\b(?:writeFile|appendFile|mkdir|rm|unlink|rename|copyFile)\b/.test(withoutComments(readFileSync(f, 'utf8')))).map(relOf).sort();
-  assert.ok(writers.includes('infra/fsPipes.ts') && writers.includes('infra/fsVersions.ts'), `書く口が見つかっている：${writers.join(',')}`);
-  assert.deepEqual(writers.filter((w) => w !== 'infra/fsPipes.ts' && w !== 'infra/fsVersions.ts'), []);
+  const allowed = ['infra/fsPipes.ts', 'infra/fsReplies.ts', 'infra/fsVersions.ts'];
+  assert.ok(allowed.every((w) => writers.includes(w)), `書く口が見つかっている：${writers.join(',')}`);
+  assert.deepEqual(writers.filter((w) => !allowed.includes(w)), []);
 });
 
 // ---- D0050：エージェント・スキル・道具の表の部品（domain/toolsTable.ts・view/toolsHtml.ts）の構造 ----

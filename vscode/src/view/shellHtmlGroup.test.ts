@@ -263,11 +263,11 @@ test('D0063-AC-12: 選んでいる間に新しい出力で描き直されても�
   assert.match(text, /flow 新しい出力/);
 });
 
-test('D0063-AC-12: パネルのスクリプトは段のログの選びを変数で持ち（data-logpick・pickedLog）、拡張へ送るメッセージは今までの 3 種類のまま', () => {
+test('D0063-AC-12: パネルのスクリプトは段のログの選びを変数で持ち（data-logpick・pickedLog）、拡張へ送るメッセージは 4 種類（ready・openArtifact・selectRun と、D0079 で足した reply）', () => {
   assert.match(PANEL_SCRIPT, /data-logpick/, 'スクリプトが data-logpick を扱う（まだ作っていない）');
   assert.match(PANEL_SCRIPT, /\bpickedLog\b/, 'pickedLog の変数（まだ作っていない）');
   const types = [...PANEL_SCRIPT.matchAll(/postMessage\(\{\s*type:\s*'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(types)].sort(), ['openArtifact', 'ready', 'selectRun']);
+  assert.deepEqual([...new Set(types)].sort(), ['openArtifact', 'ready', 'reply', 'selectRun']);
 });
 
 test('D0063-AC-12: パネルのスクリプトは保存の道（workspaceState・getState・setState・localStorage など）を使わない。今のまま通る。守る', () => {
