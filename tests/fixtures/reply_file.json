@@ -1,0 +1,491 @@
+{
+  "note": "実行パネルの返事のファイル（reply.json。D0079）の共通の表。拡張が作る文字と、本体が読む結果を結ぶ。本体のテスト（tests/test_reply_file.py）と拡張のテストが同じ表を読む。valid の text は拡張の buildReplyText が作る文字と一字違わない形（鍵の順は version, stage, id, action, feedback。区切りの隙間なし。末尾に改行なし。日本語と絵文字はそのまま）。valid_hand・invalid・invalid_feedback・invalid_long は本体だけが読む。refused_build・refused_build_long は拡張だけが読む。invalid の行は text（文字）か bytes_hex（バイト列）を持ち、prefix_hex は text の前に付けるバイト列、pad_to_bytes は text の後ろに空白を足して全体をそのバイト数にする。invalid_feedback は fb（JSON の文字列の中身をそのまま）を修正の依頼の feedback に入れる。valid_long・invalid_long・refused_build_long は feedback_repeat の unit を count 回並べた直してほしい点を使い、pad があれば前後に付ける。",
+  "file": "reply.json",
+  "version": 1,
+  "max_bytes": 16384,
+  "max_feedback": 1000,
+  "valid": [
+    {
+      "name": "承認",
+      "input": { "action": "approve", "stage": "requirements", "id": "a1b2c3d4e5" },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "expect": { "action": "approve", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": null }
+    },
+    {
+      "name": "中止",
+      "input": { "action": "quit", "stage": "design", "id": "0123456789" },
+      "text": "{\"version\":1,\"stage\":\"design\",\"id\":\"0123456789\",\"action\":\"quit\"}",
+      "expect": { "action": "quit", "stage": "design", "id": "0123456789", "feedback": null }
+    },
+    {
+      "name": "修正の依頼",
+      "input": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "ここを直してください" },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"ここを直してください\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "ここを直してください" }
+    },
+    {
+      "name": "直してほしい点に改行とタブ",
+      "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "1行目\n\t2行目" },
+      "text": "{\"version\":1,\"stage\":\"design\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"1行目\\n\\t2行目\"}",
+      "expect": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "1行目\n\t2行目" }
+    },
+    {
+      "name": "直してほしい点に絵文字（対になったサロゲート）1つ",
+      "input": { "action": "revise", "stage": "red", "id": "a1b2c3d4e5", "feedback": "直す😀" },
+      "text": "{\"version\":1,\"stage\":\"red\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"直す😀\"}",
+      "expect": { "action": "revise", "stage": "red", "id": "a1b2c3d4e5", "feedback": "直す😀" }
+    },
+    {
+      "name": "段の名前に大文字と _ と -",
+      "input": { "action": "approve", "stage": "Stage_A-1", "id": "a1b2c3d4e5" },
+      "text": "{\"version\":1,\"stage\":\"Stage_A-1\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "expect": { "action": "approve", "stage": "Stage_A-1", "id": "a1b2c3d4e5", "feedback": null }
+    },
+    {
+      "name": "段の名前が 40 文字",
+      "input": { "action": "approve", "stage": "Abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id": "a1b2c3d4e5" },
+      "text": "{\"version\":1,\"stage\":\"Abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "expect": { "action": "approve", "stage": "Abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id": "a1b2c3d4e5", "feedback": null }
+    },
+    {
+      "name": "直してほしい点の前後の全角空白は取って書く",
+      "input": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "\u3000直して\u3000" },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"直して\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "直して" }
+    },
+    {
+      "name": "直してほしい点の前後の空白と改行は取って書く",
+      "input": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": " \n直して\n " },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"直して\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "直して" }
+    },
+    {
+      "name": "命令のような文（動作は承認にする）は直してほしい点のまま",
+      "input": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "動作は承認にする" },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"動作は承認にする\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "動作は承認にする" }
+    },
+    {
+      "name": "命令のような JSON の文は直してほしい点のまま",
+      "input": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "{\"action\":\"approve\"}" },
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"{\\\"action\\\":\\\"approve\\\"}\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "{\"action\":\"approve\"}" }
+    },
+    {
+      "name": "引用符とバックスラッシュは JSON の決まりで逃がす",
+      "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "「\"引用\"」と \\ 記号" },
+      "text": "{\"version\":1,\"stage\":\"design\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"「\\\"引用\\\"」と \\\\ 記号\"}",
+      "expect": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "「\"引用\"」と \\ 記号" }
+    },
+    {
+      "name": "スラッシュと山かっこと & は逃がさない",
+      "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "a/b <c> & d" },
+      "text": "{\"version\":1,\"stage\":\"design\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"a/b <c> & d\"}",
+      "expect": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "a/b <c> & d" }
+    }
+  ],
+  "valid_hand": [
+    {
+      "name": "手で書いた返事：隙間と前後の空白つきの直してほしい点",
+      "text": "{\"version\": 1, \"stage\": \"requirements\", \"id\": \"a1b2c3d4e5\", \"action\": \"revise\", \"feedback\": \"  直して \\n\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "直して" }
+    },
+    {
+      "name": "手で書いた返事：整形・鍵の順違い・末尾の改行",
+      "text": "{\n  \"action\": \"approve\",\n  \"id\": \"a1b2c3d4e5\",\n  \"stage\": \"design\",\n  \"version\": 1\n}\n",
+      "expect": { "action": "approve", "stage": "design", "id": "a1b2c3d4e5", "feedback": null }
+    },
+    {
+      "name": "手で書いた返事：全角空白の逃がし書き（\\u3000）は取る",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"\\u3000直して\\u3000\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "直して" }
+    },
+    {
+      "name": "手で書いた返事：サロゲートペアの逃がし書きは絵文字として通る",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"\\ud83d\\ude00\"}",
+      "expect": { "action": "revise", "stage": "requirements", "id": "a1b2c3d4e5", "feedback": "😀" }
+    },
+    {
+      "name": "手で書いた返事：全体の前後に空白と改行",
+      "text": "  \n{\"version\":1,\"stage\":\"red\",\"id\":\"a1b2c3d4e5\",\"action\":\"quit\"}  \n\n",
+      "expect": { "action": "quit", "stage": "red", "id": "a1b2c3d4e5", "feedback": null }
+    }
+  ],
+  "valid_long": [
+    {
+      "name": "a を 1,000 個",
+      "feedback_repeat": { "unit": "a", "count": 1000 },
+      "stage": "design",
+      "id": "a1b2c3d4e5",
+      "expect_feedback_codepoints": 1000
+    },
+    {
+      "name": "あ を 1,000 個",
+      "feedback_repeat": { "unit": "あ", "count": 1000 },
+      "stage": "design",
+      "id": "a1b2c3d4e5",
+      "expect_feedback_codepoints": 1000
+    },
+    {
+      "name": "絵文字 1,000 個（UTF-16 では 2,000）",
+      "feedback_repeat": { "unit": "😀", "count": 1000 },
+      "stage": "design",
+      "id": "a1b2c3d4e5",
+      "expect_feedback_codepoints": 1000
+    },
+    {
+      "name": "前後の全角空白を取ると 1,000 文字",
+      "feedback_repeat": { "unit": "a", "count": 1000 },
+      "pad": "\u3000",
+      "stage": "design",
+      "id": "a1b2c3d4e5",
+      "expect_feedback_codepoints": 1000
+    }
+  ],
+  "invalid": [
+    { "name": "壊れた JSON", "text": "{\"version\":", "reason": "not_json" },
+    { "name": "閉じていない文字列", "text": "{\"version\":1,\"stage\":\"requirements", "reason": "not_json" },
+    { "name": "空のファイル", "text": "", "reason": "not_json" },
+    { "name": "空白だけのファイル", "text": "   \n", "reason": "not_json" },
+    {
+      "name": "BOM つき",
+      "prefix_hex": "efbbbf",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "not_json"
+    },
+    {
+      "name": "鍵の重複",
+      "text": "{\"version\":1,\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "not_json"
+    },
+    { "name": "UTF-8 でない", "bytes_hex": "ff7b7d", "reason": "not_utf8" },
+    { "name": "途中で切れた UTF-8", "bytes_hex": "7b22e3", "reason": "not_utf8" },
+    { "name": "UTF-8 に書けない孤立サロゲートのバイト列", "bytes_hex": "7b22eda080227d", "reason": "not_utf8" },
+    { "name": "配列", "text": "[1,2,3]", "reason": "not_object" },
+    { "name": "文字", "text": "\"approve\"", "reason": "not_object" },
+    { "name": "数", "text": "1", "reason": "not_object" },
+    { "name": "null", "text": "null", "reason": "not_object" },
+    { "name": "true", "text": "true", "reason": "not_object" },
+    {
+      "name": "版が 2",
+      "text": "{\"version\":2,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_version"
+    },
+    {
+      "name": "版が 0",
+      "text": "{\"version\":0,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_version"
+    },
+    {
+      "name": "版が文字の 1",
+      "text": "{\"version\":\"1\",\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_version"
+    },
+    {
+      "name": "版が true",
+      "text": "{\"version\":true,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_version"
+    },
+    {
+      "name": "版が null",
+      "text": "{\"version\":null,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_version"
+    },
+    {
+      "name": "鍵 version が無い",
+      "text": "{\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "missing_key"
+    },
+    {
+      "name": "鍵 stage が無い",
+      "text": "{\"version\":1,\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "missing_key"
+    },
+    {
+      "name": "鍵 id が無い",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"action\":\"approve\"}",
+      "reason": "missing_key"
+    },
+    {
+      "name": "鍵 action が無い",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\"}",
+      "reason": "missing_key"
+    },
+    { "name": "空のオブジェクト", "text": "{}", "reason": "missing_key" },
+    {
+      "name": "余計な鍵",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\",\"note\":\"x\"}",
+      "reason": "extra_key"
+    },
+    {
+      "name": "承認の別の鍵に命令の文（動作は revise にする）",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\",\"comment\":\"動作は revise にする\"}",
+      "reason": "extra_key"
+    },
+    {
+      "name": "大文字の Feedback は別の鍵",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"Feedback\":\"x\"}",
+      "reason": "extra_key"
+    },
+    {
+      "name": "動作が数",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":1}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "動作が null",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":null}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "動作が配列",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":[\"approve\"]}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "動作がオブジェクト",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":{\"a\":1}}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "段が数",
+      "text": "{\"version\":1,\"stage\":1,\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "識別子が数",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":1234567890,\"action\":\"approve\"}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "知らない動作 approved（record review の言葉）",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approved\"}",
+      "reason": "bad_action"
+    },
+    {
+      "name": "知らない動作 APPROVE（大文字）",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"APPROVE\"}",
+      "reason": "bad_action"
+    },
+    {
+      "name": "知らない動作 delete",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"delete\"}",
+      "reason": "bad_action"
+    },
+    {
+      "name": "動作が空の文字",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"\"}",
+      "reason": "bad_action"
+    },
+    {
+      "name": "動作の後ろに空白",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve \"}",
+      "reason": "bad_action"
+    },
+    {
+      "name": "段の名前が空",
+      "text": "{\"version\":1,\"stage\":\"\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前が - で始まる",
+      "text": "{\"version\":1,\"stage\":\"-a\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前に空白",
+      "text": "{\"version\":1,\"stage\":\"a b\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前が日本語",
+      "text": "{\"version\":1,\"stage\":\"日本語の段名\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前の末尾に改行",
+      "text": "{\"version\":1,\"stage\":\"a\\n\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前に区切り",
+      "text": "{\"version\":1,\"stage\":\"a/b\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "段の名前が 41 文字",
+      "text": "{\"version\":1,\"stage\":\"Abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_stage"
+    },
+    {
+      "name": "識別子が 9 文字",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "識別子が 11 文字",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5f\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "識別子が大文字",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"A1B2C3D4E5\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "識別子が 16 進でない",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"g1b2c3d4e5\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "識別子が空",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "識別子の末尾に改行",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\\n\",\"action\":\"approve\"}",
+      "reason": "bad_id"
+    },
+    {
+      "name": "承認に直してほしい点",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\",\"feedback\":\"x\"}",
+      "reason": "feedback_not_allowed"
+    },
+    {
+      "name": "承認に空の直してほしい点（鍵があるだけで断る）",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\",\"feedback\":\"\"}",
+      "reason": "feedback_not_allowed"
+    },
+    {
+      "name": "承認に null の直してほしい点",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\",\"feedback\":null}",
+      "reason": "feedback_not_allowed"
+    },
+    {
+      "name": "中止に直してほしい点",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"quit\",\"feedback\":\"x\"}",
+      "reason": "feedback_not_allowed"
+    },
+    {
+      "name": "修正の依頼で直してほしい点が無い",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\"}",
+      "reason": "need_feedback"
+    },
+    {
+      "name": "修正の依頼で直してほしい点が空",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"\"}",
+      "reason": "need_feedback"
+    },
+    {
+      "name": "修正の依頼で直してほしい点が空白だけ",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"   \"}",
+      "reason": "need_feedback"
+    },
+    {
+      "name": "修正の依頼で直してほしい点が改行とタブだけ",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"\\n\\t\"}",
+      "reason": "need_feedback"
+    },
+    {
+      "name": "修正の依頼で直してほしい点が全角空白だけ",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":\"\\u3000\\u3000\"}",
+      "reason": "need_feedback"
+    },
+    {
+      "name": "直してほしい点が数",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":5}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "直してほしい点が null",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":null}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "直してほしい点が配列",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":[\"x\"]}",
+      "reason": "bad_type"
+    },
+    {
+      "name": "直してほしい点が true",
+      "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"revise\",\"feedback\":true}",
+      "reason": "bad_type"
+    },
+    { "name": "16,385 バイト（中身は有効な承認）", "pad_to_bytes": 16385, "text": "{\"version\":1,\"stage\":\"requirements\",\"id\":\"a1b2c3d4e5\",\"action\":\"approve\"}", "reason": "too_large" }
+  ],
+  "invalid_feedback": [
+    { "name": "NUL", "fb": "直\\u0000して", "reason": "bad_chars" },
+    { "name": "制御文字 U+0001", "fb": "直\\u0001して", "reason": "bad_chars" },
+    { "name": "ESC", "fb": "直\\u001bして", "reason": "bad_chars" },
+    { "name": "DEL", "fb": "直\\u007fして", "reason": "bad_chars" },
+    { "name": "復帰 \\r", "fb": "直\\rして", "reason": "bad_chars" },
+    { "name": "U+0085（NEL）", "fb": "直\\u0085して", "reason": "bad_chars" },
+    { "name": "書式文字 U+200B", "fb": "直\\u200bして", "reason": "bad_chars" },
+    { "name": "書式文字 U+00AD", "fb": "直\\u00adして", "reason": "bad_chars" },
+    { "name": "書式文字 U+2060", "fb": "直\\u2060して", "reason": "bad_chars" },
+    { "name": "書式文字 U+202E（右から左）", "fb": "直\\u202eして", "reason": "bad_chars" },
+    { "name": "書式文字 U+FEFF", "fb": "直\\ufeffして", "reason": "bad_chars" },
+    { "name": "孤立サロゲート（上位だけ）", "fb": "直\\ud800して", "reason": "bad_chars" },
+    { "name": "孤立サロゲート（下位だけ）", "fb": "直\\udc00して", "reason": "bad_chars" },
+    { "name": "上位サロゲートの次が下位でない", "fb": "\\ud83dx", "reason": "bad_chars" },
+    { "name": "行区切り U+2028", "fb": "直\\u2028して", "reason": "bad_chars" },
+    { "name": "段落区切り U+2029", "fb": "直\\u2029して", "reason": "bad_chars" },
+    { "name": "先頭の U+2028（空白として取られる前に断る）", "fb": "\\u2028直して", "reason": "bad_chars" },
+    { "name": "末尾の U+2029", "fb": "直して\\u2029", "reason": "bad_chars" },
+    { "name": "先頭の U+FEFF", "fb": "\\ufeff直して", "reason": "bad_chars" },
+    { "name": "先頭の U+0085", "fb": "\\u0085直して", "reason": "bad_chars" },
+    { "name": "先頭の U+001F", "fb": "\\u001f直して", "reason": "bad_chars" },
+    { "name": "先頭の U+001C", "fb": "\\u001c直して", "reason": "bad_chars" },
+    { "name": "NUL だけ（空かどうかより先に使えない文字で断る）", "fb": "\\u0000", "reason": "bad_chars" },
+    { "name": "空白と NUL だけ", "fb": "   \\u0000", "reason": "bad_chars" }
+  ],
+  "invalid_long": [
+    { "name": "a を 1,001 個", "feedback_repeat": { "unit": "a", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "あ を 1,001 個", "feedback_repeat": { "unit": "あ", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "絵文字 1,001 個", "feedback_repeat": { "unit": "😀", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "前後の全角空白を取っても 1,001 文字", "feedback_repeat": { "unit": "a", "count": 1001 }, "pad": "\u3000", "reason": "feedback_too_long" }
+  ],
+  "refused_build": [
+    { "name": "approved は断る", "input": { "action": "approved", "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "知らない動作 delete", "input": { "action": "delete", "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "動作が大文字", "input": { "action": "APPROVE", "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "動作が空", "input": { "action": "", "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "動作が数", "input": { "action": 1, "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "動作が無い", "input": { "stage": "design", "id": "a1b2c3d4e5" }, "reason": "bad_action" },
+    { "name": "段の名前が空", "input": { "action": "approve", "stage": "", "id": "a1b2c3d4e5" }, "reason": "bad_stage" },
+    { "name": "段の名前に空白", "input": { "action": "approve", "stage": "bad stage", "id": "a1b2c3d4e5" }, "reason": "bad_stage" },
+    { "name": "段の名前が 41 文字", "input": { "action": "approve", "stage": "Abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id": "a1b2c3d4e5" }, "reason": "bad_stage" },
+    { "name": "段の名前が数", "input": { "action": "approve", "stage": 1, "id": "a1b2c3d4e5" }, "reason": "bad_stage" },
+    { "name": "段の名前に区切り", "input": { "action": "approve", "stage": "../x", "id": "a1b2c3d4e5" }, "reason": "bad_stage" },
+    { "name": "識別子が 9 文字", "input": { "action": "approve", "stage": "design", "id": "a1b2c3d4e" }, "reason": "bad_id" },
+    { "name": "識別子が 11 文字", "input": { "action": "approve", "stage": "design", "id": "a1b2c3d4e5f" }, "reason": "bad_id" },
+    { "name": "識別子が大文字", "input": { "action": "approve", "stage": "design", "id": "A1B2C3D4E5" }, "reason": "bad_id" },
+    { "name": "識別子が数", "input": { "action": "approve", "stage": "design", "id": 1234567890 }, "reason": "bad_id" },
+    { "name": "修正の依頼で直してほしい点が無い", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5" }, "reason": "need_feedback" },
+    { "name": "修正の依頼で直してほしい点が空", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "" }, "reason": "need_feedback" },
+    { "name": "修正の依頼で直してほしい点が空白だけ", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "  \n\t " }, "reason": "need_feedback" },
+    { "name": "修正の依頼で直してほしい点が全角空白だけ", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "\u3000\u3000" }, "reason": "need_feedback" },
+    { "name": "修正の依頼で直してほしい点が文字でない", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": 5 }, "reason": "need_feedback" },
+    { "name": "承認に直してほしい点", "input": { "action": "approve", "stage": "design", "id": "a1b2c3d4e5", "feedback": "x" }, "reason": "feedback_not_allowed" },
+    { "name": "中止に直してほしい点", "input": { "action": "quit", "stage": "design", "id": "a1b2c3d4e5", "feedback": "x" }, "reason": "feedback_not_allowed" },
+    { "name": "承認に空の直してほしい点", "input": { "action": "approve", "stage": "design", "id": "a1b2c3d4e5", "feedback": "" }, "reason": "feedback_not_allowed" },
+    { "name": "NUL", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\u0000して" }, "reason": "bad_chars" },
+    { "name": "制御文字 U+0001", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\u0001して" }, "reason": "bad_chars" },
+    { "name": "復帰 \\r", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\rして" }, "reason": "bad_chars" },
+    { "name": "書式文字 U+FEFF", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "\ufeff直して" }, "reason": "bad_chars" },
+    { "name": "書式文字 U+200B", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\u200bして" }, "reason": "bad_chars" },
+    { "name": "孤立サロゲート（上位だけ）", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\ud800して" }, "reason": "bad_chars" },
+    { "name": "孤立サロゲート（下位だけ）", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\udc00して" }, "reason": "bad_chars" },
+    { "name": "行区切り U+2028", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "直\u2028して" }, "reason": "bad_chars" },
+    { "name": "先頭の U+2029（空白として取られる前に断る）", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "\u2029直して" }, "reason": "bad_chars" },
+    { "name": "先頭の U+0085", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "\u0085直して" }, "reason": "bad_chars" },
+    { "name": "NUL だけ（空かどうかより先に使えない文字で断る）", "input": { "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback": "\u0000" }, "reason": "bad_chars" }
+  ],
+  "refused_build_long": [
+    { "name": "a を 1,001 個", "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback_repeat": { "unit": "a", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "あ を 1,001 個", "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback_repeat": { "unit": "あ", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "絵文字 1,001 個", "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback_repeat": { "unit": "😀", "count": 1001 }, "reason": "feedback_too_long" },
+    { "name": "前後の全角空白を取っても 1,001 文字", "action": "revise", "stage": "design", "id": "a1b2c3d4e5", "feedback_repeat": { "unit": "a", "count": 1001 }, "pad": "\u3000", "reason": "feedback_too_long" }
+  ]
+}

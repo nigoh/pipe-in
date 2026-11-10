@@ -1,6 +1,6 @@
 {
-  "note": "output が本体の書くファイルと同じ名前（RESERVED_OUTPUTS の3つ全部）",
+  "note": "output が本体の書くファイルと同じ名前（RESERVED_OUTPUTS の4つ全部）",
   "valid": false,
-  "errors": 3,
+  "errors": 4,
   "keywords": ["本体が書くファイル"]
 }

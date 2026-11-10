@@ -30,6 +30,7 @@
    - `run-panel-group-failed-*`：枠の中に失敗の段があるパネル
    - `run-panel-group-old-*`：`group` の無い古い記録のパネル
    - `run-panel-chat-*`：会話の中で流したパイプの記録のパネル（D0077。使用量が「取れない」記録）
+   - `run-panel-reply-runs-*`：返事を受け付けている確認待ちのパネル（D0079。`window.__previewReply(name)` で描き直しを送る）
 2. 手元だけで配る。次のコマンドを裏で動かす（`file:` では開けない。外には出さない）：
 
    ```

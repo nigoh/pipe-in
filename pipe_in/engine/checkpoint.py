@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from .reply import ReplyPoller, ReplyResult, ReplyWait
+
 
 @dataclass
 class Decision:
@@ -28,12 +30,68 @@ def _read_feedback(read: Callable[[str], str]) -> str:
     return "\n".join(lines)
 
 
-def ask_human(stage: str, doc: Path, *, read: Callable[[str], str] = input, label: str | None = None) -> Decision:
+class _Replied(Exception):
+    """返事のファイルで答えが来たことを、入力の待ちから上へ知らせる。"""
+
+    def __init__(self, result: ReplyResult) -> None:
+        super().__init__("返事のファイル")
+        self.result = result
+
+
+_REPLIED_TEXT = {"approve": "承認", "revise": "修正の依頼", "quit": "中止"}
+
+
+def ask_human(
+    stage: str,
+    doc: Path,
+    *,
+    read: Callable[[str], str] = input,
+    label: str | None = None,
+    reply: ReplyWait | None = None,
+) -> Decision:
+    """reply を渡すと、端末の入力と返事のファイル（D0079）の両方を待つ。渡さなければ read だけを使う。"""
+    if reply is None:
+        try:
+            return _ask(stage, doc, read, label or stage)
+        except EOFError:
+            print("\n  入力を読めなかったため中止します（確認を省くなら --yes）。")
+            return Decision("quit")
     try:
-        return _ask(stage, doc, read, label or stage)
+        return _ask_with_reply(stage, doc, label or stage, reply)
+    finally:
+        try:
+            reply.env.remove(reply.path)
+        except Exception:
+            pass  # 消せなくても止めない
+
+
+def _ask_with_reply(stage: str, doc: Path, label: str, reply: ReplyWait) -> Decision:
+    env = reply.env
+    source = env.line_source()
+    poller = ReplyPoller(reply.path, reply.stage, reply.wait_id, read_file=env.read_file, remove=env.remove, say=env.say)
+
+    def read_line(prompt: str) -> str:
+        print(prompt, end="", flush=True)
+        while True:
+            line = source.get(env.interval)  # EOFError はそのまま上へ
+            if line is not None:
+                return line  # 端末の答えを先に見る
+            got = poller.check()
+            if got is not None:
+                raise _Replied(got)
+
+    source.drain()
+    try:
+        return _ask(stage, doc, read_line, label)
     except EOFError:
         print("\n  入力を読めなかったため中止します（確認を省くなら --yes）。")
         return Decision("quit")
+    except _Replied as replied:
+        action = replied.result.action or "quit"
+        print(f"\n  返事のファイルで{_REPLIED_TEXT.get(action, action)}を受け取りました。")
+        if action == "revise":
+            return Decision("revise", replied.result.feedback or "")
+        return Decision("approve" if action == "approve" else "quit")
 
 
 def _ask(stage: str, doc: Path, read: Callable[[str], str], label: str) -> Decision:

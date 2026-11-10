@@ -35,7 +35,7 @@ INPUT_MODES = ("required", "optional", "none")
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 # 記録の置き場所の中で、パイプや成果物の名前に使えないもの
 RESERVED_NAMES = {"logs", "end"}
-RESERVED_OUTPUTS = {"00_input.md", "99_summary.md", "state.json"}
+RESERVED_OUTPUTS = {"00_input.md", "99_summary.md", "state.json", "reply.json"}
 # 分岐・飛び先で「ここで終わる」を表す名前
 END = "end"
 DEFAULT_MAX_STEPS = 50

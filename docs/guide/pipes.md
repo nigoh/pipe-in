@@ -169,6 +169,7 @@ prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短け
 | `code` | 自分の成果物と製品コード（テストファイルは除く） |
 
 - 段は定義の順に流れ、各段には依頼メモと、前の段のうち成果物があるものの場所が渡されます。`--after` で前のパイプを受けたときは、前のパイプの成果物の場所も渡されます（[パイプをつなぐ](#パイプをつなぐ--after)）。
+- `output` には、本体が書くファイルの名前（`00_input.md`・`99_summary.md`・`state.json`・`reply.json`）は使えません。`pipe-in-gen check` と作業台の検査が断ります。`reply.json` は、VSCode のパネルのボタンからの返事を置くファイルです（[記録](records.md#返事のファイルreplyjson)）。
 - 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
 - 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
 - Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。`--after` で受けた前のパイプの記録（前の `state.json`・`00_input.md`・`logs/`・成果物）も、どの段も書けません。

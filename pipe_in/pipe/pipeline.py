@@ -189,6 +189,7 @@ class LinearPipeline(BasePipeline):
         if missing:
             raise SystemExit(f"{self.labels[start_name]}から始めるには次のファイルが必要です: {', '.join(missing)}")
         self.cfg.work_dir.mkdir(parents=True, exist_ok=True)
+        self._clear_reply(mark=True)
         if input_text is not None:
             self.doc(INPUT).write_text(input_text.strip() + "\n", encoding="utf-8")
         self._settle_name(input_text)
@@ -197,6 +198,7 @@ class LinearPipeline(BasePipeline):
     async def review(self, decision: Decision) -> Exit:
         """確認で止まった実行に答えて、続きを流す。承認なら、止まったときに決まっていた次の段から。"""
         pending = self._load_pending()
+        self._clear_reply(mark=True)
         self._resume_note()
         stage = pending["stage"]
         self.pending = None
@@ -323,7 +325,7 @@ class LinearPipeline(BasePipeline):
                     "since": clock.now_with_offset(),
                 }
                 return _Step(exit=Exit.AWAITING_REVIEW)
-            decision = self.ask(s.name, self.doc(s.output))
+            decision = self._confirm(s.name, self.doc(s.output))
             if decision.action == "approve":
                 self.history.append({"stage": s.name, "review": "approved"})
                 self._save_state()

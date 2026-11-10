@@ -103,8 +103,8 @@
 
 ### 共通：メッセージの種類（FR-07）
 
-- 実行パネル 拡張→パネル：`render`
-- 実行パネル パネル→拡張：`ready`・`openArtifact`・`selectRun`
+- 実行パネル 拡張→パネル：`render`・`replyRefused`（D0079 で足した）
+- 実行パネル パネル→拡張：`ready`・`openArtifact`・`selectRun`・`reply`（D0079 で足した）
 - 作業台 拡張→パネル：`load`・`saved`・`failed`・`versions`・`version`・`estimateContext`（D0066 で足した）・`runContext`（D0078 で足した）
 - 作業台 パネル→拡張：`ready`・`save`・`state`・`openPrompt`・`loadVersion`・`externalChoice`・`run`（D0078 で足した）
 - 今の形：型は `vscode/src/view/messages.ts` にある。パネルから来た値は `parseWebviewMessage`・`parseEditorMessage` で形を検める。形が違えば捨てる。場所（保存先・開く先・読む版・見る実行）はパネルの値では決めず、入口が決める。
@@ -114,10 +114,10 @@
 
 ### 共通：「拡張は work_dir を読むだけ」の決まり（FR-10）
 
-- 今の形：拡張は work_dir を読むだけで、書かない。書いてよいのは、作業台の「保存」での、パイプの置き場所の中の決まったファイルだけ（`vscode/src/infra/fsPipes.ts` が絞る）と、拡張の保存場所の保存した版だけ（`vscode/src/infra/fsVersions.ts` が絞る）。work_dir を読む口（`vscode/src/infra/fsWorkDirSource.ts`）に書き込みの呼び出しは無く、`tests/test_decision_ui.py` が守り続ける。
+- 今の形：拡張は work_dir を読むだけで、書かない。書いてよいのは、作業台の「保存」での、パイプの置き場所の中の決まったファイルだけ（`vscode/src/infra/fsPipes.ts` が絞る）と、拡張の保存場所の保存した版だけ（`vscode/src/infra/fsVersions.ts` が絞る）。D0079 で、実行パネルの返事のファイル `reply.json` 1つ（新しく作るだけ。`vscode/src/infra/fsReplies.ts` が絞る）が、work_dir に書いてよい例外に入った。work_dir を読む口（`vscode/src/infra/fsWorkDirSource.ts`）に書き込みの呼び出しは無く、`tests/test_decision_ui.py` が守り続ける。
 - 読み取れる理由：実行パネルは work_dir を読むだけで描き、本体（当時の名前は devpipe）には手を入れない形で始まった（コミット 1e109d6）。この決まりは `CLAUDE.md` と `docs/development/design.md` に書いてあり、`vscode/src/extension.ts` の先頭のコメントにも「work_dir には書かない」とある。
 - 理由は記録に残っていない：読むだけにした理由はコミットに書かれているが、書き込みを一切しない決まりにまで固めた根拠は記録に残っていない。
-- つなぎ：段階3では、この決まりを、決まった返事のファイル1つに限って変える予定（`docs/roadmap.md`）。変える理由と、すり抜けの道が無いことは、その機能の決定の記録とテストで示す。この記録は今の決まりを書くだけで、変えない。
+- つなぎ：段階3で、この決まりを、決まった返事のファイル1つに限って変えた（D0079。`docs/roadmap.md`）。変えた理由と、すり抜けの道の止め方は、D0079 の決定の記録とテストにある。この記録（D0010）そのものは、書いた時点の決まりを残すもので、決まりを変えていない。
 
 ### 共通：前の名前の扱い（FR-11）
 

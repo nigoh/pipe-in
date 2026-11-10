@@ -18,6 +18,7 @@
 | 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
 | 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
 | 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
+| 実行パネルの返事のファイル（D0079。実行のフォルダの `reply.json`）を読む・今の待ちと照らす・消す部品と、端末の行の元（標準ライブラリと `live_answer.py` の定数だけ。返事を作る関数は持たない。リンクは辿らない。断る理由は決まった一覧で、入力の文字は入れない。端末の行は、錠を持たない読み方で、頼まれたときだけ 1 行読む）。人の確認の待ち方は `checkpoint.py` が持ち、標準入力が端末のときだけ、標準入力と返事のファイルを 0.5 秒ごとに一緒に待つ | `pipe_in/engine/reply.py`・`pipe_in/engine/checkpoint.py` |
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 流す前の費用の目安：モデルの系統ごとの「1ターンの費用」の表（`prices.py`。直すのはここだけ）と、段のリスト → 少なめ・多め・前の実績・注意の文の計算（`estimate.py`）。どちらも標準ライブラリだけで、ファイル・SDK・時計に触れない（今日は引数）。入口 `pipe-in estimate` と本流の確認前の 2 行は、段のリストの組み立てと `state.json` の読み出しも含めて `estimate_cmd.py`（読むだけで書かない） | `pipe_in/usage/prices.py`・`pipe_in/usage/estimate.py`・`pipe_in/estimate_cmd.py` |
 | 費用の目安の単価表・計算のケース・注意の文を、本体（`prices.py`・`estimate.py`）と拡張（`costEstimate.ts`）で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む。単価表を直すときは3か所を一緒に直す） | `tests/fixtures/cost_estimate.json` |
@@ -57,6 +58,7 @@
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
 | 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
+| 確認用ページ：返事を受け付けている確認待ちの見本（印 `reply_wait` のある記録・ボタンの出ない記録を一時フォルダに書いて、`run-panel-reply-runs-*` を出す。`window.__previewReply(name)` で、描き直しと送ったあとを送る） | `vscode/scripts/replySamples.ts` |
 | 画面のデザインの土台（ブランド「プラグ」の色の決まり・部品と画面の見本。Claude のデザインのキャンバスの写し） | `docs/design/`・`docs/design/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
@@ -74,6 +76,7 @@
 | 作業台の「見本から作る」の見本のデータ（`examples/` から `npm run examples:gen` で作って、コミットする。拡張は実行時に `examples/` を読まない。`pipe.toml` と `prompts/*.md` だけを持つ）と、見本の一覧とモデル作り、名前の確かめと見本から未保存のモデルを作る手順（書く口を受け取らない）、生成の道具 | `vscode/src/domain/exampleData.ts`・`vscode/src/domain/pipeExamples.ts`・`vscode/src/app/exampleFlow.ts`・`vscode/scripts/genExamples.ts` |
 | 作業台から流す（D0078。拡張が起こしてよい子プロセスは、決まった形の `pipe-in` 1つだけ。実行ファイルは絶対パスに決めてから Tasks API の `ProcessExecution` で起こし、`child_process` は使わない）。コマンドの形と依頼メモの検め・実行ファイルの決め方の純粋な部分・流してよいかの判断（理由は決まった順で1つ）はドメイン、実行ファイルを探す手順・実行中の記録（入口が持つ）・流す計画はアプリ、`stat` で通常のファイルかを返すのは基盤、「流す」の節は画面 | `vscode/src/domain/runCommand.ts`・`vscode/src/domain/runExecutable.ts`・`vscode/src/domain/runDecision.ts`・`vscode/src/app/runExecutable.ts`・`vscode/src/app/runActive.ts`・`vscode/src/app/runFlow.ts`・`vscode/src/infra/fsFileProbe.ts`・`vscode/src/view/runHtml.ts` |
 | 作業台から流す引数の形を、拡張（`buildRunCommand`）と本体（`pipe_in.cli._parse_args`）で結ぶ共通の表（見本の記録ではない。拡張と本体のテストが同じ表を読む） | `tests/fixtures/run_command.json` |
+| 返事のファイルの中身を、拡張が作る関数（`buildReplyText`）と本体の読み取り（`parse_reply`）で結ぶ共通の表（見本の記録ではない。拡張と本体のテストが同じ表を読む。直してほしい点の長さはコードポイント） | `tests/fixtures/reply_file.json` |
 | 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
 
 新しいものを置く場所に迷ったら、まずこの表の近いものの隣に置き、表に1行足します（表のパスが実物と合っているかは `tests/test_rules.py` が検査します）。
@@ -103,7 +106,7 @@ pipe_in.usage
 | 画面 | `vscode/src/view/` | 図の状態 → HTML の文字列。部品ごとの役割は下の「層ごとの部品」の表。主な部品：成果物の Markdown を許すタグだけの HTML に直す（`markdownHtml.ts`）・タブ「成果物」（`artifactsHtml.ts`）・タブ「エージェント・スキル」（`toolsHtml.ts`）・金額の書き方（`money.ts`）・使用量のタブの先頭の「段ごとの費用」の表（`usageHtml.ts`）・ステータスバーの文字と説明（件数の形を含む `statusBar.ts`）。外から来た文字は `escapeHtml` を通す | なし |
 | 基盤 | `vscode/src/infra/` | 口の実装・別の worktree の登録の読み・work_dir の有無の確かめ・読み取りの口の絞り込み。部品ごとの役割は下の「層ごとの部品」の表。成果物は通常のファイルだけを先頭 256 KiB まで読む。有無の確かめ（`fsPresence.ts`）は `stat` を 1 回呼ぶだけ。触れる場所はここで絞る | `node:fs`・`node:fs/promises`・`node:os`・`node:path` |
 | パネルの中 | `vscode/src/webview/` | 作業台の画面の操作（ビルドで1つの pipeEditor.js に束ねる）。判断は domain の関数に任せる | なし |
-| 入口 | `vscode/src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。有無の確かめのタイマーを始めて止め、見張りを作る口・確かめの口・読み直しを部品に渡す。判断は持たない。部品ごとの役割は下の「層ごとの部品」の表。拡張ホストの側で時計（今の時刻）を読むのもここだけ。作業台の「流す」で、決まった形の `pipe-in` を Tasks API で起こす（`startRun`。D0078） | `vscode` を import してよいのはここだけ |
+| 入口 | `vscode/src/extension.ts` | コマンド・パネル・ファイルの監視・エディタで開く。有無の確かめのタイマーを始めて止め、見張りを作る口・確かめの口・読み直しを部品に渡す。判断は持たない。部品ごとの役割は下の「層ごとの部品」の表。拡張ホストの側で時計（今の時刻）を読むのもここだけ。作業台の「流す」で、決まった形の `pipe-in` を Tasks API で起こす（`startRun`。D0078）。実行パネルの返事の知らせを受けて、返事のファイルを書く口を呼ぶ（`handleReply`。呼ぶのはここ 1 か所。D0079） | `vscode` を import してよいのはここだけ |
 
 ### 層ごとの部品（1 部品 1 行）
 
@@ -112,9 +115,11 @@ pipe_in.usage
 | 部品 | 層 | 役割 |
 | --- | --- | --- |
 | `vscode/src/domain/runRecord.ts` | ドメイン | 段・実行の記録（`driver` の有無 `hasDriver` を持つ） |
+| `vscode/src/domain/replyFile.ts` | ドメイン | 返事のファイルの決まり：ファイル名・版・動作 `approve`・`revise`・`quit`・直してほしい点の検め（コードポイントで 1,000 まで・使えない文字）と、返事の中身を作る `buildReplyText`。本体の `reply.py` と同じ決まりを共通の表で結ぶ（D0079） |
 | `vscode/src/domain/stageLog.ts` | ドメイン | 段のログ：出力の道具の行と、頼んだときだけ返す呼び出しの記録 `calls` を、同じ部品の判定から作る。`Agent`・`Task`・`Skill` の見分けと入力の鍵 `subagent_type`・`skill` の読みはここに閉じる |
 | `vscode/src/domain/artifacts.ts` | ドメイン | 成果物：作った段・読んだ範囲と切れた印・更新時刻の文字・押していないときの既定の選び `defaultArtifactName` を決める |
 | `vscode/src/domain/pipelineView.ts` | ドメイン | 図の状態（「今」は `ViewClock` を引数で受ける） |
+| `vscode/src/domain/replyWait.ts` | ドメイン | 返事を受け付けている確認待ちの判断 `canReply`、帯に出す `ReplyView`、送ってから 30 秒の判断 `isReplyStalled`、読み直しを続けるかの `isLive`（D0079） |
 | `vscode/src/domain/timestamp.ts` | ドメイン | 時刻の読み方と書き方：記録の時刻を読むことと、手元の時刻の `MM/DD HH:mm` に書くこと |
 | `vscode/src/domain/pipeModel.ts` | ドメイン | パイプのモデル |
 | `vscode/src/domain/pipeWires.ts` | ドメイン | ケーブルの通り道と曲線 |
@@ -146,6 +151,7 @@ pipe_in.usage
 | `vscode/src/domain/runExecutable.ts` | ドメイン | 実行ファイルの決め方の純粋な部分：設定の値の判断（`globalValue`・`defaultValue` だけ）、PATH の候補の並び（絶対の項目だけ。Windows は `.exe`・`.com`）、Windows の拡張子の判断 |
 | `vscode/src/domain/runDecision.ts` | ドメイン | 流してよいかの判断：今の事実 `RunContext` と、理由を決まった順で1つ返す `decideRun`。パネルも入口も同じ関数を使う |
 | `vscode/src/app/refreshView.ts` | アプリケーション | 口 `WorkDirSource` と、それを使う手順（`refreshView`・`resolveWorkDir`） |
+| `vscode/src/app/replyFlow.ts` | アプリケーション | 口 `ReplyStore` と、返事を送る手順 `sendReply`（最後に描いた印と、書く直前に読み直した印が同じときだけ書く）・`replyOfferOf`（D0079） |
 | `vscode/src/app/pipeEditor.ts` | アプリケーション | 口 `PipeStore` と、作業台の読み込みと保存・置き場所と保存先の決め方（`saveTarget`） |
 | `vscode/src/app/pipeVersions.ts` | アプリケーション | 口 `VersionStore` と、保存した版の記録と読み込み |
 | `vscode/src/app/externalReload.ts` | アプリケーション | 外で書き換わったパイプの読み直しの手順：読む→判断→読み直す／選ばせる。取り込む前に版へ残す。見張りの対象 `PIPE_WATCH_GLOB` |
@@ -180,10 +186,12 @@ pipe_in.usage
 | `vscode/src/view/runHtml.ts` | 画面 | 作業台の「流す」の節の中身（起こすコマンドの形・理由・文字数）。外から来た文字は `escapeHtml` を通し、style 属性は書かない |
 | `vscode/src/view/statusBar.ts` | 画面 | ステータスバーの文字と説明：件数の形と、外から来た文字を 1 行にする関数を含む |
 | `vscode/src/view/waitNotice.ts` | 画面 | 確認待ちの知らせの文とボタンの文字 |
+| `vscode/src/view/replyHtml.ts` | 画面 | 確認待ちの帯の、返事の部分（承認・修正を依頼・中止のボタン、修正の入力、中止の確かめ、送ったあと）の HTML と CSS、断った理由の文。外から来た文字は `escapeHtml` を通し、style 属性は書かない（D0079） |
 | `vscode/src/view/externalHtml.ts` | 画面 | 外で書き換わったときの帯：差分の文字は `escapeHtml` を通す |
 | `vscode/src/infra/fsWorkDirSource.ts` | 基盤 | 口 `WorkDirSource` の実装：段のログの中身に加えて更新時刻（`stat`）も読み、成果物は通常のファイルだけを、更新時刻（`lstat`）と先頭 256 KiB まで読む。1 回の読みは、合計が 4 MiB に届いたら残りを読まない（最大でも 4 MiB + 256 KiB 未満） |
 | `vscode/src/infra/fsPipes.ts` | 基盤 | 口 `PipeStore` の実装：書いてよい場所を絞る |
 | `vscode/src/infra/fsVersions.ts` | 基盤 | 口 `VersionStore` の実装：書いてよい場所を絞る |
+| `vscode/src/infra/fsReplies.ts` | 基盤 | 口 `ReplyStore` の実装：いまの work_dir の実行のフォルダ（直下か直下 1 段の決まった名前）の `reply.json` 1 つだけを、排他で新しく作る。リンクを辿らず、一時ファイルを作らない（D0079） |
 | `vscode/src/infra/fsWorktrees.ts` | 基盤 | 別の worktree を `.git` の登録（ファイル）から見つけ、いまの checkout のブランチ名も読む。work_dir の確かめは `fsPresence.ts` と同じ判定を使う |
 | `vscode/src/infra/fsPresence.ts` | 基盤 | work_dir の有無の確かめ：`stat` を 1 回呼ぶだけで、有る・無い・分からないに分ける。`fsWorktrees.ts` の work_dir の確かめも同じ判定を使う |
 | `vscode/src/infra/fsFileProbe.ts` | 基盤 | 通常のファイルかの確かめ：`stat` を 1 回呼ぶだけで、読むだけ。失敗は false |
@@ -196,7 +204,7 @@ pipe_in.usage
 
 - 層の決まりは `vscode/src/architecture.test.ts` が検査します（テストのファイルと `vscode/src/test/` の補助は除く）。
 - 本体の記録の形の知識は `runRecord.ts`・`stageLog.ts`・`artifacts.ts`・`runs.ts` の中だけに置きます。本体の記録の形が変わったら、ここを直します。
-- 拡張は work_dir を読むだけで書きません。書いてよいのは、作業台で「保存」を押したときの、パイプの置き場所の中のパイプのフォルダ（`pipe-in-<名前>/`。前の版のフォルダ名も）の決まったファイルだけです（`vscode/src/infra/fsPipes.ts` が場所を絞ります）。保存先は拡張が開いたパイプから決め、パネルから来た値では決めません。作業台の「流す」も、work_dir にもパイプの置き場所にも書きません（依頼メモはどこにも残しません）。
+- 拡張は work_dir を読むだけで書きません。書いてよいのは、作業台で「保存」を押したときの、パイプの置き場所の中のパイプのフォルダ（`pipe-in-<名前>/`。前の版のフォルダ名も）の決まったファイルだけです（`vscode/src/infra/fsPipes.ts` が場所を絞ります）。保存先は拡張が開いたパイプから決め、パネルから来た値では決めません。作業台の「流す」も、work_dir にもパイプの置き場所にも書きません（依頼メモはどこにも残しません）。例外は 1 つだけで、実行パネルの返事（承認・修正の依頼・中止）を、いまの work_dir の実行のフォルダ（直下か直下 1 段）の返事のファイル `reply.json` に、新しく作るときだけ書きます（`vscode/src/infra/fsReplies.ts` が場所とファイル名を絞ります。場所は拡張が作った一覧から、段と識別子は読み直した記録から決め、パネルから来る値は動作と直してほしい点の文字だけです。読んで動くのは本体だけで、拡張は段を流しません。D0079）。
 - 実行の一覧のために、同じ git リポジトリの別の worktree の work_dir と、`.git` の中の worktree の登録も、**読むだけ**です（`fsWorkDirSource.ts`・`fsWorktrees.ts`。書き込みの関数を型に入れず、子プロセスは起こしません。`tests/test_decision_ui.py` と `vscode/src/architecture.test.ts` が検査します）。別の worktree で読むのは `state.json`・`logs/`（中身と、止まっているかもしれない印のための更新時刻 `stat`）・記録から作った成果物の一覧にあるもの（更新時刻と、1 つにつき先頭 256 KiB まで）・`00_input.md` の先頭 4 KiB（`state.json` に `name` が無い run だけ。セッション名の元）だけで、いまの checkout のブランチ名のために `.git/HEAD` も読みます。登録のパスが絶対パスで実在し、その worktree の `.git` が自分の登録を指し返し、work_dir がその worktree の中に収まるときだけ場所にします。パネルや覚えた値から来る実行の目印は、`runs.ts` で形を検め、拡張が作った一覧にあるものだけを通します（パスを作りません）。
 - 拡張が起こしてよい子プロセスは、作業台の「流す」が起こす決まった形の `pipe-in` 1つだけです（D0078）。起こし方は Tasks API の `ProcessExecution`（シェルを通さず、実行ファイルと引数の配列で起こす）で、`child_process` は import しません（D0019-AC-21 は変わりません）。実行ファイルは拡張が絶対パスに決めてから渡します（設定 `pipe-in.command` はユーザーの設定の値だけ。名前だけなら PATH の絶対の項目から探し、Windows では `.exe`・`.com` だけ）。引数は `--pipe=`・`--project=`・依頼メモがあるときだけ `--text=` で、パネルから来る値は依頼メモだけです。信頼していないワークスペースでは拡張が動かず（`capabilities.untrustedWorkspaces`）、流す前にも `vscode.workspace.isTrusted` を見ます。`env` は足しません。
 - 成果物のプレビューのために読む成果物は、記録から作った一覧にある名前の、通常のファイルだけです（`lstat` で種類と更新時刻を見て、`readHead` で先頭 256 KiB まで読みます。1 回の読みは、合計が 4 MiB に届いたら残りを読みません。最大でも 4 MiB + 256 KiB 未満）。symlink・フォルダは読まず、「まだない」と同じ扱いです。確かめてから開くまでのあいだに通常のファイルが symlink へ差し替えられる競合は塞いでいません（口は `'r'` だけで開く6つのまま変えず、差し替えるには作業フォルダに書ける別のプロセスが要り、見えるのは使う人自身の画面だけだからです）。`00_input.md` の先頭 4 KiB と `state.json` は、これまでどおり symlink を辿ります。中身は `view/` の部品が許すタグだけの HTML に直して、描き直しの HTML に入れます（メッセージの種類と CSP は変えません）。変換でふくらむ HTML は出す側でも抑えます（表は 100 列・セル 20,000・HTML の長さが入力の約 20 倍（省略の一文も入ります）まで、1 回の描き直しのプレビューの中身は合計約 8 MiB 文字まで。超えたところから先は案内だけ）。成果物の選びとスクロールはパネルのスクリプトの変数だけで持ち、保存しません。
@@ -230,6 +238,7 @@ pipe_in.usage
 - D0069 で `state.json` に `received_from`（`--after` で前のパイプの記録を受けた実行だけ。前の名前・終わった日時・種類・成果物の場所）を足しました。足すだけで、無い古い記録は受けた元の無い実行として読みます。続きの `--review`・`--from` は、この項目をそのまま使い、前の記録を読み直しません。拡張は知らない項目として読み捨てるので、拡張の画面は変えません。
 - D0071 で `state.json` の `runs[]` の `review` の要素に `at`（書いた時刻。`Prompt` 行の `at` と同じ書き方）を足しました。足すだけで、無い古い記録は `record check` が「判定できなかった」として読みます。ほかの読み手（`--review`・`live`・拡張）は `at` を使いません。古い版の拡張は知らない項目を読まずに捨てます。`driver` の値 `"pipe-dev"` は変えません。`Prompt` 行の `prompt` と `99_summary.md` の1行目の呼び名が `/pipe-dev` から `/pipe-in` に変わりますが、文字として読むだけなので古い記録もそのまま読めます。`runs[]` の要素の鍵の集まりを比べているテスト（`test_d0019_ac50_state_only_adds_keys`）は、`at` を含める形に直しました。
 - D0077 で、会話の中でパイプを流す道（`pipe-in-gen chat`）の記録を足しました。`state.json` の `driver` に `"pipe-chat"`、`chat` の節、`usage_summary` の `available: false` と理由（`total_cost_usd`・`runs[]` の `cost_usd` は `null`）、実行のフォルダの `hook/`・`probe/` です。足すだけで、無い古い記録は今までどおり読めます。拡張は `usage_summary.available === false` のときだけ「取れない」を出し、それ以外は変わりません。`available` を知らない古い拡張は、使用量の表を零で出し、図の段に `$0.000` が出ることがあります（見た目だけで、記録は壊れません）。`--review` は `driver` があれば続きを流さず、`pipe-chat` のときは `chat next` を案内します。`guard_hook.py` の `decide` と `engine/guard.py` は変えません。
+- D0079 で、`state.json` に `reply_wait`（段・識別子・始めた時刻。端末の `pipe-in` が確認の段で人の入力を待っているあいだだけ）を足しました。足すだけで、無い古い記録は印なしとして読みます。古い版の拡張は知らない項目を読まずに捨てるのでボタンが出ず、古い本体で流した実行にもボタンは出ません。`pipe.toml`・`pipeline.toml` の形は変えません。`RESERVED_OUTPUTS` に `reply.json` が入り、`output = "reply.json"` の既存のパイプは検査で止まります（`check_pipe`・`validatePipe`）。`--pause` で止めた実行の案内は、`pipe-in --review` に変わりました。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

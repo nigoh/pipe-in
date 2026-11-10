@@ -111,11 +111,11 @@ test('D0050-AC-30: タブを押しても、表の枠を押しても、描き直�
   assert.deepEqual(h.posted, [{ type: 'ready' }]);
 });
 
-test('D0050-AC-30: PANEL_SCRIPT が postMessage で送る type は ready・openArtifact・selectRun の 3 つだけ（新しい種類を足さない）（今のまま通る。守る）', () => {
+test('D0050-AC-30: PANEL_SCRIPT が postMessage で送る type は ready・openArtifact・selectRun・reply の 4 種類だけ（reply は D0079 で足した。ほかの新しい種類は足さない）', () => {
   const source = readFileSync(path.join(HERE_DIR, 'panelScript.ts'), 'utf8');
   const sent = callArgs(withoutComments(source), 'postMessage').map((args) => /\btype\s*:\s*'([^']+)'/.exec(args)?.[1] ?? null);
   assert.ok(sent.length >= 3, `postMessage の呼び出しが読めている（${sent.length} 件）`);
-  assert.deepEqual([...new Set(sent)].sort(), ['openArtifact', 'ready', 'selectRun']);
+  assert.deepEqual([...new Set(sent)].sort(), ['openArtifact', 'ready', 'reply', 'selectRun']);
 });
 
 // ---- AC-31：描き直しをまたぐ保持 ----

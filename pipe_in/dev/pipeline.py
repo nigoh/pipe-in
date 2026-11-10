@@ -158,7 +158,7 @@ class DevPipeline(BasePipeline):
                 return None
             if self.cfg.pause_for_review:
                 return self._pause("red", st.RED, run)
-            decision = self.ask("red", self.doc(st.RED))
+            decision = self._confirm("red", self.doc(st.RED))
             if decision.action == "approve":
                 self.history.append({"stage": "red", "review": "approved"})
                 self._save_state()
@@ -240,6 +240,7 @@ class DevPipeline(BasePipeline):
         if from_stage not in STAGES:
             raise SystemExit(f"--from には {', '.join(STAGES)} のどれかを指定してください")
         self.cfg.work_dir.mkdir(parents=True, exist_ok=True)
+        self._clear_reply(mark=True)
         if input_text is not None:
             self.doc(st.INPUT).write_text(input_text.strip() + "\n", encoding="utf-8")
         self._check_prereq(from_stage)

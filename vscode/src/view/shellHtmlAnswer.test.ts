@@ -19,8 +19,12 @@ test('D0064-AC-01: 確認待ちの知らせに「確かめる文書を開く」�
   assert.match(notice, /<button type="button" class="secondary" data-artifact="01_requirements\.md"[^>]*>確かめる文書を開く<\/button>/);
 });
 
+// D0079 で直した：入力を driver が pipe-dev の記録（hasDriver: true）にして、今の期待を残した。driver が無い記録（--pause で止めた SDK の実行）の帯は
+// pipe-in --review になった（replyNotice.test.ts の D0079-AC-40）。項目 hasDriver は図の状態の省いてよい項目。
+const devNotice = (view: PipelineView): PipelineView => ({ ...view, hasDriver: true }) as unknown as PipelineView;
+
 test('D0064-AC-02: 知らせに答え方が読める：record review のコマンド（approved・revise --feedback・quit）と、/pipe-in --artifact のときのアーティファクトのボタン', async () => {
-  const text = plain(noticeOf(await render(waitingView(40))));
+  const text = plain(noticeOf(await render(devNotice(waitingView(40)))));
   assert.match(text, /python -m pipe_in record review requirements approved/);
   assert.match(text, /revise --feedback/);
   assert.match(text, /quit/);
@@ -29,7 +33,7 @@ test('D0064-AC-02: 知らせに答え方が読める：record review のコマ�
 });
 
 test('D0064-AC-03: 文書がまだ読めない（成果物が ready でない・名前が一覧に無い）ときは、開くボタンを出さず、答え方は出す', async () => {
-  const base = waitingView(40);
+  const base = devNotice(waitingView(40));
   const notReady: PipelineView = { ...base, artifacts: base.artifacts.map((a) => ({ ...a, ready: false })) };
   const unknown: PipelineView = { ...base, pendingReview: { stage: 'requirements', label: '要件定義', doc: 'docs/pipeline/../../secret.md' } };
   for (const view of [notReady, unknown]) {

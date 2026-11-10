@@ -16,6 +16,7 @@ import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
 import { renderFlowSvg } from './flowSvg.ts';
 import { renderGantt } from './ganttHtml.ts';
+import { REPLY_STYLE, renderOpenDocButton, renderReplyNotice } from './replyHtml.ts';
 import { renderReasons } from './reasonsHtml.ts';
 import { renderRunList } from './runListHtml.ts';
 import {
@@ -61,6 +62,7 @@ export const SHELL_STYLE = `
 .detail-meta code { padding: 1px 6px; border-radius: 4px; background: var(--vscode-textCodeBlock-background); color: var(--vscode-foreground); overflow-wrap: anywhere; }
 .notice { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border: 1px solid var(--vscode-charts-yellow, var(--vscode-foreground)); border-radius: 6px; background: var(--vscode-inputValidation-warningBackground, transparent); color: var(--vscode-foreground); }
 .notice-sub { font-size: 12px; color: var(--vscode-descriptionForeground); }
+${REPLY_STYLE}
 .badge.stale-badge { display: none; color: var(--vscode-foreground); }
 .badge.stale-badge.is-stale { display: inline-flex; border-style: dashed; border-color: ${STALE_COLOR}; }
 .notice.stale-notice { display: none; border-style: dashed; border-color: ${STALE_COLOR}; background: transparent; }
@@ -180,19 +182,23 @@ function renderStatusLine(view: PipelineView): string {
     const attempt = src.attempt === null ? '' : `（${src.attempt} 回目）`;
     return `<p class="banner-msg is-running">${escapeHtml(`いま：${stageLabel(view, src.stage)}${attempt}`)}</p>`;
   }
-  if (view.pendingReview === null && view.waiting) return `<p class="banner-msg">${escapeHtml(WAITING_MESSAGE)}</p>`;
+  if (view.pendingReview === null && view.reply == null && view.waiting) return `<p class="banner-msg">${escapeHtml(WAITING_MESSAGE)}</p>`;
   return '';
 }
 
-/** 確認待ちの黄の知らせ。動いている段があるあいだ・終わったあとは出さない。 */
+/**
+ * 確認待ちの黄の知らせ。動いている段があるあいだ・終わったあとは出さない。出し分け（D0079）：
+ * 返事を受け付けている確認待ち（印あり）＝承認・修正を依頼・中止のボタン／driver なし＋pending_review＝pipe-in --review の案内／
+ * driver が pipe-dev＝record review と /pipe-in --artifact／pipe-chat＝pipe-in-gen chat review。
+ */
 function renderNotice(view: PipelineView): string {
-  if (view.noRecords || view.final !== null || view.runningStage !== null || view.pendingReview === null) return '';
+  if (view.noRecords || view.final !== null || view.runningStage !== null) return '';
+  if (view.reply != null) return renderReplyNotice(view);
+  if (view.pendingReview === null) return '';
   const { stage, label, doc } = view.pendingReview;
   // 確かめる文書は、成果物の一覧にあって読めるものだけ開く（名前は doc の最後の部分。openArtifact は一覧にある名前しか通さない）
   const file = doc.split('/').pop() ?? '';
-  const open = view.artifacts.some((a) => a.name === file && a.ready)
-    ? `<button type="button" class="secondary" data-artifact="${escapeHtml(file)}">${OPEN_DOC_LABEL}</button>`
-    : '';
+  const open = renderOpenDocButton(view, file);
   const head =
     '<div class="notice" role="status">' +
     `<strong>${escapeHtml(`${label}の確認を待っている：${doc}`)}</strong>` +
@@ -208,6 +214,17 @@ function renderNotice(view: PipelineView): string {
       '</div>'
     );
   }
+  if (view.hasDriver !== true) {
+    // 端末の記録（driver なし。--pause で止めた SDK の実行）：答えは端末の pipe-in --review で返す。パイプの記録なら --pipe <名前> を付ける
+    const pipe = view.pausePipe == null ? '' : ` --pipe ${view.pausePipe}`;
+    const code = (text: string): string => `<code>${escapeHtml(text)}</code>`;
+    return (
+      head +
+      `<span class="notice-sub">答え方：端末で ${code(`pipe-in --review approve${pipe}`)}` +
+      `（直してほしいときは ${code(`pipe-in --review revise --feedback "…"${pipe}`)}、やめるときは ${code(`pipe-in --review quit${pipe}`)}）</span>` +
+      '</div>'
+    );
+  }
   const cmd = `python -m pipe_in record review ${stage}`;
   return (
     head +
@@ -217,9 +234,6 @@ function renderNotice(view: PipelineView): string {
     '</div>'
   );
 }
-
-/** 確認待ちの知らせの、確かめる文書を開くボタンの文字（D0064）。押すと既存の openArtifact になる */
-const OPEN_DOC_LABEL = '確かめる文書を開く';
 
 /**
  * 「この段のログが（時間）更新されていません。」の知らせ。プロセスは調べていないことと、長い段では動いていても更新されないことを添える。

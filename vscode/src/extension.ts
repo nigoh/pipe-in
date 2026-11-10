@@ -1,15 +1,16 @@
 // 入口：vscode に触れる唯一のファイル。コマンド・ステータスバー・パネル・ファイルの監視・エディタで開く、を担い、判定は持たない。
 // いまの work_dir の見張りは、無いあいだは 0 個、有れば 1 個（無いあいだは決まった間隔で有無だけを確かめ、できたら張って読み直す。別の worktree の実行を選んでパネルを開いているときだけ、そのフォルダの見張りを足す）。記録が変わったら一覧と図の状態を作り直し、ステータスバーには毎回、パネルには見えているときだけ配る。
 // 実行の一覧（直下の開発フロー・<work_dir>/<パイプ名>/・archive/・同じ git リポジトリの別の worktree）から1つを選んで見る。
-// 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（書くのはそれだけ。work_dir・.git・別の worktree には書かない）。
+// 既定はいまの work_dir の最新、パネルの一覧で切り替えられる。選びは workspaceState に覚える（.git・別の worktree には書かない。work_dir に書くのは、下の返事のファイル 1 つだけ）。
 // 約5秒ごとの読み直しは、別の worktree の行があるあいだ、パネルが閉じていても隠れていても続ける（ステータスバーの件数を新しく保つため）。
 // archive の行と、選んだ実行が動いている・確認待ちのときは、パネルが見えている間だけ（app/refreshPolicy.ts）。
 // 読み込みが重なったら、最後に始めたものの結果だけを使う（世代の番号。古い結果は捨てる）。
 // 「止まっているかも」の印の目安（pipe-in.staleAfterMinutes）は、設定を読んで画面の部品に渡すだけ（秒への直しは app/staleness.ts）。変わったら描き直す。
 // パイプ作業台（pipe-in.editPipe）は .pipe-in/pipes/ と前の版の置き場所（どちらも無ければ pipes/）のパイプを開き、
-// 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。work_dir には書かない。
+// 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。作業台は work_dir には書かない。
 // 保存した版と、閉じたときの下書きは、拡張の保存場所（storageUri の pipe-versions/）にだけ書く。
 // 作業台の「流す」（D0078）は、判断を app/runFlow.ts・domain/runDecision.ts に任せ、ここは値を集めて、決まった形の pipe-in を Tasks API で起こすだけ。
+// 実行パネルの返事（D0079）は、work_dir に書くただ 1 つの例外：確認待ちの帯のボタンで、実行のフォルダに返事のファイル reply.json を 1 つ新しく作る（handleReply。判断は app/replyFlow.ts、書く口は infra/fsReplies.ts）。
 // 名前（コマンド ID・設定の節・パネルの型）は app/names.ts の表から読む。前の版の設定・コマンド ID もそこで読み替える。
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -42,6 +43,11 @@ import { editorTitle, renderPipeEditorHtml } from './view/pipeEditorHtml.ts';
 import { DEFAULT_WORK_DIR, refreshView, resolveWorkDir } from './app/refreshView.ts';
 import type { PipelineView } from './domain/pipelineView.ts';
 import { resolveArtifactPath } from './domain/artifacts.ts';
+import { createFsReplyStore } from './infra/fsReplies.ts';
+import { replyOfferOf, sendReply } from './app/replyFlow.ts';
+import type { ReplyOffer } from './app/replyFlow.ts';
+import { isLive } from './domain/replyWait.ts';
+import { replyRefusalText } from './view/replyHtml.ts';
 import { HERE, pipeRunKey } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
 import { frontWaitingKey } from './domain/runList.ts';
@@ -56,7 +62,7 @@ import { createWatchHolder, createWorkDirChecker } from './app/workDirWatch.ts';
 import { dirPresence } from './infra/fsPresence.ts';
 import { createFsRunsSource, createFsWorkDirSource } from './infra/fsWorkDirSource.ts';
 import { parseWebviewMessage } from './view/messages.ts';
-import type { ToPanelMessage } from './view/messages.ts';
+import type { ReplyMessage, ToPanelMessage } from './view/messages.ts';
 import { renderPanelHtml, renderViewBody } from './view/panelHtml.ts';
 import { statusBarLabel } from './view/statusBar.ts';
 import { SHOW_RUN_LABEL, waitingNoticeText } from './view/waitNotice.ts';
@@ -94,8 +100,8 @@ let runsSource: RunsSource | null = null;
 let lastLive = false;
 /** 前の読み直しの一覧の行（新しく確認待ちになった行を見つける基準）。拡張のメモリだけで、どこにも書かない。見る先が変わったら捨てる */
 let noticeBase: RunRow[] | null = null;
-/** いま見ている実行のフォルダと、開いてよい成果物の名前 */
-let shown: { runAbs: string; artifacts: string[] } | null = null;
+/** いま見ている実行のフォルダと、開いてよい成果物の名前と、最後に描いた返事の申し出（段と識別子。ボタンを出していないときは null。D0079） */
+let shown: { runAbs: string; artifacts: string[]; reply: ReplyOffer | null } | null = null;
 /** 読み込みの世代。最後に始めた読み込みの結果だけを使い、古い結果は捨てる */
 const loads = createGeneration();
 /** work_dir の有無の確かめの世代。読み込みの世代とは別。見る先を決め直す・片付けるたびに進め、途中の確かめの結果を捨てる */
@@ -129,11 +135,11 @@ interface CurrentView {
   /** 読んだ一覧（パネルから来た目印を確かめるのに使う） */
   list: RunList;
   listView: RunListView;
-  /** いま見ている実行のフォルダと、開いてよい成果物の名前 */
-  shownRun: { runAbs: string; artifacts: string[] };
+  /** いま見ている実行のフォルダと、開いてよい成果物の名前と、返事の申し出 */
+  shownRun: { runAbs: string; artifacts: string[]; reply: ReplyOffer | null };
   /** 選んだ run が別の worktree にあるとき、そのフォルダ */
   otherDir: string | null;
-  /** 選んだ run が動いている・確認待ちか（時系列の帯が「今」まで伸びる。読み直しを続ける） */
+  /** 選んだ run が動いている・確認待ちか（時系列の帯が「今」まで伸びる。読み直しを続ける。返事を受け付けている確認待ちも含む） */
   live: boolean;
   /** 「止まっているかも」の印を出す目安（秒）。設定 pipe-in.staleAfterMinutes から。null なら印を出さない */
   staleAfterSec: number | null;
@@ -329,16 +335,16 @@ async function currentView(): Promise<CurrentView | null> {
   const list = await loadRunList(src, { showOthers, clock });
   const here = { key: HERE, label: null, workDirAbs: t.abs };
   const choice = chooseEntry(list, selected, here);
-  // 前の実行（archive/）の写しだと基盤に伝える（前の実行は印の対象外）
-  const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs, { previous: isPreviousRun(list, choice.key) }), choice.dirAbs, clock);
+  // 前の実行（archive/）・別の worktree の写しだと基盤に伝える（どちらも返事のボタンの対象外）
   const other = !choice.key.startsWith(`${HERE}|`);
+  const view = await refreshView(createFsWorkDirSource(choice.dirAbs, choice.dirAbs, { previous: isPreviousRun(list, choice.key), other }), choice.dirAbs, clock);
   return {
     view,
     list,
     listView: toListView(list, choice.key, t.setting),
-    shownRun: { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name) },
+    shownRun: { runAbs: choice.dirAbs, artifacts: view.artifacts.map((a) => a.name), reply: replyOfferOf(view, choice.key) },
     otherDir: other ? choice.dirAbs : null,
-    live: view.gantt.live,
+    live: isLive(view),
     staleAfterSec,
   };
 }
@@ -400,6 +406,39 @@ function notifyWaiting(listView: RunListView): void {
   );
 }
 
+/** パネルに「返事を書けなかった」と知らせる（パネルは押す前の状態に戻す）。見えていなければ何もしない */
+function postReplyRefused(): void {
+  const refused: ToPanelMessage = { type: 'replyRefused' };
+  void panel?.webview.postMessage(refused);
+}
+
+/**
+ * 返事を送る（D0079）。返事のファイルを書く口を呼ぶのは、ここだけ。判断は app/replyFlow.ts（sendReply）が持ち、ここは値を集めるだけ。
+ * 書く場所は、自分が作った一覧（lastList）の中の、いま見せている返事の申し出の実行から決める。段と識別子は書く直前に読み直した記録から取る。
+ * パネルの知らせから読む値は動作と直してほしい点だけ。
+ */
+async function handleReply(msg: ReplyMessage): Promise<void> {
+  if (!target || shown === null || shown.reply === null || lastList === null || lastListView === null || findEntry(lastList, shown.reply.key) === null) {
+    postReplyRefused();
+    return;
+  }
+  const result = await sendReply(
+    { action: msg.action, feedback: msg.feedback },
+    {
+      shown: shown.reply,
+      reread: () => currentView().then((c) => (c === null ? null : replyOfferOf(c.view, c.listView.selected))),
+      store: createFsReplyStore(target.abs),
+    },
+  );
+  if (!result.ok) {
+    void vscode.window.showWarningMessage(`${NAME}: ${replyRefusalText(result.reason)}`);
+    const refused: ToPanelMessage = { type: 'replyRefused' };
+    void panel?.webview.postMessage(refused);
+  }
+  // 送った表示・消えた帯を反映する
+  await render();
+}
+
 /** 選びを替えて覚える。行を押したときと、ボタンが確認待ちを先に出すときの、書き込みはここだけ。 */
 async function chooseRun(key: RunKey): Promise<void> {
   selected = key;
@@ -446,6 +485,10 @@ async function showRun(options: { keepSelection?: boolean } = {}): Promise<void>
     if (!msg) return;
     if (msg.type === 'ready') {
       await render();
+      return;
+    }
+    if (msg.type === 'reply') {
+      await handleReply(msg);
       return;
     }
     if (!target) return;

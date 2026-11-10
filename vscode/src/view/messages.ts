@@ -1,5 +1,7 @@
 // パネルとの受け渡しの形。
 import { isPipeModel } from '../domain/pipeModel.ts';
+import { checkReplyChoice } from '../domain/replyFile.ts';
+import type { ReplyAction } from '../domain/replyFile.ts';
 import type { PipeModel } from '../domain/pipeModel.ts';
 import type { ExternalNotice } from '../domain/pipeExternal.ts';
 import { isVersionId } from '../domain/pipeVersions.ts';
@@ -7,12 +9,20 @@ import type { VersionEntry } from '../domain/pipeVersions.ts';
 import type { RunContext } from '../domain/runDecision.ts';
 import { isRunKey } from '../domain/runs.ts';
 
-export type ToPanelMessage = { type: 'render'; html: string };
+export type ToPanelMessage =
+  | { type: 'render'; html: string }
+  /** 返事を書けなかった（D0079）。パネルは押す前の状態に戻す */
+  | { type: 'replyRefused' };
 export type FromPanelMessage =
   | { type: 'ready' }
   | { type: 'openArtifact'; name: string }
   /** 見る実行を選ぶ（id は実行の目印 <場所>|<id>。形はここで検め、一覧にあるかは入口で確かめる） */
-  | { type: 'selectRun'; id: string };
+  | { type: 'selectRun'; id: string }
+  /** 確認待ちへの返事（D0079）。読むのは動作と、修正の依頼の直してほしい点だけ。場所・段・識別子はパネルから受け取らない */
+  | { type: 'reply'; action: ReplyAction; feedback?: string };
+
+/** パネルから来る返事の知らせ（合併から取り出す） */
+export type ReplyMessage = Extract<FromPanelMessage, { type: 'reply' }>;
 
 /** パネルから来た値を検める。形が違えば null。 */
 export function parseWebviewMessage(value: unknown): FromPanelMessage | null {
@@ -21,6 +31,14 @@ export function parseWebviewMessage(value: unknown): FromPanelMessage | null {
   if (msg.type === 'ready') return { type: 'ready' };
   if (msg.type === 'openArtifact' && typeof msg.name === 'string') return { type: 'openArtifact', name: msg.name };
   if (msg.type === 'selectRun' && typeof msg.id === 'string' && isRunKey(msg.id)) return { type: 'selectRun', id: msg.id };
+  if (msg.type === 'reply') {
+    // 動作と直してほしい点だけを読む。ほかの鍵（stage・id・path など）は読まず、返す物に入れない
+    const checked = checkReplyChoice(msg.action, msg.feedback);
+    if (!checked.ok) return null;
+    return checked.choice.action === 'revise'
+      ? { type: 'reply', action: 'revise', feedback: checked.choice.feedback }
+      : { type: 'reply', action: checked.choice.action };
+  }
   return null;
 }
 

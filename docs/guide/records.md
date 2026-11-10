@@ -15,7 +15,7 @@
 | `04_implementation.md` | 実装の記録（回ごとに追記） | 実装 |
 | `05_test_report.md` | 検証報告（AC ごとの結果） | 検証 |
 | `99_summary.md` | 全体の結果、受けた元（`--after` で受けた実行だけ。「パイプ」の行の次に1行）、段ごとのターン数・費用・時間、トークンの内訳、モデル別、環境、利用枠 | パイプライン |
-| `state.json` | 実行の記録（機械向け）。段の並び（`stages`：名前・表示名・成果物・確認の有無）、段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）を含む | パイプライン |
+| `state.json` | 実行の記録（機械向け）。段の並び（`stages`：名前・表示名・成果物・確認の有無）、段ごとの `metrics`、全体の `usage_summary`、注意（`warnings`）、確認待ち（`pending_review`）、端末で人の入力を待っているあいだの印（`reply_wait`）を含む | パイプライン |
 | `logs/*.jsonl` | 各段のやり取りの全記録 | パイプライン |
 
 審査（`[stages.check.judge]`、[パイプ](pipes.md#ルーブリックで審査するstagescheckjudge)）を使った検証は、`state.json` の `history` の `check` に `judge`（`status`・`overall`・`threshold`・`scores`・`must`・`valid`。項目の理由は残さず、must の根拠は残す）を足し、`99_summary.md` の検証の行の下に審査の 1 行を出します。審査を使わない検証と古い記録には、どちらも出ません。
@@ -33,6 +33,7 @@
 | `check`（`stages[]` の要素） | 段の判定の設定：`on_fail`（不合格のとき戻す段の名前。自分をやり直すなら `null`）と `max_retries`（戻す上限） | 判定（`[stages.check]`）のある段にだけ書きます。判定の無い段・開発フローには書きません。項目の無い古い記録は、判定の無い段として読み、VSCode の図は判定の節を出しません |
 | `group`（`stages[]` の要素） | 並列の枠（作業台の枠。`pipe.toml` の `[[stages]]` の `group`）の名前 | 枠の中の段にだけ書きます（`check` の後ろ）。枠の外の段・開発フローには書きません。項目の無い古い記録は枠なしとして読み、VSCode の図は段を一列に出します。拡張は、空・空白だけ・65 文字以上・`/` や `\` を含む・文字でない値を、枠なしとして読みます |
 | `attempt`（`runs[]` の `check` の中） | その段の何回目の検証か（1 から） | パイプの検証のたびに書きます。確認待ちで止めて再開しても、同じ段の前の検証の続きの番号になります。項目の無い古い記録は、同じ段の並びの番号で読みます |
+| `reply_wait` | 端末の `pipe-in` が確認の段で人の入力を待っているあいだの印：`stage`（段の名前）・`id`（待ちごとの識別子。10 文字の 16 進）・`since`（待ち始めた時刻。UTC からのずれつき） | 本体が、待ち始めに書き、待ちが終わると（承認・修正の依頼・中止・例外・中断のどれでも）消します。`pending_review`（`--pause` で止めた印）とは別の項目です。標準入力が端末でない実行・`--yes`・`--pause` では書きません。待っていないときは鍵ごと書きません。強制終了すると印が残り、次の流し始め・再開（`--from`・`--review`）で外します（それまで、VSCode の実行の一覧は「確認待ち」のままです）。項目の無い古い記録は、印なしとして読みます |
 | `received_from` | 受けた元（前のパイプの記録から渡したもの）：`pipe`（前の名前）・`kind`・`updated_at`（前の終わった日時）・`dir`（前の記録の場所。作業フォルダからの相対。`linear` は前の名前、`dev` は `.`）・`artifacts`（段の表示名 `stage` と作業フォルダからの相対パス `path`。段の順） | `pipe-in --pipe <後ろ> --after <前>` で始めた実行にだけ書きます。受けていない実行には書きません。確認待ちからの続き（`--review`）と途中からの再開（`--from`）は、この項目をそのまま使い、前の記録は読み直しません。項目の無い古い記録は、受けた元の無い実行として読みます。VSCode の拡張は、この項目を読まずに捨てます |
 
 名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。`stages[]` の `check` と `check` の `attempt` の鍵も、同じ作りで `tests/fixtures/check_record.json` の表で確かめています。`stages[]` の `group` の鍵も、`tests/fixtures/group_record.json` の表で確かめています。
@@ -40,6 +41,21 @@
 時刻は、`logs/*.jsonl` の `Prompt` の行の `at`（段の始まり。同じログに何度か流したときは最後の `Prompt` の行）と、`state.json` の `pending_review.since`（確認を待ち始めた時刻）に、UTC からのずれつきで書きます（例 `2026-10-17T10:00:00+09:00`）。VSCode の拡張が、動いている段・確認待ちの時間を出すのに使います。`started_at`・`updated_at` は今までどおりずれのない書き方です。どちらも無い古い記録も、そのまま読めます。`runs[]` の `review` の要素にも、確認の結果を書いた時刻 `at` を同じ書き方で書きます。`pipe-in record check` が、確認のある段の承認より前に次の段の `begin` が書かれていないかを、この `at` と `Prompt` の行の `at` で比べます（読むだけ。`at` の無い古い記録は、違反ではなく「判定できなかった」として出します）。
 
 新しい開発フローを始めるとき、前の終わった記録は `archive/<開始日時>/`（例 `archive/20261017-100000/`。同じ日時が重なると `-2` が付く）に、`state.json`・各段の成果物・`logs/` ごと移されます。形は `docs/pipeline/` の直下と同じです。VSCode の拡張は、この `archive/` の中の記録を「前の実行」として実行の一覧に出します（読むだけで、移すのは本体です。くわしくは [VSCode の拡張](vscode.md#実行の一覧)）。端末で流したパイプの実行（`docs/pipeline/<パイプ名>/`）は `archive/` へ移されません（会話の中で流したパイプの実行だけは、次を始めるときに移します。下の「会話の中で流した記録」）。
+
+### 返事のファイル（`reply.json`）
+
+VSCode の実行パネルのボタン（[VSCode の拡張](vscode.md#確認待ちをパネルのボタンで答える)）が置くファイルです。実行のフォルダ（work_dir の直下か、直下 1 段のパイプのフォルダ）の `reply.json` で、読むのは `pipe-in` 本体だけです。
+
+```json
+{"version": 1, "stage": "requirements", "id": "0a1b2c3d4e", "action": "revise", "feedback": "AC-03 を分けて"}
+```
+
+- 鍵は `version`（`1`）・`stage`・`id`・`action`・`feedback`（`revise` のときだけ、必ず付ける）です。余計な鍵は断ります。
+- `action` は `approve`・`revise`・`quit` です（`--review` と同じ）。`pipe-in record review` の `approved` とは別の言葉で、`approved` と書いた返事は断ります。
+- `stage` と `id` は、そのとき待っている `reply_wait` と同じでなければ断ります（古い確認への返事を通さないため）。
+- `feedback` は前後の空白を取って 1〜1,000 文字（コードポイントで数える）。制御文字・書式文字・行区切りは断ります（改行とタブは通ります）。ファイル全体は 16,384 バイトまでです。
+- 本体は、標準入力と一緒に 0.5 秒ごとに見て、読んだ返事は消します。断った返事も消し、理由だけを端末に出します（返事の文字は出しません）。待ち始め・流し始め・再開では、残っていた返事を消します。
+- `reply.json` は予約名で、パイプの段の `output` に使えません。
 
 `examples/truncate/` に、小さなプロジェクトで実際に流した結果があります（要件メモから合格まで、4段で約2分・約$0.85）。これはテスト先行の段を足す前（v0.1）の結果なので、ファイル名と段の数が今と違います。
 
