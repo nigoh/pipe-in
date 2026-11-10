@@ -9,12 +9,20 @@
 // パイプ作業台（pipe-in.editPipe）は .pipe-in/pipes/ と前の版の置き場所（どちらも無ければ pipes/）のパイプを開き、
 // 保存を押したときだけ、開いたパイプのフォルダ（新しいパイプは pipe-in-<名前>/）に書く。work_dir には書かない。
 // 保存した版と、閉じたときの下書きは、拡張の保存場所（storageUri の pipe-versions/）にだけ書く。
+// 作業台の「流す」（D0078）は、判断を app/runFlow.ts・domain/runDecision.ts に任せ、ここは値を集めて、決まった形の pipe-in を Tasks API で起こすだけ。
 // 名前（コマンド ID・設定の節・パネルの型）は app/names.ts の表から読む。前の版の設定・コマンド ID もそこで読み替える。
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { COMMANDS, LEGACY_COMMANDS, LEGACY_SECTION, SECTION, SETTING_NOTIFY, SETTING_SHOW_OTHER, SETTING_STALE_AFTER, VIEW_IDS, chooseSetting, settingKeys } from './app/names.ts';
+import { SETTING_COMMAND } from './app/names.ts';
+import { createActiveRuns } from './app/runActive.ts';
+import { resolveExecutable } from './app/runExecutable.ts';
+import { planRun, runContextFor } from './app/runFlow.ts';
+import type { OsKind } from './domain/runCommand.ts';
+import type { RunContext } from './domain/runDecision.ts';
+import { isRegularFile } from './infra/fsFileProbe.ts';
 import { notifyEnabled, planWaitingNotice } from './app/notifyWaiting.ts';
 import { choosePipesDirs, folderFor, isPipeName, listPipeRefs, loadPipe, promptRelFor, savePipe, saveTarget } from './app/pipeEditor.ts';
 import type { PipeRef, PipeStore } from './app/pipeEditor.ts';
@@ -34,7 +42,7 @@ import { editorTitle, renderPipeEditorHtml } from './view/pipeEditorHtml.ts';
 import { DEFAULT_WORK_DIR, refreshView, resolveWorkDir } from './app/refreshView.ts';
 import type { PipelineView } from './domain/pipelineView.ts';
 import { resolveArtifactPath } from './domain/artifacts.ts';
-import { HERE } from './domain/runs.ts';
+import { HERE, pipeRunKey } from './domain/runs.ts';
 import type { RunKey } from './domain/runs.ts';
 import { frontWaitingKey } from './domain/runList.ts';
 import type { RunListView, RunRow } from './domain/runList.ts';
@@ -136,6 +144,14 @@ let extensionUri: vscode.Uri | undefined;
 let versionsRoot: string | undefined;
 /** 開いている作業台（パイプの名前 → パネル） */
 const editors = new Map<string, vscode.WebviewPanel>();
+/** 作業台の「流す」で起こした実行の記録（パイプのフォルダごと。メモリだけ）。作業台のパネルは持たない（閉じても外れない） */
+const activeRuns = createActiveRuns();
+/** 流した実行の印（連番。時計も乱数も使わない） */
+let runSeq = 0;
+/** 流したタスクの型。終わりの知らせで、自分が起こしたタスクかを見分ける */
+const RUN_TASK_TYPE = 'pipe-in';
+/** 開いている作業台ごとの「runContext を送り直す」口（作業台を開いたとき入れ、閉じたとき外す） */
+const runNotifiers = new Map<string, () => Promise<void>>();
 
 export function activate(context: vscode.ExtensionContext): void {
   extensionUri = context.extensionUri;
@@ -165,7 +181,11 @@ export function activate(context: vscode.ExtensionContext): void {
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_SHOW_OTHER}`)) void render();
       // 止まっているかもの目安が変わったら、開いているパネルを描き直す（拡張を開き直さなくてよい）
       else if (event.affectsConfiguration(`${SECTION}.${SETTING_STALE_AFTER}`)) void render();
+      // 流す実行ファイルの設定が変わったら、開いている作業台の「流す」を送り直す
+      else if (event.affectsConfiguration(`${SECTION}.${SETTING_COMMAND}`)) notifyRunPanels();
     }),
+    vscode.tasks.onDidEndTask((e) => onRunTaskEnded(e.execution)),
+    vscode.tasks.onDidEndTaskProcess((e) => onRunTaskEnded(e.execution)),
     vscode.workspace.onDidChangeWorkspaceFolders(() => retarget()),
     { dispose: () => { checks.next(); stopWatching(); } },
   );
@@ -400,9 +420,12 @@ async function selectWaiting(): Promise<boolean> {
   return true;
 }
 
-/** パネルを開く（開いていれば前に出す）。確認待ちがあれば、先にその実行を選んでから開く。 */
-async function showRun(): Promise<void> {
-  if (await selectWaiting()) await render();
+/**
+ * パネルを開く（開いていれば前に出す）。確認待ちがあれば、先にその実行を選んでから開く。
+ * keepSelection は作業台から流したとき：確認待ちで選びを上書きせず、今流した実行の選びを残す。
+ */
+async function showRun(options: { keepSelection?: boolean } = {}): Promise<void> {
+  if (!options.keepSelection && (await selectWaiting())) await render();
   if (panel) {
     panel.reveal();
     return;
@@ -473,6 +496,79 @@ async function showRun(): Promise<void> {
       updatePolling(current.live);
     }
   }
+}
+
+// ---- 作業台から流す（D0078） ------------------------------------------------------
+
+/** 動かしている OS の種類（絶対パスの判断と、PATH の区切りに使う） */
+function hostOs(): OsKind {
+  return process.platform === 'win32' ? 'windows' : 'posix';
+}
+
+/** 設定 pipe-in.command の値。取り出すのはユーザーの設定（globalValue）と既定（defaultValue）だけで、ワークスペースの設定は読まない */
+function userCommandSetting(): { globalValue: unknown; defaultValue: unknown } {
+  const i = vscode.workspace.getConfiguration(SECTION).inspect<unknown>(SETTING_COMMAND);
+  return { globalValue: i?.globalValue, defaultValue: i?.defaultValue };
+}
+
+/** 「流す」を押してよいかの今の事実。実行ファイルを決めて（await）から、信頼と実行中を同期に読む */
+async function currentRunContext(ref: PipeRef | null, saved: PipeModel): Promise<RunContext> {
+  const executable = await resolveExecutable({ setting: userCommandSetting(), pathEnv: process.env.PATH, os: hostOs(), isFile: isRegularFile });
+  return runContextFor({
+    ref,
+    saved,
+    project: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? null,
+    trusted: vscode.workspace.isTrusted,
+    executable,
+    isRunning: (d) => activeRuns.isRunning(d),
+  });
+}
+
+/** 開いている作業台の全部へ、「流す」の事実を送り直す */
+function notifyRunPanels(): void {
+  for (const post of runNotifiers.values()) void post();
+}
+
+/**
+ * 作業台の「流す」：保存したパイプを、決まった形の pipe-in（実行ファイルは絶対パス。シェルを通さない）で起こす。
+ * パネルから来た値は依頼メモ（text）だけ。パイプのフォルダ・プロジェクト・実行ファイルは入口が自分で決める。
+ */
+async function startRun(i: { name: string; ref: PipeRef | null; saved: PipeModel; dirty: boolean; text: string }): Promise<void> {
+  const ctx = await currentRunContext(i.ref, i.saved);
+  const plan = planRun(ctx, i.dirty, i.text, hostOs());
+  if (!plan.ok) {
+    void vscode.window.showWarningMessage(`${NAME}: ${plan.reason}`);
+    notifyRunPanels();
+    return;
+  }
+  // 判断と記録の追加の間に await を挟まない（連打・別の作業台からの run が割り込めない）
+  const id = String(++runSeq);
+  if (!activeRuns.start(plan.pipeDir, id)) return;
+  const task = new vscode.Task({ type: RUN_TASK_TYPE, runId: id }, vscode.workspace.workspaceFolders![0]!, `${NAME} ${i.name}`, NAME, new vscode.ProcessExecution(plan.command, plan.args, { cwd: plan.cwd }), []);
+  // 確認の入力を端末で受けるので前に出して焦点を渡す。終わっても出力を残す
+  task.presentationOptions = { reveal: vscode.TaskRevealKind.Always, focus: true, panel: vscode.TaskPanelKind.Dedicated, clear: false, echo: true, showReuseMessage: false, close: false };
+  try {
+    await vscode.tasks.executeTask(task);
+  } catch (e) {
+    activeRuns.release(id);
+    void vscode.window.showErrorMessage(`${NAME}: 流せませんでした：${String(e instanceof Error ? e.message : e)}`);
+    notifyRunPanels();
+    return;
+  }
+  notifyRunPanels();
+  // 流したパイプの実行を選んで実行パネルを開く（別の実行が確認待ちでも、今流した実行の選びを上書きしない）
+  const key = pipeRunKey(i.saved.name);
+  if (key !== null) {
+    try { await chooseRun(key); } catch { /* 覚える書き込みに失敗しても続ける */ }
+  }
+  await showRun({ keepSelection: true });
+}
+
+/** 流したタスクが終わった（onDidEndTask と onDidEndTaskProcess の早いほうで外れ、遅いほうは何もしない） */
+function onRunTaskEnded(execution: vscode.TaskExecution): void {
+  const def = execution.task.definition;
+  if (def.type !== RUN_TASK_TYPE || typeof def.runId !== 'string') return;
+  if (activeRuns.release(def.runId) !== null) notifyRunPanels();
 }
 
 // ---- パイプ作業台 ----------------------------------------------------------------
@@ -578,11 +674,24 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
   editors.set(name, panel);
   /** 保存していない今の形（パネルが知らせてくる）。閉じたときに下書きとして残す */
   let unsaved: PipeModel | null = draft ?? null;
+  /** 保存していない変更があるか（パネルが state で知らせてくる）。「流す」の判断に使う。unsaved は下書きの形を持つだけで、これとは別 */
+  let dirty = draft !== undefined;
   const post = (message: ToEditorMessage): void => {
     // 取り込みで保存していない変更を消したので、タブ名の ● も外す
     if (message.type === 'externalReloaded' && message.cause === 'chosen') panel.title = editorTitle(name, false);
     void panel.webview.postMessage(message);
+    // 外で書き換わった形を取り込んだので、「流す」の事実も送り直す
+    if (message.type === 'externalReloaded') void postRunContext();
   };
+  /** 「流す」の事実（パイプのフォルダ・検査の誤り・実行中・実行ファイルなど）を作業台へ送る。閉じたあとに届いた分は捨てる */
+  const postRunContext = async (): Promise<void> => {
+    try {
+      post({ type: 'runContext', ...(await currentRunContext(ref, saved)) });
+    } catch {
+      // 閉じたパネルへは送れない
+    }
+  };
+  runNotifiers.set(name, postRunContext);
   // 外で書き換わったときの読み直し（D0065）。判断と手順は app/externalReload.ts。ここは口をつなぐだけ
   const reload = createExternalReload({
     load: () => {
@@ -594,7 +703,7 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
     saved: () => saved,
     unsaved: () => unsaved,
     setSaved: (m) => { saved = { ...m, name }; savedNames = m.stages.map((s) => s.name); },
-    clearUnsaved: () => { unsaved = null; },
+    clearUnsaved: () => { unsaved = null; dirty = false; },
     post,
   });
   const debounce = createDebouncer({
@@ -621,12 +730,19 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
       post({ type: 'load', model: draft ?? saved, folder: folderNow(), savedNames, ...(draft ? { dirty: true } : {}) });
       // 費用の目安に使う今日と前の実績（既に読んだ一覧の写しから選ぶだけ。開いたときの一度だけ。D0066）
       post({ type: 'estimateContext', ...estimateContext(lastList, name, Date.now()) });
+      // 実行中の記録が残っていれば（作業台を開き直したとき）、最初の知らせに running が入る
+      await postRunContext();
       await postVersions();
       return;
     }
     if (msg.type === 'state') {
+      dirty = msg.dirty;
       panel.title = editorTitle(name, msg.dirty);
       unsaved = msg.dirty ? msg.model ?? unsaved : null;
+      return;
+    }
+    if (msg.type === 'run') {
+      await startRun({ name, ref, saved, dirty, text: msg.text });
       return;
     }
     if (msg.type === 'externalChoice') {
@@ -666,11 +782,14 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
       saved = toSave;
       savedNames = toSave.stages.map((s) => s.name);
       unsaved = null;
+      dirty = false;
       reload.onSaved();
       if (moved) watchPipe(); // 最初の保存で保存先が決まったら、見張りを張る
       panel.title = editorTitle(name, false);
       const { errors } = validatePipe(toSave);
       post({ type: 'saved', written, errors, savedNames });
+      // 保存して形・パイプのフォルダ・検査の誤りが変わったので、「流す」の事実を送り直す
+      await postRunContext();
       if (versions) {
         try {
           post({ type: 'versions', list: await recordVersion(versions, toSave, Date.now()) });
@@ -683,8 +802,14 @@ function openEditor(dirs: string[], opened: PipeRef | null, saved: PipeModel, sa
       post({ type: 'failed', message: String(e instanceof Error ? e.message : e) });
     }
   });
+  // 隠れていた作業台が見えるようになったとき、PATH が変わっていても追いつく
+  panel.onDidChangeViewState(() => {
+    if (panel.visible) void postRunContext();
+  });
   panel.onDidDispose(() => {
     onMessage.dispose();
+    // 閉じた作業台の口だけ外す。実行中の記録（activeRuns）には触れない
+    runNotifiers.delete(name);
     watch.detach();
     debounce.cancel();
     reload.dispose();

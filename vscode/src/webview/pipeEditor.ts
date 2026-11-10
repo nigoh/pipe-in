@@ -32,6 +32,10 @@ import { setCheck } from '../domain/pipeCheck.ts';
 import { checkBoxHtml, checkChipHtml } from '../view/checkHtml.ts';
 import { estimateCost } from '../domain/costEstimate.ts';
 import { costEstimateHtml } from '../view/costEstimateHtml.ts';
+import { isAbsolutePath, MAX_TEXT_LENGTH, previewRunCommand } from '../domain/runCommand.ts';
+import { decideRun, readRunContext } from '../domain/runDecision.ts';
+import type { RunContext } from '../domain/runDecision.ts';
+import { runInfoHtml } from '../view/runHtml.ts';
 import { menuFor, menuKey, placeMenu } from '../domain/pipeMenu.ts';
 import type { MenuItem, MenuPath, MenuTarget } from '../domain/pipeMenu.ts';
 import { createHistory, jump, record, redo, undo } from '../domain/editHistory.ts';
@@ -116,9 +120,11 @@ const st: {
   estimate: { today: string | null; actualUsd: number | null };
   /** 「費用の目安」の節を開いているか（欄の作り直しをまたいで覚える） */
   costOpen: boolean;
+  /** 「流す」を押してよいかの今の事実（拡張が知らせてくる。来る前は null）。依頼メモは #run-text の値そのもので、ここには持たない（D0078） */
+  run: { ctx: RunContext | null };
 } = {
   m: null, sel: { type: 'pipe' }, view: { x: 30, y: 30, z: 0.8 }, tab: 'block', dirty: false, viewMoved: false, lifted: null, snapped: null,
-  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null, folder: '', estimate: { today: null, actualUsd: null }, costOpen: false,
+  picked: [], clip: null, pasted: 0, savedNames: [], versions: [], dropWire: null, folder: '', estimate: { today: null, actualUsd: null }, costOpen: false, run: { ctx: null },
 };
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 const esc = (t: unknown): string => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -146,8 +152,55 @@ function syncDirty(): void {
   st.dirty = dirty;
   ($('save') as HTMLButtonElement).textContent = dirty ? '保存 ●' : '保存';
   if (stateTimer !== undefined) clearTimeout(stateTimer);
-  stateTimer = setTimeout(() => vscode.postMessage(dirty ? { type: 'state', dirty, model: st.m } : { type: 'state', dirty }), 300);
+  stateTimer = setTimeout(() => postState(), 300);
+  refreshRun();
 }
+
+/** 待っている送信を止めて、保存していない印を今すぐ拡張へ知らせる（「流す」の前にも使う。拡張の「保存していない変更がある」を最新にするため） */
+function postState(): void {
+  if (stateTimer !== undefined) clearTimeout(stateTimer);
+  vscode.postMessage(st.dirty ? { type: 'state', dirty: true, model: st.m } : { type: 'state', dirty: false });
+}
+
+/** 実行ファイルのパスの形から OS の種類を決める（Windows の絶対パスと posix の絶対パスは重ならない） */
+const osOf = (file: string): 'windows' | 'posix' => (isAbsolutePath('windows', file) ? 'windows' : 'posix');
+
+/**
+ * 「流す」の節を作り直す（保存していない印が変わるたび・依頼メモを打つたび・拡張から事実が来たとき）。見せるだけで、拡張へは何も送らない。
+ * 流してよいかは domain の decideRun（拡張も同じ関数で、自分の持つ値でもう一度判断する）。同じ理由を2か所に出さない。
+ */
+function refreshRun(): void {
+  const ctx = st.run.ctx;
+  const text = ($('run-text') as HTMLTextAreaElement).value;
+  const decision = ctx === null ? { ok: false as const, reason: '読み込んでいます…' } : decideRun(ctx, st.dirty, text);
+  const block = 'block' in decision ? decision.block : null;
+  let command: { command: string; args: string[]; placeholder: boolean } | null = null;
+  let commandNote: string | null = null;
+  let reason: string | null = decision.ok ? null : decision.reason;
+  if (ctx !== null) {
+    if (ctx.pipeDir !== null && ctx.project !== null && ctx.executable.ok) {
+      const shown = previewRunCommand({ os: osOf(ctx.executable.path), executable: ctx.executable.path, pipeDir: ctx.pipeDir, project: ctx.project, input: ctx.input, text });
+      if (shown.ok) command = { command: shown.command, args: shown.args, placeholder: shown.placeholder };
+    }
+    if (!ctx.executable.ok) {
+      // 実行ファイルが決まらない理由は、コマンドの形の欄にだけ出す（下の理由の行には出さない）
+      commandNote = ctx.executable.reason;
+      if (block === 'noExecutable') reason = null;
+    } else if (block === 'notSaved') {
+      commandNote = '保存すると、起こすコマンドの形が見えます';
+    }
+  }
+  const count = ctx === null || ctx.input === 'none' ? null : { length: text.length, limit: MAX_TEXT_LENGTH };
+  $('run-text-wrap').hidden = ctx !== null && ctx.input === 'none';
+  $('run-info').innerHTML = runInfoHtml({ command, commandNote, reason, count });
+  ($('run-go') as HTMLButtonElement).disabled = !decision.ok;
+}
+$('run-text').addEventListener('input', refreshRun);
+$('run-go').addEventListener('click', () => {
+  const text = ($('run-text') as HTMLTextAreaElement).value;
+  postState();
+  vscode.postMessage({ type: 'run', text });
+});
 
 /** 1手として積む。label は履歴の一覧に出す文。key が同じ手が続けば（同じ欄に続けて打つなど）1手にまとめる */
 function changed(label: string, key?: string): void {
@@ -1399,6 +1452,15 @@ window.addEventListener('message', (ev: MessageEvent) => {
     cause?: 'auto' | 'chosen'; versions?: VersionEntry[] | null; diff?: DiffItem[]; reason?: string;
     today?: string; actualUsd?: number | null;
   };
+  if (msg.type === 'runContext') {
+    // 「流す」を押してよいかの事実。型・形が違えば使わない
+    const next = readRunContext(ev.data);
+    if (next !== null) {
+      st.run.ctx = next;
+      refreshRun();
+    }
+    return;
+  }
   if (msg.type === 'load' && msg.model) {
     st.m = msg.model;
     st.folder = typeof msg.folder === 'string' ? msg.folder : '';
@@ -1469,4 +1531,7 @@ $('ext-banner').addEventListener('click', (ev) => {
   const choice = (ev.target as HTMLElement).closest<HTMLElement>('button[data-ext]')?.dataset.ext;
   if (choice === 'load' || choice === 'keep') vscode.postMessage({ type: 'externalChoice', choice });
 });
+refreshRun();
+// 右の欄が図の下に回る狭い幅（STYLE の @media と同じ数）では、「流す」の節を畳んだ形で始める。読み込みのとき1回だけ
+if (window.matchMedia('(max-width: 1000px)').matches) ($('run') as HTMLDetailsElement).open = false;
 vscode.postMessage({ type: 'ready' });

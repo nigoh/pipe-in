@@ -80,7 +80,8 @@ test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設
   // D0019: 別の worktree を出す設定（pipe-in.showOtherWorktrees）が増えた。期待の一覧に足しただけで、ほかは変えない
   // D0021: 止まっているかもしれない印の目安の設定（pipe-in.staleAfterMinutes）が増えた。同じく期待の一覧に足しただけ
   // D0046: 確認待ちの知らせの設定（pipe-in.notifyWhenWaiting）が増えた。
-  assert.deepEqual(keys, ['pipe-in.notifyWhenWaiting', 'pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir']);
+  // D0078: 作業台から流す実行ファイルの設定（pipe-in.command）が増えた。期待の一覧に足しただけ
+  assert.deepEqual(keys, ['pipe-in.command', 'pipe-in.notifyWhenWaiting', 'pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir']);
   assert.equal(manifest.contributes.configuration.properties['pipe-in.pipesDir'].default, '');
   assert.doesNotMatch(JSON.stringify(manifest.contributes), /devpipe/i);
   assert.doesNotMatch(JSON.stringify({ name: manifest.name, displayName: manifest.displayName, description: manifest.description }), /devpipe/i);
@@ -197,10 +198,10 @@ test('D0024-AC-26: ステータスバーのボタンは pipe-in.showRun のま�
   assert.ok(ids.includes('pipe-in.showRun'), 'contributes.commands に pipe-in.showRun があること');
 });
 
-test('D0024-AC-26（D0046 で 5 つに書き換え）: コマンドは 2 つ、設定の鍵は 5 つ（件数の形を切る設定などを足さない。理由：機能の要件で設定が1つ増えるため）', () => {
+test('D0024-AC-26（D0046 で 5 つ、D0078 で 6 つに書き換え）: コマンドは 2 つ、設定の鍵は 6 つ（件数の形を切る設定などを足さない。理由：機能の要件で設定が1つずつ増えるため）', () => {
   const manifest = readManifest();
   assert.equal((manifest.contributes?.commands ?? []).length, 2, 'コマンド ID は増やさない');
-  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 5, '設定の鍵は 5 つ（D0046 まで。増やすときは決定の記録に理由を書く）');
+  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 6, '設定の鍵は 6 つ（D0078 まで。増やすときは決定の記録に理由を書く）');
 });
 
 test('D0046-AC-17: pipe-in.notifyWhenWaiting は boolean・default true・説明あり', () => {
@@ -316,10 +317,10 @@ test('D0072-AC-05: 案内の command: は contributes.commands の ID だけ', (
   for (const u of used) assert.ok(ids.includes(u), `command:${u} は contributes.commands に無い`);
 });
 
-test('D0072-AC-06: コマンドは2つ・設定は5つのまま（今のまま通る。守る）', () => {
+test('D0072-AC-06（D0078 で設定を 6 つに書き換え）: コマンドは2つ・設定は6つ（理由：作業台から流す機能で設定 pipe-in.command が1つ増えるため）', () => {
   const manifest = readManifest();
   assert.equal((manifest.contributes?.commands ?? []).length, 2);
-  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 5);
+  assert.equal(Object.keys(manifest.contributes?.configuration?.properties ?? {}).length, 6);
 });
 
 test('D0072-AC-07: 本番のコードに openWalkthrough と globalState が無い（今のまま通る。守る）', () => {

@@ -105,8 +105,8 @@
 
 - 実行パネル 拡張→パネル：`render`
 - 実行パネル パネル→拡張：`ready`・`openArtifact`・`selectRun`
-- 作業台 拡張→パネル：`load`・`saved`・`failed`・`versions`・`version`・`estimateContext`（D0066 で足した）
-- 作業台 パネル→拡張：`ready`・`save`・`state`・`openPrompt`・`loadVersion`・`externalChoice`
+- 作業台 拡張→パネル：`load`・`saved`・`failed`・`versions`・`version`・`estimateContext`（D0066 で足した）・`runContext`（D0078 で足した）
+- 作業台 パネル→拡張：`ready`・`save`・`state`・`openPrompt`・`loadVersion`・`externalChoice`・`run`（D0078 で足した）
 - 今の形：型は `vscode/src/view/messages.ts` にある。パネルから来た値は `parseWebviewMessage`・`parseEditorMessage` で形を検める。形が違えば捨てる。場所（保存先・開く先・読む版・見る実行）はパネルの値では決めず、入口が決める。
 - 読み取れる理由：場所を入口が決めるのは、パネルから来た文字で場所を決めないため（`vscode/src/view/messages.ts` と `vscode/src/extension.ts` のコメント）。
 - 設定名とコマンド ID：設定は `pipe-in.workDir`（実行を見る work_dir）・`pipe-in.pipesDir`（作業台のパイプの置き場所）、コマンドは `pipe-in.showRun`（実行を見る）・`pipe-in.editPipe`（作業台を開く）。`vscode/package.json` にある。前の名前の読み替えは「前の名前の扱い」を見る。

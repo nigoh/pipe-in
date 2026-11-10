@@ -19,6 +19,12 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "作業台の「流す」が pipe-in を起こすため、信頼していないワークスペースでは動きません。フォルダを信頼してから使ってください。"
+    }
+  },
   "contributes": {
     "commands": [
       {
@@ -53,7 +59,7 @@
           {
             "id": "pipe-in.run",
             "title": "流す",
-            "description": "端末で1行を貼って流します。",
+            "description": "保存したパイプは、作業台の「流す」から流せます。端末で1行を貼って流してもかまいません。",
             "media": { "markdown": "walkthrough/03-run.md" }
           },
           {
@@ -89,6 +95,12 @@
           "minimum": 0,
           "maximum": 10080,
           "description": "動いている段のログがこの分数のあいだ更新されないと、「止まっているかも」の印（⚠ 更新なし）を出す。プロセスは調べず、ログの更新時刻だけを見る。0 で印を出さない。最大は 10080（7 日）"
+        },
+        "pipe-in.command": {
+          "type": "string",
+          "default": "pipe-in",
+          "scope": "machine",
+          "description": "作業台の「流す」で起こす pipe-in の実行ファイル。既定の pipe-in なら、PATH にある絶対パスの項目から探す。見つからないときや別の pipe-in を使うときは絶対パスを書く（相対パスは使えない。値は丸ごと 1 つのファイルの場所として扱い、引数は付けられない。Windows は .exe か .com）。ユーザーの設定だけが効き、ワークスペースの設定（.vscode/settings.json）では決められない"
         },
         "pipe-in.notifyWhenWaiting": {
           "type": "boolean",
