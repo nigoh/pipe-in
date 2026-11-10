@@ -147,7 +147,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .legend { position: absolute; right: 10px; bottom: 10px; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 8px; font-size: 11px; color: var(--muted); }
 .legend i { display: inline-block; width: 20px; border-top: 5px solid; vertical-align: middle; margin-right: 5px; border-radius: 3px; }
 .legend .ln { border-color: var(--next); } .legend .lr { border-color: var(--route); } .legend .lx { border-color: var(--return); border-top-style: dashed; border-top-width: 3px; } .legend .lp { border-color: var(--par); }
-.side { display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--rule); border-radius: 3px; min-height: 0; min-width: 0; background: var(--panel); }
+.side { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border: 1px solid var(--rule); border-radius: 3px; min-height: 0; min-width: 0; background: var(--panel); }
 .tabs { display: flex; border-bottom: 1px solid var(--rule); }
 .tabs button { flex: 1; border: 0; background: transparent; padding: 7px 6px; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--vscode-focusBorder); }
@@ -210,6 +210,26 @@ details.box > summary { cursor: pointer; font-size: 12px; color: var(--muted); f
 .cost-table thead th { color: var(--muted); font-weight: 700; }
 .cost-model { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .cost-mark { display: block; margin: 2px 0 0; font-size: 11px; font-weight: 400; color: var(--vscode-editorWarning-foreground, var(--ink)); }
+/* 「流す」の節（D0078）：右の欄の下に固定で置く（#pane の外なので、描き直しで打っている文字とフォーカスを失わない）。畳むと summary の1行だけになる */
+.side > .run { margin: 0 10px 10px; min-width: 0; max-height: 50vh; overflow: auto; }
+.run > summary { color: var(--ink); }
+.run #run-text-wrap { display: grid; gap: 3px; }
+.run #run-text-wrap[hidden] { display: none; }
+.run label { font-size: 11px; color: var(--muted); }
+.run textarea { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid var(--vscode-input-border, var(--rule)); border-radius: 2px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); padding: 3px 6px; font-size: 12.5px; }
+.run-cmd { display: grid; gap: 3px; min-width: 0; order: 3; }
+.run-cmd::before { content: '起こすコマンド'; font-size: 11px; color: var(--muted); }
+.run-exe, .run-args code, .run-note { font-size: 11.5px; overflow-wrap: anywhere; }
+.run-exe code, .run-args code { font-family: var(--mono); }
+.run-args { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.run-note { margin: 0; color: var(--muted); }
+.run-reason { order: 2; margin: 0; font-size: 12px; color: var(--vscode-editorWarning-foreground, var(--ink)); overflow-wrap: anywhere; }
+.run-count { order: 1; margin: 0; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.run-count.over { color: var(--vscode-errorForeground, var(--ink)); font-weight: 700; }
+.run #run-text-wrap, .run #run-info, .run #run-go { margin-top: 6px; }
+#run-info { display: grid; gap: 6px; min-width: 0; }
+.run #run-go { width: 100%; position: sticky; bottom: 0; box-shadow: 0 -6px 0 0 var(--panel), 0 12px 0 0 var(--panel); }
+.run #run-go:disabled { background: var(--vscode-button-secondaryBackground); color: var(--vscode-disabledForeground, var(--muted)); cursor: default; }
 details.preview { border: 1px dashed var(--rule); border-radius: 8px; }
 details.preview summary { cursor: pointer; padding: 7px 10px; font-weight: 700; }
 details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; font-family: var(--mono); font-size: 11px; }
@@ -247,6 +267,8 @@ details.preview pre { margin: 0; padding: 0 10px 10px; white-space: pre-wrap; fo
   .work > .shelf, .work > .stage-area { grid-row: 2; } .stage-area { min-height: 0; }
   .work > .side { grid-column: 1 / -1; grid-row: 3; margin-top: 8px; }
   .legend { display: none; }
+  .side > .run { max-height: 30vh; }
+  .run textarea { height: 3.4em; max-height: 6em; }
 }
 `;
 
@@ -293,6 +315,12 @@ export function renderPipeEditorHtml(o: PipeEditorHtmlOptions): string {
       <button type="button" role="tab" data-tab="history" aria-selected="false">履歴</button>
     </div>
     <div class="pane" id="pane"></div>
+    <details class="box run" id="run" open>
+      <summary>流す</summary>
+      <div id="run-text-wrap"><label for="run-text">依頼メモ</label><textarea id="run-text" rows="4" spellcheck="false"></textarea></div>
+      <div id="run-info"></div>
+      <button type="button" class="btn primary" id="run-go" disabled>流す</button>
+    </details>
   </aside>
 </main>
 <script nonce="${n}" src="${escapeHtml(o.scriptUri)}"></script>

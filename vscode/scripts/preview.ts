@@ -169,8 +169,12 @@ for (const [page, model, theme, external] of PAGES) {
   // 他のスクリプトの名前とぶつからないように、全体を即時関数に入れる
   // 費用の目安（D0066）：開いたときに今日（固定。単価表の as_of に近い日）を知らせる。補助 window.__previewEstimate({ today, actualUsd }) で、今日と前の実績を送り直せる
   const estHead = `window.__previewEstimate=(c)=>send({type:'estimateContext',today:c.today,actualUsd:c.actualUsd});`;
-  const stub = `<script nonce="preview">(()=>{window.__posted=[];const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);${estHead}${extHead}window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);`
-    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'estimateContext',today:'2026-11-02',actualUsd:null});send({type:'versions',list:${versions}})}`
+  // 作業台の「流す」の節（D0078）：開いたときに既定の runContext（保存済み・信頼あり・実行ファイルあり・実行中でない）を知らせる。
+  // 補助 window.__previewRun(ctx) で、入力の種類・保存前（pipeDir: null）・検査の誤り・実行中・信頼・実行ファイルの有無を送り直せる。run の知らせは window.__posted に残る（返事はしない）
+  const runHead = `const runCtx={input:${JSON.stringify(model.input)},pipeDir:'/work/app/.pipe-in/pipes/pipe-in-'+${JSON.stringify(model.name)},savedErrors:0,project:'/work/app',trusted:true,executable:{ok:true,path:'/usr/local/bin/pipe-in'},running:false};`
+    + `window.__previewRun=(c)=>send({type:'runContext',...c});`;
+  const stub = `<script nonce="preview">(()=>{window.__posted=[];const send=(x)=>setTimeout(()=>window.postMessage(x,'*'),0);${estHead}${runHead}${extHead}window.acquireVsCodeApi=()=>({postMessage(m){window.__posted.push(m);`
+    + `if(m.type==='ready'){send({type:'load',model:${json},folder:${folder},savedNames:${names}});send({type:'estimateContext',today:'2026-11-02',actualUsd:null});send({type:'runContext',...runCtx});send({type:'versions',list:${versions}})}`
     + `if(m.type==='save'){window.__saved=m.model;send({type:'saved',written:['pipe.toml'],errors:[],savedNames:m.model.stages.map(s=>s.name)})}`
     + `if(m.type==='loadVersion'){const v=${json};v.label='保存した版の見本';send({type:'version',id:m.id,model:v})}`
     + `${extChoice}}})})();</script>`;

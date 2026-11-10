@@ -210,6 +210,10 @@ ALLOWED: dict[str, str] = {
     "tests/test_estimate_cli.py": "前の版の置き場所（.devpipe/pipes/devpipe-<名前>/）のパイプでも目安が出ることのテスト（D0066-AC-26）",
     "vscode/src/app/pipeCheckParity.test.ts": "前の形（devpipe- のフォルダ）の見本が通ることのテスト（D0061）",
     "tests/fixtures/check_parity/ok-legacy-folder/expected.json": "前の形（devpipe- のフォルダ）の見本の説明（D0061）",
+    "tests/test_run_command.py": "前の版の置き場所（.devpipe/pipes/devpipe-<名前>/）のパイプも、絶対パスを --pipe= に渡せば流せることのテスト（D0078-AC-38）",
+    "vscode/src/app/runFlow.test.ts": "前の版の置き場所・フォルダ名のパイプでも、流す計画の --pipe= がそのフォルダの絶対パスになることのテスト（D0078-AC-38）",
+    "vscode/src/manifestRun.test.ts": "設定 pipe-in.command に前の版の名前（devpipe.command）が無いことのテスト（D0078-AC-30）",
+    "vscode/src/extensionRun.test.ts": "入口が前の版の節から command を読まないことのテスト（D0078-AC-26）",
 }
 
 

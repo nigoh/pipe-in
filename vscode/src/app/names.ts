@@ -23,6 +23,9 @@ export const SETTING_STALE_AFTER = 'staleAfterMinutes';
 /** 新しく確認待ちになったときに知らせるかの設定の名前（pipe-in.notifyWhenWaiting）。この設定にも前の版（devpipe）の名前が無い（書いてあれば読む） */
 export const SETTING_NOTIFY = 'notifyWhenWaiting';
 
+/** 作業台の「流す」で起こす pipe-in の実行ファイルの設定の名前（pipe-in.command。D0078）。新しい節 pipe-in だけで、前の版（devpipe）の節には無いので読み替えない */
+export const SETTING_COMMAND = 'command';
+
 export const VIEW_IDS = { status: 'pipe-in.status', run: 'pipe-in.run', pipeEditor: 'pipe-in.pipeEditor' } as const;
 
 /** 設定の各側の値（VSCode の inspect の結果のうち、使う所だけ） */

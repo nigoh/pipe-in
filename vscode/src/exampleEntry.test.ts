@@ -56,7 +56,8 @@ test('D0070-AC-36: contributesのコマンドは2つのまま_dependenciesは空
   };
   assert.deepEqual(pkg.contributes.commands.map((c) => c.command), ['pipe-in.showRun', 'pipe-in.editPipe']);
   assert.deepEqual(Object.keys(pkg.contributes.configuration.properties).sort(), [
-    'pipe-in.notifyWhenWaiting', 'pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir',
+    // D0078：作業台から流す実行ファイルの設定（pipe-in.command）が増えた。期待の一覧に足しただけ
+    'pipe-in.command', 'pipe-in.notifyWhenWaiting', 'pipe-in.pipesDir', 'pipe-in.showOtherWorktrees', 'pipe-in.staleAfterMinutes', 'pipe-in.workDir',
   ]);
   assert.deepEqual(Object.keys(pkg.dependencies ?? {}), []);
   assert.deepEqual(Object.keys(pkg.devDependencies).sort(), ['@types/node', '@types/vscode', '@vscode/vsce', 'esbuild', 'typescript']);

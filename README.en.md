@@ -81,7 +81,7 @@ If you run it from a Claude Code conversation with `/pipe-in --artifact <require
 
 <sub>Usage video (about 40 seconds): the run panel is left open, the development flow runs in the terminal, and the confirmation screens are answered along the way. It runs with a fake that returns sample replies in place of the SDK (the numbers are samples).</sub>
 
-"pipe-in: パイプ作業台を開く" (open the pipe workbench) opens the workbench where you build pipes.
+"pipe-in: パイプ作業台を開く" (open the pipe workbench) opens the workbench where you build pipes. A saved pipe can be run from the "流す" (Run) section of the workbench.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vscode-editor-dark.png">
@@ -97,7 +97,7 @@ The detailed guides are in `docs/guide/` (index: [docs/guide/README.md](docs/gui
 | Document | Contents |
 | --- | --- |
 | [Usage](docs/guide/usage.md) | The flow of the development flow, running, resuming, the confirmation screen, `--pause` and `--review`, `pipe-in record`, watching in a Claude artifact, answering with buttons, notes |
-| [The VSCode extension](docs/guide/vscode.md) | Installing, viewing runs, the pipe workbench |
+| [The VSCode extension](docs/guide/vscode.md) | Installing, viewing runs, the pipe workbench, running from the workbench |
 | [For people who do not type commands](docs/guide/start-without-commands.md) | The way to view, choose a sample, and answer confirmations with only the extension, a browser, and a conversation, and where one line in a terminal is still needed |
 | [Pipes](docs/guide/pipes.md) | How to build, check warnings, templates, sample pipes, `pipe.toml`, verification and send-back, branching, Agent SDK settings |
 | [The Claude Code plugin](docs/guide/plugin.md) | Installing and what comes with it (`/pipe-in:pipe-build`, the pipe-builder, check, judge, and live skills, hooks, and `/pipe-in:pipe-run`, which runs a pipe inside the conversation where the SDK cannot start (not yet checked on a real machine)) |

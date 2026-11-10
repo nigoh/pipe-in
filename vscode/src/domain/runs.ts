@@ -53,6 +53,11 @@ export function makeRunKey(place: PlaceKey, id: string): RunKey {
   return `${place}|${id}`;
 }
 
+/** 作業台から流したパイプの実行の目印（D0078）。いまの work_dir の <パイプ名>。フォルダ名に使えない名前（logs・archive・不正な形）は null。 */
+export function pipeRunKey(pipeName: string): RunKey | null {
+  return isRunFolderName(pipeName) ? makeRunKey(HERE, pipeName) : null;
+}
+
 function isRunId(id: string): boolean {
   return id === ROOT_RUN_ID || isRunFolderName(id) || isArchiveId(id);
 }

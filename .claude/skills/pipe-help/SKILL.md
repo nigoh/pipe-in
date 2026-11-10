@@ -69,7 +69,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | 記録だけを書く（段は流さない。/pipe-in が使う） | `pipe-in record start --text "…" --name "…"`（`--session-id` も付けられる）→ `begin <段> --agent <受け持ち>` → `done <段>` → `wait <段>` → `review <段> approved` … → `finish PASSED`（`pipe-in record --help`） |
 | 進み具合の写し・ページを出す（Claude のアーティファクト用。記録は読むだけ。/pipe-in --artifact が使う） | `pipe-in live snapshot [--project DIR] [--config FILE] [--work-dir DIR] [--out FILE]` ／ `pipe-in live page [--out FILE]` |
 | ターミナルの実行を見張る（写しが変わったときだけ `--out` に書いて JSON の1行を出す。final で 0、上限で 124。/pipe-in:pipe-live が使う） | `pipe-in live watch --out FILE [--project DIR] [--config FILE] [--work-dir DIR] [--interval 秒] [--timeout 秒]` |
-| パイプを流す | `pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける） |
+| パイプを流す | `pipe-in --pipe <名前> --project <対象> --text "依頼メモ"`（`--pause`・`--review`・`--from` も使える。`--review` のときも `--pipe <名前>` を付ける）。保存したパイプは、VSCode の作業台の「流す」からも流せる |
 
 ### pipe-in-gen（パイプを作る）
 
@@ -90,7 +90,7 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 | コマンド | すること |
 | --- | --- |
 | pipe-in: 実行を見る | 流している・流した実行を、図と出力・成果物・使ったエージェント・スキル・使用量で見る（ステータスバーのボタンでも開く）。実行が新しく確認待ちになると右下に知らせが出る（設定 `pipe-in.notifyWhenWaiting`。開いた直後からある分とパネルで見ている実行は知らせない） |
-| pipe-in: パイプ作業台を開く | パイプ作業台を開く。形のブロックを置き、プラグをコンセントに差してつなぎ、各ブロックで Claude に頼むことと SDK の設定を決めて保存する |
+| pipe-in: パイプ作業台を開く | パイプ作業台を開く。形のブロックを置き、プラグをコンセントに差してつなぎ、各ブロックで Claude に頼むことと SDK の設定を決めて保存する。保存したパイプは、右の欄の下の節「流す」で依頼メモを書いて流せる（拡張が決まった形の `pipe-in` を VSCode の端末で起こす。実行ファイルは設定 `pipe-in.command`。段の確認はその端末で答える。開発フローは流せない） |
 
 ### もっと詳しく
 

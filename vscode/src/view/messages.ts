@@ -4,6 +4,7 @@ import type { PipeModel } from '../domain/pipeModel.ts';
 import type { ExternalNotice } from '../domain/pipeExternal.ts';
 import { isVersionId } from '../domain/pipeVersions.ts';
 import type { VersionEntry } from '../domain/pipeVersions.ts';
+import type { RunContext } from '../domain/runDecision.ts';
 import { isRunKey } from '../domain/runs.ts';
 
 export type ToPanelMessage = { type: 'render'; html: string };
@@ -40,7 +41,9 @@ export type ToEditorMessage =
   /** 費用の目安に使う今日（UTC の日付）と、前の実績（ドル。無ければ null）。開いたときに一度だけ送る（D0066） */
   | { type: 'estimateContext'; today: string; actualUsd: number | null }
   /** 外で書き換わったときの知らせ（D0065。型だけ。パネルは入口と同じ版で出る） */
-  | ExternalNotice;
+  | ExternalNotice
+  /** 「流す」を押してよいかの今の事実（D0078）。開いたとき・保存したとき・実行の始まりと終わり・設定が変わったときに入口が送る。パネルは検めてから使う */
+  | ({ type: 'runContext' } & RunContext);
 export type FromEditorMessage =
   | { type: 'ready' }
   | { type: 'save'; model: PipeModel }
@@ -50,7 +53,9 @@ export type FromEditorMessage =
   | { type: 'openPrompt'; name: string }
   | { type: 'loadVersion'; id: string }
   /** 外で書き換わった帯での選び（読み込む／自分の変更を残す） */
-  | { type: 'externalChoice'; choice: 'load' | 'keep' };
+  | { type: 'externalChoice'; choice: 'load' | 'keep' }
+  /** 保存したパイプを流す（D0078）。パネルから来る値は依頼メモだけ。パイプのフォルダ・プロジェクト・コマンドは入口が決める */
+  | { type: 'run'; text: string };
 
 const STAGE_NAME = /^[a-z0-9][a-z0-9_-]*$/;
 
@@ -67,5 +72,6 @@ export function parseEditorMessage(value: unknown): FromEditorMessage | null {
   if (msg.type === 'openPrompt' && typeof msg.name === 'string' && STAGE_NAME.test(msg.name)) return { type: 'openPrompt', name: msg.name };
   if (msg.type === 'loadVersion' && typeof msg.id === 'string' && isVersionId(msg.id)) return { type: 'loadVersion', id: msg.id };
   if (msg.type === 'externalChoice' && (msg.choice === 'load' || msg.choice === 'keep')) return { type: 'externalChoice', choice: msg.choice };
+  if (msg.type === 'run' && typeof msg.text === 'string') return { type: 'run', text: msg.text };
   return null;
 }
