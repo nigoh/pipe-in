@@ -26,6 +26,7 @@ def new_state(
     total_cost_usd: float | None = None,
     usage_summary: dict[str, Any] | None = None,
     with_schema: bool = True,
+    flow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """記録の土台（鍵の並びと、費用・使用量の2通り）を作る。書き手は、ここに段ごとの値を足して書く。
 
@@ -65,6 +66,8 @@ def new_state(
         "pending_review": pending_review,
         "warnings": warnings if warnings is not None else [],
     }
+    if flow is not None:
+        state["flow"] = flow
     if with_open:
         state["open"] = None
     state["runs"] = runs

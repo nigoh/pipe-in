@@ -107,7 +107,7 @@ pipe-in --project ~/src/myapp --review revise --feedback "AC-03 を分けて"   
 pipe-in --project ~/src/myapp --review quit                                       # 中止
 ```
 
-- 記録（`state.json` の `runs`・段のログの番号・費用の合計・注意）は、呼び出しをまたいで続きます。
+- 記録（`state.json` の `runs`・段のログの番号・費用の合計・注意）は、呼び出しをまたいで続きます。パイプ（`--pipe`）では、段を流した回数ややり直しの回数（`flow`）も続くので、`max_steps`・`max_retries` は確認をはさんでも実行全体で効きます（[パイプ](pipes.md)）。
 - `--test-cmd`・`--max-retries` は記録に残らないので、`--review` のたびに同じものを渡してください。
 - 止まっている間の `final` は空のままです（VSCode のパネルでは「次を待っている」と出ます）。
 

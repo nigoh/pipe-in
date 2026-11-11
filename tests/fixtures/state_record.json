@@ -3,7 +3,7 @@
   "kinds": {
     "sdk":  { "driver": null,
               "keys": ["schema","started_at","updated_at","pipe","stages","final","total_cost_usd","usage_summary","pending_review","warnings","runs"],
-              "optional_keys": ["name","received_from","reply_wait"],
+              "optional_keys": ["name","received_from","reply_wait","flow"],
               "total_cost_usd": "number", "usage_summary": "summary", "run_cost_usd": "number", "run_metrics": "present" },
     "dev":  { "driver": "pipe-dev",
               "keys": ["schema","started_at","updated_at","pipe","driver","stages","final","total_cost_usd","usage_summary","pending_review","warnings","open","runs"],

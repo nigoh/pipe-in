@@ -4,6 +4,9 @@
 // そのため、ここのテストの多くは「今のまま通る。守る」。読む側に零を出す所が見つかったら、ここが落ちる。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildPipelineView } from './pipelineView.ts';
 import { parseRunRecord } from './runRecord.ts';
 import { UNAVAILABLE_COST_TEXT, summarizeRun } from './runList.ts';
@@ -83,6 +86,31 @@ test('D0080-AC-09: 表を読む補助が組む記録は、取れない形で run
       assert.equal('metrics' in run, row.run_metrics === 'present', `${kind}: metrics の鍵`);
     }
   }
+});
+
+// ---- D0081-AC-10：flow の鍵（本体が足した回数。拡張は読まずに捨てる） ----
+
+test('D0081-AC-10: flow の鍵が入った sdk の記録を、落ちずに読み、flow の無い記録と同じ結果になる（flow を使わない。今のまま通る。守る）', () => {
+  const flow = { steps: 5, retries: { verify: 1 } };
+  const withFlow = stateRecordJson('sdk', { final: 'PASSED', extra: { flow } });
+  const without = stateRecordJson('sdk', { final: 'PASSED' });
+  assert.ok(withFlow.includes('"flow"'), '見本に flow が入っている');
+  assert.deepEqual(parseRunRecord(withFlow), parseRunRecord(without));
+  assert.deepEqual(rowOf(withFlow), rowOf(without));
+  const snap = (stateJson: string) => ({ workDir: '/w', stateJson, stageLogs: [], artifacts: { '00_input.md': 'メモ' } });
+  const view = buildPipelineView(snap(withFlow));
+  assert.deepEqual(view, buildPipelineView(snap(without)));
+  assert.doesNotThrow(() => renderShell(view, emptyListFor(view)));
+  // 壊れた flow でも同じ（読まないので落ちない）
+  for (const odd of [null, 'x', [], { steps: -1, retries: 'x' }]) {
+    const text = stateRecordJson('sdk', { final: 'PASSED', extra: { flow: odd } });
+    assert.deepEqual(parseRunRecord(text), parseRunRecord(without));
+  }
+});
+
+test('D0081-AC-10: 拡張の読み取り（domain/runRecord.ts）のソースに flow を読むコードが無い（読まない鍵のまま）', () => {
+  const source = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'runRecord.ts'), 'utf8');
+  assert.doesNotMatch(source, /\.flow\b|\[['"]flow['"]\]|\bflow:/);
 });
 
 // ---- AC-07：古い記録は今までどおり ----

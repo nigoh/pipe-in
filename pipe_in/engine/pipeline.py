@@ -197,6 +197,10 @@ class BasePipeline:
         """段の名前 → 枠（並列の束）の名前。枠の中の段だけ。既定は空。"""
         return {}
 
+    def _flow_record(self) -> dict[str, Any] | None:
+        """記録の flow（流した回数と、段ごとに戻した回数）。書かない子は None（既定）。"""
+        return None
+
     def _summary_extra(self) -> list[str]:
         """まとめに足す節（開発フローのテストの判定など）。"""
         return []
@@ -256,6 +260,7 @@ class BasePipeline:
             usage_summary=summarize_runs([h.get("metrics") for h in self.history if "seq" in h]),
             pending_review=self.pending,
             warnings=self.warnings,
+            flow=self._flow_record(),
             runs=self.history,
             # schema の無い古い記録を --review で続けた実行では、schema を足さない
             with_schema=not self._legacy_state,
