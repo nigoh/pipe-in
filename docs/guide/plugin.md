@@ -3,7 +3,7 @@
 [ガイドの目次](README.md) · [README](../../README.md) — どのプロジェクトでも会話で[パイプ](pipes.md)を作る・直すためのプラグインの説明です。
 
 このリポジトリは Claude Code のプラグインのマーケットプレイスにもなっています（`.claude-plugin/marketplace.json` → `plugin/`）。
-入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。
+入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。PATH に `pipe-in-gen` が無いと、作る役 pipe-builder の絞りが効きません（くわしくは[安全のしくみ](safety.md#プラグインのフックが動かないとき)）。
 
 ```
 /plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>
@@ -28,6 +28,8 @@
 フックは `pipe-in-gen` で動くので、`pipe-in-gen` が無い環境では効きません（スキルは、はじめに `pipe-in-gen` を確かめて、無ければ止まります。`/pipe-in:pipe-eval` は `pipe-in-gen` を使いません）。
 フックは、入力が読めない（壊れている・16 MiB を超える）ときと、`agent_type` が文字列でも null でもないときは、読む道具以外を止めます。止める返事を書き出せないときは、標準エラーに理由を書いて終了コード 2 で止めます（[安全のしくみ](safety.md#フックの入力が読めないとき)）。
 フックが起動できない（`pipe-in-gen` が PATH に無い・壊れている・時間切れ）とき、Claude Code は操作を止めずに進めます。そのあいだ pipe-builder の書き込みは絞られず、審査役 pipe-judge はエージェントの `tools:`（Read・Grep・Glob）だけで絞られます。`/pipe-in:pipe-run` の段（pipe-stage）も同じで、フックが動かないあいだは絞られません。ただし `/pipe-in:pipe-run` は流す前に毎回、守りが効くかを確かめ（`chat probe`）、フックが動いていなければ確かめが通らないので、段を流しません。プラグインを入れたら、先に `pipe-in-gen --help` が動くことを確かめてください。
+
+このフックには、失敗を止める側に倒す設定 `onFailure: "block"`（公式の文書によると Claude Code v2.1.295 以降）を付けていません。付けると、フックが動かないとき、全部の道具の呼び出しが止まります。`pipe-in-gen` を入れていない・PATH が通っていない人は、プラグインを有効にしただけで、メインの会話の Read や Bash も止まります。失敗のときの動きは、全部止めるか全部通すかの二択で、エージェントの種類では絞れません（絞れるのは道具の名前と引数だけで、このフックは `agent_type` で相手を見分けます）。そのため、フックが動かないと `pipe-builder`・`pipe-judge` の絞りは効きません。`/pipe-in:pipe-run` には流す前の確かめ（`pipe-probe`）がありますが、`pipe-builder`・`pipe-judge` には流す前の確かめがありません。公式の文書によると、フックが失敗すると会話に `hook error` の知らせが出ます（実機では確かめていません）。出たら `pipe-in-gen --help` が動くかを確かめてください。実機では確かめていないことがあります。理由と経緯は[決定の記録 D0088](../decisions/D0088-hook-failure.md)です。
 
 ## 検査と審査
 
