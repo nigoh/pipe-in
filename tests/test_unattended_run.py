@@ -672,7 +672,7 @@ SKILL_COPIED_MARKERS = ("人の確認は朝", "`record finish BLOCKED`", "git di
 
 def test_D0073_AC_42_無人の実行の手順の本文はSKILLに写さない_守る():
     """D0073-AC-42: SKILL.md に、無人の実行の手順の本文の目印（人の確認は朝・`record finish BLOCKED`・git diff --cached・AskUserQuestion）が無い
-    （手順は補助ファイル unattended.md にだけ置く。SKILL.md の字数の上限 12,300 字を守るため）。（今のまま通る。守る）"""
+    （手順は補助ファイル unattended.md にだけ置く。SKILL.md の字数の上限を守るため）。（今のまま通る。守る）"""
     assert forbidden_words(skill(), SKILL_COPIED_MARKERS, "SKILL.md ") == []
 
 

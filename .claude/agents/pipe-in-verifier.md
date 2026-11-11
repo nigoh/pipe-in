@@ -14,6 +14,7 @@ tools: Read, Grep, Glob, Write, Bash
 - 承認されたテスト（03_red_tests.md の対応表）が書き換えられていないかを `git diff` で見る。
 - 公開してよいか：`git status` でこの機能の変更だけかを見て、`git diff` に秘密・ユーザー名入りの絶対パス・実行ログ・手元の事情が入っていないかを見る（`tests/test_rules.py` も流す）。
 - 足したテストの名前か docstring に `Dnnnn-AC-xx` が付いているか、文書がそろっているか（`docs/development/workflow.md` の「4. そろえる」）も見る。
+- 親が渡した `python -m pipe_in skill spec-check` の出力（数と問題）を、`05_test_report.md` に写す。自分では流さない（Bash の許す一覧に無い）。渡されていなければ「渡されなかった」と書く。
 - 判定は pass（すべて合格）・fail（直せば通るはずの不合格がある）・blocked（環境の問題でテストを流せない）のどれか。
 
 終わったら親へ、判定（pass / fail / blocked）・要約（1行）・不合格の基準と中身・流したコマンドを返す。

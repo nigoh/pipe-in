@@ -97,6 +97,8 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 直してほしい点が来たら、`review <段> revise`（`--feedback` などの旗は `record.md`）を書き、同じ段を `--note 指摘を反映` で任せ直してもう一度聞く。
 中止なら `review <段> quit` と `finish STOPPED_BY_HUMAN` を書いて終える。
 
+区切りでは「見てほしい問い」を2〜3個、親が作り会話に書く（要件定義は「前提は崩れないか」、設計は「閉じ込め先は妥当か」、テスト先行は「赤の理由は合うか」）。
+
 ### 止まらずに進めるとき（`--auto`）
 
 引数に `--auto` があるときだけ、段の区切りで止まらずに最後まで進める（`wait` は書かず、`review <段> approved` を書いて進む）。
@@ -115,7 +117,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 ### 1. 要件定義（`pipe-in-analyst`）
 
 - `python -m pipe_in record start --text "<要件メモ>" --session-id "${CLAUDE_SESSION_ID}"`（`--name` などは `record.md`）→ `record begin requirements` → `pipe-in-analyst` に要件定義を任せる → `record done requirements`。
-- 成果物（`01_requirements.md`）の要点を会話に書く：目的・FR・AC（`Dnnnn-AC-xx`。画面の AC は `Dnnnn-AC-xx（画面）：…`、手で・実機で確かめるものは `（手で）`・`（実機）`）・対象外・触る側。
+- 成果物（`01_requirements.md`）の要点を会話に書く：目的・要求 UR・前提・FR・NFR・状態の問い・AC（`Dnnnn-AC-xx`。画面の AC は `Dnnnn-AC-xx（画面）：…`（`：` の前に指し先）、手で・実機で確かめるものは `（手で）`・`（実機）`）・対象外・触る側。
 - サブエージェントが「決めきれない点」を返したら、ここで質問にまとめて聞く（`--auto` でも聞く）。
 - `record wait requirements` → 人に聞く → `record review requirements …`。
 
@@ -123,6 +125,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 
 - `record begin design` → `pipe-in-analyst` に設計を任せる（承認された 01 を渡す）→ `record done design`。
 - 会話に書く：変えるファイル（`docs/development/design.md` の置き場所の表と層に沿って）、記録・設定・パイプ・置き場所の形が変わるか（古いものをどう扱うか）、AC とテストの対応表。guard.py・guard_hook.py・pipe_in_guard.py を狭める・依存を足すなら、その理由。
+- 書けたら `python -m pipe_in skill spec-check` を流し、結果を会話に書く。
 - `record wait design` → 人に聞く → `record review design …`。
 
 ### 3. テスト先行（`pipe-in-tester`）
@@ -143,6 +146,7 @@ pipe-in が利用者のプロジェクトでやることを、pipe-in 自身に�
 ### 5. 検証（`pipe-in-verifier` とメイン）
 
 - 任せる前に、main が進んでいれば載せ直して、テストを流し直す（上の「main が進んだら載せ直す」）。
+- 先に `python -m pipe_in skill spec-check` を流し、出力を会話に書いて `pipe-in-verifier` への指示に入れる（`05_test_report.md` に写る）。
 - `record begin test --attempt N` → `pipe-in-verifier` に任せる → `record done test`。
 - 画面の AC があれば、メインが Playwright（MCP）で画面を開いて確かめる。手順（ページを作る・配る・開いて撮る・操作する・見る・片付ける）は `.claude/skills/pipe-in/screen-check.md`（この手順に入る前に読む）。ページの一覧は `docs/assets/README.md`。
   - 画面で見つかった不具合は、テスト先行と実装の段に戻して直す（純粋な関数のテストで捕まえてから）。
