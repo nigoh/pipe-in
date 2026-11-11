@@ -33,6 +33,7 @@
 | プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
+| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
 | 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
