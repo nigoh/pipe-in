@@ -2,8 +2,10 @@
 
 Claude Code のプラグインのエージェントには hooks を書けないため、プラグインの hooks/hooks.json から
 どの道具の呼び出しでもここを呼び、入力の agent_type で pipe-builder と pipe-judge の呼び出しだけを検査する。
+ただし agent_type が文字列でも null でもないときは、読む道具以外を止める。
 pipe-builder に許すのは、読む道具と、パイプのフォルダの決まったファイルへの書き込みと、
 pipe-in-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
+書き込み先は、リンクの先をたどった判断でも書ける場所に入るときだけ通す。
 pipe-judge（審査役）に許すのは読む道具（Read・Glob・Grep）だけ。ほかはすべて止める。
 想定外の入力で検査が落ちたときも、止めない側に倒れないよう deny を出す。
 
@@ -180,7 +182,8 @@ def check_bash(command: Any) -> str | None:
 
 
 def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) -> str | None:
-    """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。"""
+    """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。
+    ただし、文字列でも null でもない agent_type は、読む道具以外を止める。"""
     agent_type = payload.get("agent_type")
     tool = payload.get("tool_name")
     if agent_type is not None and not isinstance(agent_type, str):
@@ -204,6 +207,7 @@ def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) ->
         return check_write(tool_input.get("file_path"), str(payload.get("cwd") or ""), pipes_env)
     if tool == "Bash":
         return check_bash(tool_input.get("command"))
+    # NotebookEdit は道具ごと止める。許すことにするときは、書き込み先の項目が notebook_path（file_path でない）なので、それを見る
     return f"pipe-builder は {tool} を使えません（使えるのは Read・Glob・Grep・Write・Edit と、Bash の pipe-in-gen だけ）"
 
 

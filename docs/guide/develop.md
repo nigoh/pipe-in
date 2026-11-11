@@ -145,7 +145,9 @@ Claude Code の Notification フックは、このリポジトリに足してい
     ]
   }
 }
-```そのため `.claude/settings.json` の `hooks` は `PreToolUse` と `Stop` のままです。ベルや OS の通知コマンドは、こちらでは扱いません。
+```
+
+そのため `.claude/settings.json` の `hooks` は `PreToolUse` と `Stop` のままです。ベルや OS の通知コマンドは、こちらでは扱いません。
 
 ### フックが働く条件
 

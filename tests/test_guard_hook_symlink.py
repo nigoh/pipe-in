@@ -84,7 +84,7 @@ def denied(reason) -> bool:
 def test_d0087_ac01_link_in_prompts_to_settings_denied(tmp_path, env, prefix, tool):
     """D0087-AC-01: パイプの prompts/link.md が .claude/settings.json を指すリンクのとき、Write・Edit・MultiEdit は止まる
     （途中一致の道と、PIPE_IN_PIPES_DIR・前の版の環境変数の道。パイプのフォルダ名は新旧どちらの頭でも）。
-    今の作りは文字の上だけで判断するので通ってしまう（赤）。"""
+    文字の上の判断は通るが、リンクをたどった判断が止めるので、全体は止まる。"""
     lay = Lay(tmp_path, env, prefix)
     link_or_skip(lay.x / "prompts" / "link.md", lay.root / ".claude" / "settings.json")
     assert denied(lay.verdict(lay.x / "prompts" / "link.md", tool))
@@ -96,7 +96,7 @@ def test_d0087_ac01_link_in_prompts_to_settings_denied(tmp_path, env, prefix, to
 @pytest.mark.parametrize("rel", ["pipe.toml", "README.md", "prompts/a.md", "prompts/new.md"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
 def test_d0087_ac02_plain_writable_still_allowed(tmp_path, env, prefix, rel):
-    """D0087-AC-02: リンクでない pipe.toml・README.md・prompts/*.md（まだ無い新しいファイルも）は今のまま通る（今のまま通る。守る）。"""
+    """D0087-AC-02: リンクでない pipe.toml・README.md・prompts/*.md（まだ無い新しいファイルも）は通る（リンクをたどる判断を足しても、狭めない）。"""
     lay = Lay(tmp_path, env, prefix)
     for tool in TOOLS:
         assert lay.verdict(lay.x / rel, tool) is None, (tool, rel)

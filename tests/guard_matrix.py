@@ -34,7 +34,7 @@ DEV_HOOK = REPO / ".claude" / "hooks" / "pipe_in_guard.py"
 
 # 列の並び（expect の 1 文字が 1 列）
 COLUMNS = (
-    "sdk",  # SDK の道（既定の守りだけ＝protected_paths は空。D0084 で 4か所は設定なしで止まる）：guard.make_guard_hook
+    "sdk",  # SDK の道（既定の守りだけ＝protected_paths は空。D0084 で、既定で守る場所（.claude/・.git/・.pipe-in/・pipeline.toml・.mcp.json）は設定なしで止まる）：guard.make_guard_hook
     "sdk_protected",  # SDK の道（利用者が同じ場所 .claude/・.git/・.pipe-in/・pipeline.toml を protected_paths にも書いた場合）
     "chat",  # 会話の道：chat_hook.main に pipe-in:pipe-stage の呼び出しを通す（段が開いている間）
     "plugin_builder",  # プラグインの作る役：guard_hook.decide（pipe-in:pipe-builder）
@@ -245,7 +245,7 @@ _DEFS: list[Row] = [
     Row("agent-not-listed", "Agent", {"prompt": "x", "run_in_background": False}, "read", Q),
     Row("agent-background", "Agent", {"prompt": "x", "run_in_background": True}, "code+bash+agents", Q),
     Row("agent-nested", "Agent", {"prompt": "x", "run_in_background": False}, "code+bash+agents", Q, {"agent_id": "a-1"}),
-    # ---- 止める行：4か所・パイプのフォルダ・記録・外 ----
+    # ---- 止める行：既定で守る場所（.claude/・.git/・.pipe-in/・pipeline.toml・.mcp.json）・パイプのフォルダ・記録・外 ----
     Row("write-dotclaude", "Write", {"file_path": SETTINGS, "content": "{}"}, "code", Q),
     Row("write-dotgit", "Write", {"file_path": "{P}/.git/config", "content": "x"}, "code", Q),
     Row("write-dotpipein", "Write", {"file_path": "{P}/.pipe-in/config.json", "content": "x"}, "code", Q),
@@ -286,7 +286,7 @@ _DEFS: list[Row] = [
 #  - 4か所（.claude/・.git/・.pipe-in/・pipeline.toml）は、SDK の道でも設定なしで止める（D0084。sdk と sdk_protected が同じ）。
 #    会話の道とプラグインも、いつも止める。開発用は pipe-in-coder が .pipe-in/・pipeline.toml に書ける（.claude/・.git/ は止まる）。
 #  - .mcp.json（D0086）は、SDK の道・会話の道・プラグインで止める。開発用は pipe-in-coder だけが通す（実測）。
-#  - プラグインの作る役だけが、流しているパイプのフォルダ（.pipe-in/pipes/pipe-in-hp/）の決まったファイルに書ける。
+#  - プラグインの作る役と、開発用の pipe-in-coder だけが、流しているパイプのフォルダ（.pipe-in/pipes/pipe-in-hp/）の決まったファイルに書ける。
 #  - git add・git commit は、SDK の道と会話の道（Bash を持つ段）では通り、プラグインと開発用では止まる。git push はどこも止まる。
 #  - Skill は SDK の道だけが通す。Agent・Task は agents を持つ段の SDK の道だけが通す（会話の中では流せない形）。
 EXPECT: dict[str, str] = {
@@ -313,8 +313,8 @@ EXPECT: dict[str, str] = {
     "write-dotgit": "DDDDDDDDD",
     "write-dotpipein": "DDDDDDDAD",
     "write-pipelinetoml": "DDDDDDDAD",
-    # D0086：.mcp.json。今の作りの実測は AAADDDDAD（sdk・sdk_protected・chat が A）。この件のあとは SDK の道と会話の道が止める（D）。
-    # プラグインの作る役・審査役・dev_analyst・dev_tester・dev_verifier は元から止め、dev_coder は自前の一覧に無いので通す（A。残った課題）
+    # D0086：.mcp.json。SDK の道（sdk・sdk_protected）と会話の道（chat）は止める（D）。
+    # プラグインの作る役・審査役・dev_analyst・dev_tester・dev_verifier も止め、dev_coder は自前の一覧に無いので通す（A。残った課題）
     "write-mcpjson": "DDDDDDDAD",
     "write-running-pipe-toml": "DDDADDDAD",
     "write-running-pipe-prompt": "DDDADDDAD",

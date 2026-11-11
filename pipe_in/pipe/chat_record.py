@@ -108,9 +108,12 @@ def _only_own(can_write: Any, base: str, own: str) -> Any:
 
 
 def chat_specs(cfg: Config, pipe: PipeDef) -> dict[str, Any]:
-    """段ごとの範囲。本体の build_pipe_specs が作ったものに、記録・.claude/・.git/・.pipe-in/・pipeline.toml を書けなくする。
+    """段ごとの範囲。本体の build_pipe_specs が作ったものに、記録のフォルダの親の下を足して絞る。
 
-    cfg は for_pipe 済み。記録のフォルダの親（docs/pipeline など）の下は、その段の成果物のほか書けない。
+    .claude/・.git/・.pipe-in/・.mcp.json・pipeline.toml・前の版の置き場所を書けなくするのは、
+    build_pipe_specs の中の protect()（pipe_in/engine/spec.py）で、この関数ではない。
+    cfg は for_pipe 済み。この関数が足すのは、記録のフォルダの親（docs/pipeline など）の下を、
+    その段の成果物のほか書けなくすることと、段の説明の文（write_scope_hint）への1文だけ。
     """
     specs = build_pipe_specs(cfg, pipe)
     parent = cfg.work_dir.parent

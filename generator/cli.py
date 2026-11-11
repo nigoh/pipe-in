@@ -51,7 +51,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             sp.add_argument("--project", type=Path, default=Path("."), help="対象プロジェクトのフォルダ（既定: 今のフォルダ）")
 
     common(sub.add_parser("list", help="ひな形と、作ったパイプの一覧"), project=True)
-    sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder と pipe-judge の操作を絞る）")
+    sub.add_parser("guard-hook", help="Claude Code のプラグインから呼ぶフック（標準入力の JSON を見て、pipe-builder と pipe-judge の操作を絞る。会話の中では、pipe-stage を開いている段の範囲に、pipe-probe を段の有無によらず読む道具だけに絞り、文字列でない agent_type は読む道具以外を止める）")
     sub.add_parser("chat", help="会話の中でパイプを流す司会役（start / probe / next / done / review / status。pipe-in-gen chat --help）")
     sub.add_parser("judge-score", help="審査役の採点（標準入力の JSON）から総合点・合否・ばらつきを出す（プラグインの pipe-judge が呼ぶ）")
 

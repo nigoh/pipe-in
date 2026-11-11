@@ -1,5 +1,5 @@
 {
-  "description": "pipe-builder が書けるのをパイプのフォルダの決まったファイルだけに、Bash を pipe-in-gen list / new / check だけに絞り、pipe-judge は読む道具（Read・Glob・Grep）だけに絞る。会話の中でパイプを流すときは、pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段が開いている間のほかのエージェントも止める（それ以外には何もしない）",
+  "description": "pipe-builder が書けるのをパイプのフォルダの決まったファイルだけに、Bash を pipe-in-gen list / new / check だけに絞り、pipe-judge は読む道具（Read・Glob・Grep）だけに絞る。会話の中でパイプを流すときは、pipe-stage を開いている段の範囲に、pipe-probe を段の有無によらず読む道具だけに絞り、段が開いている間または記録が読めないときのほかのエージェントも止める（agent_type が文字列でも null でもない呼び出しは読む道具以外を止める。ほかには何もしない）",
   "hooks": {
     "PreToolUse": [
       {

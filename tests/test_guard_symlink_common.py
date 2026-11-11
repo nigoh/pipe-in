@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from guard_matrix import COLUMNS, EXPECT, LINK_ROWS, ROWS
 
-# 直す前の、リンク以外の行の期待（D0083・D0084・D0086 の実測。書き換えないことの固定）
+# リンク以外の行の期待（D0083・D0084・D0086 の実測。書き換えないことの固定）
 UNCHANGED = {
     "write-code-ok": "AAADDDDAD",
     "write-test-ok": "AAADDDADD",
@@ -59,7 +59,7 @@ UNCHANGED = {
 
 def test_d0087_ac13_link_rows_expect_all_deny():
     """D0087-AC-13: リンクを経た道の2行（bypass-link-src・bypass-link-pipe-prompt）は、9 つの列のすべてで止める（D）。
-    プラグインのフックと開発用のフックも先をたどるようになったので、期待を DDDDDDDDD に直す。表の評価は既存の
+    プラグインのフックと開発用のフックも先をたどるので、期待は全部の列で止める（DDDDDDDDD）。表の評価は既存の
     test_d0083_ac02_symlink_row_records_actual_result が見る。"""
     assert LINK_ROWS == {"bypass-link-src", "bypass-link-pipe-prompt"}
     for rid in sorted(LINK_ROWS):
@@ -68,8 +68,7 @@ def test_d0087_ac13_link_rows_expect_all_deny():
 
 
 def test_d0087_ac14_other_rows_unchanged():
-    """D0087-AC-14: リンク以外の行の期待は書き換えない（今の値のまま。表に行が足されても落ちないよう、ここにある行の値だけを固定する）。
-    今のまま通る。守る。"""
+    """D0087-AC-14: リンク以外の行の期待は書き換えない（今の値のまま。表に行が足されても落ちないよう、ここにある行の値だけを固定する）。"""
     for rid, want in UNCHANGED.items():
         assert EXPECT[rid] == want, f"{rid}: 表 {EXPECT[rid]} / 固定 {want}"
     assert not (LINK_ROWS & set(UNCHANGED))

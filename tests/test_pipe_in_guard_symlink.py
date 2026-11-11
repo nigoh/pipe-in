@@ -66,7 +66,7 @@ def denied(reason) -> bool:
 @pytest.mark.parametrize("tool", TOOLS)
 def test_d0087_ac08_coder_link_to_settings_denied(guard, tmp_path, tool):
     """D0087-AC-08: src/link.json が .claude/settings.json を指すリンクのとき、pipe-in-coder の Write・Edit・MultiEdit は止まる。
-    今の作りは文字の上だけで判断するので通ってしまう（赤）。"""
+    文字の上の判断は通るが、リンクをたどった判断が止めるので、全体は止まる。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "link.json", p / ".claude" / "settings.json")
     assert denied(verdict(guard, "pipe-in-coder", tool, p / "src" / "link.json", p))
@@ -122,8 +122,7 @@ PLAIN = [
 
 @pytest.mark.parametrize("agent,rel,allowed", PLAIN)
 def test_d0087_ac09_plain_writes_unchanged(guard, tmp_path, agent, rel, allowed):
-    """D0087-AC-09: リンクでない、ふつうの書き込み（各役の書ける場所、まだ無い新しいファイルも）は今のまま通り、書けない場所は今のまま止まる
-    （今のまま通る。守る）。"""
+    """D0087-AC-09: リンクでない、ふつうの書き込み（各役の書ける場所、まだ無い新しいファイルも）は今のまま通り、書けない場所は今のまま止まる。"""
     p = make_project(tmp_path)
     for tool in TOOLS:
         got = verdict(guard, agent, tool, p / rel, p)
@@ -221,7 +220,7 @@ def test_d0087_ac11_worktree_link_inside_allowed(guard, tmp_path):
 @pytest.mark.parametrize("form", ["root-link", "path-link", "both-link", "both-real"])
 def test_d0087_ac11_cwd_via_link_same_result(guard, tmp_path, form):
     """D0087-AC-11: cwd がリンクを経た形（/tmp → /private/tmp 型）でも、基準と書き込み先が同じ形なら、ふつうの書き込みは通り、守る場所は止まる。
-    片方だけがリンクを経た形のときも、守る場所は止まる（今のまま通る。守る）。"""
+    片方だけがリンクを経た形のときも、守る場所は止まる。"""
     real = tmp_path / "real_parent"
     p = make_project(real)
     link_or_skip(tmp_path / "link_parent", real, directory=True)
