@@ -1,0 +1,49 @@
+# D0085 テストは、いつも作業フォルダの generator/ を読む（#141）
+
+## 目的
+
+`tests/conftest.py` は、`pipe_in_generator` が import できれば、それを使っていた。開発用の入れ込み（`pip install -e`）を主の checkout でしていると、worktree でテストを流しても、`generator/` だけは主の checkout のものを読んだ（`pipe_in/` は、conftest が作業フォルダを先頭に足すので、worktree のものを読む）。
+
+worktree で `generator/` を直しても、テストは直す前のコードを見る。D0083 で実際に踏んだ。入れ込みがどこにあっても、テストが作業フォルダの `generator/` を読むようにする。
+
+## 機能要件と受け入れ基準
+
+テストは、断りの無いかぎり `tests/test_gen_loader.py`。
+
+- FR-01 テストは、入れ込みの有無に関わらず、作業フォルダの `generator/` を `pipe_in_generator` として読む（補助 `tests/gen_loader.py` の `load`）。
+  - D0085-AC-01：入れ込みが別の場所にあっても、作業フォルダの `generator/` を読む（`test_d0085_ac01_入れ込みが別の場所でも作業フォルダのgeneratorを読む`）。
+  - D0085-AC-02：入れ込みが無くても、作業フォルダから読めて、サブモジュールも読める（`test_d0085_ac02_入れ込みが無くても作業フォルダから読めてcliが通る`）。
+  - D0085-AC-04：CI と同じ形（入れ込み先と作業フォルダが同じ）で、全部のテストが今までどおり通る（全体の `pytest -q`）。
+- FR-02 子プロセスで `pipe_in_generator` を読むテストも、同じ作業フォルダのコードを読む。読み込みの手順は、補助の1か所だけに置く。
+  - D0085-AC-03：子プロセスの頭に付ける文字（`CHILD_PRELUDE`）は、隔離（`-I`）で起こした子でも効く（`test_d0085_ac03_子プロセスの補助は隔離のiでも効く`。`tests/test_architecture_chat.py` と `tests/test_guard_hook_input.py` の子プロセスのテストも、これを使う）。
+  - D0085-AC-06：読み込みの写しが、`conftest.py` と2つのテストに残らない。手順は補助の1か所だけ（`test_d0085_ac06_*`）。
+  - D0085-AC-07：補助は `tests/` の中だけにあり、`generator/`・`pipe_in/` は補助を知らない（`test_d0085_ac07_補助はtestsの中だけでgeneratorとpipe_inに入れない`）。
+- FR-03 読んでいる場所が作業フォルダと違うときは、テストの始めに、実際の場所・期待した場所・直し方を入れた文で落とす（`verify`）。
+  - D0085-AC-05：場所が違うと落ち、サブモジュールだけ別の場所でも落ちる。同じ場所なら落ちない（`test_d0085_ac05_*`）。
+- FR-04 文書に、`generator/` の読まれ方を足す。
+  - D0085-AC-08：`docs/guide/develop.md` に説明がある（`test_d0085_ac08_develop_mdにgeneratorの読まれ方がある`）。
+  - D0085-AC-09（手で）：`/pipe-in` のスキルの説明に、同じことを足す（下の「対象外・残った課題」に案）。
+
+## 決めたことと理由
+
+- 入れ込み先を import してから比べるのでなく、始めから作業フォルダの `generator/` で `pipe_in_generator` を作って `sys.modules` に入れる。「場所が違えば落とすだけ」の案は、worktree を切るたびに入れ直しが要るので、選ばなかった。場所の確かめ（`verify`）は、保険として残した。
+- 先に別の場所の `pipe_in_generator` やサブモジュールが読み込まれていたら、外して作り直す。
+- 子プロセスには、補助をパスで読む数行（`CHILD_PRELUDE`）を渡す。パスで読むので、隔離（`-I`）の子でも効く。
+- 補助は `tests/gen_loader.py` に置く（製品コードではない）。標準ライブラリだけで、標準出力に何も書かない。
+- 製品コード（`pipe_in/`・`generator/`）・`pyproject.toml`・CI は変えていない。
+- メモは `pipe-in-gen`・`python -m pipe_in_generator` を起こすテストも挙げていたが、実物には無かった（`python -m pipe_in_generator` は、今は動かない。`generator/` に `__main__.py` が無い）。「子プロセスで `pipe_in_generator` を読むテスト」と読み替えた。
+- 直す先が `tests/` の中なので、補助と `conftest.py` と2つのテストの直しは、メインが書いた（実装の段のサブエージェントは、テストを書けない）。先に、テスト先行の段が新しいテストだけを書き、赤を確かめた。
+- 無人の実行で進めた。次の点は推しの案で決めた（人の確認は朝）：直し方（始めから作業フォルダで作る）／補助の名前と置き場所／子プロセスへの渡し方／メモの読み替え。
+
+## 対象外・残った課題
+
+- `pipe-in`・`pipe-in-gen` のコマンドそのものを worktree ごとに切り替えること、`python -m pipe_in_generator` を動くようにすること、拡張の側は、対象外。コマンドは、今までどおり入れ込み先のコードを動かす（worktree では `python -m pipe_in …` を使う）。
+- `/pipe-in` のスキル（`.claude/skills/pipe-in/SKILL.md`）の「worktree の中では…（`pipe-in`・`pipe-in-gen` などのコマンドは main のコードを動かす）」のあとに足す文の案（この実行では入れていない。人の確認は朝）：「テストは、入れ込みがどこにあっても、この worktree の `generator/` を `pipe_in_generator` として読む（`tests/gen_loader.py`）。読む場所が違うとテストの始めで落ちるので、その文の指示に従う。」
+- 場所を確かめるのは `generator/` だけ。`pipe_in/` は、作業フォルダを先頭に足すだけで、確かめていない（先に別の場所から読まれていると、古いままになりうる。今は起きていない）。conftest より前に握られた古い参照も、見つけられない。
+- 監査の報告（2件）：A-01 `tests/conftest.py` の頭の説明が `pipe_in/` も確かめるように読めた（直した）。A-02 スキルの説明に、テストの読まれ方がまだ無い（上の案のとおり。人の確認は朝）。助言と審査は流さなかった（守り・プラグイン・`.claude/` に触れていないため）。
+
+## 確かめたこと
+
+- 本体 `python -m pytest -q`：全部通った。入れ込みが主の checkout を指したままの worktree（罠の状態そのもの）で流した。
+- 赤の確かめ：足したテストは、直す前に「補助が無い」「読み込みの写しが3か所に残っている」「文書に説明が無い」で落ちた。
+- 画面の受け入れ基準は無い。

@@ -118,3 +118,4 @@
 | [D0082](D0082-capability-table.md) | 会話の道の「断る・効かない」の判断を、項目 × 実行役の能力表（`pipe_in/pipe/capability.py`）から作る（#131）。パイプと設定の全項目が表に載り、足し忘れはテストが落とす。出す文と順番は変えない |
 | [D0083](D0083-guard-matrix.md) | 4つの守り（SDK の道・会話の道・プラグイン・開発用）の、道具ごとの 許す／止める を1つの表（`tests/guard_matrix.py`）でテストに固定する。プラグインのフックは、入力が読めない・大きすぎる・止める返事を書けない・`agent_type` の型がおかしいときも、止める側に倒す（#132） |
 | [D0084](D0084-default-protected.md) | SDK の道（`pipe-in`）も、`.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・前の版の置き場所への書き込みを、設定なしでどの段でも止める（#134）。守る場所は `pipe_in/engine/spec.py` の定数1つで、会話の道も同じ定数を使う。外す設定は無い |
+| [D0085](D0085-test-generator-loader.md) | テストは、開発用の入れ込みがどこにあっても、作業フォルダの `generator/` を `pipe_in_generator` として読む（`tests/gen_loader.py`。#141）。読む場所が違えば、テストの始めに直し方つきの文で落ちる |

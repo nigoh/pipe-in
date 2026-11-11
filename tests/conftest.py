@@ -1,11 +1,12 @@
-"""インストールせずにテストを流せるよう、generator/ を pipe_in_generator として読み込めるようにする。
+"""テストが、いつもこの作業フォルダの pipe_in/ と generator/（pipe_in_generator という名前）を読むようにする（D0085）。
 
-pip install -e . 済みなら、そちらを使う（pyproject.toml の package-dir で同じ名前に対応づけている）。
+開発用の入れ込み（pip install -e）が別の checkout を指していても、そちらは使わない。
+generator/ は、補助（tests/gen_loader.py）で読み込み、読んだ場所が作業フォルダと違えば、テストの始めに直し方つきの文で落ちる。
+pipe_in/ は、作業フォルダを sys.path の先頭に足すだけ（場所の確かめはしない）。
 """
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -15,18 +16,13 @@ GENERATOR = ROOT / "generator"
 # 入れ直していない worktree でも、この作業フォルダの pipe_in を読むように先頭に足す
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+# 補助（tests/gen_loader.py）を読めるように、tests/ も足す（pytest の rootdir の設定に頼らない）
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
 
-try:
-    import pipe_in_generator  # noqa: F401
-except ImportError:
-    if (GENERATOR / "__init__.py").is_file():
-        spec = importlib.util.spec_from_file_location(
-            "pipe_in_generator", GENERATOR / "__init__.py", submodule_search_locations=[str(GENERATOR)]
-        )
-        assert spec and spec.loader
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["pipe_in_generator"] = module
-        spec.loader.exec_module(module)
+import gen_loader  # noqa: E402
+
+gen_loader.load(GENERATOR)
 
 
 # ---- テストがリポジトリの実物を変えていないかの見張り（docs/development/testing.md） ----------

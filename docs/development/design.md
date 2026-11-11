@@ -14,6 +14,7 @@
 | 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
 | 設定の読み込み（`max_budget_usd` の値の検査もここ。`pipe.toml` 側も同じ判定と文を使う） | `pipe_in/engine/config.py` |
 | セッション名の取り方と、セッション ID・受け持ちの検査（標準ライブラリだけ。拡張の `sessionName.ts` と同じ規則を、同じ表で確かめる） | `pipe_in/engine/session.py`・共通の表 `tests/fixtures/session_names.json` |
+| テストが `generator/` を `pipe_in_generator` として読む補助（入れ込みの場所によらず作業フォルダの `generator/` を読み、違えば直し方つきで落とす。`conftest.py` と、子プロセスを起こすテストの `CHILD_PRELUDE` が使う） | `tests/gen_loader.py` |
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
 | 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
 | 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |

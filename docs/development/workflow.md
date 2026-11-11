@@ -24,7 +24,7 @@ cd .claude/worktrees/<名前>
 ### worktree で気をつけること
 
 - 拡張を触るなら、その worktree で `cd vscode && npm ci` をします（`node_modules/` は worktree ごとに要る）。
-- `pip install -e .` で入れた `pipe-in`・`pipe-in-gen` のコマンドは、入れたときのフォルダ（ふつうは main）のコードを動かします。worktree で直したコードを確かめるときは、その worktree の中で `python -m pipe_in …`・`python -m pytest` を使います。
+- `pip install -e .` で入れた `pipe-in`・`pipe-in-gen` のコマンドは、入れたときのフォルダ（ふつうは main）のコードを動かします。worktree で直したコードを確かめるときは、その worktree の中で `python -m pipe_in …`・`python -m pytest` を使います。テストは、入れ込みがどこにあっても、その worktree の `generator/` を `pipe_in_generator` として読むので、worktree ごとに入れ直す必要はありません（`tests/gen_loader.py`。[D0085](../decisions/D0085-test-generator-loader.md)）。
 - `/pipe-in` の記録（`docs/pipeline/`）は worktree ごとにできます。VSCode の拡張で進み具合を見るときは、その worktree のフォルダを開きます。
 
 ## 2. 進める：5つの段

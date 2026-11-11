@@ -20,6 +20,8 @@
 pip install -e '.[dev]' && pytest
 ```
 
+テストは、入れ込み（`pip install -e`）がどこにあっても、作業フォルダの `generator/` を `pipe_in_generator` として読みます（`tests/gen_loader.py`）。読んでいる場所が違うときは、テストの始めに直し方つきの文で落ちます。`pipe-in`・`pipe-in-gen` のコマンドは入れ込み先のコードを動かすので、worktree では `python -m pipe_in …` を使ってください。
+
 直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](../development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](../decisions/) にあります。README とガイドの画像の撮り直し方は [docs/assets/README.md](../assets/README.md) にあります。
 
 ## CI（GitHub Actions）
