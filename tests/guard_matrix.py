@@ -260,8 +260,7 @@ _DEFS: list[Row] = [
     Row("bypass-dotdot-abs", "Write", {"file_path": "{P}/src/../.claude/settings.json", "content": "{}"}, "code", Q),
     Row("bypass-dotdot-rel", "Write", {"file_path": "src/../.claude/settings.json", "content": "{}"}, "code", Q),
     # リンクを経た道：src/link.json と パイプの prompts/link.md は、どちらも .claude/settings.json を指す。
-    # SDK の道と会話の道は Path.resolve() でリンクをたどり、プラグインと開発用は normpath でたどらない。この差を固定する
-    # （差を直すのは別の件。D0083 の推し 3）
+    # どの守りも先をたどって止める（D0087。SDK の道と会話の道は Path.resolve()、プラグインと開発用は os.path.realpath）
     Row("bypass-link-src", "Write", {"file_path": "{P}/src/link.json", "content": "{}"}, "code", Q),
     Row("bypass-link-pipe-prompt", "Write", {"file_path": "{P}/.pipe-in/pipes/pipe-in-hp/prompts/link.md", "content": "x"}, "code", Q),
     Row("bypass-edit", "Edit", {"file_path": SETTINGS, "old_string": "a", "new_string": "b"}, "code", Q),
@@ -324,9 +323,9 @@ EXPECT: dict[str, str] = {
     "bypass-rel": "DDDDDDDDD",
     "bypass-dotdot-abs": "DDDDDDDDD",
     "bypass-dotdot-rel": "DDDDDDDDD",
-    # リンクを経た道の実測：リンクをたどる SDK の道・会話の道は止め、たどらないプラグインの作る役と dev_coder は通す
-    "bypass-link-src": "DDDDDDDAD",
-    "bypass-link-pipe-prompt": "DDDADDDAD",
+    # リンクを経た道：どの守りも先をたどって止める（D0087）
+    "bypass-link-src": "DDDDDDDDD",
+    "bypass-link-pipe-prompt": "DDDDDDDDD",
     "bypass-edit": "DDDDDDDDD",
     "bypass-multiedit": "DDDDDDDDD",
     "bypass-notebookedit": "DDDDDDDDD",

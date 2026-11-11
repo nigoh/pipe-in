@@ -31,10 +31,10 @@
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
-| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083） | `generator/guard_hook.py` |
+| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083。書き込み先はリンクの先もたどり、文字の上の判断とたどった判断の両方が通るときだけ通す。壊れた・輪のリンクは止める。D0087） | `generator/guard_hook.py` |
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
-| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py` |
+| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083）と、リンクを経た道のテスト（フックのリンクの扱い。D0087）で使うリンクの補助（`tests/symlink_support.py`。リンクを作れない環境では skip する） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py`・`tests/symlink_support.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
 | 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
@@ -100,7 +100,7 @@ pipe_in.usage
 
 - 逆向きの import は `tests/test_architecture.py` が止めます。新しい検査は `tests/test_architecture_<名前>.py` に足します（`tests/test_architecture.py` の末尾には足しません）。
 - `pipe_in.engine` は、どのパイプにも共通の仕組みです。特定のパイプ（開発フロー・パイプの定義）や入口（`pipe_in.cli`）を知りません。
-- `generator/guard_hook.py` と `.claude/hooks/pipe_in_guard.py` は、Claude Code が道具を呼ぶたびに動きます。起動を軽くし、本体が壊れていても動くように、**標準ライブラリだけ**を使います（`guard_hook.py` は `tests/test_architecture.py` が検査します）。`generator/judge_score.py`（`pipe-in-gen judge-score`）と `generator/findings_check.py`（`pipe-in-gen findings-check`）・`generator/quorum.py`（`pipe-in-gen quorum`。findings_check の部品だけは読む）も、本体を読み込まず標準ライブラリだけです。
+- `generator/guard_hook.py` と `.claude/hooks/pipe_in_guard.py` は、Claude Code が道具を呼ぶたびに動きます。起動を軽くし、本体が壊れていても動くように、**標準ライブラリだけ**を使います（`guard_hook.py` は `tests/test_architecture.py` が検査します）。どちらも書き込み先と基準のリンクの先を `os.path.realpath` でたどり、文字の上の判断とたどった判断の両方が通るときだけ通します（壊れたリンク・輪・例外は止める。D0087）。`generator/judge_score.py`（`pipe-in-gen judge-score`）と `generator/findings_check.py`（`pipe-in-gen findings-check`）・`generator/quorum.py`（`pipe-in-gen quorum`。findings_check の部品だけは読む）も、本体を読み込まず標準ライブラリだけです。
 
 ## 拡張の層
 

@@ -89,8 +89,7 @@ def test_d0083_ac02_bypass_rows_are_denied(envs, row_id):
 
 
 def test_d0083_ac02_symlink_row_records_actual_result(envs):
-    """D0083-AC-02: リンクを経た道は、守りごとに実際の結果をそのまま固定する（SDK の道と会話の道はリンクをたどり、プラグインと開発用はたどらない）。
-    差があれば別の件で扱う（D0083 の推し 3）。リンクを作れない環境では skip。"""
+    """D0083-AC-02・D0087-AC-13: リンクを経た道は、どの守りも先をたどって止める（全列 D）。リンクを作れない環境では skip。"""
     if not all(envs[k].links_ok for k in KINDS):
         pytest.skip("この環境ではリンクを作れない")
     for rid in sorted(LINK_ROWS):
