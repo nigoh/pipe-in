@@ -208,13 +208,19 @@ def cmd_new(pipes_dir: Path, project: Path, name: str, template_name: str, force
 
 
 def main(argv: list[str] | None = None) -> int:
+    real_launch = argv is None
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["guard-hook"]:
         # 道具を呼ぶたびに動くので、引数の解釈もせずにすぐ答える
         # 会話の中で流す段（pipe-stage・pipe-probe）の判断も、chat_hook が受けて、残りは guard_hook に渡す
         from .chat_hook import main as hook_main
+        from .guard_hook import quiet_exit_streams
 
-        return hook_main()
+        code = hook_main()
+        if code != 0 and real_launch:
+            # 本物の起動のときだけ（テストが main(["guard-hook"]) を呼んでも、出力の取り込み先を壊さない）。終了コードが 120 に化けるのを防ぐ
+            quiet_exit_streams()
+        return code
     if argv[:1] == ["chat"]:
         # 会話の中でパイプを流す司会役（--project は自分で持つので、プロジェクトの検めより前に分ける）
         from .chat_cmd import main as chat_main

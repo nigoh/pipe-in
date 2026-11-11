@@ -2,7 +2,7 @@
 
 フックは本物の入口 chat_hook.main()（標準入力のフックの入力 → 標準出力の deny）を通す。今の段は、本物の chat start / probe / next で開く。
 判断は本体の道（build_pipe_specs → guard.check_tool）と同じ結果になることを、同じ定義から作った表で突き合わせる。
-会話の道だけが追加で止めるもの（記録・.claude/・.git/・pipeline.toml・Skill）は、別の表で「止まる」を確かめる。
+会話の道だけが追加で止めるもの（記録・Skill）と、D0084 で本体の道でも止まるもの（.claude/・.git/・pipeline.toml）は、別の表で「止まる」を確かめる。
 SDK は読まない（no_sdk）。ファイルは tmp_path の中だけに作る。
 """
 
@@ -226,10 +226,10 @@ ESCAPES = [
     ("record-bash-redirect", "docs_wide_bash", "Bash", {"command": "echo x > docs/pipeline/hp/state.json"}, False),
     ("docs-wide-own-sibling", "docs_wide", "Write", {"file_path": "{P}/docs/pipeline/hp/other.md", "content": "x"}, False),
     # code の段：.claude/・.git/・pipeline.toml・パイプのフォルダ・記録
-    ("claude-settings", "code_b", "Write", {"file_path": "{P}/.claude/settings.json", "content": "{}"}, False),
-    ("claude-hooks", "code_b", "Edit", {"file_path": "{P}/.claude/hooks/pipe_in_guard.py", "old_string": "a", "new_string": "b"}, False),
-    ("git-config", "code_b", "Write", {"file_path": "{P}/.git/config", "content": "x"}, False),
-    ("pipeline-toml", "code_b", "Write", {"file_path": "{P}/pipeline.toml", "content": "x"}, False),
+    ("claude-settings", "code_b", "Write", {"file_path": "{P}/.claude/settings.json", "content": "{}"}, True),
+    ("claude-hooks", "code_b", "Edit", {"file_path": "{P}/.claude/hooks/pipe_in_guard.py", "old_string": "a", "new_string": "b"}, True),
+    ("git-config", "code_b", "Write", {"file_path": "{P}/.git/config", "content": "x"}, True),
+    ("pipeline-toml", "code_b", "Write", {"file_path": "{P}/pipeline.toml", "content": "x"}, True),
     ("pipe-prompts", "code_b", "Write", {"file_path": "{P}/.pipe-in/pipes/pipe-in-hp/prompts/a.md", "content": "x"}, True),
     ("code-record", "code_b", "Write", {"file_path": "{P}/docs/pipeline/hp/state.json", "content": "x"}, True),
     ("code-writes-tests", "code_b", "Write", {"file_path": "{P}/tests/test_a.py", "content": "x"}, True),
@@ -240,9 +240,9 @@ ESCAPES = [
     ("bash-curl", "code_b", "Bash", {"command": "curl http://example.com"}, True),
     ("bash-sudo", "code_b", "Bash", {"command": "sudo ls"}, True),
     ("bash-redirect-tests", "code_b", "Bash", {"command": "echo x > tests/test_a.py"}, True),
-    ("bash-redirect-claude", "code_b", "Bash", {"command": "echo x > .claude/settings.json"}, False),
-    ("bash-redirect-pipeline-toml", "code_b", "Bash", {"command": "echo x > pipeline.toml"}, False),
-    ("bash-redirect-git", "code_b", "Bash", {"command": "echo x > .git/config"}, False),
+    ("bash-redirect-claude", "code_b", "Bash", {"command": "echo x > .claude/settings.json"}, True),
+    ("bash-redirect-pipeline-toml", "code_b", "Bash", {"command": "echo x > pipeline.toml"}, True),
+    ("bash-redirect-git", "code_b", "Bash", {"command": "echo x > .git/config"}, True),
     ("bash-tee-record", "code_b", "Bash", {"command": "tee docs/pipeline/hp/state.json"}, True),
     ("bash-cp-pipe-folder", "code_b", "Bash", {"command": "cp src/a.py .pipe-in/pipes/pipe-in-hp/pipe.toml"}, True),
     ("bash-sed-i-record", "code_b", "Bash", {"command": "sed -i s/a/b/ docs/pipeline/hp/state.json"}, True),

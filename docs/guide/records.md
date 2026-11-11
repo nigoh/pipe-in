@@ -24,6 +24,8 @@
 
 | 項目 | 中身 | 付け方 |
 |---|---|---|
+| `schema` | 記録の形の版（今は `1`）。新しく書く記録の最初の鍵 | 本体が自動で書きます（端末で流した記録・`pipe-in record start`・`pipe-in-gen chat start`）。鍵の無い古い記録は、読むだけで書き換えません（`--review` や `record` で続けても付けません）。読む側はこの値で読み分けず、`1` 以外の値でも落ちずに読みます |
+| `total_cost_usd`・`usage_summary` | 費用と使用量。**2通りだけ**：測れた記録は、`total_cost_usd` が数、`usage_summary` が集計の辞書。取れない記録は、`total_cost_usd` が `null`、`usage_summary` が `{"available": false, "reason": "…"}`（理由は空にしません） | 端末で流した記録は測れた記録です。会話の中で流した記録（下）と、開発用スキルの記録（`pipe-in record`。段を会話の中で進めるため）は取れない記録です。開発用の記録の `runs[]` の `cost_usd` も `null` で、`metrics` の鍵はありません。`schema` の無い古い開発用の記録は `0.0`・`null`・`{}` のままで、変換しません |
 | `name` | セッション名。VSCode の実行の一覧の太字の名前 | `pipe-in --name "…"`、`pipe-in record start --name "…"`。付けなければ、要件メモ（`00_input.md`）の最初の行から作ります（先頭の `#` を取り、中の連続する空白を 1 つにし、60 文字を超えるときは 59 文字＋`…`）。取れなければ書きません。確認待ちからの再開（`--review`・`--from`）でも変わりません（`--review` に `--name` は付けられません。名前は始めるときだけ付けます） |
 | `session_id` | Claude Code の会話の ID（開発用スキルが残す） | `pipe-in record start --session-id <ID>`。付けなければ書きません。空白や改行を含む値、100 文字を超える値は断ります。パイプの記録には書かず、拡張が `runs[]` の `session_id` のうち、最後に動いた段のものを使います |
 | `at`（`runs[]` の `review` の要素） | 人の確認の結果（`approved`・`revise`・`quit`）を書いた時刻（UTC からのずれつき） | `pipe-in record review` が書きます。`pipe-in record check` が、次の段の `begin` との前後を比べるのに使います。項目の無い古い記録は、検査で「判定できなかった」として読みます（ほかの読み手は使いません） |
@@ -34,6 +36,7 @@
 | `group`（`stages[]` の要素） | 並列の枠（作業台の枠。`pipe.toml` の `[[stages]]` の `group`）の名前 | 枠の中の段にだけ書きます（`check` の後ろ）。枠の外の段・開発フローには書きません。項目の無い古い記録は枠なしとして読み、VSCode の図は段を一列に出します。拡張は、空・空白だけ・65 文字以上・`/` や `\` を含む・文字でない値を、枠なしとして読みます |
 | `attempt`（`runs[]` の `check` の中） | その段の何回目の検証か（1 から） | パイプの検証のたびに書きます。確認待ちで止めて再開しても、同じ段の前の検証の続きの番号になります。項目の無い古い記録は、同じ段の並びの番号で読みます |
 | `reply_wait` | 端末の `pipe-in` が確認の段で人の入力を待っているあいだの印：`stage`（段の名前）・`id`（待ちごとの識別子。10 文字の 16 進）・`since`（待ち始めた時刻。UTC からのずれつき） | 本体が、待ち始めに書き、待ちが終わると（承認・修正の依頼・中止・例外・中断のどれでも）消します。`pending_review`（`--pause` で止めた印）とは別の項目です。標準入力が端末でない実行・`--yes`・`--pause` では書きません。待っていないときは鍵ごと書きません。強制終了すると印が残り、次の流し始め・再開（`--from`・`--review`）で外します（それまで、VSCode の実行の一覧は「確認待ち」のままです）。項目の無い古い記録は、印なしとして読みます |
+| `flow` | 流れの回数：`steps`（段を流した回数）と `retries`（不合格になった段の名前 → 戻した回数。合格しても 0 に戻しません） | パイプ（`pipe-in --pipe`）だけが、保存のたびに書きます。開発フロー・会話の道には書きません。確認で止めて `--review` で続けるときに回数を引き継ぎ、`max_steps`・`max_retries` が確認をはさんでも実行全体で効きます。人の `revise` で流し直す1回は `steps` に数えません。`--from` で流し直すときは 0 から数えます。項目の無い記録・壊れた部分は 0 として読みます。VSCode の拡張は読まずに捨てます |
 | `received_from` | 受けた元（前のパイプの記録から渡したもの）：`pipe`（前の名前）・`kind`・`updated_at`（前の終わった日時）・`dir`（前の記録の場所。作業フォルダからの相対。`linear` は前の名前、`dev` は `.`）・`artifacts`（段の表示名 `stage` と作業フォルダからの相対パス `path`。段の順） | `pipe-in --pipe <後ろ> --after <前>` で始めた実行にだけ書きます。受けていない実行には書きません。確認待ちからの続き（`--review`）と途中からの再開（`--from`）は、この項目をそのまま使い、前の記録は読み直しません。項目の無い古い記録は、受けた元の無い実行として読みます。VSCode の拡張は、この項目を読まずに捨てます |
 
 名前の取り方は、本体（`pipe_in/engine/session.py`）と拡張（`vscode/src/domain/sessionName.ts`）で同じ規則で、`tests/fixtures/session_names.json` の同じ表で確かめています。`name`・`session_id` は、前の開発フローを `archive/` へ移すときも `state.json` ごと一緒に移ります。`max_budget_usd`・`resumed` の鍵は、本体が書く鍵と拡張が読む鍵を `tests/fixtures/budget_record.json` の同じ表で確かめています。`stages[]` の `check` と `check` の `attempt` の鍵も、同じ作りで `tests/fixtures/check_record.json` の表で確かめています。`stages[]` の `group` の鍵も、`tests/fixtures/group_record.json` の表で確かめています。

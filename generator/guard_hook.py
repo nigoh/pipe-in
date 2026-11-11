@@ -32,6 +32,8 @@ STAGE = "pipe-stage"
 PROBE = "pipe-probe"
 READ_TOOLS = {"Read", "Glob", "Grep"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
+# 標準入力の上限。超えたら読めない入力として止める
+MAX_STDIN_BYTES = 16 * 1024 * 1024
 
 # パイプのフォルダ名（新しい頭と、前の版の頭）
 PIPE_DIR = re.compile(r"(?:pipe-in|devpipe)-[a-z0-9][a-z0-9-]*")
@@ -132,6 +134,11 @@ def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) ->
     """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。"""
     agent_type = payload.get("agent_type")
     tool = payload.get("tool_name")
+    if agent_type is not None and not isinstance(agent_type, str):
+        # 型のおかしい agent_type は、だれの呼び出しか分からない。読む道具だけ通し、ほかは止める（理由に入れるのは型の名前だけ）
+        if isinstance(tool, str) and tool in READ_TOOLS:
+            return None
+        return f"agent_type の型が文字列ではないため止めました（{type(agent_type).__name__}）"
     if is_judge(agent_type):
         # 許すものの一覧：読む道具だけ。型のおかしい tool_name（list など）も止める
         if isinstance(tool, str) and tool in READ_TOOLS:
@@ -163,30 +170,87 @@ def _deny(reason: str) -> str:
     )
 
 
+class _InputTooLarge(ValueError):
+    """標準入力が上限（MAX_STDIN_BYTES）を超えた。"""
+
+
 def _read_stdin() -> str:
-    # Windows でも、Claude Code が渡す UTF-8 をそのまま読む
+    # Windows でも、Claude Code が渡す UTF-8 をそのまま読む。上限＋1 バイトまでしか読まず、超えたら止める
     buffer = getattr(sys.stdin, "buffer", None)
-    return buffer.read().decode("utf-8") if buffer is not None else sys.stdin.read()
+    if buffer is not None:
+        data = buffer.read(MAX_STDIN_BYTES + 1)
+        if len(data) > MAX_STDIN_BYTES:
+            raise _InputTooLarge
+        return data.decode("utf-8")
+    text = sys.stdin.read(MAX_STDIN_BYTES + 1)  # buffer が無い入力（テストの StringIO など）は文字数で数える
+    if len(text) > MAX_STDIN_BYTES:
+        raise _InputTooLarge
+    return text
 
 
-def main(decide_fn: Callable[..., str | None] | None = None) -> int:
-    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。終了コードはいつも 0。
+def _write(text: str) -> None:
+    sys.stdout.write(text)
+    # 書けない失敗を、終了処理でなくここで見つける（最後の砦へ渡すため）
+    sys.stdout.flush()
 
-    decide_fn は止める理由を決める関数（decide と同じ引数）。省くと decide。会話の道は chat_hook.py が渡す。
-    """
-    decide_fn = decide_fn or decide
+
+def _last_resort(exc: Exception) -> int:
+    """deny の JSON を書けなかったとき：JSON に頼らず、標準エラーの理由と終了コード 2 で止める。"""
+    text = f"pipe-in のフック（pipe-in-gen guard-hook）が deny の JSON を出せなかったため、終了コード 2 で止めました（{type(exc).__name__}）。\n"
+    try:
+        sys.stderr.write(text)
+        sys.stderr.flush()
+    except Exception:  # noqa: BLE001 - 標準エラーも書けないときは、理由は出せないが終了コード 2 で止める
+        pass
+    return 2
+
+
+def _run(decide_fn: Callable[..., str | None]) -> int:
     try:
         payload = json.loads(_read_stdin())
-    except (ValueError, UnicodeDecodeError):
+    except Exception:  # noqa: BLE001 - 読めない・UTF-8 でない・壊れた JSON・入れ子が深すぎる・上限超え、のどれも止める
         payload = None
     if not isinstance(payload, dict):
         # だれの呼び出しか分からないので、安全側に倒して止める
-        sys.stdout.write(_deny("フックへの入力が読めないため止めました"))
+        _write(_deny("フックへの入力が読めないため止めました"))
         return 0
     try:
         reason = decide_fn(payload, pipes_env=env_pipes_dirs(os.environ))
     except Exception:  # noqa: BLE001 - 想定外の入力で落ちると止めない側に倒れるので、止める
         reason = "フックが入力を判断できなかったため止めました"
     if reason:
-        sys.stdout.write(_deny(reason))
+        _write(_deny(reason))
     return 0
+
+
+def main(decide_fn: Callable[..., str | None] | None = None) -> int:
+    """標準入力の JSON を見て、止めるときだけ deny の JSON を出す。戻り値は 0（deny を出した・止めない）か 2（書けなかった）だけ。
+
+    decide_fn は止める理由を決める関数（decide と同じ引数）。省くと decide。会話の道は chat_hook.py が渡す。
+    """
+    try:
+        return _run(decide_fn or decide)
+    except Exception as exc:  # noqa: BLE001 - deny を書けなかったときは、標準エラーと終了コード 2 で止める
+        return _last_resort(exc)
+
+
+def quiet_exit_streams() -> None:
+    """終了コード 2 のまま終わるための後始末。書けなかったバイトが標準出力・標準エラーに残っていると、
+    終了処理の flush がまた失敗し、終了コードが 120 に変わって止まらなくなる。両方の fd を捨て先へ付け替え、
+    付け替えられないものは sys から外す。例外は出さない。"""
+    try:
+        sink = os.open(os.devnull, os.O_WRONLY)
+    except Exception:  # noqa: BLE001
+        sink = -1
+    for name in ("stdout", "stderr"):
+        try:
+            if sink < 0:
+                raise OSError("捨て先を開けない")
+            os.dup2(sink, getattr(sys, name).fileno())
+        except Exception:  # noqa: BLE001
+            setattr(sys, name, None)
+    if sink > 2:
+        try:
+            os.close(sink)
+        except Exception:  # noqa: BLE001
+            pass

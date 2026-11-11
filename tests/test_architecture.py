@@ -128,10 +128,10 @@ def test_d0019_ac50_state_only_adds_keys(tmp_path):
 
     new = json.loads((tmp_path / "docs" / "pipeline" / "state.json").read_text(encoding="utf-8"))
     assert set(old) <= set(new)
-    assert set(new) - set(old) == {"name", "session_id"}
+    assert set(new) - set(old) == {"name", "schema", "session_id"}  # D0080: 新しい記録に schema を足した
     old_run_keys = {k for run in old["runs"] for k in run}
     new_run_keys = {k for run in new["runs"] for k in run}
-    assert old_run_keys <= new_run_keys
+    assert old_run_keys - new_run_keys == {"metrics"}  # D0080: 取れない記録は metrics の鍵を書かない
     assert new_run_keys - old_run_keys == {"agent", "at"}  # D0071: review の要素に at を足した
     for key in set(old) - {"started_at", "updated_at", "runs", "name"}:
         assert type(new[key]) is type(old[key]) or old[key] is None or new[key] is None, key  # 既存の項目の型を変えていない
@@ -366,16 +366,23 @@ def test_d0036_ac26_bashwriteは標準ライブラリだけ():
 
 
 def test_pipe_lint_imports_only_definition():
-    """D0038-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition のほかを読まない（pipe_in_generator も engine も読まない）。"""
+    """D0038-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition と pipe_in.engine.spec（既定で守る場所の定数。D0084）のほかを読まない（pipe_in_generator も、engine のほかの部品も読まない）。"""
     import sys
 
     path = ROOT / "pipe_in" / "pipe" / "lint.py"
     assert path.is_file(), "pipe_in/pipe/lint.py がありません（新しい部品をまだ作っていない）"
     targets = {t for t in _imports(path, "pipe_in.pipe.lint") if t}
     outside = sorted(
-        t for t in targets if t.split(".")[0] not in sys.stdlib_module_names and t.split(".")[0] != "__future__" and not (t == "pipe_in.pipe.definition" or t.startswith("pipe_in.pipe.definition."))
+        t for t in targets if t.split(".")[0] not in sys.stdlib_module_names and t.split(".")[0] != "__future__" and not (t == "pipe_in.pipe.definition" or t.startswith("pipe_in.pipe.definition.") or t == "pipe_in.engine.spec" or t.startswith("pipe_in.engine.spec."))
     )
     assert outside == []
+
+
+def test_d0082_ac11_capabilityは標準ライブラリだけ():
+    """D0082-AC-11: 会話の道の能力表（pipe_in/pipe/capability.py）は、標準ライブラリだけを読む（definition・config・SDK も読まない）。依存の向きは test_dependency_direction が見る。"""
+    path = ROOT / "pipe_in" / "pipe" / "capability.py"
+    assert path.is_file(), "pipe_in/pipe/capability.py がありません"
+    assert _outside_stdlib(path, "pipe_in.pipe.capability") == []
 
 
 # ---- D0044：答えの文（live_answer.py）の依存 ----------------------------------------------------------------------------------

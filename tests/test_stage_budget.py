@@ -572,10 +572,10 @@ def test_d0051_ac17_上限の有無で出力が変わらない(tmp_path):
 
 @pytest.mark.parametrize("limit", [None, 1.0, 0], ids=["none", "1.0", "0"])
 def test_d0051_ac18_record_doneの要素の項目は変わらない_守る(tmp_path, limit):
-    """D0051-AC-18: pipe-in record done が書く要素の項目（cost_usd 0.0・num_turns 0・subtype success・metrics {}）は、pipeline.toml の
-    max_budget_usd が無い・1.0・0 のどれでも今までと同じで、鍵の一覧も増えない。（今のまま通る。守る）"""
+    """D0051-AC-18: pipe-in record done が書く要素の項目（cost_usd null・num_turns 0・subtype success・metrics の鍵なし。D0080 で費用と metrics を
+    「取れない」の書き方にそろえた）は、pipeline.toml の max_budget_usd が無い・1.0・0 のどれでも同じで、上限の鍵は増えない。"""
     want_keys = {
-        "stage", "session_id", "is_error", "subtype", "result", "cost_usd", "num_turns", "duration_sec", "denials", "errors", "metrics",
+        "stage", "session_id", "is_error", "subtype", "result", "cost_usd", "num_turns", "duration_sec", "denials", "errors",
         "seq", "attempt", "note",
     }
     if limit is not None:
@@ -586,7 +586,7 @@ def test_d0051_ac18_record_doneの要素の項目は変わらない_守る(tmp_p
     r.done("requirements", summary="要件定義を書いた")
     (entry,) = dev_state(tmp_path)["runs"]
     assert set(entry) == want_keys
-    assert (entry["cost_usd"], entry["num_turns"], entry["subtype"], entry["metrics"]) == (0.0, 0, "success", {})
+    assert (entry["cost_usd"], entry["num_turns"], entry["subtype"]) == (None, 0, "success")
 
 
 def test_d0051_ac19_開発フローの検証の段が上限で止まっても終了コード4のまま_守る(tmp_path):

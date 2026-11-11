@@ -18,8 +18,11 @@ from typing import Any
 from ..engine import clock
 from ..engine.archive import archive_run
 from ..engine.config import Config, load_config
+from ..engine.spec import work_dir_conflict
 from ..engine.pipeline import CHAT_DRIVER, EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit, ShellResult, one_line, run_shell
 from ..engine.session import check_token, name_from_memo, normalize_name
+from ..engine.state import new_state
+from . import capability
 from . import definition as pd
 from .chat_record import (
     HOOK_DIR,
@@ -48,51 +51,13 @@ class ChatError(Exception):
 
 
 def unsupported(pipe: pd.PipeDef, cfg: Config, after: str | None = None) -> list[str]:
-    """会話の中では流せない形を、全部集めて返す（空なら流せる）。"""
-    out: list[str] = []
-    if pipe.kind != "linear":
-        out.append(f'kind = "{pipe.kind}" のパイプ（組み込みの開発フロー dev）は、会話の中では流せません')
-    if after:
-        out.append("--after（前の実行の受け取り）は、会話の中では使えません")
-    for s in pipe.stages:
-        at = f"段「{s.name}」の"
-        if s.group:
-            out.append(f"{at}group（並列の段）は、会話の中では流せません")
-        if s.routes:
-            out.append(f"{at}routes（分岐）は、会話の中では流せません（構造化出力が無いため）")
-        if s.check and s.check.judge is not None:
-            out.append(f"{at}check.judge（審査）は、会話の中では流せません（構造化出力が無いため）")
-        if s.agents:
-            out.append(f"{at}agents（段の中のサブエージェント）は、会話の中では流せません")
-        if s.mcp:
-            out.append(f"{at}mcp（MCP の道具）は、会話の中では流せません")
-        if s.mcp_servers:
-            out.append(f"{at}mcp_servers（MCP サーバー）は、会話の中では流せません")
-        if s.web or s.fetch_domains:
-            out.append(f"{at}web（Web の道具）は、会話の中では流せません")
-        if s.max_budget_usd is not None:
-            out.append(f"{at}max_budget_usd（費用の上限）は、会話の中では守れないので流せません")
-    for name, sc in cfg.stages.items():
-        if sc.max_budget_usd is not None:
-            out.append(f"pipeline.toml の [stages.{name}] の max_budget_usd（費用の上限）は、会話の中では守れないので流せません")
-    return out
+    """会話の中では流せない形を、全部集めて返す（空なら流せる）。何を断るかは能力表（capability.py）にある。"""
+    return capability.refusals(pipe, cfg, after)
 
 
 def ineffective(pipe: pd.PipeDef, cfg: Config) -> list[dict[str, str]]:
-    """会話の中では効かない設定（断らず、見せる）。"""
-    out: list[dict[str, str]] = []
-    for s in pipe.stages:
-        for key in ("model", "max_turns", "max_thinking_tokens", "fallback_model", "permission_mode"):
-            if getattr(s, key) is not None:
-                out.append({"stage": s.name, "key": key, "where": "pipe.toml"})
-        if s.add_dirs:
-            out.append({"stage": s.name, "key": "add_dirs", "where": "pipe.toml"})
-        sc = cfg.stages.get(s.name)
-        if sc is not None:
-            for key in ("model", "max_turns"):
-                if getattr(sc, key) is not None:
-                    out.append({"stage": s.name, "key": key, "where": "pipeline.toml"})
-    return out
+    """会話の中では効かない設定（断らず、見せる）。何が効かないかは能力表（capability.py）にある。"""
+    return capability.list_items(pipe, cfg)
 
 
 def _ineffective_lines(items: list[dict[str, str]]) -> list[str]:
@@ -201,6 +166,9 @@ class Chat:
         after: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
+        conflict = work_dir_conflict(self.base)  # 段が成果物を書けない work_dir は、始める前に断る（D0084）
+        if conflict is not None:
+            raise ChatError(conflict)
         path = pd.find_pipe(pipe_arg, self.pipes_dir, project=self.project)
         if path is None:
             raise ChatError(f"パイプ「{pipe_arg}」が見つかりません（pipe-in-gen list で一覧を出せます）")
@@ -256,26 +224,25 @@ class Chat:
         if memo_text:
             (cfg.work_dir / INPUT).write_text(memo_text + "\n", encoding="utf-8")
         now = self._stamp()
-        state: dict[str, Any] = {"started_at": now, "updated_at": now, "pipe": pipe.name}
         session_name = (normalize_name(name) if name is not None else None) or (name_from_memo(memo_text) if memo_text else None)
-        if session_name is not None:
-            state["name"] = session_name
-        if session_id is not None:
-            state["session_id"] = session_id
         checks = stage_checks(pipe)
-        state |= {
-            "driver": CHAT_DRIVER,
-            "stages": [
+        state = new_state(
+            CHAT_DRIVER,
+            started_at=now,
+            updated_at=now,
+            pipe=pipe.name,
+            name=session_name,
+            session_id=session_id,
+            stages=[
                 {"name": s.name, "label": s.label, "output": s.output, "review": s.review, **({"check": checks[s.name]} if s.name in checks else {})}
                 for s in pipe.stages
             ],
-            "final": None,
-            "total_cost_usd": None,
-            "usage_summary": dict(USAGE_UNAVAILABLE),
-            "pending_review": None,
-            "warnings": [f"効かない設定: {line}" for line in lines],
-            "open": None,
-            "runs": [],
+            warnings=[f"効かない設定: {line}" for line in lines],
+            runs=[],
+            with_open=True,
+            unavailable_reason=USAGE_UNAVAILABLE["reason"],
+        )
+        state |= {
             "chat": {
                 "pipe_dir": cfg.rel(path),
                 "fingerprint": fingerprint(path, self.project),

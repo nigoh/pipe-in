@@ -72,6 +72,23 @@ def fixture_state(name: str) -> dict:
     return json.loads((FIXTURES / name / "state.json").read_text(encoding="utf-8"))
 
 
+def as_legacy(s: dict) -> dict:
+    """D0080: 見本（tests/fixtures/pipe_dev/）は schema の無い古い記録（費用 0.0・使用量 None・metrics {}）の例として残す。
+    今の record が書く形（schema 付き・費用 null・使用量 available false・metrics の鍵なし）を、その古い形に戻して比べる。
+    新しい形そのものは tests/test_state_schema.py が確かめる。"""
+    s.pop("schema", None)
+    if s.get("total_cost_usd") is None:
+        s["total_cost_usd"] = 0.0
+    if isinstance(s.get("usage_summary"), dict) and s["usage_summary"].get("available") is False:
+        s["usage_summary"] = None
+    for run in s["runs"]:
+        if "seq" in run:
+            if run.get("cost_usd") is None:
+                run["cost_usd"] = 0.0
+            run.setdefault("metrics", {})
+    return s
+
+
 def strip_review_at(s: dict) -> None:
     """D0071: review の要素の at を外す（見本は at の無い古い形のまま。at の値は D0071-AC-01 が確かめる）。"""
     for run in s["runs"]:
@@ -88,7 +105,7 @@ def test_ac01_running_matches_fixture(tmp_path):
     r.start("足したい機能のメモ")
     r.begin("requirements")
     # D0019: state.json に name（要件メモの最初の行から作る）が足された（見本は古い形のまま残す）。name は D0019-AC-44 が確かめる
-    got_state = state(tmp_path)
+    got_state = as_legacy(state(tmp_path))
     got_state.pop("name", None)
     assert got_state == fixture_state("running")
     log = tmp_path / "docs" / "pipeline" / "logs" / "01_requirements.jsonl"
@@ -106,7 +123,7 @@ def test_ac01_waiting_matches_fixture(tmp_path):
     """D0006-AC-22: 確認待ちの記録が見本と同じ（driver のほかは今と同じ形）。"""
     up_to_waiting(recorder(tmp_path))
     # D0017: pending_review に since（待ち始めの時刻）が足された（見本は古い形のまま残す）。since は D0017-AC-01 が確かめる
-    got = state(tmp_path)
+    got = as_legacy(state(tmp_path))
     got["pending_review"].pop("since", None)
     got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
     strip_review_at(got)  # D0071: review の要素に at が足された（見本は古い形のまま残す）。at は D0071-AC-01 が確かめる
@@ -118,7 +135,7 @@ def test_ac01_finished_matches_fixture(tmp_path):
     r = recorder(tmp_path)
     up_to_waiting(r)
     to_finish(r)
-    got = state(tmp_path)
+    got = as_legacy(state(tmp_path))
     got.pop("name", None)  # D0019: 見本は name の無い古い形のまま残す
     strip_review_at(got)  # D0071: review の要素に at が足された（見本は古い形のまま残す）。at は D0071-AC-01 が確かめる
     assert got == fixture_state("finished")

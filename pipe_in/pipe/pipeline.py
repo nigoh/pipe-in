@@ -95,6 +95,20 @@ def stage_checks(pipe: PipeDef) -> dict[str, dict[str, Any]]:
     }
 
 
+def read_flow(raw: Any) -> tuple[int, dict[str, int]]:
+    """記録の flow を読む。返すのは (流した回数, 段の名前 → 戻した回数)。
+    形が違う部分・負の数・小数・真偽値は 0 として読む（落ちない。読めない記録で続きを止めない）。"""
+
+    def count(v: Any) -> int:
+        return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else 0
+
+    if not isinstance(raw, dict):
+        return 0, {}
+    retries_raw = raw.get("retries")
+    retries = {k: count(v) for k, v in retries_raw.items() if isinstance(k, str)} if isinstance(retries_raw, dict) else {}
+    return count(raw.get("steps")), retries
+
+
 def exit_message(result: Exit) -> str:
     """パイプ（linear）の終了の文。"""
     if result == Exit.TEST_FAILED:
@@ -131,6 +145,9 @@ class LinearPipeline(BasePipeline):
         super().__init__(cfg, ps.build_pipe_specs(cfg, pipe), runner=runner, ask=ask, shell=shell)
         self.pipe = pipe
         self.index = {s.name: i for i, s in enumerate(pipe.stages)}
+        # 流した回数と、段ごとに戻した回数。確認をはさんでも引き継ぐので、記録（flow）に書く
+        self.flow_steps = 0
+        self.flow_retries: dict[str, int] = {}
 
     def receive(self, record: dict[str, Any] | None) -> None:
         """前のパイプの記録を受ける（--after）。受けた元で、後ろの段の書けない所（前の記録）を作り直す（D0069-FR-15）。
@@ -160,6 +177,9 @@ class LinearPipeline(BasePipeline):
         """枠（並列の束）の中の段の枠の名前（記録の stages[].group）。"""
         return {s.name: s.group for s in self.pipe.stages if s.group}
 
+    def _flow_record(self) -> dict[str, Any] | None:
+        return {"steps": self.flow_steps, "retries": dict(self.flow_retries)}
+
     def _next_attempt(self, stage: str) -> int:
         """この段の検証が何回目か。記録（review の再開で戻した分も含む）の check の数 + 1。"""
         return sum(1 for h in self.history if h.get("stage") == stage and "check" in h) + 1
@@ -175,6 +195,9 @@ class LinearPipeline(BasePipeline):
         if start_name not in names:
             raise SystemExit(f"--from には {', '.join(names)} のどれかを指定してください")
         start = names.index(start_name)
+        # 回数は 0 から数える（--from も同じ。前の記録の flow は読まない）
+        self.flow_steps = 0
+        self.flow_retries = {}
         if from_stage is not None:
             # 途中の段からの再開は、この記録の受けた元をそのまま使う（前の記録は読み直さない。D0069-FR-11）
             self.receive(self._state_data().get("received_from"))
@@ -198,6 +221,8 @@ class LinearPipeline(BasePipeline):
     async def review(self, decision: Decision) -> Exit:
         """確認で止まった実行に答えて、続きを流す。承認なら、止まったときに決まっていた次の段から。"""
         pending = self._load_pending()
+        # 止まる前までの回数を記録から引き継ぐ（無い・壊れた部分は 0）
+        self.flow_steps, self.flow_retries = read_flow(self._state_data().get("flow"))
         self._clear_reply(mark=True)
         self._resume_note()
         stage = pending["stage"]
@@ -226,16 +251,14 @@ class LinearPipeline(BasePipeline):
 
     async def _flow(self, start: int, *, first: tuple[str, str] | None = None) -> Exit:
         stages = self.pipe.stages
-        steps = 0
-        retries: dict[str, int] = {}
         notes: dict[str, str] = {}
         i: int | None = start
         while i is not None:
             s = stages[i]
             if s.group:
                 members = self._group_members(i)
-                steps += len(members)
-                if steps > self.pipe.max_steps:
+                self.flow_steps += len(members)
+                if self.flow_steps > self.pipe.max_steps:
                     return self._too_many_steps()
                 results = await asyncio.gather(*(self._member(j) for j in members))
                 for r in results:
@@ -245,18 +268,20 @@ class LinearPipeline(BasePipeline):
                 i = after if after < len(stages) else None
                 continue
 
-            steps += 1
-            if steps > self.pipe.max_steps:
-                return self._too_many_steps()
+            # 人の revise で流し直す1回（first）は、数えず上限も見ない
+            if first is None:
+                self.flow_steps += 1
+                if self.flow_steps > self.pipe.max_steps:
+                    return self._too_many_steps()
             step = await self._step(i, first=first if i == start else None, note=notes.pop(s.name, None))
             first = None
             if step.failure is not None:
                 assert s.check is not None
-                used = retries.get(s.name, 0)
+                used = self.flow_retries.get(s.name, 0)
                 if used >= s.check.max_retries:
                     print(f"  ✗ {s.label}: 差し戻しの上限（{s.check.max_retries} 回）まで検証に通りませんでした")
                     return Exit.TEST_FAILED
-                retries[s.name] = used + 1
+                self.flow_retries[s.name] = used + 1
                 target = s.check.on_fail or s.name
                 notes[target] = step.failure
                 print(f"  ↩ {self.labels[target]}へ戻します（残り {s.check.max_retries - used - 1} 回）", flush=True)

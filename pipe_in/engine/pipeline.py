@@ -23,6 +23,7 @@ from .reply import REPLY_FILE, ReplyEnv, ReplyWait
 from .runner import StageRun, StageRunner, run_stage_sdk
 from .session import name_from_memo
 from .spec import StageSpec, stage_budget_usd
+from .state import new_state
 
 # どのパイプでも本体が書くファイル
 INPUT = "00_input.md"
@@ -109,6 +110,7 @@ class BasePipeline:
         self.name: str | None = None
         # 前のパイプから受けた元（--after。state.json の received_from。D0069）。受けていなければ None
         self.received: dict[str, Any] | None = None
+        self._legacy_state = False  # schema の無い記録を --review で続けているとき True（schema を足さない）
 
     def _ask_terminal(self, stage: str, doc: Path) -> Decision:
         """既定の確認（端末の入力）。ask を差し替えていないときの ask の中身。"""
@@ -195,6 +197,10 @@ class BasePipeline:
         """段の名前 → 枠（並列の束）の名前。枠の中の段だけ。既定は空。"""
         return {}
 
+    def _flow_record(self) -> dict[str, Any] | None:
+        """記録の flow（流した回数と、段ごとに戻した回数）。書かない子は None（既定）。"""
+        return None
+
     def _summary_extra(self) -> list[str]:
         """まとめに足す節（開発フローのテストの判定など）。"""
         return []
@@ -206,7 +212,7 @@ class BasePipeline:
 
     @property
     def total_cost(self) -> float:
-        return round(sum(h.get("cost_usd", 0.0) for h in self.history), 4)
+        return round(sum((h.get("cost_usd") or 0.0) for h in self.history), 4)
 
     def _settle_name(self, input_text: str | None) -> None:
         """00_input.md を書いたあとに呼ぶ。すでにある名前（--name）→ 今の state.json の name（--from の再開）→ 要件メモの最初の行。"""
@@ -227,20 +233,17 @@ class BasePipeline:
         self.name = name_from_memo(memo)
 
     def _save_state(self, final: Exit | None = None) -> None:
-        state: dict[str, Any] = {
-            "started_at": self.started_at,
-            "updated_at": datetime.now().isoformat(timespec="seconds"),
-            "pipe": self.cfg.pipe,
-        }
-        if self.name is not None:
-            state["name"] = self.name
-        # 受けた元は、受けた実行だけに書く（項目を足すだけ。受けていない記録には無い）
-        if self.received is not None:
-            state["received_from"] = self.received
         checks = self._stage_checks()
         groups = self._stage_groups()
-        state |= {
-            "stages": [
+        state = new_state(
+            None,
+            started_at=self.started_at,
+            updated_at=datetime.now().isoformat(timespec="seconds"),
+            pipe=self.cfg.pipe,
+            name=self.name,
+            # 受けた元は、受けた実行だけに書く（項目を足すだけ。受けていない記録には無い）
+            received_from=self.received,
+            stages=[
                 {
                     "name": n,
                     "label": s.label,
@@ -252,13 +255,16 @@ class BasePipeline:
                 for n, s in self.specs.items()
             ],
             # 確認待ちは終わりではないので final は空のまま（pending_review を見る）
-            "final": final.name if final is not None and final != Exit.AWAITING_REVIEW else None,
-            "total_cost_usd": self.total_cost,
-            "usage_summary": summarize_runs([h.get("metrics") for h in self.history if "seq" in h]),
-            "pending_review": self.pending,
-            "warnings": self.warnings,
-            "runs": self.history,
-        }
+            final=final.name if final is not None and final != Exit.AWAITING_REVIEW else None,
+            total_cost_usd=self.total_cost,
+            usage_summary=summarize_runs([h.get("metrics") for h in self.history if "seq" in h]),
+            pending_review=self.pending,
+            warnings=self.warnings,
+            flow=self._flow_record(),
+            runs=self.history,
+            # schema の無い古い記録を --review で続けた実行では、schema を足さない
+            with_schema=not self._legacy_state,
+        )
         if self.reply_wait is not None:
             state["reply_wait"] = self.reply_wait
         self.doc(STATE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -365,6 +371,7 @@ class BasePipeline:
                 f"この記録（{self.cfg.rel(path)}）は Claude Code の開発用スキル（/pipe-in）が書いたものです。"
                 "続きはその会話で進めてください（pipe-in --review では流せません）"
             )
+        self._legacy_state = "schema" not in data
         pending = data.get("pending_review")
         if not pending:
             raise SystemExit(f"確認待ちの実行がありません（{self.cfg.rel(path)}）。--pause で流したあとに --review を使ってください")
@@ -416,7 +423,7 @@ class BasePipeline:
                 ok = "失敗" if h["is_error"] else "完了"
                 lines.append(
                     f"| {h['seq']} | {self.labels.get(h['stage'], h['stage'])}{('・' + h['note']) if h.get('note') else ''} | "
-                    f"{h.get('attempt') or ''} | {ok} | {h['num_turns']} | ${h['cost_usd']:.3f} | {h['duration_sec']}s |"
+                    f"{h.get('attempt') or ''} | {ok} | {h['num_turns']} | ${(h.get('cost_usd') or 0.0):.3f} | {h['duration_sec']}s |"
                 )
         lines += self._summary_extra()
         lines += usage_sections(self.history, self.labels)

@@ -7,7 +7,8 @@
 | 入口（pipe-in コマンド） | `pipe_in/cli.py` |
 | 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
-| 段の設定の型・protected_paths・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
+| 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
+| 段の設定の型・protected_paths・既定で守る場所 `DEFAULT_PROTECTED_PATHS`・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
 | 止める操作（pipe-in が流す段の PreToolUse フック）と、Bash のコマンドの文字列から書き込み先を読む部品（標準ライブラリだけ。シェルは起こさない） | `pipe_in/engine/guard.py`・`bashwrite.py` |
 | SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
 | 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
@@ -16,6 +17,7 @@
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
 | 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
 | 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
+| 記録の土台（`schema`・鍵の並び・費用と使用量の値の種類）を、3つの書き手（SDK・開発用・会話）と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/state_record.json` |
 | 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
 | 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
 | 実行パネルの返事のファイル（D0079。実行のフォルダの `reply.json`）を読む・今の待ちと照らす・消す部品と、端末の行の元（標準ライブラリと `live_answer.py` の定数だけ。返事を作る関数は持たない。リンクは辿らない。断る理由は決まった一覧で、入力の文字は入れない。端末の行は、錠を持たない読み方で、頼まれたときだけ 1 行読む）。人の確認の待ち方は `checkpoint.py` が持ち、標準入力が端末のときだけ、標準入力と返事のファイルを 0.5 秒ごとに一緒に待つ | `pipe_in/engine/reply.py`・`pipe_in/engine/checkpoint.py` |
@@ -28,10 +30,12 @@
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
-| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
+| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083） | `generator/guard_hook.py` |
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
+| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
+| 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
 | 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
 | 会話の中で段を受け持つ・守りを確かめるエージェントと、流すスキル `/pipe-in:pipe-run` | `plugin/agents/pipe-stage.md`・`pipe-probe.md`、`plugin/skills/pipe-run/SKILL.md` |
@@ -239,7 +243,11 @@ pipe_in.usage
 - D0071 で `state.json` の `runs[]` の `review` の要素に `at`（書いた時刻。`Prompt` 行の `at` と同じ書き方）を足しました。足すだけで、無い古い記録は `record check` が「判定できなかった」として読みます。ほかの読み手（`--review`・`live`・拡張）は `at` を使いません。古い版の拡張は知らない項目を読まずに捨てます。`driver` の値 `"pipe-dev"` は変えません。`Prompt` 行の `prompt` と `99_summary.md` の1行目の呼び名が `/pipe-dev` から `/pipe-in` に変わりますが、文字として読むだけなので古い記録もそのまま読めます。`runs[]` の要素の鍵の集まりを比べているテスト（`test_d0019_ac50_state_only_adds_keys`）は、`at` を含める形に直しました。
 - D0077 で、会話の中でパイプを流す道（`pipe-in-gen chat`）の記録を足しました。`state.json` の `driver` に `"pipe-chat"`、`chat` の節、`usage_summary` の `available: false` と理由（`total_cost_usd`・`runs[]` の `cost_usd` は `null`）、実行のフォルダの `hook/`・`probe/` です。足すだけで、無い古い記録は今までどおり読めます。拡張は `usage_summary.available === false` のときだけ「取れない」を出し、それ以外は変わりません。`available` を知らない古い拡張は、使用量の表を零で出し、図の段に `$0.000` が出ることがあります（見た目だけで、記録は壊れません）。`--review` は `driver` があれば続きを流さず、`pipe-chat` のときは `chat next` を案内します。`guard_hook.py` の `decide` と `engine/guard.py` は変えません。
 - D0079 で、`state.json` に `reply_wait`（段・識別子・始めた時刻。端末の `pipe-in` が確認の段で人の入力を待っているあいだだけ）を足しました。足すだけで、無い古い記録は印なしとして読みます。古い版の拡張は知らない項目を読まずに捨てるのでボタンが出ず、古い本体で流した実行にもボタンは出ません。`pipe.toml`・`pipeline.toml` の形は変えません。`RESERVED_OUTPUTS` に `reply.json` が入り、`output = "reply.json"` の既存のパイプは検査で止まります（`check_pipe`・`validatePipe`）。`--pause` で止めた実行の案内は、`pipe-in --review` に変わりました。
+- D0080 で、`state.json` を作る3つの書き手（SDK の `_save_state`・`record start`・`chat start`）の土台を `pipe_in/engine/state.py` の `new_state` に1つにし、新しい記録の最初の鍵に `schema: 1` を足しました。開発用の新しい記録だけ値が変わります：`total_cost_usd` は `null`、`usage_summary` は `{available: false, reason}`、`runs[].cost_usd` は `null`、`runs[].metrics` は鍵なし（今までは `0.0`・`null`・`0.0`・`{}`）。SDK の道は `driver` を書かず、会話の道は値を変えません。`schema` の無い古い記録は読むだけで、変換も書き換えもしません（`archive/` の中も）。`--review` で続ける実行も `schema` を足さず、`record` で続けても古い値は残ります。読む側は `schema` を見て読み分けず、2 以上や数でない値でも落ちずに読みます。拡張は `usage_summary.available === false` で「取れない」を出す道が D0077 からあるので、直しません（古い版の拡張は零で出すことがあります）。鍵と値の種類は共通の表 `tests/fixtures/state_record.json` を本体と拡張のテストが読んで結びます。`runs[]` の `cost_usd` が `null` の記録を SDK の `--review` が続けても、合計は 0 として数えます。`test_d0019_ac50_state_only_adds_keys` は `schema` を含める形に直しました。
+- D0081 で、`state.json` に任意の鍵 `flow`（`steps`・`retries`）を足しました。書くのはパイプ（`LinearPipeline`）だけで、開発フロー・会話の道は書きません。`--review` で続けるときに読んで、`max_steps`・`max_retries` の回数を引き継ぎます。無い記録は 0 から、壊れた部分は 0 として読みます。共通の表の `sdk` 行の `optional_keys` に足しました。拡張は読み飛ばします。意味が変わるのは2つだけです：`--review` をはさむと上限が早く効く、人の `revise` を `steps` に数えない。`pipe.toml`・`pipeline.toml`・`guard` は変えません。
+- D0084 で、段の書ける範囲から外す場所に、既定の一覧 `DEFAULT_PROTECTED_PATHS`（`pipe_in/engine/spec.py`）を足しました。`pipeline.toml`・`pipe.toml`・記録の形は変えません。意味が変わる（今まで通って、これから止まる）のは、SDK の道の段が `.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・`.devpipe/` を `protected_paths` の設定なしでも書けなくなること、会話の道で `.devpipe/` が止まること、止めた理由の文に「既定で守る場所」が付くこと、`work_dir` がこれらの中か `.` のとき流す前に止まることです。外す設定は作りません。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
+- パイプの定義（`PipeDef`・`PipeStage` など）や設定（`StageConfig`・`Config`）に項目を足すときは、会話の道の能力表 `pipe_in/pipe/capability.py` にも 1 行足します（実行役 `sdk`・`chat` ごとに、効く・断る・一覧に出す・黙る・関係しない を決める）。足し忘れは `tests/test_capability.py` が落とします。断る文と効かない設定の一覧は表から作るので、`chat.py` に項目の名前の条件を足さないでください。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。
 

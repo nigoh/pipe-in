@@ -1,13 +1,17 @@
 """パイプの定義の警告（D0038）。誤りではないが、流すと思いどおりに動かない形を知らせる。
 
 check_pipe（誤りだけを返す）とは別にして、返り値は変えない。ファイルには書かず、
-読むのは定義と段の指示文だけ。標準ライブラリと .definition のほかは import しない。
+読むのは定義と段の指示文だけ。標準ライブラリと .definition と pipe_in.engine.spec の定数のほかは import しない。
+D0084 で W7（docs_dir・writes が既定で守る場所と重なる）を足した。
 D0053 で W6（指摘を出す段に、引用の指示も findings-check も無い）を足した。
 D0076 で W5 に例外を足した（検査の command が戻り先の段の成果物を名指しするときは出さない）。
 """
 
 from __future__ import annotations
 
+import fnmatch
+
+from ..engine.spec import DEFAULT_PROTECTED_PATHS
 from .definition import PipeDef
 
 # W1 で「成果物のほかを書きたい」と見なす指示文の言葉。直すのはここ1か所
@@ -85,4 +89,42 @@ def lint_pipe(pipe: PipeDef) -> list[str]:
                 at + "指摘を出す段なのに、指摘ごとに原文をそのまま引かせる指示（引用）も、機械の照合（findings-check）もありません（D0053）。"
                 "指摘ごとに原文の行を逐語で引用させ、pipe-in-gen findings-check（指摘の形 v1）を check.command に組んでください。ほかの照合を使うなら、指示文に引用の指示を書けば、この警告は出ません"
             )
+        # W7: docs_dir・writes が、既定で守る場所と重なる（D0084）。重なった部分は書けない
+        if s.access in ("docs", "code") and (_docs_dir_overlaps(s.docs_dir) or any(_glob_overlaps(w) for w in s.writes or [])):
+            warnings.append(
+                at + "docs_dir / writes は、既定で守る場所（.claude/・.git/・.pipe-in/・pipeline.toml・前の版の置き場所）と重なります。"
+                "重なった部分は書けません（D0084）。成果物は docs/ など別の場所に置いてください"
+            )
     return warnings
+
+
+def _docs_dir_overlaps(docs_dir: str | None) -> bool:
+    """docs_dir が、プロジェクトそのものか、既定で守る場所の中か（文字の上だけで見る）。"""
+    if docs_dir is None:
+        return False
+    d = docs_dir.strip().replace("\\", "/")
+    while d.startswith("./"):
+        d = d[2:]
+    d = d.rstrip("/")
+    return d in ("", ".") or _hits_default(d + "/x")
+
+
+def _glob_overlaps(glob: str) -> bool:
+    """writes の glob の、最初のワイルドカードより前の固定の部分が、既定で守る場所の中か。
+    固定の部分が空（*.md のように先頭がワイルドカード）は広すぎるので見ない。重なった部分は実行時に止まる。"""
+    g = glob.strip().replace("\\", "/")
+    while g.startswith("./"):
+        g = g[2:]
+    cut = len(g)
+    for ch in "*?[":
+        i = g.find(ch)
+        if i != -1:
+            cut = min(cut, i)
+    prefix = g[:cut]
+    if not prefix:
+        return False
+    return _hits_default(prefix) or _hits_default(prefix.rstrip("/") + "/x")
+
+
+def _hits_default(path: str) -> bool:
+    return any(fnmatch.fnmatch(path, g) for g in DEFAULT_PROTECTED_PATHS)

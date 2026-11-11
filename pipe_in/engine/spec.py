@@ -57,15 +57,47 @@ def stage_budget_usd(spec: StageSpec, cfg: Config) -> float | None:
     return positive_budget(cfg.stage(spec.name).max_budget_usd or spec.max_budget_usd)
 
 
+# 設定なしでも、どの段も書けない場所（D0084）。設定・フック・エージェント・スキル（.claude/）、
+# git の中（.git/ と、worktree でファイルになる .git 自身）、パイプと設定の置き場所、前の版の置き場所。
+# 外す設定は作らない。足したいときは pipeline.toml の protected_paths に書く。
+DEFAULT_PROTECTED_PATHS: tuple[str, ...] = (
+    ".claude/*",
+    "*/.claude/*",
+    ".git/*",
+    ".git",
+    ".pipe-in/*",
+    "pipeline.toml",
+    ".devpipe/*",
+)
+
+
+def work_dir_conflict(cfg: Config) -> str | None:
+    """work_dir が既定で守る場所の中か、プロジェクトそのもの（.）なら、直し方つきの文を返す。重ならなければ None。
+    段が自分の成果物を書けなくなる設定を、流す前に断るために使う。ファイルは読み書きしない。"""
+    rel = cfg.rel(cfg.work_dir).replace("\\", "/")
+    hit = rel == "." or any(
+        fnmatch.fnmatch(p, g) for p in (rel, f"{rel}/x") for g in DEFAULT_PROTECTED_PATHS
+    )
+    if not hit:
+        return None
+    return (
+        f"work_dir「{rel}」は、段が書いてはいけない場所（.claude/・.git/・.pipe-in/・.devpipe/・pipeline.toml）の中か、"
+        "それを含んでいます。段が自分の成果物を書けなくなるので、流しません。"
+        'pipeline.toml の [pipeline] work_dir を、その外（例: work_dir = "docs/pipeline"）に直してください。'
+    )
+
+
 def protect(specs: dict[str, StageSpec], cfg: Config) -> dict[str, StageSpec]:
-    """返事の場所（実行のフォルダの reply.json。D0079）と protected_paths を、どの段の書き込み範囲からも外す。"""
+    """返事の場所（実行のフォルダの reply.json。D0079）と、既定で守る場所と protected_paths を、どの段の書き込み範囲からも外す。"""
     reply_rel = f"{cfg.rel(cfg.work_dir)}/{REPLY_FILE}"
+    extra = [g for g in cfg.protected_paths if g not in DEFAULT_PROTECTED_PATHS]
+    globs = [*DEFAULT_PROTECTED_PATHS, *extra]
+    base = f"既定で守る場所 {', '.join(DEFAULT_PROTECTED_PATHS)}"
+    hint = f"（{base}" + (f" と、protected_paths の {', '.join(extra)}" if extra else "") + " は、どの段も変更できません）"
     for spec in specs.values():
         spec.can_write = _unless_reply(spec.can_write, reply_rel)
-    if cfg.protected_paths:
-        for spec in specs.values():
-            spec.can_write = _unless_protected(spec.can_write, cfg.protected_paths)
-            spec.write_scope_hint += f"（{', '.join(cfg.protected_paths)} はどの段も変更できません）"
+        spec.can_write = _unless_protected(spec.can_write, globs)
+        spec.write_scope_hint += hint
     return specs
 
 

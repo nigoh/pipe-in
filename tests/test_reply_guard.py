@@ -249,7 +249,8 @@ def permissive_spec(name: str = "s") -> StageSpec:
 
 def test_protect_は返事の場所だけを書けないものに足す(tmp_path: Path):
     """D0079-AC-26: protect() は、何でも書ける段でも、返事の場所（work_dir の reply.json。大文字小文字違いを含む）だけを書けなくする。
-    ほかのパス（reply.json.bak・別のフォルダの reply.json・work_dir の別のファイル）は書けるまま。protected_paths が無ければ hint も変えない。"""
+    ほかのパス（reply.json.bak・別のフォルダの reply.json・work_dir の別のファイル）は書けるまま。
+    D0084 で、hint は元の文で始まり、既定で守る場所の説明が付く（protected_paths が無くても）。"""
     cfg = make_cfg(tmp_path)
     spec = permissive_spec()
     out = protect({"s": spec}, cfg)["s"]
@@ -258,7 +259,8 @@ def test_protect_は返事の場所だけを書けないものに足す(tmp_path
         assert out.can_write(blocked) is False, blocked
     for allowed in (f"{d}/reply.json.bak", f"{d}/x/reply.json", f"{d}/state.json", "docs/reply.json", "src/reply.json", "reply.json"):
         assert out.can_write(allowed) is True, allowed
-    assert out.write_scope_hint == "どこでも"
+    assert out.write_scope_hint.startswith("どこでも")
+    assert "既定で守る場所" in out.write_scope_hint
 
 
 def test_protect_は_protected_paths_と一緒でも返事の場所を塞ぐ(tmp_path: Path):
@@ -285,7 +287,7 @@ SAMPLE_PATHS = [
 @pytest.mark.parametrize("domain", DOMAINS)
 def test_返事の場所は書けないものに足すだけで書ける範囲は広がらない_開発フロー(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, domain: str, protected: list[str]):
     """D0079-AC-29: protect の前後で、見本のパス一式の can_write が「後 ⇒ 前」（書けるようになるパスが無い）。
-    protected_paths が無ければ hint は変わらない。止める範囲は狭まらない（今のまま通る。守る）。"""
+    D0084 で hint は元の文で始まり、既定で守る場所の説明が付く。止める範囲は狭まらない（守る）。"""
     cfg = replace(dev_cfg(tmp_path, domain), protected_paths=protected)
     after = dev_specs.build_specs(cfg)
     with monkeypatch.context() as mp:
@@ -294,14 +296,14 @@ def test_返事の場所は書けないものに足すだけで書ける範囲�
     for stage in DEV_STAGES:
         widened = [p for p in SAMPLE_PATHS if after[stage].can_write(p) and not before[stage].can_write(p)]
         assert widened == [], f"{stage}: 書けるようになったパス {widened}"
-        if not protected:
-            assert after[stage].write_scope_hint == before[stage].write_scope_hint
+        assert after[stage].write_scope_hint.startswith(before[stage].write_scope_hint)
+        assert "既定で守る場所" in after[stage].write_scope_hint
 
 
 @pytest.mark.parametrize("access", ACCESSES)
 def test_返事の場所は書けないものに足すだけで書ける範囲は広がらない_パイプ(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, access: str):
-    """D0079-AC-29: パイプの段も同じ：protect の前後で、見本のパス一式の can_write が「後 ⇒ 前」。hint は変わらない
-    （今のまま通る。守る）。"""
+    """D0079-AC-29: パイプの段も同じ：protect の前後で、見本のパス一式の can_write が「後 ⇒ 前」。
+    D0084 で hint は元の文で始まり、既定で守る場所の説明が付く。"""
     cfg, after = pipe_stage_spec(tmp_path, access, None, FOLDERS[1], bash=True)
     pipe = make_pipe(tmp_path, pipe_toml(stage_toml("a", 'docs_dir = "docs"\nbash = true\n' if access == "docs" else "bash = true\n", access=access)))
     with monkeypatch.context() as mp:
@@ -309,4 +311,5 @@ def test_返事の場所は書けないものに足すだけで書ける範囲�
         before = pipe_specs.build_pipe_specs(cfg, pipe)["a"]
     widened = [p for p in SAMPLE_PATHS if after.can_write(p) and not before.can_write(p)]
     assert widened == [], f"書けるようになったパス {widened}"
-    assert after.write_scope_hint == before.write_scope_hint
+    assert after.write_scope_hint.startswith(before.write_scope_hint)
+    assert "既定で守る場所" in after.write_scope_hint
