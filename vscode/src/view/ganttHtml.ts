@@ -9,6 +9,7 @@
 import type { GanttModel, GanttRow } from '../domain/gantt.ts';
 import { formatDuration } from './duration.ts';
 import { escapeHtml } from './escape.ts';
+import { SIDE_LIMIT, placeWaitText } from './ganttPlace.ts';
 import { STALE_WORD, staleAttrs } from './staleMark.ts';
 
 /** 0〜100% を 1% 刻みで並べた位置のクラス（左から .x、右から .r）。 */
@@ -42,6 +43,9 @@ export const GANTT_STYLE = `
 .g-text { position: absolute; top: 0; line-height: 16px; white-space: nowrap; paint-order: stroke; -webkit-text-stroke: 3px var(--vscode-editor-background); }
 .g-text[data-side="right"] { margin-left: 4px; }
 .g-text[data-side="left"] { margin-right: 4px; }
+.g-text[data-side="below"] { top: 17px; margin-right: 0; }
+.g-row.has-below { min-height: 44px; align-items: start; padding-top: 5px; box-sizing: border-box; }
+.g-row.has-below .g-label { line-height: 16px; }
 .g-in { transform: translateX(-50%); color: var(--vscode-editor-background); font-weight: 600; -webkit-text-stroke: 0; }
 .g-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; color: var(--vscode-descriptionForeground); }
 .g-key span { display: inline-flex; align-items: center; gap: 6px; }
@@ -57,8 +61,6 @@ ${positionClasses()}
 `;
 
 const NAME_LIMIT = 26;
-/** 帯の右端がこの割合（%）を超えたら、文字は帯の左に置く（右に出すと枠の外へ出るため）。 */
-const SIDE_LIMIT = 85;
 /** 帯がこの割合（%）以上なら、時間の文字を帯の中に入れる。 */
 const INSIDE_MIN = 12;
 /** 「● 動いている」も帯の中に入れるときの最小の割合（%）。 */
@@ -117,13 +119,14 @@ function renderRow(row: GanttRow, total: number, staleAfterSec: number | null): 
   const label = `<span class="g-label" title="${escapeHtml(full)}">${escapeHtml(clip(full))}</span>`;
   // 動いている帯で、最後の更新からの秒と目安がそろうときだけ印の属性を持つ（帯の無い行・終わった帯・目安なしは今までの行のまま）
   const stale = row.run !== null && row.run.live ? staleAttrs(row.run.quietSec, staleAfterSec) : '';
-  const open = `<div class="g-row"${stale}>${label}<div class="g-track">`;
+  const openWith = (rowClass: string): string => `<div class="${rowClass}"${stale}>${label}<div class="g-track">`;
 
-  if (row.run === null) return `${open}<span class="g-note">時刻の記録なし</span></div></div>`;
+  if (row.run === null) return `${openWith('g-row')}<span class="g-note">時刻の記録なし</span></div></div>`;
 
   const { run, wait } = row;
   const shapes: string[] = [];
   const texts: string[] = [];
+  let below = false;
 
   const rb = barOf(run.startSec, run.endSec, total);
   shapes.push(rect(run.failed ? 'g-run g-fail' : 'g-run', rb));
@@ -147,11 +150,19 @@ function renderRow(row: GanttRow, total: number, staleAfterSec: number | null): 
     const wb = barOf(wait.startSec, wait.endSec, total);
     shapes.push(rect('g-wait', wb));
     if (wait.live) shapes.push(rect('g-ring', wb));
-    texts.push(sideText(wb, `確認待ち ${formatDuration(wait.endSec - wait.startSec)}${wait.live ? ' ● 待っている' : ''}`));
+    const waitBody = `確認待ち ${formatDuration(wait.endSec - wait.startSec)}${wait.live ? ' ● 待っている' : ''}`;
+    // 待ちの帯が狭く、左の実行の帯が言葉の範囲にかかるときだけ、言葉を帯の下の行に出す（right・left は今までどおり）
+    const place = placeWaitText({ wait: wb, run: rb, long: wait.live });
+    if (place === 'below') {
+      below = true;
+      texts.push(`<span class="g-text r${Math.round(100 - wb.end)}" data-side="below">${escapeHtml(waitBody)}</span>`);
+    } else {
+      texts.push(sideText(wb, waitBody));
+    }
   }
 
   const bars = `<svg class="g-bars" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">${shapes.join('')}</svg>`;
-  return `${open}${bars}${texts.join('')}</div></div>`;
+  return `${openWith(below ? 'g-row has-below' : 'g-row')}${bars}${texts.join('')}</div></div>`;
 }
 
 function renderAxis(g: GanttModel): string {

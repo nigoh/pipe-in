@@ -58,7 +58,8 @@ def stage_budget_usd(spec: StageSpec, cfg: Config) -> float | None:
 
 
 # 設定なしでも、どの段も書けない場所（D0084）。設定・フック・エージェント・スキル（.claude/）、
-# git の中（.git/ と、worktree でファイルになる .git 自身）、パイプと設定の置き場所、前の版の置き場所。
+# git の中（.git/ と、worktree でファイルになる .git 自身）、パイプと設定の置き場所、前の版の置き場所、
+# プロジェクトの MCP の定義 .mcp.json（setting_sources の project で読まれる。D0087）。
 # 外す設定は作らない。足したいときは pipeline.toml の protected_paths に書く。
 DEFAULT_PROTECTED_PATHS: tuple[str, ...] = (
     ".claude/*",
@@ -67,6 +68,7 @@ DEFAULT_PROTECTED_PATHS: tuple[str, ...] = (
     ".git",
     ".pipe-in/*",
     "pipeline.toml",
+    ".mcp.json",
     ".devpipe/*",
 )
 
@@ -75,13 +77,14 @@ def work_dir_conflict(cfg: Config) -> str | None:
     """work_dir が既定で守る場所の中か、プロジェクトそのもの（.）なら、直し方つきの文を返す。重ならなければ None。
     段が自分の成果物を書けなくなる設定を、流す前に断るために使う。ファイルは読み書きしない。"""
     rel = cfg.rel(cfg.work_dir).replace("\\", "/")
-    hit = rel == "." or any(
-        fnmatch.fnmatch(p, g) for p in (rel, f"{rel}/x") for g in DEFAULT_PROTECTED_PATHS
-    )
+    parts = rel.split("/")
+    # 自分と、上の階層のどれか（.mcp.json/x のように、ファイルの型の下も断る）、自分の下
+    paths = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)] + [f"{rel}/x"]
+    hit = rel == "." or any(fnmatch.fnmatch(p, g) for p in paths for g in DEFAULT_PROTECTED_PATHS)
     if not hit:
         return None
     return (
-        f"work_dir「{rel}」は、段が書いてはいけない場所（.claude/・.git/・.pipe-in/・.devpipe/・pipeline.toml）の中か、"
+        f"work_dir「{rel}」は、段が書いてはいけない場所（.claude/・.git/・.pipe-in/・.devpipe/・.mcp.json・pipeline.toml）の中か、"
         "それを含んでいます。段が自分の成果物を書けなくなるので、流しません。"
         'pipeline.toml の [pipeline] work_dir を、その外（例: work_dir = "docs/pipeline"）に直してください。'
     )

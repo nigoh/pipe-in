@@ -92,7 +92,7 @@ def lint_pipe(pipe: PipeDef) -> list[str]:
         # W7: docs_dir・writes が、既定で守る場所と重なる（D0084）。重なった部分は書けない
         if s.access in ("docs", "code") and (_docs_dir_overlaps(s.docs_dir) or any(_glob_overlaps(w) for w in s.writes or [])):
             warnings.append(
-                at + "docs_dir / writes は、既定で守る場所（.claude/・.git/・.pipe-in/・pipeline.toml・前の版の置き場所）と重なります。"
+                at + "docs_dir / writes は、既定で守る場所（.claude/・.git/・.pipe-in/・.mcp.json・pipeline.toml・前の版の置き場所）と重なります。"
                 "重なった部分は書けません（D0084）。成果物は docs/ など別の場所に置いてください"
             )
     return warnings
@@ -106,7 +106,7 @@ def _docs_dir_overlaps(docs_dir: str | None) -> bool:
     while d.startswith("./"):
         d = d[2:]
     d = d.rstrip("/")
-    return d in ("", ".") or _hits_default(d + "/x")
+    return d in ("", ".") or _hits_default(d) or _hits_default(d + "/x")
 
 
 def _glob_overlaps(glob: str) -> bool:

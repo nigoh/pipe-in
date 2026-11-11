@@ -69,7 +69,7 @@ TABLE: tuple[Row, ...] = (
     _w("PipeDef.label"),
     _w("PipeDef.description"),
     _w("PipeDef.input"),
-    _na("PipeDef.test_command", "会話の道は検査の確認用コマンドを段の check.command で流し、パイプ全体の既定は使わない"),
+    _na("PipeDef.test_command", "SDK の道でも開発フロー（kind = \"dev\"）だけが読む。会話の道は開発フローを流せないので関係せず、検査の確認用コマンドは段の check.command で流す"),
     _w("PipeDef.stages"),
     _w("PipeDef.max_steps"),
     # ---- --after ----
@@ -295,9 +295,9 @@ TABLE: tuple[Row, ...] = (
     # ---- Config ----
     _w("Config.project_dir"),
     _w("Config.work_dir"),
-    _na("Config.max_retries", "会話の道は段の check.max_retries を使い、パイプ全体の既定の回数は使わない"),
-    _na("Config.test_command", "会話の道は検査の確認用コマンドを段の check.command で流す"),
-    _na("Config.test_timeout_sec", "会話の道は検査のタイムアウトを段の check.timeout_sec で決める"),
+    _na("Config.max_retries", "SDK の道でも開発フロー（kind = \"dev\"）だけが読む。会話の道は開発フローを流せないので関係せず、戻す回数は段の check.max_retries で決める"),
+    _na("Config.test_command", "SDK の道でも開発フロー（kind = \"dev\"）だけが読む。会話の道は開発フローを流せないので関係せず、検査の確認用コマンドは段の check.command で流す"),
+    _na("Config.test_timeout_sec", "SDK の道でも開発フロー（kind = \"dev\"）だけが読む。会話の道は開発フローを流せないので関係せず、検査のタイムアウトは段の check.timeout_sec で決める"),
     Row(
         "Config.auto_approve",
         WORKS,
@@ -307,7 +307,7 @@ TABLE: tuple[Row, ...] = (
     _na("Config.pause_for_review", "会話の道は確認待ちで止まるのが常で、設定で切り替えない"),
     _w("Config.extra_test_globs"),
     _w("Config.stages"),
-    _na("Config.domain_dir", "ドメインの文書を積む設計の段は本体の専用の流れで、会話の道では使わない"),
+    _na("Config.domain_dir", "SDK の道でも開発フロー（kind = \"dev\"）だけが読む。ドメインの文書を積む設計の段は開発フローの専用の流れで、会話の道は開発フローを流せないので関係しない"),
     Row(
         "Config.setting_sources",
         WORKS,

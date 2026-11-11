@@ -160,6 +160,54 @@ def project_path(file_path: Any, root: str) -> str | None:
     return Path(os.path.relpath(full, base)).as_posix()
 
 
+def _is_junction(q: Any) -> bool:
+    return bool(getattr(os.path, "isjunction", lambda _: False)(q))  # 3.12 以降。junction は realpath がたどる
+
+
+def _links_remain(path: str) -> bool:
+    """path の上のどこかの部品がリンクのまま残っているか（realpath が輪を例外にせず、途中の形で返すときの見分け）。"""
+    p = Path(path)
+    return any(os.path.islink(q) or _is_junction(q) for q in (p, *p.parents))
+
+
+def _dangling(path: str) -> bool:
+    """書き込み先の上に、先が無い（壊れた・輪の）リンクがあるか。"""
+    p = Path(path)
+    return any(os.path.islink(q) and not os.path.exists(q) for q in (p, *p.parents))
+
+
+def _trace(path: str) -> str | None:
+    """リンクをたどった絶対パス。決められないとき（壊れたリンク・輪・例外）は None。"""
+    try:
+        if _dangling(path):
+            return None
+        real = os.path.realpath(path)
+        return None if _links_remain(real) else real
+    except Exception:  # noqa: BLE001 - 決められないときは止める側に倒す
+        return None
+
+
+def project_real_path(file_path: Any, root: str) -> str | None:
+    """リンクをたどったあとの、プロジェクトの中の相対パス（/ 区切り）。外・決められない（輪・壊れたリンク・例外）は None。
+
+    書き込み先も基準（root）も同じようにたどってから比べる（D0088）。文字の上の判断（project_path）は別に残し、
+    呼ぶ側は両方が通るときだけ通す。書ける場所の中のリンクが、書けない場所（.claude/ など）を指す道を止める。
+    """
+    if not isinstance(file_path, str) or not file_path.strip():
+        return None
+    if ".." in re.split(r"[\\/]", file_path):
+        return None
+    base = os.path.normpath(os.path.abspath(root))
+    full = os.path.normpath(file_path if os.path.isabs(file_path) else os.path.join(base, file_path))
+    real_base = _trace(base)
+    real = _trace(full)
+    if real_base is None or real is None:
+        return None
+    if not os.path.normcase(real).startswith(os.path.normcase(real_base) + os.sep):
+        return None
+    return Path(os.path.relpath(real, real_base)).as_posix()
+
+
 def check_bash(command: Any, allowed: list[str], agent: str) -> str | None:
     if not allowed:
         return f"{agent} は Bash を使えません"
@@ -250,7 +298,9 @@ def decide(payload: dict[str, Any], *, root: str) -> str | None:
         rel = project_path(tool_input.get("file_path"), root)
         if not where:
             return f"{agent} はどこにも書けません（報告は SubagentHandback で親に返す）（{tool_input.get('file_path')}）"
-        if rel is None or not can_write(rel):
+        # 文字の上の場所（rel）と、リンクをたどった場所（real_rel）の、両方が書ける場所のときだけ通す（D0088）
+        real_rel = project_real_path(tool_input.get("file_path"), root) if rel is not None else None
+        if rel is None or real_rel is None or not can_write(rel) or not can_write(real_rel):
             return f"{agent} が書けるのは {where} だけです（{tool_input.get('file_path')}）"
         return None
     if tool == "Bash":

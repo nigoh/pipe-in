@@ -3,7 +3,7 @@
 [ガイドの目次](README.md) · [README](../../README.md) — どのプロジェクトでも会話で[パイプ](pipes.md)を作る・直すためのプラグインの説明です。
 
 このリポジトリは Claude Code のプラグインのマーケットプレイスにもなっています（`.claude-plugin/marketplace.json` → `plugin/`）。
-入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。
+入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。PATH に `pipe-in-gen` が無いと、作る役 pipe-builder の絞りが効きません（くわしくは[安全のしくみ](safety.md#プラグインのフックが動かないとき)）。
 
 ```
 /plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>
@@ -21,11 +21,15 @@
 | スキル `/pipe-in:pipe-run` | 会話の中でパイプを流す（SDK を起こせない場所向け。[下の節](#pipe-inpipe-run)）。段の順番・検査・差し戻し・人の確認・記録は `pipe-in-gen chat` が持ち、会話は返事の `action` に従って、指示を `pipe-stage` に渡し、結果を返すだけ。人が呼んだときだけ動く。段は Claude の利用料がかかる |
 | エージェント `pipe-stage` | `pipe-run` から呼ばれ、渡された指示で 1 つの段を受け持って成果物を書く。道具は読む・書く・Bash で、サブエージェントは呼べない。書ける範囲は段の定義から決まり、フックが絞る |
 | エージェント `pipe-probe` | `pipe-run` が流す前に 1 回だけ呼ぶ確かめ役。渡された範囲外のパスへ `Write` を 1 回だけ試し、守りが効いているかを見る。道具は Write・Read だけ |
-| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない）。会話の中で流している段があるときは、`pipe-stage` を今開いている段の範囲に、`pipe-probe` を読む道具だけに絞り、段が開いている間のほかのエージェントは止める（[安全のしくみ](safety.md#会話の中で流すときの守り)）。それ以外のエージェントには何もしない |
+| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない）。会話の中で流すときは、`pipe-stage` を今開いている段の範囲に絞り（段が開いていなければ止める）、`pipe-probe` を段の有無によらずいつも読む道具だけに絞り、段が開いている間、または記録が読めないときは、ほかのエージェントは止める（[安全のしくみ](safety.md#会話の中で流すときの守り)）。会話の中で段が開いておらず、記録も読めるときは、これらのエージェント以外には何もしない。ただし `agent_type` が文字列でも null でもない呼び出しは、読む道具以外を止める |
+
+書き込み先は、パスの文字の上の判断に加えて、リンク（シンボリックリンク・junction）の先をたどった判断でも書ける場所に入るときだけ通します。置き場所の外を指すリンクに加えて、置き場所の中でも書いてよいファイル（`pipe.toml`・`README.md`・`prompts/*.md`）以外を指すリンクも止めます。壊れたリンク・輪のリンク・たどれないものも止めます。
 
 フックは `pipe-in-gen` で動くので、`pipe-in-gen` が無い環境では効きません（スキルは、はじめに `pipe-in-gen` を確かめて、無ければ止まります。`/pipe-in:pipe-eval` は `pipe-in-gen` を使いません）。
 フックは、入力が読めない（壊れている・16 MiB を超える）ときと、`agent_type` が文字列でも null でもないときは、読む道具以外を止めます。止める返事を書き出せないときは、標準エラーに理由を書いて終了コード 2 で止めます（[安全のしくみ](safety.md#フックの入力が読めないとき)）。
-フックが起動できない（`pipe-in-gen` が PATH に無い・壊れている・時間切れ）とき、Claude Code は操作を止めずに進めます。そのあいだ pipe-builder の書き込みは絞られず、審査役 pipe-judge はエージェントの `tools:`（Read・Grep・Glob）だけで絞られます。`/pipe-in:pipe-run` の段（pipe-stage）も同じで、フックが動かないあいだは絞られません。ただし `/pipe-in:pipe-run` は流す前に毎回、守りが効くかを確かめ（`chat probe`）、フックが動いていなければ確かめが通らないので、段を流しません。プラグインを入れたら、先に `pipe-in-gen --help` が動くことを確かめてください。
+フックが起動できない（`pipe-in-gen` が PATH に無い・壊れている・時間切れ・0 と 2 以外の終了コードで終わった）とき、Claude Code は操作を止めずに進めます。そのあいだ pipe-builder の書き込みは絞られず、審査役 pipe-judge はエージェントの `tools:`（Read・Grep・Glob）だけで絞られます。`/pipe-in:pipe-run` の段（pipe-stage）も同じで、フックが動かないあいだは絞られません。ただし `/pipe-in:pipe-run` は流す前に毎回、守りが効くかを確かめ（`chat probe`）、フックが動いていなければ確かめが通らないので、段を流しません。プラグインを入れたら、先に `pipe-in-gen --help` が動くことを確かめてください。
+
+このフックには、失敗を止める側に倒す設定 `onFailure: "block"`（公式の文書によると Claude Code v2.1.295 以降）を付けていません。付けると、フックが動かないとき、全部の道具の呼び出しが止まります。`pipe-in-gen` を入れていない・PATH が通っていない人は、プラグインを有効にしただけで、メインの会話の Read や Bash も止まります。失敗のときの動きは、全部止めるか全部通すかの二択で、エージェントの種類では絞れません（絞れるのは道具の名前と引数だけで、このフックは `agent_type` で相手を見分けます）。そのため、フックが動かないと `pipe-builder`・`pipe-judge` の絞りは効きません。`/pipe-in:pipe-run` には流す前の確かめ（`pipe-probe`）がありますが、`pipe-builder`・`pipe-judge` には流す前の確かめがありません。公式の文書によると、フックが失敗すると会話に `hook error` の知らせが出ます（実機では確かめていません）。出たら `pipe-in-gen --help` が動くかを確かめてください。実機では確かめていないことがあります。理由と経緯は[決定の記録 D0089](../decisions/D0089-hook-failure.md)です。
 
 ## 検査と審査
 

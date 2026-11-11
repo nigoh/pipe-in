@@ -14,6 +14,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+import gen_loader
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,17 +92,9 @@ def test_d0077_ac35_検査そのものが違反を見つけられる():
     assert violations("import json\nfrom pathlib import Path\nfrom ..engine.config import Config\n", "pipe_in.pipe.chat", CHAT_FILES["pipe_in/pipe/chat.py"]) == []
 
 
-_PROBE_CODE = """
-import importlib.util, sys
-root, gen = sys.argv[1], sys.argv[2]
-sys.path.insert(0, root)
-try:
-    import pipe_in_generator
-except ImportError:
-    spec = importlib.util.spec_from_file_location("pipe_in_generator", gen + "/__init__.py", submodule_search_locations=[gen])
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["pipe_in_generator"] = module
-    spec.loader.exec_module(module)
+# 子の頭は補助（tests/gen_loader.py）の CHILD_PRELUDE：作業フォルダの generator/ を読む（D0086）
+_PROBE_CODE = gen_loader.CHILD_PRELUDE + """
+import sys
 import pipe_in_generator.chat_cmd, pipe_in_generator.chat_hook
 bad = sorted(n for n in sys.modules if n == "claude_agent_sdk" or n.startswith("claude_agent_sdk."))
 print("SDK:" + ",".join(bad))
@@ -111,7 +104,7 @@ print("SDK:" + ",".join(bad))
 def test_d0077_ac35_chat_cmdとchat_hookを読んでもSDKは読み込まれない_守る():
     """D0077-AC-35: 別のプロセスで pipe_in_generator.chat_cmd と chat_hook を import したあと、claude_agent_sdk が sys.modules に無い（今のまま通る。守る）。"""
     done = subprocess.run(
-        [sys.executable, "-I", "-c", _PROBE_CODE, str(ROOT), str(ROOT / "generator")],
+        [sys.executable, "-I", "-c", _PROBE_CODE, str(gen_loader.LOADER_PATH), str(ROOT / "generator")],
         capture_output=True,
         text=True,
         timeout=120,

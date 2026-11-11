@@ -25,9 +25,9 @@ model = "sonnet"
 | 項目 | 意味 |
 |---|---|
 | `domain_dir` | 用語集・コンテキストマップを置くフォルダ。要件定義と設計の段が読み、設計の段だけが更新できる |
-| `setting_sources` | SDK に読ませる設定の出どころ。`["project"]` で対象の CLAUDE.md・`.claude/`（規約・フック）を各段に効かせる |
-| `work_dir` | 実行の記録を置くフォルダ。段が書いてはいけない場所（`.claude/`・`.git/`・`.pipe-in/`・前の版の置き場所・`pipeline.toml`）の中や、プロジェクトそのもの（`.`）にはできない。そうすると、流す前に直し方つきで止まる |
-| `protected_paths` | 既定で守る場所（`.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・前の版の置き場所。一覧は [safety.md](safety.md)）に足して、どの段も書き換えられないパス（glob）。既定は設定なしで効き、外す設定は無い |
+| `setting_sources` | SDK に読ませる設定の出どころ。`["project"]` で対象の CLAUDE.md・`.claude/`（規約・フック）を各段に効かせる。`project` は `.mcp.json` も読む（守る場所に入っている）。パイプの定義の `mcp`・`mcp_servers`（段の定義）とプロジェクトの `.mcp.json`（ファイル）は別物 |
+| `work_dir` | 実行の記録を置くフォルダ。段が書いてはいけない場所（`.claude/`・`.git/`・`.pipe-in/`・前の版の置き場所・`.mcp.json`・`pipeline.toml`）の中や、プロジェクトそのもの（`.`）にはできない。そうすると、流す前に直し方つきで止まる |
+| `protected_paths` | 既定で守る場所（`.claude/`・`.git/`・`.pipe-in/`・`.mcp.json`・`pipeline.toml`・前の版の置き場所。一覧は [safety.md](safety.md)）に足して、どの段も書き換えられないパス（glob）。足すものの例は `CLAUDE.md`・`CLAUDE.local.md`・`.vscode/*`・`.husky/*`・`.envrc`・`.gitmodules`。既定は設定なしで効き、外す設定は無い |
 | `extra_test_globs` | テストファイルとみなす追加のパターン |
 | `max_buffer_mb` | SDK が1つのメッセージとして受け取れる大きさの上限（MB。1 以上の整数。既定 32）。どの段・どのパイプにも同じ値が効く。画像は base64 でメッセージに入るので、段が大きい画像を読むと超えることがある。超えるとその段を失敗にして（終了コード 3。`pipe-in-gen design` では、やり直さずに止めて終了コード 1）、直し方を出す。そのときは、画像を小さくするか、必要な所だけを切り出してから読ませる。今の値が 32 より小さいなら、値を大きくしてもよい（API の1つのリクエストの上限も 32MB なので、32 より上げても通らないおそれがある）。上限は前もって確保する量ではなく、大きいメッセージが来たときだけ使う |
 

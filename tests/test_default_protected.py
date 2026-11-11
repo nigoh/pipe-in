@@ -489,9 +489,10 @@ def test_d0084_ac10_pipeline_tomlが無くても守る(tmp_path):
 
 
 def test_d0084_ac10_既定の定数は決めた7つ():
-    """D0084-AC-10・FR-01: 既定で守る場所の定数は、.claude/*・*/.claude/*・.git/*・.git・.pipe-in/*・pipeline.toml・前の版の置き場所の7つ（順は問わない）。"""
+    """D0084-AC-10・FR-01（D0087 で7つから8つ）: 既定で守る場所の定数は、.claude/*・*/.claude/*・.git/*・.git・.pipe-in/*・pipeline.toml・.mcp.json（D0087）・前の版の置き場所の8つ（順は問わない）。"""
     assert isinstance(spec_mod.DEFAULT_PROTECTED_PATHS, tuple)
-    assert sorted(spec_mod.DEFAULT_PROTECTED_PATHS) == sorted([".claude/*", "*/.claude/*", ".git/*", ".git", ".pipe-in/*", "pipeline.toml", f"{OLD_DIR}/*"])
+    want = [".claude/*", "*/.claude/*", ".git/*", ".git", ".pipe-in/*", "pipeline.toml", ".mcp.json", f"{OLD_DIR}/*"]
+    assert sorted(spec_mod.DEFAULT_PROTECTED_PATHS) == sorted(want)
 
 
 def test_d0084_ac10_前の版の置き場所のパイプを読んで流せる(tmp_path, monkeypatch):

@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import gen_loader
 import pytest
 from chat_support import Run, hook_decision, hook_payload, no_sdk, pipe_toml, stage_toml  # noqa: F401
 
@@ -247,17 +248,7 @@ def test_d0083_ac05_real_process_exit_code_is_2_not_120(tmp_path):
     書けなかったバイトが残ると終了処理の flush が失敗し 120 に化けるので、それを防ぐ。"""
     script = tmp_path / "run_hook.py"
     script.write_text(
-        "import importlib.util, sys\n"
-        "from pathlib import Path\n"
-        "gen = Path(sys.argv[1])\n"
-        "try:\n"
-        "    import pipe_in_generator\n"
-        "except ImportError:\n"
-        "    spec = importlib.util.spec_from_file_location('pipe_in_generator', gen / '__init__.py', submodule_search_locations=[str(gen)])\n"
-        "    mod = importlib.util.module_from_spec(spec)\n"
-        "    sys.modules['pipe_in_generator'] = mod\n"
-        "    spec.loader.exec_module(mod)\n"
-        "sys.path.insert(0, str(gen.parent))\n"
+        gen_loader.CHILD_PRELUDE + "import sys\n"
         "from pipe_in_generator import cli\n"
         "sys.argv = ['pipe-in-gen', 'guard-hook']\n"
         "sys.exit(cli.main())\n",
@@ -265,7 +256,7 @@ def test_d0083_ac05_real_process_exit_code_is_2_not_120(tmp_path):
     )
     with open("/dev/full", "wb") as full:
         proc = subprocess.run(
-            [sys.executable, str(script), str(GEN_DIR)], input=b"{broken", stdout=full, stderr=subprocess.PIPE, cwd=tmp_path, check=False, timeout=60
+            [sys.executable, str(script), str(gen_loader.LOADER_PATH), str(GEN_DIR)], input=b"{broken", stdout=full, stderr=subprocess.PIPE, cwd=tmp_path, check=False, timeout=60
         )
     assert proc.returncode == 2, f"終了コード {proc.returncode}（120 は終了処理の flush の失敗）: {proc.stderr.decode('utf-8', 'replace')}"
 

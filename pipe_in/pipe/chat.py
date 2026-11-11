@@ -18,6 +18,7 @@ from typing import Any
 from ..engine import clock
 from ..engine.archive import archive_run
 from ..engine.config import Config, load_config
+from ..engine.flow import read_flow
 from ..engine.spec import work_dir_conflict
 from ..engine.pipeline import CHAT_DRIVER, EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit, ShellResult, one_line, run_shell
 from ..engine.session import check_token, name_from_memo, normalize_name
@@ -111,7 +112,28 @@ class Chat:
             raise ChatError(f"パイプの名前「{name}」は使えません（英小文字・数字・- だけ）")
         return self.base.for_pipe(name, own_work_dir=True)
 
+    @staticmethod
+    def _counts(state: dict[str, Any]) -> tuple[int, dict[str, int]]:
+        """流した回数と段ごとの戻した回数。flow と chat.* の大きいほうを採る（上限が甘くならない側。D0091）。"""
+        chat = state["chat"]
+        old_steps, old_retries = read_flow({"steps": chat.get("steps"), "retries": chat.get("retries")})
+        if "flow" not in state:
+            return old_steps, old_retries
+        new_steps, new_retries = read_flow(state["flow"])
+        retries = dict(old_retries)
+        for k, v in new_retries.items():
+            retries[k] = max(v, retries.get(k, 0))
+        return max(new_steps, old_steps), retries
+
+    @staticmethod
+    def _set_counts(state: dict[str, Any], steps: int, retries: dict[str, int]) -> None:
+        """flow に書き、chat.* にも同じ値を写す（古い版の本体が読めるように）。"""
+        state["flow"] = {"steps": steps, "retries": dict(retries)}
+        state["chat"]["steps"] = steps
+        state["chat"]["retries"] = dict(retries)
+
     def _save(self, cfg: Config, state: dict[str, Any]) -> None:
+        self._set_counts(state, *self._counts(state))
         state["updated_at"] = self._stamp()
         (cfg.work_dir / STATE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -238,6 +260,7 @@ class Chat:
                 for s in pipe.stages
             ],
             warnings=[f"効かない設定: {line}" for line in lines],
+            flow={"steps": 0, "retries": {}},
             runs=[],
             with_open=True,
             unavailable_reason=USAGE_UNAVAILABLE["reason"],
@@ -373,11 +396,12 @@ class Chat:
             stage, kind, feedback = revise["stage"], "revise", revise["feedback"]
             chat["revise"] = None
         else:
-            if chat.get("steps", 0) + 1 > pipe.max_steps:
+            steps, retries = self._counts(state)
+            if steps + 1 > pipe.max_steps:
                 state["warnings"].append(f"段を流した回数が max_steps（{pipe.max_steps}）を超えたため止めました")
                 self._finish(cfg, state, Exit.STAGE_ERROR)
                 return self._finished(cfg, state)
-            chat["steps"] = chat.get("steps", 0) + 1
+            self._set_counts(state, steps + 1, retries)
             stage = chat.get("next_stage") or names[0]
             failure = chat["notes"].pop(stage, None)
             kind = "retry" if failure else "stage"
@@ -574,11 +598,13 @@ class Chat:
             result = "fail" if found else "pass"
             state["runs"].append({"stage": stage, "check": {"attempt": attempt, "status": result, "problems": found, **record}})
             if found:
-                used = chat["retries"].get(stage, 0)
+                steps, retries = self._counts(state)
+                used = retries.get(stage, 0)
                 if used >= c.max_retries:
                     self._finish(cfg, state, Exit.TEST_FAILED)
                     return self._closed(cfg, state, stage, "fail", "差し戻しの上限まで検証に通らなかったので、ここで終えました")
-                chat["retries"][stage] = used + 1
+                retries[stage] = used + 1
+                self._set_counts(state, steps, retries)
                 target = c.on_fail or stage
                 chat["notes"][target] = "\n".join(f"- {p}" for p in found)
                 chat["next_stage"] = target
@@ -674,7 +700,8 @@ class Chat:
         else:
             where = f"次に流す段は {chat.get('next_stage') or '最初の段'} です"
         probe = chat.get("probe", {}).get("status")
-        message = f"{where}。守りの確かめ: {probe}・段を流した回数: {chat.get('steps', 0)}"
+        steps, retries = self._counts(state)
+        message = f"{where}。守りの確かめ: {probe}・段を流した回数: {steps}"
         return self._out(
             "status",
             message,
@@ -683,8 +710,8 @@ class Chat:
             open=o,
             pending_review=p,
             probe=probe,
-            steps=chat.get("steps", 0),
-            retries=chat.get("retries", {}),
+            steps=steps,
+            retries=retries,
         )
 
     # ---- 終わり -----------------------------------------------------------

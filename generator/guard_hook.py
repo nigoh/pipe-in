@@ -2,8 +2,10 @@
 
 Claude Code のプラグインのエージェントには hooks を書けないため、プラグインの hooks/hooks.json から
 どの道具の呼び出しでもここを呼び、入力の agent_type で pipe-builder と pipe-judge の呼び出しだけを検査する。
+ただし agent_type が文字列でも null でもないときは、読む道具以外を止める。
 pipe-builder に許すのは、読む道具と、パイプのフォルダの決まったファイルへの書き込みと、
 pipe-in-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
+書き込み先は、リンクの先をたどった判断でも書ける場所に入るときだけ通す。
 pipe-judge（審査役）に許すのは読む道具（Read・Glob・Grep）だけ。ほかはすべて止める。
 想定外の入力で検査が落ちたときも、止めない側に倒れないよう deny を出す。
 
@@ -96,23 +98,72 @@ def _env_list(pipes_env: str | Sequence[str] | None) -> list[str]:
     return [p for p in pipes_env if isinstance(p, str) and p]
 
 
+def _is_junction(q: Path) -> bool:
+    """Windows の junction か（Python 3.12 以降。無ければ False）。"""
+    return bool(getattr(os.path, "isjunction", lambda _: False)(q))
+
+
+def _links_remain(path: str) -> bool:
+    """path の上のどこかの部品がリンクのまま残っているか（realpath が輪を途中の形で返すときの見分け）。"""
+    p = Path(path)
+    return any(os.path.islink(q) or _is_junction(q) for q in (p, *p.parents))
+
+
+def _dangling(path: str) -> bool:
+    """path の上に、先が無い（壊れた・輪の）リンクがあるか。"""
+    p = Path(path)
+    return any(os.path.islink(q) and not os.path.exists(q) for q in (p, *p.parents))
+
+
+def _trace(path: str) -> str | None:
+    """リンクをたどった絶対パス。決められないとき（壊れたリンク・輪・例外）は None（止める側に倒す）。"""
+    try:
+        if _dangling(path):
+            return None
+        real = os.path.realpath(path)
+        return None if _links_remain(real) else real
+    except Exception:  # noqa: BLE001 - 決められないときは止める
+        return None
+
+
+def _text_bases(full: str, env_list: list[str]) -> list[str]:
+    """文字の上の判断で通る組の、置き場所（…/pipes や環境変数の置き場所）を集める。"""
+    bases: list[str] = []
+    parts = Path(full).parts
+    for i, part in enumerate(parts[:-2]):
+        if part == "pipes" and PIPE_DIR.fullmatch(parts[i + 1]) and _in_pipe(parts[i + 2 :]):
+            bases.append(str(Path(*parts[: i + 1])))
+    # 環境変数の置き場所の下も、同じ決まり（パイプのフォルダの決まったファイルだけ）で見る
+    for env in env_list:
+        base = os.path.normpath(os.path.abspath(os.path.expanduser(env)))
+        if os.path.normcase(full).startswith(os.path.normcase(base) + os.sep):
+            rest = Path(os.path.relpath(full, base)).parts
+            if rest and PIPE_DIR.fullmatch(rest[0]) and _in_pipe(rest[1:]):
+                bases.append(base)
+    return bases
+
+
+def _real_ok(real: str, base: str) -> bool:
+    """たどった書き込み先が、（たどった）置き場所の下の、書いてよいファイルか。"""
+    rbase = _trace(base)
+    if rbase is None or not os.path.normcase(real).startswith(os.path.normcase(rbase) + os.sep):
+        return False
+    rest = Path(os.path.relpath(real, rbase)).parts
+    return bool(rest) and bool(PIPE_DIR.fullmatch(rest[0])) and _in_pipe(rest[1:])
+
+
 def check_write(file_path: Any, cwd: str, pipes_env: str | Sequence[str] | None) -> str | None:
     if not isinstance(file_path, str) or not file_path.strip():
         return "書き込み先のパスがありません"
     if ".." in re.split(r"[\\/]", file_path):
         return f"パスに .. を含む書き込みはできません（{file_path}）"
     full = os.path.normpath(file_path if os.path.isabs(file_path) else os.path.join(cwd or os.getcwd(), file_path))
-    parts = Path(full).parts
-    for i, part in enumerate(parts[:-2]):
-        if part == "pipes" and PIPE_DIR.fullmatch(parts[i + 1]) and _in_pipe(parts[i + 2 :]):
+    # 文字の上の判断と、リンクの先をたどった判断の、両方が通るときだけ通す（今止まるものは止まったまま）
+    bases = _text_bases(full, _env_list(pipes_env))
+    if bases:
+        real = _trace(full)
+        if real is not None and any(_real_ok(real, b) for b in bases):
             return None
-    # 環境変数の置き場所の下も、同じ決まり（パイプのフォルダの決まったファイルだけ）で見る
-    for env in _env_list(pipes_env):
-        base = os.path.normpath(os.path.abspath(os.path.expanduser(env)))
-        if os.path.normcase(full).startswith(os.path.normcase(base) + os.sep):
-            rest = Path(os.path.relpath(full, base)).parts
-            if rest and PIPE_DIR.fullmatch(rest[0]) and _in_pipe(rest[1:]):
-                return None
     return (
         f"pipe-builder が書けるのは、パイプのフォルダ（…/pipes/pipe-in-<名前>/）の pipe.toml・README.md・prompts/*.md だけです（{file_path}）"
     )
@@ -131,7 +182,8 @@ def check_bash(command: Any) -> str | None:
 
 
 def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) -> str | None:
-    """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。"""
+    """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。
+    ただし、文字列でも null でもない agent_type は、読む道具以外を止める。"""
     agent_type = payload.get("agent_type")
     tool = payload.get("tool_name")
     if agent_type is not None and not isinstance(agent_type, str):
@@ -155,6 +207,7 @@ def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) ->
         return check_write(tool_input.get("file_path"), str(payload.get("cwd") or ""), pipes_env)
     if tool == "Bash":
         return check_bash(tool_input.get("command"))
+    # NotebookEdit は道具ごと止める。許すことにするときは、書き込み先の項目が notebook_path（file_path でない）なので、それを見る
     return f"pipe-builder は {tool} を使えません（使えるのは Read・Glob・Grep・Write・Edit と、Bash の pipe-in-gen だけ）"
 
 

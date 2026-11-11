@@ -19,6 +19,7 @@ from typing import Any
 from ..engine import clock
 from ..engine.checkpoint import Decision
 from ..engine.config import Config
+from ..engine.flow import read_flow
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, BasePipeline, Exit, ShellResult, one_line, run_shell
 from ..engine.runner import StageRun, StageRunner, run_stage_sdk
 from . import after, judge
@@ -93,20 +94,6 @@ def stage_checks(pipe: PipeDef) -> dict[str, dict[str, Any]]:
         for s in pipe.stages
         if s.check
     }
-
-
-def read_flow(raw: Any) -> tuple[int, dict[str, int]]:
-    """記録の flow を読む。返すのは (流した回数, 段の名前 → 戻した回数)。
-    形が違う部分・負の数・小数・真偽値は 0 として読む（落ちない。読めない記録で続きを止めない）。"""
-
-    def count(v: Any) -> int:
-        return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else 0
-
-    if not isinstance(raw, dict):
-        return 0, {}
-    retries_raw = raw.get("retries")
-    retries = {k: count(v) for k, v in retries_raw.items() if isinstance(k, str)} if isinstance(retries_raw, dict) else {}
-    return count(raw.get("steps")), retries
 
 
 def exit_message(result: Exit) -> str:
