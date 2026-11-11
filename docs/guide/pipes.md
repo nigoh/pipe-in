@@ -295,6 +295,8 @@ pipe-in-gen quorum a.json b.json [c.json] --out common.json [--threshold 0.8] [-
 
 プラグインの `/pipe-in:pipe-run`（[Claude Code のプラグイン](plugin.md#pipe-inpipe-run)）は、`pipe-in` を端末で流せない場所で、パイプを会話の中で流します。構造化出力や子の実行を起こせないので、扱えない形があります。
 
+断る形と効かない設定は、`pipe_in/pipe/capability.py` の能力表にあります。パイプや設定に項目を足したのに表へ足し忘れると、テストが落ちます。
+
 **扱えない形**は、始める前に理由を全部出して断ります（記録は作りません）。
 
 | 形 | 理由 |

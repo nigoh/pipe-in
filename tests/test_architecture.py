@@ -378,6 +378,13 @@ def test_pipe_lint_imports_only_definition():
     assert outside == []
 
 
+def test_d0082_ac11_capabilityは標準ライブラリだけ():
+    """D0082-AC-11: 会話の道の能力表（pipe_in/pipe/capability.py）は、標準ライブラリだけを読む（definition・config・SDK も読まない）。依存の向きは test_dependency_direction が見る。"""
+    path = ROOT / "pipe_in" / "pipe" / "capability.py"
+    assert path.is_file(), "pipe_in/pipe/capability.py がありません"
+    assert _outside_stdlib(path, "pipe_in.pipe.capability") == []
+
+
 # ---- D0044：答えの文（live_answer.py）の依存 ----------------------------------------------------------------------------------
 
 ANSWER_STDLIB = {"__future__", "hashlib", "json", "re", "typing", "unicodedata"}

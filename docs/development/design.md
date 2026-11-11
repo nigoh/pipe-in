@@ -34,6 +34,7 @@
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
+| 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
 | 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
 | 会話の中で段を受け持つ・守りを確かめるエージェントと、流すスキル `/pipe-in:pipe-run` | `plugin/agents/pipe-stage.md`・`pipe-probe.md`、`plugin/skills/pipe-run/SKILL.md` |
@@ -244,6 +245,7 @@ pipe_in.usage
 - D0080 で、`state.json` を作る3つの書き手（SDK の `_save_state`・`record start`・`chat start`）の土台を `pipe_in/engine/state.py` の `new_state` に1つにし、新しい記録の最初の鍵に `schema: 1` を足しました。開発用の新しい記録だけ値が変わります：`total_cost_usd` は `null`、`usage_summary` は `{available: false, reason}`、`runs[].cost_usd` は `null`、`runs[].metrics` は鍵なし（今までは `0.0`・`null`・`0.0`・`{}`）。SDK の道は `driver` を書かず、会話の道は値を変えません。`schema` の無い古い記録は読むだけで、変換も書き換えもしません（`archive/` の中も）。`--review` で続ける実行も `schema` を足さず、`record` で続けても古い値は残ります。読む側は `schema` を見て読み分けず、2 以上や数でない値でも落ちずに読みます。拡張は `usage_summary.available === false` で「取れない」を出す道が D0077 からあるので、直しません（古い版の拡張は零で出すことがあります）。鍵と値の種類は共通の表 `tests/fixtures/state_record.json` を本体と拡張のテストが読んで結びます。`runs[]` の `cost_usd` が `null` の記録を SDK の `--review` が続けても、合計は 0 として数えます。`test_d0019_ac50_state_only_adds_keys` は `schema` を含める形に直しました。
 - D0081 で、`state.json` に任意の鍵 `flow`（`steps`・`retries`）を足しました。書くのはパイプ（`LinearPipeline`）だけで、開発フロー・会話の道は書きません。`--review` で続けるときに読んで、`max_steps`・`max_retries` の回数を引き継ぎます。無い記録は 0 から、壊れた部分は 0 として読みます。共通の表の `sdk` 行の `optional_keys` に足しました。拡張は読み飛ばします。意味が変わるのは2つだけです：`--review` をはさむと上限が早く効く、人の `revise` を `steps` に数えない。`pipe.toml`・`pipeline.toml`・`guard` は変えません。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
+- パイプの定義（`PipeDef`・`PipeStage` など）や設定（`StageConfig`・`Config`）に項目を足すときは、会話の道の能力表 `pipe_in/pipe/capability.py` にも 1 行足します（実行役 `sdk`・`chat` ごとに、効く・断る・一覧に出す・黙る・関係しない を決める）。足し忘れは `tests/test_capability.py` が落とします。断る文と効かない設定の一覧は表から作るので、`chat.py` に項目の名前の条件を足さないでください。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。
 
