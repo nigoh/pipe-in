@@ -322,6 +322,8 @@ pipe-in-gen quorum a.json b.json [c.json] --out common.json [--threshold 0.8] [-
 
 そのほかは扱えます：`access` の 4 つの型・`writes`・`bash = true`・`review`・`check`（`verdict`・`command`・`on_fail`・`max_retries`）・`next`・`max_steps`。判定（`verdict`）は、構造化出力が無いので、段の返事の先頭の `STATUS: pass` か `STATUS: fail` と、`PROBLEM:` の行から読みます。`bash = true` の段は、本体と同じ判断で Bash の書き込みを絞ります（[安全のしくみ](safety.md#会話の中で流すときの守り)）。人の `revise` は、本体と同じく、段を流す回数（`max_steps`）にも検査の戻りの回数（`max_retries`）にも数えません。
 
+回数は、本体と同じく記録の `flow` に書きます（`chat.steps`・`chat.retries` にも同じ値を写します）。止まる回は2つの道で同じです。違うのは、`max_steps` を超えて止まった時点の `steps` の記録の値だけで、本体は `max_steps + 1`、会話の中は `max_steps` です（止める判定の順が違います）。
+
 ## 分岐・飛び先・並列
 
 - `[stages.routes]`：段に choice を返させ、行き先を選びます（`"end"` で終わり）。

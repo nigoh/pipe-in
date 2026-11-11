@@ -44,7 +44,7 @@ SDK の道（`pipe-in --pipe`）は、やり直しの回数（`retries`）と段
 
 ## 対象外・残った課題
 
-- 開発フロー（`pipe_in/dev/`）の差し戻しの回数、段の中のサブエージェントの回数（`max_agent_calls`）、会話の道の `chat.steps`・`chat.retries` を同じ鍵に寄せること、拡張で `flow` を画面に出すことは、対象外。
+- 開発フロー（`pipe_in/dev/`）の差し戻しの回数、段の中のサブエージェントの回数（`max_agent_calls`）、拡張で `flow` を画面に出すことは、対象外。会話の道の `chat.steps`・`chat.retries` は、D0090 で同じ鍵 `flow` に寄せた。
 - `revise` を数えない判断は、`_flow` に `first` が渡されたかどうかだけを見る。今は `review` の `revise` からしか渡らない。別の所から `first` つきで呼ぶ道を足すときは、数え方を見直す。
 - 監査の報告は 0 件だった。助言と審査は流さなかった（守り・プラグイン・`.claude/` に触れていないため）。
 

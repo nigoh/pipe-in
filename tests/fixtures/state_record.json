@@ -11,7 +11,7 @@
               "total_cost_usd": "null", "usage_summary": "unavailable", "run_cost_usd": "null", "run_metrics": "absent" },
     "chat": { "driver": "pipe-chat",
               "keys": ["schema","started_at","updated_at","pipe","driver","stages","final","total_cost_usd","usage_summary","pending_review","warnings","open","runs","chat"],
-              "optional_keys": ["name","session_id"],
+              "optional_keys": ["name","session_id","flow"],
               "total_cost_usd": "null", "usage_summary": "unavailable", "run_cost_usd": "null", "run_metrics": "absent" }
   },
   "unavailable": { "available": false, "reason": "non-empty string" },

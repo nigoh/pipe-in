@@ -217,7 +217,7 @@ def test_d0080_ac05_chat_state_unchanged_but_schema(tmp_path):
     del rest["name"]
     assert list(rest) == [
         "started_at", "updated_at", "pipe", "driver", "stages", "final", "total_cost_usd", "usage_summary",
-        "pending_review", "warnings", "open", "runs", "chat",
+        "pending_review", "warnings", "flow", "open", "runs", "chat",  # flow は D0090 で足された（warnings の次・open の前）
     ]
     assert rest["driver"] == "pipe-chat"
     assert rest["total_cost_usd"] is None

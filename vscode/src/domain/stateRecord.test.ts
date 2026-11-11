@@ -113,6 +113,28 @@ test('D0081-AC-10: 拡張の読み取り（domain/runRecord.ts）のソースに
   assert.doesNotMatch(source, /\.flow\b|\[['"]flow['"]\]|\bflow:/);
 });
 
+// ---- D0090-AC-06：会話の道の flow（拡張は読まずに捨てる） ----
+
+test('D0090-AC-06: flow の鍵が入った chat の記録を、落ちずに読み、flow の無い記録と同じ結果になる（flow を使わない。表の chat の行は flow を任意の鍵に持つ。今のまま通る。守る）', () => {
+  assert.ok(loadStateTable().kinds.chat.optional_keys.includes('flow'), '表の chat の行の optional_keys に flow がある');
+  const flow = { steps: 3, retries: { verify: 1 } };
+  const withFlow = stateRecordJson('chat', { final: 'PASSED', extra: { flow } });
+  const without = stateRecordJson('chat', { final: 'PASSED' });
+  assert.ok(withFlow.includes('"flow"'), '見本に flow が入っている');
+  assert.deepEqual(parseRunRecord(withFlow), parseRunRecord(without));
+  assert.deepEqual(rowOf(withFlow), rowOf(without));
+  const snap = (stateJson: string) => ({ workDir: '/w', stateJson, stageLogs: [], artifacts: { '00_input.md': 'メモ' } });
+  const view = buildPipelineView(snap(withFlow));
+  assert.deepEqual(view, buildPipelineView(snap(without)));
+  assert.doesNotThrow(() => renderShell(view, emptyListFor(view)));
+  // 壊れた flow でも同じ（読まないので落ちない）
+  for (const odd of [null, 'x', [], { steps: -1, retries: 'x' }]) {
+    const text = stateRecordJson('chat', { final: 'PASSED', extra: { flow: odd } });
+    assert.deepEqual(parseRunRecord(text), parseRunRecord(without));
+    assert.deepEqual(rowOf(text), rowOf(without));
+  }
+});
+
 // ---- AC-07：古い記録は今までどおり ----
 
 test('D0080-AC-07: schema の無い古い開発用の記録は、一覧の費用が今までどおり「$0.000」で、取れない印を持たない（変換しない。今のまま通る。守る）', () => {
