@@ -21,10 +21,13 @@ from ..engine.archive import ARCHIVE, archive_run  # noqa: F401 - ARCHIVE は今
 from ..engine.config import Config, load_config
 from ..engine.pipeline import EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit
 from ..engine.session import check_token, name_from_memo, normalize_name
+from ..engine.state import new_state
 from .record_order import LOGS, check_dir, format_report
 from .specs import DESIGN, IMPLEMENTATION, RED, REQUIREMENTS, STAGE_LABELS, STAGES, TEST_REPORT
 
 DRIVER = "pipe-dev"
+# 開発用の記録は、段を会話の中で進めるので使用量が取れない
+UNAVAILABLE_REASON = "開発用の記録（pipe-in record）は、会話の中で進めた段なので、費用と使用量は取れません"
 OUTPUTS = {"requirements": REQUIREMENTS, "design": DESIGN, "red": RED, "implement": IMPLEMENTATION, "test": TEST_REPORT}
 REVIEWED = ("requirements", "design", "red")
 REVIEWS = {"approved": "approved", "approve": "approved", "revise": "revise", "quit": "quit"}
@@ -115,29 +118,21 @@ class Recorder:
         w.mkdir(parents=True, exist_ok=True)
         (w / INPUT).write_text(memo.strip() + "\n", encoding="utf-8")
         now = self._stamp()
-        state: dict[str, Any] = {
-            "started_at": now,
-            "updated_at": now,
-            "pipe": "dev",
-        }
         session_name = (normalize_name(name) if name is not None else None) or name_from_memo(memo)
-        if session_name is not None:
-            state["name"] = session_name
-        if session_id is not None:
-            state["session_id"] = session_id
-        state |= {
-            "driver": DRIVER,
-            "stages": [
+        state = new_state(
+            DRIVER,
+            started_at=now,
+            updated_at=now,
+            pipe="dev",
+            name=session_name,
+            session_id=session_id,
+            stages=[
                 {"name": n, "label": STAGE_LABELS[n], "output": OUTPUTS[n], "review": n in REVIEWED} for n in STAGES
             ],
-            "final": None,
-            "total_cost_usd": 0.0,
-            "usage_summary": None,
-            "pending_review": None,
-            "warnings": [],
-            "open": None,
-            "runs": [],
-        }
+            runs=[],
+            with_open=True,
+            unavailable_reason=UNAVAILABLE_REASON,
+        )
         self._save(state)
 
     def _archive(self, old: dict[str, Any]) -> None:
@@ -204,12 +199,11 @@ class Recorder:
             "is_error": error,
             "subtype": "error" if error else "success",
             "result": summary or None,
-            "cost_usd": 0.0,
+            "cost_usd": None,
             "num_turns": 0,
             "duration_sec": duration,
             "denials": [],
             "errors": [summary] if error and summary else [],
-            "metrics": {},
             "seq": o["seq"],
             "attempt": o["attempt"],
             "note": o["note"],

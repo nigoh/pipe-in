@@ -24,6 +24,8 @@
 
 | 項目 | 中身 | 付け方 |
 |---|---|---|
+| `schema` | 記録の形の版（今は `1`）。新しく書く記録の最初の鍵 | 本体が自動で書きます（端末で流した記録・`pipe-in record start`・`pipe-in-gen chat start`）。鍵の無い古い記録は、読むだけで書き換えません（`--review` や `record` で続けても付けません）。読む側はこの値で読み分けず、`1` 以外の値でも落ちずに読みます |
+| `total_cost_usd`・`usage_summary` | 費用と使用量。**2通りだけ**：測れた記録は、`total_cost_usd` が数、`usage_summary` が集計の辞書。取れない記録は、`total_cost_usd` が `null`、`usage_summary` が `{"available": false, "reason": "…"}`（理由は空にしません） | 端末で流した記録は測れた記録です。会話の中で流した記録（下）と、開発用スキルの記録（`pipe-in record`。段を会話の中で進めるため）は取れない記録です。開発用の記録の `runs[]` の `cost_usd` も `null` で、`metrics` の鍵はありません。`schema` の無い古い開発用の記録は `0.0`・`null`・`{}` のままで、変換しません |
 | `name` | セッション名。VSCode の実行の一覧の太字の名前 | `pipe-in --name "…"`、`pipe-in record start --name "…"`。付けなければ、要件メモ（`00_input.md`）の最初の行から作ります（先頭の `#` を取り、中の連続する空白を 1 つにし、60 文字を超えるときは 59 文字＋`…`）。取れなければ書きません。確認待ちからの再開（`--review`・`--from`）でも変わりません（`--review` に `--name` は付けられません。名前は始めるときだけ付けます） |
 | `session_id` | Claude Code の会話の ID（開発用スキルが残す） | `pipe-in record start --session-id <ID>`。付けなければ書きません。空白や改行を含む値、100 文字を超える値は断ります。パイプの記録には書かず、拡張が `runs[]` の `session_id` のうち、最後に動いた段のものを使います |
 | `at`（`runs[]` の `review` の要素） | 人の確認の結果（`approved`・`revise`・`quit`）を書いた時刻（UTC からのずれつき） | `pipe-in record review` が書きます。`pipe-in record check` が、次の段の `begin` との前後を比べるのに使います。項目の無い古い記録は、検査で「判定できなかった」として読みます（ほかの読み手は使いません） |

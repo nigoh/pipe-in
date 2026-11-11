@@ -1141,7 +1141,7 @@ def test_d0044_ac49_record_commands_and_watch_lines_are_unchanged(tmp_path, caps
         outputs.append(capsys.readouterr().out)
     assert outputs == [f"記録しました: {a}（docs/pipeline/state.json）\n" for a in ("start", "begin", "done", "wait", "review", "begin", "done", "wait", "review", "finish")]
     state = json.loads((root / "docs" / "pipeline" / "state.json").read_text(encoding="utf-8"))
-    assert list(state) == ["started_at", "updated_at", "pipe", "name", "driver", "stages", "final", "total_cost_usd", "usage_summary", "pending_review", "warnings", "open", "runs"]
+    assert list(state) == ["schema", "started_at", "updated_at", "pipe", "name", "driver", "stages", "final", "total_cost_usd", "usage_summary", "pending_review", "warnings", "open", "runs"]
     assert ls.without_at(state["runs"][-1]) == {"stage": "design", "review": "revise", "feedback": "直して"}
     with pytest.raises(SystemExit) as e:
         record.main(["review", "design", "approved", "--project", str(root)])

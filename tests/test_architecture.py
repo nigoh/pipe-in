@@ -128,10 +128,10 @@ def test_d0019_ac50_state_only_adds_keys(tmp_path):
 
     new = json.loads((tmp_path / "docs" / "pipeline" / "state.json").read_text(encoding="utf-8"))
     assert set(old) <= set(new)
-    assert set(new) - set(old) == {"name", "session_id"}
+    assert set(new) - set(old) == {"name", "schema", "session_id"}  # D0080: 新しい記録に schema を足した
     old_run_keys = {k for run in old["runs"] for k in run}
     new_run_keys = {k for run in new["runs"] for k in run}
-    assert old_run_keys <= new_run_keys
+    assert old_run_keys - new_run_keys == {"metrics"}  # D0080: 取れない記録は metrics の鍵を書かない
     assert new_run_keys - old_run_keys == {"agent", "at"}  # D0071: review の要素に at を足した
     for key in set(old) - {"started_at", "updated_at", "runs", "name"}:
         assert type(new[key]) is type(old[key]) or old[key] is None or new[key] is None, key  # 既存の項目の型を変えていない

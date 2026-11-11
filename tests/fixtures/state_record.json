@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "kinds": {
+    "sdk":  { "driver": null,
+              "keys": ["schema","started_at","updated_at","pipe","stages","final","total_cost_usd","usage_summary","pending_review","warnings","runs"],
+              "optional_keys": ["name","received_from","reply_wait"],
+              "total_cost_usd": "number", "usage_summary": "summary", "run_cost_usd": "number", "run_metrics": "present" },
+    "dev":  { "driver": "pipe-dev",
+              "keys": ["schema","started_at","updated_at","pipe","driver","stages","final","total_cost_usd","usage_summary","pending_review","warnings","open","runs"],
+              "optional_keys": ["name","session_id"],
+              "total_cost_usd": "null", "usage_summary": "unavailable", "run_cost_usd": "null", "run_metrics": "absent" },
+    "chat": { "driver": "pipe-chat",
+              "keys": ["schema","started_at","updated_at","pipe","driver","stages","final","total_cost_usd","usage_summary","pending_review","warnings","open","runs","chat"],
+              "optional_keys": ["name","session_id"],
+              "total_cost_usd": "null", "usage_summary": "unavailable", "run_cost_usd": "null", "run_metrics": "absent" }
+  },
+  "unavailable": { "available": false, "reason": "non-empty string" },
+  "legacy_dev": { "total_cost_usd": 0.0, "usage_summary": null, "run_cost_usd": 0.0, "run_metrics": {} }
+}

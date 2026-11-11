@@ -7,6 +7,7 @@
 | 入口（pipe-in コマンド） | `pipe_in/cli.py` |
 | 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
+| 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
 | 段の設定の型・protected_paths・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
 | 止める操作（pipe-in が流す段の PreToolUse フック）と、Bash のコマンドの文字列から書き込み先を読む部品（標準ライブラリだけ。シェルは起こさない） | `pipe_in/engine/guard.py`・`bashwrite.py` |
 | SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
@@ -16,6 +17,7 @@
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
 | 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
 | 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
+| 記録の土台（`schema`・鍵の並び・費用と使用量の値の種類）を、3つの書き手（SDK・開発用・会話）と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/state_record.json` |
 | 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
 | 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
 | 実行パネルの返事のファイル（D0079。実行のフォルダの `reply.json`）を読む・今の待ちと照らす・消す部品と、端末の行の元（標準ライブラリと `live_answer.py` の定数だけ。返事を作る関数は持たない。リンクは辿らない。断る理由は決まった一覧で、入力の文字は入れない。端末の行は、錠を持たない読み方で、頼まれたときだけ 1 行読む）。人の確認の待ち方は `checkpoint.py` が持ち、標準入力が端末のときだけ、標準入力と返事のファイルを 0.5 秒ごとに一緒に待つ | `pipe_in/engine/reply.py`・`pipe_in/engine/checkpoint.py` |
@@ -239,6 +241,7 @@ pipe_in.usage
 - D0071 で `state.json` の `runs[]` の `review` の要素に `at`（書いた時刻。`Prompt` 行の `at` と同じ書き方）を足しました。足すだけで、無い古い記録は `record check` が「判定できなかった」として読みます。ほかの読み手（`--review`・`live`・拡張）は `at` を使いません。古い版の拡張は知らない項目を読まずに捨てます。`driver` の値 `"pipe-dev"` は変えません。`Prompt` 行の `prompt` と `99_summary.md` の1行目の呼び名が `/pipe-dev` から `/pipe-in` に変わりますが、文字として読むだけなので古い記録もそのまま読めます。`runs[]` の要素の鍵の集まりを比べているテスト（`test_d0019_ac50_state_only_adds_keys`）は、`at` を含める形に直しました。
 - D0077 で、会話の中でパイプを流す道（`pipe-in-gen chat`）の記録を足しました。`state.json` の `driver` に `"pipe-chat"`、`chat` の節、`usage_summary` の `available: false` と理由（`total_cost_usd`・`runs[]` の `cost_usd` は `null`）、実行のフォルダの `hook/`・`probe/` です。足すだけで、無い古い記録は今までどおり読めます。拡張は `usage_summary.available === false` のときだけ「取れない」を出し、それ以外は変わりません。`available` を知らない古い拡張は、使用量の表を零で出し、図の段に `$0.000` が出ることがあります（見た目だけで、記録は壊れません）。`--review` は `driver` があれば続きを流さず、`pipe-chat` のときは `chat next` を案内します。`guard_hook.py` の `decide` と `engine/guard.py` は変えません。
 - D0079 で、`state.json` に `reply_wait`（段・識別子・始めた時刻。端末の `pipe-in` が確認の段で人の入力を待っているあいだだけ）を足しました。足すだけで、無い古い記録は印なしとして読みます。古い版の拡張は知らない項目を読まずに捨てるのでボタンが出ず、古い本体で流した実行にもボタンは出ません。`pipe.toml`・`pipeline.toml` の形は変えません。`RESERVED_OUTPUTS` に `reply.json` が入り、`output = "reply.json"` の既存のパイプは検査で止まります（`check_pipe`・`validatePipe`）。`--pause` で止めた実行の案内は、`pipe-in --review` に変わりました。
+- D0080 で、`state.json` を作る3つの書き手（SDK の `_save_state`・`record start`・`chat start`）の土台を `pipe_in/engine/state.py` の `new_state` に1つにし、新しい記録の最初の鍵に `schema: 1` を足しました。開発用の新しい記録だけ値が変わります：`total_cost_usd` は `null`、`usage_summary` は `{available: false, reason}`、`runs[].cost_usd` は `null`、`runs[].metrics` は鍵なし（今までは `0.0`・`null`・`0.0`・`{}`）。SDK の道は `driver` を書かず、会話の道は値を変えません。`schema` の無い古い記録は読むだけで、変換も書き換えもしません（`archive/` の中も）。`--review` で続ける実行も `schema` を足さず、`record` で続けても古い値は残ります。読む側は `schema` を見て読み分けず、2 以上や数でない値でも落ちずに読みます。拡張は `usage_summary.available === false` で「取れない」を出す道が D0077 からあるので、直しません（古い版の拡張は零で出すことがあります）。鍵と値の種類は共通の表 `tests/fixtures/state_record.json` を本体と拡張のテストが読んで結びます。`runs[]` の `cost_usd` が `null` の記録を SDK の `--review` が続けても、合計は 0 として数えます。`test_d0019_ac50_state_only_adds_keys` は `schema` を含める形に直しました。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。
 - どちらにしたかと、その理由を、決定の記録に書きます。

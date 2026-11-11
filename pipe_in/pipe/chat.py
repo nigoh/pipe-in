@@ -20,6 +20,7 @@ from ..engine.archive import archive_run
 from ..engine.config import Config, load_config
 from ..engine.pipeline import CHAT_DRIVER, EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit, ShellResult, one_line, run_shell
 from ..engine.session import check_token, name_from_memo, normalize_name
+from ..engine.state import new_state
 from . import definition as pd
 from .chat_record import (
     HOOK_DIR,
@@ -256,26 +257,25 @@ class Chat:
         if memo_text:
             (cfg.work_dir / INPUT).write_text(memo_text + "\n", encoding="utf-8")
         now = self._stamp()
-        state: dict[str, Any] = {"started_at": now, "updated_at": now, "pipe": pipe.name}
         session_name = (normalize_name(name) if name is not None else None) or (name_from_memo(memo_text) if memo_text else None)
-        if session_name is not None:
-            state["name"] = session_name
-        if session_id is not None:
-            state["session_id"] = session_id
         checks = stage_checks(pipe)
-        state |= {
-            "driver": CHAT_DRIVER,
-            "stages": [
+        state = new_state(
+            CHAT_DRIVER,
+            started_at=now,
+            updated_at=now,
+            pipe=pipe.name,
+            name=session_name,
+            session_id=session_id,
+            stages=[
                 {"name": s.name, "label": s.label, "output": s.output, "review": s.review, **({"check": checks[s.name]} if s.name in checks else {})}
                 for s in pipe.stages
             ],
-            "final": None,
-            "total_cost_usd": None,
-            "usage_summary": dict(USAGE_UNAVAILABLE),
-            "pending_review": None,
-            "warnings": [f"効かない設定: {line}" for line in lines],
-            "open": None,
-            "runs": [],
+            warnings=[f"効かない設定: {line}" for line in lines],
+            runs=[],
+            with_open=True,
+            unavailable_reason=USAGE_UNAVAILABLE["reason"],
+        )
+        state |= {
             "chat": {
                 "pipe_dir": cfg.rel(path),
                 "fingerprint": fingerprint(path, self.project),
