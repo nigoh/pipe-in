@@ -6,7 +6,7 @@
 - 検査は、「問題の一覧を返す関数」と、実物を読む検査と、設計の文案で関数を確かめる見本（今のまま通る。守る）の 3 つ組にしてある。
 - 今の作りのままで通るテストは、名前の末尾を _守る にし、説明の末尾に「（今のまま通る。守る）」と書く。
 - 実機・手で確かめる AC（AC-23 の手の部分・AC-30・AC-31）は、ここにテストを足さない（03_red_tests.md に書く）。
-- 字数（AC-24）は tests/test_skill_tidy.py の D0039-AC-11（SKILL.md は 12,300 字以下・補助ファイルは 1 つずつ 3,500 字以下）が見る。
+- 字数（AC-24）は tests/test_skill_tidy.py の D0039-AC-11（SKILL.md は 12,500 字以下・補助ファイルは 1 つずつ 3,500 字以下）が見る。
 - decision_number.py の挙動は tests/test_decision_number.py、worktree の挙動は tests/test_worktree_origin.py が見る。
 """
 

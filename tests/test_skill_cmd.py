@@ -88,6 +88,34 @@ def test_settings_allow_skill_entry_and_two_exact_commands() -> None:
     assert not [r for r in allow if r.startswith(("Bash(python -m pipe_in record", "Bash(python -m pipe_in worktree"))]
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["spec-check", "--project", ".."],
+        ["spec-check", "--proj=.."],
+        ["spec-check", "--input", "memo.md"],
+        ["spec-check", "--config", "other.toml"],
+        ["spec-check", "extra.md"],
+    ],
+)
+def test_D0085_AC_10_skill_spec_checkは旗を断り_ほかの入口の決まりは変わらない(project: Path, argv: list[str]) -> None:
+    """D0085-AC-10: skill spec-check は旗も引数も取らず、--project・--input・--config・位置引数は spec-check 自身の断りで止まる
+    （skill の入口が知らないコマンドへの断りではない）。何も書かない。allow は Bash(python -m pipe_in skill:*) のままで、spec-check の規則は足さない。
+    ほかの入口の決まり（record の旗の断り・知らないコマンドの断り）は変わらない。"""
+    with pytest.raises(SystemExit, match="pipe-in skill") as raised:
+        cli.main(["skill", *argv])
+    assert "後ろに" not in str(raised.value), "skill の入口が spec-check をまだ知らない"
+    assert not (project / "docs").exists()
+
+    with pytest.raises(SystemExit, match="pipe-in skill"):
+        cli.main(["skill", "record", "start", "--input", "memo.md"])
+    with pytest.raises(SystemExit, match="後ろに"):
+        cli.main(["skill", "run"])
+    allow = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["allow"]
+    assert "Bash(python -m pipe_in skill:*)" in allow
+    assert not [r for r in allow if "spec-check" in r]
+
+
 def test_skill_md_tells_to_run_skill_entry() -> None:
     """D0049-AC-11: スキルは、記録と worktree のコマンドを skill の入口で流すよう書き、段の区切りの載せ直しに worktree sync を使う。"""
     skill = (ROOT / ".claude" / "skills" / "pipe-in" / "SKILL.md").read_text(encoding="utf-8")
