@@ -16,11 +16,11 @@
    - `run-panel-*`：完了した見本のパネル（明るい・暗い。見本の記録 `tests/fixtures/showcase/` から）
    - `run-panel-running-*`：動いているパネル（`tests/fixtures/showcase_running/` などから）
    - `run-panel-waiting-*`：確認待ちのパネル
-   - `run-panel-runs-*`：実行の一覧のパネル（主の checkout・別の worktree・`archive/` の木を一時フォルダに組み立てる）
+   - `run-panel-runs-*`：実行の一覧のパネル（主と別の worktree・`archive/` の木）
    - `run-panel-runs-omitted-*`：前の実行を省いた一覧
    - `run-panel-stale-*`：更新なしの印が出るパネル（目安を過ぎた見本）
    - `run-panel-stale-soon-*`：目安の 5 秒手前の見本（`window.__previewNext()` で更新後の本体を送れる）
-   - `run-panel-artifacts-*`：成果物のタブのパネル（動いている開発フローと 12 個のパイプの 2 つの実行）
+   - `run-panel-artifacts-*`：成果物のタブのパネル（開発フローとパイプの 2 つの実行）
    - `run-panel-tools-*`：エージェント・スキルのタブのパネル（4 つの実行）
    - `run-panel-budget-*`：段ごとの費用の上限のパネル（10 段のパイプ）
    - `run-panel-check-self-*`：自分をやり直す判定のパネル（D0062）
@@ -30,6 +30,7 @@
    - `run-panel-group-failed-*`：枠の中に失敗の段があるパネル
    - `run-panel-group-old-*`：`group` の無い古い記録のパネル
    - `run-panel-chat-*`：会話の中で流したパイプの記録のパネル（D0077。使用量が「取れない」記録）
+   - `run-panel-dev-*`：開発用の記録のパネル（D0089。短い確認待ち）
    - `run-panel-reply-runs-*`：返事を受け付けている確認待ちのパネル（D0079。`window.__previewReply(name)` で描き直しを送る）
 2. 手元だけで配る。次のコマンドを裏で動かす（`file:` では開けない。外には出さない）：
 

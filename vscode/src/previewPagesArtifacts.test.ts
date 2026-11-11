@@ -841,14 +841,15 @@ test('D0025-AC-74: 見本の木・ページを作っても（成果物のペー�
 // 今の作り（この機能を入れる前）で測った SHA-256。ページの種類ごとに、本体（行の順。次の本体があれば最後）の
 // 「図と出力」のパネルと「使用量」のパネルの HTML をつないだ文字を測る。「成果物」のパネルは含めない（そこだけが新しい作りになる）。
 // 本体の作り方は preview.ts と同じ（見本の木・時計・目安）。パネルの HTML はテーマに左右されないので、暗いページで測る。
+// runs・stale・stale-soon は D0089 で替えた：別の worktree の確認待ちの行（右端にある幅 5% 未満の待ち）の言葉が、実行の帯の上でなく下の行に出るようになった
 const PANEL_SHA256: Record<string, string> = {
   done: '0f69d5fb6f30eb5e5127667fdd8ff945f53e2f1b142bf136d919574837ffdff6',
   running: '415860fd689cd2d52d044307e39ea25d3ab774eeaa8df94beafe7ec33d6d28d8',
   waiting: '328a5b8a37e76716b0f1bba7d0b9f4d1170979be774040badad97adffe768672',
-  runs: '6ae250f0c4937482f13184ed3f3074326e75e59a36c8e68d6195386aff86b71c',
+  runs: 'd195b4810aa7809eb00f99dd5fce3677ee1f8a86e2705e74537956913499482f',
   'runs-omitted': '4faceb5ea285e1115ea7114c0ba4312b26125048b113e55eec53709f6603d22b',
-  stale: 'ebd7a794c210f4596c83c8a2eaf1c1100c55e9980bd41da3a0c701b38ca525a5',
-  'stale-soon': 'f7725d0d34cffee14eceba8f09ba583eab172bcf452cdba0f30bd5929d08c32a',
+  stale: 'e8ff13f78e5b82cc6eb65ac65bda8fa25f7a279d5b5df2a3f77713cad3367e62',
+  'stale-soon': '8eaf5f7da580c0c6fe9a906d508c3e0b22a0094adbdcf4a4b573941913cedf83',
 };
 
 /** 既存のページ 1 種類の「図と出力」「使用量」のパネルをつないだ文字。preview.ts と同じ組み立て（目安は STALE_AFTER_SEC）。 */

@@ -27,6 +27,7 @@ import {
   chatPageHtml,
   checkPageHtml,
   checkSampleKind,
+  devPageHtml,
   groupPageHtml,
   groupSampleKind,
   buildRunsTree,
@@ -269,6 +270,11 @@ for (const [page, theme] of PANEL_PAGES) {
   // 会話の中で流した記録の見本（D0077）：使用量が取れない・検査の不合格→やり直し→合格・revise 1 回・確認待ち。記録は一時フォルダの中に書いて読む
   if (kind === 'chat') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('chat', (dest) => chatPageHtml(dest, theme)), 'utf8');
+    continue;
+  }
+  // 開発用の新しい記録の見本（D0089）：費用・使用量が取れない・段が 1 秒ほどで終わる短い記録・確認待ち。記録は一時フォルダの中に書いて読む
+  if (kind === 'dev') {
+    writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('dev', (dest) => devPageHtml(dest, theme)), 'utf8');
     continue;
   }
   // 返事を受け付けている確認待ちの見本（D0079）：承認・修正を依頼・中止のボタンと、ボタンの出ない行。window.__previewReply で描き直しを送る。木は一時フォルダの中だけに作る

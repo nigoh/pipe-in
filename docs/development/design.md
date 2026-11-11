@@ -63,6 +63,8 @@
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
 | 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
+| 確認用ページ：開発用の新しい記録の見本（`driver: "pipe-dev"`・費用と使用量が取れない・段が 1 秒ほどで終わる短い記録を一時フォルダに書いて、`run-panel-dev-*` を出す） | `vscode/scripts/devSamples.ts` |
+| 時系列の確認待ちの字の置き場所（右・左・帯の下。純粋な関数。`ganttHtml.ts` だけが使う） | `vscode/src/view/ganttPlace.ts` |
 | 確認用ページ：返事を受け付けている確認待ちの見本（印 `reply_wait` のある記録・ボタンの出ない記録を一時フォルダに書いて、`run-panel-reply-runs-*` を出す。`window.__previewReply(name)` で、描き直しと送ったあとを送る） | `vscode/scripts/replySamples.ts` |
 | 画面のデザインの土台（ブランド「プラグ」の色の決まり・部品と画面の見本。Claude のデザインのキャンバスの写し） | `docs/design/`・`docs/design/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
