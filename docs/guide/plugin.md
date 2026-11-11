@@ -141,7 +141,7 @@ claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write E
 - **手元のフォルダからマーケットプレイスを足した人**（`/plugin marketplace add ./`）：プラグインはその場から読まれるので、pipe-in のフォルダで `git pull` をしたあと、次の会話を始めるか `/reload-plugins` をすれば効きます。
 - **GitHub からマーケットプレイスを足した人**：版が変わったときだけ入れ直されます。会話の中なら `/plugin marketplace update pipe-in`、シェルなら `claude plugin update pipe-in@pipe-in` で更新し、開いている会話には `/reload-plugins` で反映します。`/plugin` の Marketplaces で自動の更新（Enable auto-update）を入れておくと、自分で更新しなくても届きます。Anthropic の公式のマーケットプレイスのほかは、自動の更新は既定で切れています。
 
-あわせて、警告 W6・W5 の例外・`pipe-in-gen quorum`・ひな形 `review-quorum` を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
+あわせて、警告 W7・W6・W5 の例外・`pipe-in-gen quorum`・ひな形 `review-quorum` を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
 
 ## 0.4.0 以前から更新するとき
 

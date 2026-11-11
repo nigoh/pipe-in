@@ -18,6 +18,7 @@ from typing import Any
 from ..engine import clock
 from ..engine.archive import archive_run
 from ..engine.config import Config, load_config
+from ..engine.spec import work_dir_conflict
 from ..engine.pipeline import CHAT_DRIVER, EXIT_MESSAGES, INPUT, STATE, SUMMARY, Exit, ShellResult, one_line, run_shell
 from ..engine.session import check_token, name_from_memo, normalize_name
 from ..engine.state import new_state
@@ -165,6 +166,9 @@ class Chat:
         after: str | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
+        conflict = work_dir_conflict(self.base)  # 段が成果物を書けない work_dir は、始める前に断る（D0084）
+        if conflict is not None:
+            raise ChatError(conflict)
         path = pd.find_pipe(pipe_arg, self.pipes_dir, project=self.project)
         if path is None:
             raise ChatError(f"パイプ「{pipe_arg}」が見つかりません（pipe-in-gen list で一覧を出せます）")

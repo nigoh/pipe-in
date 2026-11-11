@@ -180,6 +180,7 @@ ALLOWED: dict[str, str] = {
     "generator/legacy.py": "別名 devpipe-gen の入口",
     "pipe_in/pipe/definition.py": "古い置き場所・フォルダ名・環境変数を読む",
     "generator/guard_hook.py": "古いフォルダ名・環境変数の下も守る",
+    "pipe_in/engine/spec.py": "前の版の置き場所の下も、既定で守る（D0084）",
     "vscode/src/app/names.ts": "古い設定・コマンド ID の読み替え",
     "vscode/src/app/pipeEditor.ts": "古い置き場所・フォルダ名を読む",
     "vscode/src/infra/fsPipes.ts": "古いフォルダ名を受け付ける",

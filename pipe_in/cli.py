@@ -18,6 +18,7 @@ from .dev.pipeline import DevPipeline
 from .dev.specs import STAGES
 from .engine.checkpoint import Decision
 from .engine.config import Config, load_config
+from .engine.spec import work_dir_conflict
 from .engine.pipeline import BasePipeline
 from .engine.session import normalize_name
 from .pipe import after
@@ -225,6 +226,9 @@ def main(argv: list[str] | None = None) -> int:
         auto_approve=args.yes,
         pause_for_review=pause,
     )
+    conflict = work_dir_conflict(cfg)  # 段が成果物を書けない work_dir は、何も書く前に断る（D0084）
+    if conflict is not None:
+        raise SystemExit(conflict)
     # 前の記録は、この実行の作業フォルダ（pipeline_for で段の記録の場所に分ける前）から探す。断るならここで止まる（何も書いていない）
     previous = _or_exit(after.read_previous, after_name, cfg, cfg.work_dir) if after_name is not None else None
     pipeline = pipeline_for(cfg, pipe, test_cmd_given=args.test_cmd is not None)

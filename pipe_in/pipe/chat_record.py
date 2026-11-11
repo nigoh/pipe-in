@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,8 +23,6 @@ HOOK_DIR = "hook"
 TRACE = "trace.jsonl"
 BASH_STATE = "bash_state.json"
 PROBE_DIR = "probe"
-# 会話の道だけが足して守る場所（記録の下は chat_specs が別に止める）
-EXTRA_PROTECTED = [".claude/*", "*/.claude/*", ".git/*", ".pipe-in/*", "pipeline.toml"]
 USAGE_UNAVAILABLE = {"available": False, "reason": "会話の中で流したため、費用とトークンは取れません"}
 
 
@@ -114,7 +112,6 @@ def chat_specs(cfg: Config, pipe: PipeDef) -> dict[str, Any]:
 
     cfg は for_pipe 済み。記録のフォルダの親（docs/pipeline など）の下は、その段の成果物のほか書けない。
     """
-    cfg = replace(cfg, protected_paths=[*cfg.protected_paths, *EXTRA_PROTECTED])
     specs = build_pipe_specs(cfg, pipe)
     parent = cfg.work_dir.parent
     base = cfg.rel(parent if parent != cfg.project_dir else cfg.work_dir)

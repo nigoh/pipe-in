@@ -34,8 +34,8 @@ DEV_HOOK = REPO / ".claude" / "hooks" / "pipe_in_guard.py"
 
 # 列の並び（expect の 1 文字が 1 列）
 COLUMNS = (
-    "sdk",  # SDK の道（保護なし＝protected_paths が既定の空）：guard.make_guard_hook
-    "sdk_protected",  # SDK の道（.claude/・.git/・.pipe-in/・pipeline.toml を protected_paths に書いた場合）
+    "sdk",  # SDK の道（既定の守りだけ＝protected_paths は空。D0084 で 4か所は設定なしで止まる）：guard.make_guard_hook
+    "sdk_protected",  # SDK の道（利用者が同じ場所 .claude/・.git/・.pipe-in/・pipeline.toml を protected_paths にも書いた場合）
     "chat",  # 会話の道：chat_hook.main に pipe-in:pipe-stage の呼び出しを通す（段が開いている間）
     "plugin_builder",  # プラグインの作る役：guard_hook.decide（pipe-in:pipe-builder）
     "plugin_judge",  # プラグインの審査役：guard_hook.decide（pipe-in:pipe-judge）
@@ -283,8 +283,8 @@ _DEFS: list[Row] = [
 #                              sdk  sdk_protected  chat  plugin_builder  plugin_judge  dev_analyst  dev_tester  dev_coder  dev_verifier
 # A＝許す、D＝止める、-＝その列では判断しない（会話の中では流せない段）。
 # 読み方の例：
-#  - 4か所（.claude/・.git/・.pipe-in/・pipeline.toml）を止めるのは、SDK の道では利用者が protected_paths に書いたときだけ（sdk と sdk_protected の差）。
-#    会話の道とプラグインは、いつも止める。開発用は pipe-in-coder が .pipe-in/・pipeline.toml に書ける（.claude/・.git/ は止まる）。
+#  - 4か所（.claude/・.git/・.pipe-in/・pipeline.toml）は、SDK の道でも設定なしで止める（D0084。sdk と sdk_protected が同じ）。
+#    会話の道とプラグインも、いつも止める。開発用は pipe-in-coder が .pipe-in/・pipeline.toml に書ける（.claude/・.git/ は止まる）。
 #  - プラグインの作る役だけが、流しているパイプのフォルダ（.pipe-in/pipes/pipe-in-hp/）の決まったファイルに書ける。
 #  - git add・git commit は、SDK の道と会話の道（Bash を持つ段）では通り、プラグインと開発用では止まる。git push はどこも止まる。
 #  - Skill は SDK の道だけが通す。Agent・Task は agents を持つ段の SDK の道だけが通す（会話の中では流せない形）。
@@ -308,32 +308,32 @@ EXPECT: dict[str, str] = {
     "agent-not-listed": "DDDDDDDDD",
     "agent-background": "DD-DDDDDD",
     "agent-nested": "DD-DDDDDD",
-    "write-dotclaude": "ADDDDDDDD",
-    "write-dotgit": "ADDDDDDDD",
-    "write-dotpipein": "ADDDDDDAD",
-    "write-pipelinetoml": "ADDDDDDAD",
+    "write-dotclaude": "DDDDDDDDD",
+    "write-dotgit": "DDDDDDDDD",
+    "write-dotpipein": "DDDDDDDAD",
+    "write-pipelinetoml": "DDDDDDDAD",
     "write-running-pipe-toml": "DDDADDDAD",
     "write-running-pipe-prompt": "DDDADDDAD",
     "write-record": "DDDDDDDDD",
     "write-outside": "DDDDDDDDD",
-    "bypass-rel": "ADDDDDDDD",
-    "bypass-dotdot-abs": "ADDDDDDDD",
-    "bypass-dotdot-rel": "ADDDDDDDD",
-    # リンクを経た道の実測：リンクをたどる SDK の保護あり・会話の道は止め、たどらないプラグインの作る役と dev_coder は通す
-    "bypass-link-src": "ADDDDDDAD",
-    "bypass-link-pipe-prompt": "ADDADDDAD",
-    "bypass-edit": "ADDDDDDDD",
-    "bypass-multiedit": "ADDDDDDDD",
-    "bypass-notebookedit": "ADDDDDDDD",
-    "bypass-subagent-write": "ADDDDDDDD",
+    "bypass-rel": "DDDDDDDDD",
+    "bypass-dotdot-abs": "DDDDDDDDD",
+    "bypass-dotdot-rel": "DDDDDDDDD",
+    # リンクを経た道の実測：リンクをたどる SDK の道・会話の道は止め、たどらないプラグインの作る役と dev_coder は通す
+    "bypass-link-src": "DDDDDDDAD",
+    "bypass-link-pipe-prompt": "DDDADDDAD",
+    "bypass-edit": "DDDDDDDDD",
+    "bypass-multiedit": "DDDDDDDDD",
+    "bypass-notebookedit": "DDDDDDDDD",
+    "bypass-subagent-write": "DDDDDDDDD",
     "bypass-powershell": "DDDDDDDDD",
     "bypass-mcp": "DDDDDDDDD",
-    "bypass-bash-redirect": "ADDDDDDDD",
-    "bypass-bash-tee": "ADDDDDDDD",
-    "bypass-bash-cp": "ADDDDDDDD",
-    "bypass-bash-sed-i": "ADDDDDDDD",
-    "bypass-bash-python-c": "ADDDDDDDD",
-    "bypass-bash-bash-c": "ADDDDDDDD",
+    "bypass-bash-redirect": "DDDDDDDDD",
+    "bypass-bash-tee": "DDDDDDDDD",
+    "bypass-bash-cp": "DDDDDDDDD",
+    "bypass-bash-sed-i": "DDDDDDDDD",
+    "bypass-bash-python-c": "DDDDDDDDD",
+    "bypass-bash-bash-c": "DDDDDDDDD",
     "bypass-bash-subst": "DDDDDDDDD",
 }
 ROWS: list[Row] = [r._replace(expect=EXPECT[r.id]) for r in _DEFS]

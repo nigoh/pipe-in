@@ -366,14 +366,14 @@ def test_d0036_ac26_bashwriteは標準ライブラリだけ():
 
 
 def test_pipe_lint_imports_only_definition():
-    """D0038-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition のほかを読まない（pipe_in_generator も engine も読まない）。"""
+    """D0038-AC-12: 警告の部品（pipe_in/pipe/lint.py）は、標準ライブラリと pipe_in.pipe.definition と pipe_in.engine.spec（既定で守る場所の定数。D0084）のほかを読まない（pipe_in_generator も、engine のほかの部品も読まない）。"""
     import sys
 
     path = ROOT / "pipe_in" / "pipe" / "lint.py"
     assert path.is_file(), "pipe_in/pipe/lint.py がありません（新しい部品をまだ作っていない）"
     targets = {t for t in _imports(path, "pipe_in.pipe.lint") if t}
     outside = sorted(
-        t for t in targets if t.split(".")[0] not in sys.stdlib_module_names and t.split(".")[0] != "__future__" and not (t == "pipe_in.pipe.definition" or t.startswith("pipe_in.pipe.definition."))
+        t for t in targets if t.split(".")[0] not in sys.stdlib_module_names and t.split(".")[0] != "__future__" and not (t == "pipe_in.pipe.definition" or t.startswith("pipe_in.pipe.definition.") or t == "pipe_in.engine.spec" or t.startswith("pipe_in.engine.spec."))
     )
     assert outside == []
 

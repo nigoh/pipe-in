@@ -8,7 +8,7 @@
 | 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
 | 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
-| 段の設定の型・protected_paths・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
+| 段の設定の型・protected_paths・既定で守る場所 `DEFAULT_PROTECTED_PATHS`・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
 | 止める操作（pipe-in が流す段の PreToolUse フック）と、Bash のコマンドの文字列から書き込み先を読む部品（標準ライブラリだけ。シェルは起こさない） | `pipe_in/engine/guard.py`・`bashwrite.py` |
 | SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
 | 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
@@ -245,6 +245,7 @@ pipe_in.usage
 - D0079 で、`state.json` に `reply_wait`（段・識別子・始めた時刻。端末の `pipe-in` が確認の段で人の入力を待っているあいだだけ）を足しました。足すだけで、無い古い記録は印なしとして読みます。古い版の拡張は知らない項目を読まずに捨てるのでボタンが出ず、古い本体で流した実行にもボタンは出ません。`pipe.toml`・`pipeline.toml` の形は変えません。`RESERVED_OUTPUTS` に `reply.json` が入り、`output = "reply.json"` の既存のパイプは検査で止まります（`check_pipe`・`validatePipe`）。`--pause` で止めた実行の案内は、`pipe-in --review` に変わりました。
 - D0080 で、`state.json` を作る3つの書き手（SDK の `_save_state`・`record start`・`chat start`）の土台を `pipe_in/engine/state.py` の `new_state` に1つにし、新しい記録の最初の鍵に `schema: 1` を足しました。開発用の新しい記録だけ値が変わります：`total_cost_usd` は `null`、`usage_summary` は `{available: false, reason}`、`runs[].cost_usd` は `null`、`runs[].metrics` は鍵なし（今までは `0.0`・`null`・`0.0`・`{}`）。SDK の道は `driver` を書かず、会話の道は値を変えません。`schema` の無い古い記録は読むだけで、変換も書き換えもしません（`archive/` の中も）。`--review` で続ける実行も `schema` を足さず、`record` で続けても古い値は残ります。読む側は `schema` を見て読み分けず、2 以上や数でない値でも落ちずに読みます。拡張は `usage_summary.available === false` で「取れない」を出す道が D0077 からあるので、直しません（古い版の拡張は零で出すことがあります）。鍵と値の種類は共通の表 `tests/fixtures/state_record.json` を本体と拡張のテストが読んで結びます。`runs[]` の `cost_usd` が `null` の記録を SDK の `--review` が続けても、合計は 0 として数えます。`test_d0019_ac50_state_only_adds_keys` は `schema` を含める形に直しました。
 - D0081 で、`state.json` に任意の鍵 `flow`（`steps`・`retries`）を足しました。書くのはパイプ（`LinearPipeline`）だけで、開発フロー・会話の道は書きません。`--review` で続けるときに読んで、`max_steps`・`max_retries` の回数を引き継ぎます。無い記録は 0 から、壊れた部分は 0 として読みます。共通の表の `sdk` 行の `optional_keys` に足しました。拡張は読み飛ばします。意味が変わるのは2つだけです：`--review` をはさむと上限が早く効く、人の `revise` を `steps` に数えない。`pipe.toml`・`pipeline.toml`・`guard` は変えません。
+- D0084 で、段の書ける範囲から外す場所に、既定の一覧 `DEFAULT_PROTECTED_PATHS`（`pipe_in/engine/spec.py`）を足しました。`pipeline.toml`・`pipe.toml`・記録の形は変えません。意味が変わる（今まで通って、これから止まる）のは、SDK の道の段が `.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・`.devpipe/` を `protected_paths` の設定なしでも書けなくなること、会話の道で `.devpipe/` が止まること、止めた理由の文に「既定で守る場所」が付くこと、`work_dir` がこれらの中か `.` のとき流す前に止まることです。外す設定は作りません。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - パイプの定義（`PipeDef`・`PipeStage` など）や設定（`StageConfig`・`Config`）に項目を足すときは、会話の道の能力表 `pipe_in/pipe/capability.py` にも 1 行足します（実行役 `sdk`・`chat` ごとに、効く・断る・一覧に出す・黙る・関係しない を決める）。足し忘れは `tests/test_capability.py` が落とします。断る文と効かない設定の一覧は表から作るので、`chat.py` に項目の名前の条件を足さないでください。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。

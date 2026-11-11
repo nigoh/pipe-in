@@ -67,12 +67,13 @@ Python（pytest。uv・poetry も）・Node（npm・pnpm・yarn・bun）・Go・
 
 ### 検査の警告
 
-`pipe-in-gen check`（と `pipe-in-gen new`）は、誤りのほかに、流すと詰まりやすい段の形を `⚠` の行で知らせます。警告は誤りではないので、警告だけなら検査は通ります（終了コード 0。誤りがあれば 1）。警告が無ければ、出力は今までと同じ1行です。警告は4つあります。初めの3つは実際のパイプを流して分かったことから、4つ目は段の組み方の比較実験（下の「組み方の目安（比較実験から）」）から作りました。
+`pipe-in-gen check`（と `pipe-in-gen new`）は、誤りのほかに、流すと詰まりやすい段の形を `⚠` の行で知らせます。警告は誤りではないので、警告だけなら検査は通ります（終了コード 0。誤りがあれば 1）。警告が無ければ、出力は今までと同じ1行です。警告は5つあります。初めの3つは実際のパイプを流して分かったことから、4つ目は段の組み方の比較実験（下の「組み方の目安（比較実験から）」）から、5つ目は既定で守る場所（D0084）から作りました。
 
 - `access = "read"` で `bash = true` の段で、指示文に書き出す・書き込む・保存する・取り出す・描く・試作・下書き・置き場所などの言葉があるとき。`read` の段は、Bash でも自分の成果物のほかは書けません（[安全の仕組み](safety.md)）。試作や図を置く場所が要るなら、`access = "docs"` と `docs_dir`（要るなら `writes`）にしてください。
 - `access = "tests"` の段が `bash = true` でなく、あとの段に `check.command` があるとき。テストを書く段が、あとで掛かる検査（lint や inspect など）を自分で流せず、実装の段で初めて落ちて差し戻しが回ります。テストを書く段にも `bash = true` を付け、同じ検査を流させてください。
 - 検査（`[stages.check]`）の `on_fail` の戻り先が、`access = "read"` の別の段のとき。読むだけの段に戻しても、指摘を直せません。直す段（`code`・`tests`・`docs`）に戻してください。ただし、検査の `command` が戻り先の段の `output`（成果物のファイル名）を文字として含むとき（`findings-check` で戻り先の成果物そのものを確かめるときなど）は、書き直せば直せるので出ません。
 - 指摘を出す段（`access = "read"` か `"docs"` で、指示文に「指摘にします」「指摘を出す」「findings」などの言葉がある段）なのに、指示文に引用の指示（「引用」「逐語」「そのまま写す」「quote」）が無く、パイプのどの段の `check.command` にも `findings-check` が無いとき。指摘ごとに原文の行を逐語で引用させ、`pipe-in-gen findings-check` を `check.command` に組んでください（下の「指摘の検査」）。ほかの照合を使うなら、指示文に引用の指示を書けば警告は出ません。日本語の「指摘を直す」「指摘をまとめる」には当たりませんが、英語の `findings` は言葉だけで拾うので、`09_findings.json` を読んでまとめる段のように、指摘を出さない段にも当たることがあります（そのときも、引用の指示があれば出ません）。
+- `access = "docs"` か `"code"` の段の `docs_dir`・`writes` が、既定で守る場所（`.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・前の版の置き場所）と重なるとき（`docs_dir` がプロジェクトそのもの `.` のときも）。重なった部分は書けないので、成果物は `docs/` など別の場所に置いてください（[安全の仕組み](safety.md)）。
 
 警告が1件のときの出力の例です（`pipe-in-gen check mypipe`）。
 
@@ -172,7 +173,7 @@ prompt_file = "prompts/01_survey.md"   # パイプのフォルダの中。短け
 - `output` には、本体が書くファイルの名前（`00_input.md`・`99_summary.md`・`state.json`・`reply.json`）は使えません。`pipe-in-gen check` と作業台の検査が断ります。`reply.json` は、VSCode のパネルのボタンからの返事を置くファイルです（[記録](records.md#返事のファイルreplyjson)）。
 - 記録は対象の `<work_dir>/<パイプ名>/` に置かれます（例: `docs/pipeline/diagrams/`）。開発フローの記録は上書きしません。VSCode のパネルでも、開発フローと切り替えて見られます。
 - 確認・`--pause`・`--review`・`--from <段の名前>`・`--yes` は開発フローと同じように使えます（`--review` のときも `--pipe` を付けてください）。
-- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。`protected_paths` とパイプのフォルダは、どの段も書けません。`--after` で受けた前のパイプの記録（前の `state.json`・`00_input.md`・`logs/`・成果物）も、どの段も書けません。
+- Web と MCP は、段に `web`・`mcp` を書いたときだけ使えます（既定は止める）。PowerShell は、どの段でも使えません。サブエージェントに任せる道具（`Task`・`Agent`）は、`agents` を書いた段だけで使えます（下の「Agent SDK の設定」）。パイプのフォルダと、既定で守る場所（`.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・前の版の置き場所）と、`protected_paths` に足した場所は、どの段も書けません。`docs_dir`・`writes` がこれらと重なると、`pipe-in-gen check` が警告します（誤りではありません。重なった部分が書けないだけです）。`--after` で受けた前のパイプの記録（前の `state.json`・`00_input.md`・`logs/`・成果物）も、どの段も書けません。
 - MCP のサーバーは、Claude Code の設定から読みます。対象の `pipeline.toml` の `setting_sources` に `"project"`（`.mcp.json`）か `"user"` を入れてください。
 - 段の `max_budget_usd`（ドル）は 0 より大きい数で書きます。`pipeline.toml` と違い、`0` は未設定にならず誤りです。負の数・文字・真偽も誤りで、保存した `pipe.toml` は、`pipe-in --pipe` と `pipe-in-gen check` が流す前に止まって直し方を出します（パイプ作業台の入力欄は `0` を書き出せますが、作業台の「検査」も同じ決まりで誤りとして知らせます。誤りのまま保存したものは、ここで止まります）。書かなければ上限なしです。効いた上限は実行の記録に残り、図に出ます（くわしくは[設定](config.md)の `max_budget_usd`）。
 - `kind = "dev"` の定義に書けるのは `test_command` だけです（`--test-cmd` → パイプの定義 → `pipeline.toml` の順に優先）。段ごとのモデルなどは `pipeline.toml` で決めます。
