@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from pipe_in.dev import spec_check
+
 ROOT = Path(__file__).resolve().parents[1]
 DECISIONS = ROOT / "docs" / "decisions"
 DEVELOPMENT = ROOT / "docs" / "development"
@@ -379,3 +381,126 @@ def test_D0075_AC_20_一時のリポジトリだけで確かめ_実物に書か�
     monkeypatch.setattr(shutil, "which", lambda name: None)
     with pytest.raises(pytest.skip.Exception):
         checked_files(tmp_path)  # git が無い環境
+
+
+# ---- D0085-AC-12・AC-13: 決定の記録の鎖の検査（D0085 以降だけ） ------------------------------------------
+
+# 鎖の検査をかける最初の決定の番号（1か所。製品コードには置かない）。これより前の記録は検査しない（書き換えない）。
+CHAIN_FROM = 85
+# 新しい見出し → それが入る親の見出し（D0085 以降の記録は、5つの見出しはそのままで、親の節の中にこの2つの ### を持つ）
+CHAIN_SECTIONS = {"### 要求と前提": "## 目的", "### 非機能要件": "## 機能要件と受け入れ基準"}
+
+
+def record_chain_problems(number: int, text: str) -> list[str]:
+    """決定の記録 Dnnnn の鎖の問題（D0085 以降だけ）。number が CHAIN_FROM より小さければ [] 。
+    (1) CHAIN_SECTIONS の見出しが無い・親の節の外にある、(2) UR が無い（前の形）、(3) spec_check の問題の行。"""
+    if number < CHAIN_FROM:
+        return []
+    problems: list[str] = []
+    lines = text.splitlines()
+    for child, parent in CHAIN_SECTIONS.items():
+        at = next((i for i, line in enumerate(lines) if line.strip() == child), None)
+        if at is None:
+            problems.append(f"見出し「{child}」が無い（D{number:04d}）")
+            continue
+        owner = next((lines[i].strip() for i in range(at - 1, -1, -1) if lines[i].startswith("## ")), None)
+        if owner != parent:
+            problems.append(f"見出し「{child}」は「{parent}」の節の中に書く（D{number:04d}）")
+    report = spec_check.check_record(text)
+    if report.legacy:
+        problems.append(f"UR が無い（D0085 以降は要る。D{number:04d}）")
+    else:
+        shown = spec_check.format_report(report)
+        problems += [line for line in shown[1:] if not line.startswith("問題 ")]
+    return problems
+
+
+def record_text(number: int, *, ur: bool = True, children: bool = True, unpointed_ur: bool = False, nfr_outside: bool = False) -> str:
+    """見本の決定の記録。既定は、5つの見出しと新しい2つの見出しを持ち、鎖が全部つながった形。"""
+    ac = f"D{number:04d}-AC-"
+    lines = [f"# D{number:04d} 見本", "", "## 目的", "", "見本の目的。", ""]
+    if children:
+        lines += ["### 要求と前提", ""]
+    if ur:
+        lines += ["- UR-01 開発者として、何かしたい。"]
+        if unpointed_ur:
+            lines += ["- UR-02 開発者として、もう1つしたい。"]
+    lines += ["", "答え：いいえ", "理由：文書の形だけ。", "", "## 機能要件と受け入れ基準", ""]
+    lines += ["- FR-01（UR-01）すること" if ur else "- FR-01 すること", f"  - {ac}01（FR-01）基準", ""]
+    if children and not nfr_outside:
+        lines += ["### 非機能要件", "", "- 無し", ""]
+    lines += ["## 決めたことと理由", "", "- 見本。", ""]
+    if children and nfr_outside:
+        lines += ["### 非機能要件", "", "- 無し", ""]
+    lines += ["## 対象外・残った課題", "", "- 無し", "", "## 確かめたこと", "", "- 見本。", ""]
+    return "\n".join(lines)
+
+
+def test_D0085_AC_12_D0084はURが無くても通り_D0085の形でURを欠くと落ちる():
+    """D0085-AC-12: 一時の記録で、D0084 は UR が無くても（新しい見出しが無くても）通り、D0085 以降の形で UR を欠くと落ちる。つながりが切れていても落ちる。"""
+    old_form = record_text(84, ur=False, children=False)
+    assert record_chain_problems(84, old_form) == []
+    assert record_chain_problems(CHAIN_FROM - 1, old_form) == []
+
+    assert record_chain_problems(85, record_text(85)) == []  # 守る：つながった形は通る（今の作りでも通る）
+
+    for number in (85, 86, 120):
+        problems = record_chain_problems(number, record_text(number, ur=False))
+        assert any("UR" in p for p in problems), (number, problems)
+
+    broken = record_chain_problems(85, record_text(85, unpointed_ur=True))
+    assert any("指されない要求" in p and "UR-02" in p for p in broken), broken
+
+
+def test_D0085_AC_12_D0085以降の実物の記録は鎖の検査を通る():
+    """D0085-AC-12: docs/decisions/ の実物の記録のうち CHAIN_FROM 以上のすべてが、鎖の検査を通る。
+    （赤の確かめは一時の記録の文字列のテストで行う。）"""
+    problems: dict[str, list[str]] = {}
+    for p in records():
+        number = int(RECORD_NAME.fullmatch(p.name).group(1))
+        if number >= CHAIN_FROM:
+            found = record_chain_problems(number, p.read_text(encoding="utf-8"))
+            if found:
+                problems[p.name] = found
+    assert problems == {}
+
+
+def test_D0085_AC_12_始まりの番号の定数は1つ():
+    """D0085-AC-12: 鎖の検査の始まりの番号は、このファイルの定数 CHAIN_FROM の1か所だけにある（85）。製品コードには置かない。"""
+    assert CHAIN_FROM == 85
+    source = Path(__file__).read_text(encoding="utf-8")
+    assert len(re.findall(r"^CHAIN_FROM\s*=", source, flags=re.M)) == 1
+    assert not [p.as_posix() for p in (ROOT / "pipe_in").rglob("*.py") if "CHAIN_FROM" in p.read_text(encoding="utf-8")]
+
+
+def test_D0085_AC_13_D0085以降は新しい2つの見出しが無いと落ち_親の節の外でも落ちる():
+    """D0085-AC-13: D0085 以降の記録に `### 要求と前提` と `### 非機能要件` が無いと落ちる。親の節（## 目的・## 機能要件と受け入れ基準）の外に書いても落ちる。"""
+    missing = record_chain_problems(85, record_text(85, children=False))
+    assert any("### 要求と前提" in p for p in missing), missing
+    assert any("### 非機能要件" in p for p in missing), missing
+
+    outside = record_chain_problems(85, record_text(85, nfr_outside=True))
+    assert any("### 非機能要件" in p and "節の中" in p for p in outside), outside
+    assert not any("### 要求と前提" in p for p in outside), outside
+
+
+def test_D0085_AC_13_D0085より前の記録は新しい見出し無しで通る():
+    """D0085-AC-13: D0085 より前の記録は、新しい2つの見出しが無くても、UR が無くても通る（書き換えない）。
+    D0085 の記録が書かれたあとは、その記録自身も、この検査と鎖の検査を通る。"""
+    for number in (2, 50, 84):
+        assert record_chain_problems(number, record_text(number, ur=False, children=False)) == []
+    own = [p for p in records() if RECORD_NAME.fullmatch(p.name).group(1) == f"{CHAIN_FROM:04d}"]
+    for p in own:
+        text = p.read_text(encoding="utf-8")
+        assert record_chain_problems(CHAIN_FROM, text) == []
+        assert [s for s in RECORD_SECTIONS if s not in text] == []
+
+
+def test_D0085_AC_13_5つの見出しの検査は全部の記録にかかる_守る():
+    """D0085-AC-13: 今ある5つの見出し（RECORD_SECTIONS）は変わらず、D0085 より前の記録にも、以降の記録にもかかる。
+    今の作りでも通る（守り続けるための検査）。"""
+    assert RECORD_SECTIONS == ["## 目的", "## 機能要件と受け入れ基準", "## 決めたことと理由", "## 対象外・残った課題", "## 確かめたこと"]
+    for p in records():
+        text = p.read_text(encoding="utf-8")
+        assert [s for s in RECORD_SECTIONS if s not in text] == [], p.name
+    assert all(s in record_text(85) for s in RECORD_SECTIONS)

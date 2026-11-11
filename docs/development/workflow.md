@@ -35,11 +35,13 @@ Claude Code では `/pipe-in <要件メモ>` が、この順に進め、段の�
 
 | 段 | 受け持つ | すること | 書けるもの |
 | --- | --- | --- | --- |
-| 1. 要件定義 | `pipe-in-analyst` | 目的・FR・AC・対象外・触る側を書く（[specs.md](specs.md)） | `docs/pipeline/01_requirements.md` |
-| 2. 設計 | `pipe-in-analyst` | 変えるファイル・形が変わるか（互換）・AC とテストの対応表（[design.md](design.md)） | `docs/pipeline/02_design.md` |
+| 1. 要件定義 | `pipe-in-analyst` | 目的・要求 UR・前提・FR・NFR・状態の問い・AC・対象外・触る側を書く（[specs.md](specs.md)） | `docs/pipeline/01_requirements.md` |
+| 2. 設計 | `pipe-in-analyst` | 変えるファイル・形が変わるか（互換）・何が変わりそうでどこに閉じ込めるか・AC とテストの対応表。状態の問いが はい のときだけ状態遷移の表 `DS-xx`（[design.md](design.md)）。終わりに `python -m pipe_in skill spec-check`（ID のつながりを数える。親が流す。D0085） | `docs/pipeline/02_design.md` |
 | 3. テスト先行（赤） | `pipe-in-tester` | 対応表どおりにテストを書き、期待した理由で落ちることを確かめる（[testing.md](testing.md)） | テストと `03_red_tests.md` |
 | 4. 実装（緑 → 整理） | `pipe-in-coder` | テストを通す最小の変更をしてから整える。承認されたテストは書き換えない | 製品コードと文書と `04_implementation.md` |
-| 5. 検証 | `pipe-in-verifier` とメイン | 触った側のテストを全部流す。画面・手で・実機の確認。公開してよいかを見る。合格したら、決定の記録の前に文書係（もう一度文書をそろえる）、続けて監査と助言（助言を流したときは審査も）を流し、承認された項目だけをメインが直す。メインが決定の記録を書く | `05_test_report.md`、決定の記録（メイン） |
+| 5. 検証 | `pipe-in-verifier` とメイン | メインが先に `python -m pipe_in skill spec-check` を流し、検証役が出力を報告に写す。触った側のテストを全部流す。画面・手で・実機の確認。公開してよいかを見る。合格したら、決定の記録の前に文書係（もう一度文書をそろえる）、続けて監査と助言（助言を流したときは審査も）を流し、承認された項目だけをメインが直す。メインが決定の記録を書く | `05_test_report.md`、決定の記録（メイン） |
+
+確認を取る段（要件定義・設計・テスト先行）の区切りで成果物を見せるときは、見てほしい問いを2〜3個添える（D0085）。
 
 ### 検証のあとの監査と助言
 
