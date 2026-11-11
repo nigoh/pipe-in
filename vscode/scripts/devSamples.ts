@@ -1,4 +1,4 @@
-// 開発用の新しい記録（/pipe-in の記録）の見本（D0089）。確認用ページ（run-panel-dev-*）に使う state.json と段のログの中身だけを持つ。
+// 開発用の新しい記録（/pipe-in の記録）の見本（D0090）。確認用ページ（run-panel-dev-*）に使う state.json と段のログの中身だけを持つ。
 // tests/fixtures/ には見本の記録を足さない。previewPages.ts の buildDevDir が、一時フォルダに書いて本物の読み取りで読む。
 // 本体（pipe-in record）が書く形：schema 1・driver が pipe-dev・費用は null・使用量は available=false と理由・runs に metrics は持たない。
 // 段が 1 秒ほどで終わる短い記録（0.3・0.6・1.0 秒）が、テスト先行の確認待ちで止まる。時系列の字が重ならないかを見るための見本。

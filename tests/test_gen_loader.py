@@ -1,4 +1,4 @@
-"""D0085: テストはいつも、流している作業フォルダの generator/ を pipe_in_generator として読む。
+"""D0086: テストはいつも、流している作業フォルダの generator/ を pipe_in_generator として読む。
 
 補助 tests/gen_loader.py（load・verify・CHILD_PRELUDE・LOADER_PATH）を確かめる。
 入れ込みが主の checkout にある状態は、tmp_path に偽の2つの置き場所を作って、-I の子プロセスで再現する
@@ -64,8 +64,8 @@ print(json.dumps({
 """
 
 
-def test_d0085_ac01_入れ込みが別の場所でも作業フォルダのgeneratorを読む(tmp_path):
-    """D0085-AC-01: 入れ込み先（主の checkout の役）を先に読んだ状態で load() を呼ぶと、作業フォルダの generator/ になる。"""
+def test_d0086_ac01_入れ込みが別の場所でも作業フォルダのgeneratorを読む(tmp_path):
+    """D0086-AC-01: 入れ込み先（主の checkout の役）を先に読んだ状態で load() を呼ぶと、作業フォルダの generator/ になる。"""
     main_checkout, work_gen = _make_places(tmp_path)
     loader = _gl()
     pre = (
@@ -85,8 +85,8 @@ def test_d0085_ac01_入れ込みが別の場所でも作業フォルダのgenera
     assert got["only_here"] == 42
 
 
-def test_d0085_ac02_入れ込みが無くても作業フォルダから読めてcliが通る(tmp_path):
-    """D0085-AC-02: 入れ込み先が無い状態でも load() は作業フォルダの generator/ から作り、pipe_in_generator.cli などが通る。"""
+def test_d0086_ac02_入れ込みが無くても作業フォルダから読めてcliが通る(tmp_path):
+    """D0086-AC-02: 入れ込み先が無い状態でも load() は作業フォルダの generator/ から作り、pipe_in_generator.cli などが通る。"""
     _, work_gen = _make_places(tmp_path)
     loader = _gl()
     code = loader.CHILD_PRELUDE + _REPORT
@@ -98,8 +98,8 @@ def test_d0085_ac02_入れ込みが無くても作業フォルダから読めて
     assert got["only_here"] == 42
 
 
-def test_d0085_ac03_子プロセスの補助は隔離のiでも効く(tmp_path):
-    """D0085-AC-03: -I（cwd も PYTHONPATH も sys.path に入らない）の子でも、CHILD_PRELUDE がパスで補助を読んで load() できる。"""
+def test_d0086_ac03_子プロセスの補助は隔離のiでも効く(tmp_path):
+    """D0086-AC-03: -I（cwd も PYTHONPATH も sys.path に入らない）の子でも、CHILD_PRELUDE がパスで補助を読んで load() できる。"""
     _, work_gen = _make_places(tmp_path)
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
@@ -125,8 +125,8 @@ def _isolate_modules(monkeypatch) -> None:
         monkeypatch.delitem(sys.modules, key)
 
 
-def test_d0085_ac05_場所が違うと実際の場所と期待した場所と直し方の文で落ちる(tmp_path, monkeypatch):
-    """D0085-AC-05: 別の場所の pipe_in_generator が読まれているとき、verify は実際の場所・期待した場所・直し方の入った文で RuntimeError。"""
+def test_d0086_ac05_場所が違うと実際の場所と期待した場所と直し方の文で落ちる(tmp_path, monkeypatch):
+    """D0086-AC-05: 別の場所の pipe_in_generator が読まれているとき、verify は実際の場所・期待した場所・直し方の入った文で RuntimeError。"""
     main_checkout, work_gen = _make_places(tmp_path)
     loader = _gl()
     _isolate_modules(monkeypatch)
@@ -141,8 +141,8 @@ def test_d0085_ac05_場所が違うと実際の場所と期待した場所と直
     assert "load" in msg
 
 
-def test_d0085_ac05_サブモジュールだけ別の場所でも落ちる(tmp_path, monkeypatch):
-    """D0085-AC-05: pipe_in_generator 本体は合っていても、pipe_in_generator.cli が作業フォルダの外から読まれていれば落ちる。"""
+def test_d0086_ac05_サブモジュールだけ別の場所でも落ちる(tmp_path, monkeypatch):
+    """D0086-AC-05: pipe_in_generator 本体は合っていても、pipe_in_generator.cli が作業フォルダの外から読まれていれば落ちる。"""
     main_checkout, work_gen = _make_places(tmp_path)
     loader = _gl()
     _isolate_modules(monkeypatch)
@@ -154,8 +154,8 @@ def test_d0085_ac05_サブモジュールだけ別の場所でも落ちる(tmp_p
     assert str(stray) in str(exc.value)
 
 
-def test_d0085_ac05_同じ場所なら落ちない(tmp_path, monkeypatch):
-    """D0085-AC-05: 読まれている場所が作業フォルダの generator/ と同じなら、verify は何も言わない。"""
+def test_d0086_ac05_同じ場所なら落ちない(tmp_path, monkeypatch):
+    """D0086-AC-05: 読まれている場所が作業フォルダの generator/ と同じなら、verify は何も言わない。"""
     _, work_gen = _make_places(tmp_path)
     loader = _gl()
     _isolate_modules(monkeypatch)
@@ -171,22 +171,22 @@ _COPIES = ("conftest.py", "test_guard_hook_input.py", "test_architecture_chat.py
 
 
 @pytest.mark.parametrize("name", _COPIES)
-def test_d0085_ac06_importの写しが3つのファイルに残らない(name):
-    """D0085-AC-06: try: import pipe_in_generator / except ImportError の組と、名前を決めた明示の読み込みが、補助以外に残らない。"""
+def test_d0086_ac06_importの写しが3つのファイルに残らない(name):
+    """D0086-AC-06: try: import pipe_in_generator / except ImportError の組と、名前を決めた明示の読み込みが、補助以外に残らない。"""
     src = (TESTS / name).read_text(encoding="utf-8")
     assert not _COPY.search(src), f"{name} に import pipe_in_generator / except ImportError の写しが残っています"
     assert not _SPEC.search(src), f"{name} に pipe_in_generator の明示の読み込みの写しが残っています"
 
 
-def test_d0085_ac06_読み込みの手順は補助の1か所だけ():
-    """D0085-AC-06: 明示の読み込み（spec_from_file_location）は tests/gen_loader.py にだけある。"""
+def test_d0086_ac06_読み込みの手順は補助の1か所だけ():
+    """D0086-AC-06: 明示の読み込み（spec_from_file_location）は tests/gen_loader.py にだけある。"""
     helper = TESTS / "gen_loader.py"
     assert helper.is_file(), "tests/gen_loader.py がありません"
     assert _SPEC.search(helper.read_text(encoding="utf-8"))
 
 
-def test_d0085_ac07_補助はtestsの中だけでgeneratorとpipe_inに入れない():
-    """D0085-AC-07: 補助は tests/ にあり、generator/・pipe_in/ のソースは補助を知らない。"""
+def test_d0086_ac07_補助はtestsの中だけでgeneratorとpipe_inに入れない():
+    """D0086-AC-07: 補助は tests/ にあり、generator/・pipe_in/ のソースは補助を知らない。"""
     assert (TESTS / "gen_loader.py").is_file(), "tests/gen_loader.py がありません"
     for base in (ROOT / "generator", ROOT / "pipe_in"):
         for p in base.rglob("*.py"):
@@ -195,8 +195,8 @@ def test_d0085_ac07_補助はtestsの中だけでgeneratorとpipe_inに入れな
     assert not (ROOT / "pipe_in" / "gen_loader.py").exists()
 
 
-def test_d0085_ac08_develop_mdにgeneratorの読まれ方がある():
-    """D0085-AC-08: docs/guide/develop.md に、テストは作業フォルダの generator/ を読むこと・pipe-in-gen は入れ込み先を動かすことがある。"""
+def test_d0086_ac08_develop_mdにgeneratorの読まれ方がある():
+    """D0086-AC-08: docs/guide/develop.md に、テストは作業フォルダの generator/ を読むこと・pipe-in-gen は入れ込み先を動かすことがある。"""
     text = (ROOT / "docs" / "guide" / "develop.md").read_text(encoding="utf-8")
     assert "作業フォルダの `generator/`" in text
     assert "入れ込み先" in text

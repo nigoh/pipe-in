@@ -113,9 +113,9 @@ test('D0081-AC-10: 拡張の読み取り（domain/runRecord.ts）のソースに
   assert.doesNotMatch(source, /\.flow\b|\[['"]flow['"]\]|\bflow:/);
 });
 
-// ---- D0090-AC-06：会話の道の flow（拡張は読まずに捨てる） ----
+// ---- D0091-AC-06：会話の道の flow（拡張は読まずに捨てる） ----
 
-test('D0090-AC-06: flow の鍵が入った chat の記録を、落ちずに読み、flow の無い記録と同じ結果になる（flow を使わない。表の chat の行は flow を任意の鍵に持つ。今のまま通る。守る）', () => {
+test('D0091-AC-06: flow の鍵が入った chat の記録を、落ちずに読み、flow の無い記録と同じ結果になる（flow を使わない。表の chat の行は flow を任意の鍵に持つ。今のまま通る。守る）', () => {
   assert.ok(loadStateTable().kinds.chat.optional_keys.includes('flow'), '表の chat の行の optional_keys に flow がある');
   const flow = { steps: 3, retries: { verify: 1 } };
   const withFlow = stateRecordJson('chat', { final: 'PASSED', extra: { flow } });

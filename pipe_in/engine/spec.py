@@ -59,7 +59,7 @@ def stage_budget_usd(spec: StageSpec, cfg: Config) -> float | None:
 
 # 設定なしでも、どの段も書けない場所（D0084）。設定・フック・エージェント・スキル（.claude/）、
 # git の中（.git/ と、worktree でファイルになる .git 自身）、パイプと設定の置き場所、前の版の置き場所、
-# プロジェクトの MCP の定義 .mcp.json（setting_sources の project で読まれる。D0086）。
+# プロジェクトの MCP の定義 .mcp.json（setting_sources の project で読まれる。D0087）。
 # 外す設定は作らない。足したいときは pipeline.toml の protected_paths に書く。
 DEFAULT_PROTECTED_PATHS: tuple[str, ...] = (
     ".claude/*",

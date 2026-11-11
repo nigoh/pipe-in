@@ -1,4 +1,4 @@
-"""D0087 (2)：開発用のフック（.claude/hooks/pipe_in_guard.py）が、書き込み先と基準のリンクの先をたどって判断する。
+"""D0088 (2)：開発用のフック（.claude/hooks/pipe_in_guard.py）が、書き込み先と基準のリンクの先をたどって判断する。
 
 フックは tests/guard_matrix.py の dev_hook() と同じく importlib で読んで decide を呼ぶ（フックのファイルは読むだけ）。
 判断の形は「文字の上の判断（今のまま）と、たどった判断の両方が通るときだけ通す」（狭めない）。
@@ -64,8 +64,8 @@ def denied(reason) -> bool:
 
 
 @pytest.mark.parametrize("tool", TOOLS)
-def test_d0087_ac08_coder_link_to_settings_denied(guard, tmp_path, tool):
-    """D0087-AC-08: src/link.json が .claude/settings.json を指すリンクのとき、pipe-in-coder の Write・Edit・MultiEdit は止まる。
+def test_d0088_ac08_coder_link_to_settings_denied(guard, tmp_path, tool):
+    """D0088-AC-08: src/link.json が .claude/settings.json を指すリンクのとき、pipe-in-coder の Write・Edit・MultiEdit は止まる。
     文字の上の判断は通るが、リンクをたどった判断が止めるので、全体は止まる。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "link.json", p / ".claude" / "settings.json")
@@ -84,8 +84,8 @@ def test_d0087_ac08_coder_link_to_settings_denied(guard, tmp_path, tool):
     ],
 )
 @pytest.mark.parametrize("tool", TOOLS)
-def test_d0087_ac08_other_roles_link_outside_denied(guard, tmp_path, agent, link, target, tool):
-    """D0087-AC-08: tester・analyst・verifier・documenter も、その役の書ける場所の外を指すリンクへの書き込みは止まる。"""
+def test_d0088_ac08_other_roles_link_outside_denied(guard, tmp_path, agent, link, target, tool):
+    """D0088-AC-08: tester・analyst・verifier・documenter も、その役の書ける場所の外を指すリンクへの書き込みは止まる。"""
     p = make_project(tmp_path)
     link_or_skip(p / link, p / target)
     assert denied(verdict(guard, agent, tool, p / link, p)), (agent, link)
@@ -121,8 +121,8 @@ PLAIN = [
 
 
 @pytest.mark.parametrize("agent,rel,allowed", PLAIN)
-def test_d0087_ac09_plain_writes_unchanged(guard, tmp_path, agent, rel, allowed):
-    """D0087-AC-09: リンクでない、ふつうの書き込み（各役の書ける場所、まだ無い新しいファイルも）は今のまま通り、書けない場所は今のまま止まる。"""
+def test_d0088_ac09_plain_writes_unchanged(guard, tmp_path, agent, rel, allowed):
+    """D0088-AC-09: リンクでない、ふつうの書き込み（各役の書ける場所、まだ無い新しいファイルも）は今のまま通り、書けない場所は今のまま止まる。"""
     p = make_project(tmp_path)
     for tool in TOOLS:
         got = verdict(guard, agent, tool, p / rel, p)
@@ -134,8 +134,8 @@ def test_d0087_ac09_plain_writes_unchanged(guard, tmp_path, agent, rel, allowed)
 # ---- AC-10：書ける場所の中を指すリンクは通り、守る場所を指すリンクは止まる -----------------------------------------
 
 
-def test_d0087_ac10_link_inside_writable_allowed(guard, tmp_path):
-    """D0087-AC-10: src/a_link.py が src/app.py を指すリンクのとき、coder は書ける（文字の上もたどった先も書ける場所。今のまま通る。守る）。"""
+def test_d0088_ac10_link_inside_writable_allowed(guard, tmp_path):
+    """D0088-AC-10: src/a_link.py が src/app.py を指すリンクのとき、coder は書ける（文字の上もたどった先も書ける場所。今のまま通る。守る）。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "a_link.py", p / "src" / "app.py")
     for tool in TOOLS:
@@ -143,8 +143,8 @@ def test_d0087_ac10_link_inside_writable_allowed(guard, tmp_path):
 
 
 @pytest.mark.parametrize("target", [".claude/settings.json", ".git/config", ".env", "docs/pipeline/01_requirements.md", "tests/test_a.py"])
-def test_d0087_ac10_link_to_protected_denied(guard, tmp_path, target):
-    """D0087-AC-10: 書ける場所の中から、記録（docs/pipeline/ のほかの段）・.claude/・.git/・.env・テストを指すリンクは、coder で止まる。"""
+def test_d0088_ac10_link_to_protected_denied(guard, tmp_path, target):
+    """D0088-AC-10: 書ける場所の中から、記録（docs/pipeline/ のほかの段）・.claude/・.git/・.env・テストを指すリンクは、coder で止まる。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "l.py", p / target)
     for tool in TOOLS:
@@ -152,8 +152,8 @@ def test_d0087_ac10_link_to_protected_denied(guard, tmp_path, target):
 
 
 @pytest.mark.parametrize("folder", [".claude", ".git"])
-def test_d0087_ac10_dir_link_to_protected_denied(guard, tmp_path, folder):
-    """D0087-AC-10: 途中のフォルダがリンクで守る場所を指す形（src/dl → .claude）も、その下への書き込みが止まる。"""
+def test_d0088_ac10_dir_link_to_protected_denied(guard, tmp_path, folder):
+    """D0088-AC-10: 途中のフォルダがリンクで守る場所を指す形（src/dl → .claude）も、その下への書き込みが止まる。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "dl", p / folder, directory=True)
     name = "settings.json" if folder == ".claude" else "config"
@@ -161,8 +161,8 @@ def test_d0087_ac10_dir_link_to_protected_denied(guard, tmp_path, folder):
 
 
 @pytest.mark.parametrize("link", [".claude/x.json", ".git/x", "tests/l.py", "docs/pipeline/01_requirements.md"])
-def test_d0087_ac10_link_from_protected_to_writable_denied(guard, tmp_path, link):
-    """D0087-AC-10: 止まる所から、書ける所（src/app.py）を指すリンクも、coder で止まる（文字の上の判断も残す。両方が通るときだけ通す。
+def test_d0088_ac10_link_from_protected_to_writable_denied(guard, tmp_path, link):
+    """D0088-AC-10: 止まる所から、書ける所（src/app.py）を指すリンクも、coder で止まる（文字の上の判断も残す。両方が通るときだけ通す。
     今のまま止まる。守る）。"""
     p = make_project(tmp_path)
     f = p / link
@@ -183,8 +183,8 @@ def make_worktrees(tmp_path: Path):
     return main, wt, wt2
 
 
-def test_d0087_ac11_worktree_root_unchanged(guard, tmp_path):
-    """D0087-AC-11: .git がファイルの worktree（主の checkout の .claude/ の中にある）では、基準は worktree 自身のまま。
+def test_d0088_ac11_worktree_root_unchanged(guard, tmp_path):
+    """D0088-AC-11: .git がファイルの worktree（主の checkout の .claude/ の中にある）では、基準は worktree 自身のまま。
     worktree の中のふつうの書き込みは通り、.claude/・テスト・worktree の外（主の checkout）は止まる（今のまま通る。守る）。"""
     main, wt, _ = make_worktrees(tmp_path)
     root = guard.project_root(str(wt / "src"), None)
@@ -196,8 +196,8 @@ def test_d0087_ac11_worktree_root_unchanged(guard, tmp_path):
 
 
 @pytest.mark.parametrize("target", ["main-src", "main-claude", "other-worktree"])
-def test_d0087_ac11_worktree_link_outside_denied(guard, tmp_path, target):
-    """D0087-AC-11: worktree の中のリンクが、worktree の外（主の checkout・ほかの worktree）を指すときは止まる。"""
+def test_d0088_ac11_worktree_link_outside_denied(guard, tmp_path, target):
+    """D0088-AC-11: worktree の中のリンクが、worktree の外（主の checkout・ほかの worktree）を指すときは止まる。"""
     main, wt, wt2 = make_worktrees(tmp_path)
     dest = {"main-src": main / "src" / "app.py", "main-claude": main / ".claude" / "settings.json", "other-worktree": wt2 / "src" / "app.py"}[target]
     link_or_skip(wt / "src" / "l.py", dest)
@@ -206,8 +206,8 @@ def test_d0087_ac11_worktree_link_outside_denied(guard, tmp_path, target):
         assert denied(verdict(guard, "pipe-in-coder", tool, wt / "src" / "l.py", root, cwd=wt)), (tool, target)
 
 
-def test_d0087_ac11_worktree_link_inside_allowed(guard, tmp_path):
-    """D0087-AC-11: worktree の中のリンクが worktree の中の書ける場所を指すときは通る。主の checkout の道を回って同じ worktree を指すリンクも通る
+def test_d0088_ac11_worktree_link_inside_allowed(guard, tmp_path):
+    """D0088-AC-11: worktree の中のリンクが worktree の中の書ける場所を指すときは通る。主の checkout の道を回って同じ worktree を指すリンクも通る
     （基準もたどるので、worktree 自身が書ける範囲は変わらない。今のまま通る。守る）。"""
     main, wt, _ = make_worktrees(tmp_path)
     link_or_skip(wt / "src" / "a.py", wt / "src" / "app.py")
@@ -218,8 +218,8 @@ def test_d0087_ac11_worktree_link_inside_allowed(guard, tmp_path):
 
 
 @pytest.mark.parametrize("form", ["root-link", "path-link", "both-link", "both-real"])
-def test_d0087_ac11_cwd_via_link_same_result(guard, tmp_path, form):
-    """D0087-AC-11: cwd がリンクを経た形（/tmp → /private/tmp 型）でも、基準と書き込み先が同じ形なら、ふつうの書き込みは通り、守る場所は止まる。
+def test_d0088_ac11_cwd_via_link_same_result(guard, tmp_path, form):
+    """D0088-AC-11: cwd がリンクを経た形（/tmp → /private/tmp 型）でも、基準と書き込み先が同じ形なら、ふつうの書き込みは通り、守る場所は止まる。
     片方だけがリンクを経た形のときも、守る場所は止まる。"""
     real = tmp_path / "real_parent"
     p = make_project(real)
@@ -237,8 +237,8 @@ def test_d0087_ac11_cwd_via_link_same_result(guard, tmp_path, form):
             assert verdict(guard, "pipe-in-coder", tool, "src/new.py", root, cwd=root) is None, (form, tool)
 
 
-def test_d0087_ac11_link_in_link_parent_still_traced(guard, tmp_path):
-    """D0087-AC-11: cwd がリンクを経た形のとき、プロジェクトの中のリンクが守る場所を指すなら、それでも止まる。"""
+def test_d0088_ac11_link_in_link_parent_still_traced(guard, tmp_path):
+    """D0088-AC-11: cwd がリンクを経た形のとき、プロジェクトの中のリンクが守る場所を指すなら、それでも止まる。"""
     real = tmp_path / "real_parent"
     p = make_project(real)
     link_or_skip(tmp_path / "link_parent", real, directory=True)
@@ -252,8 +252,8 @@ def test_d0087_ac11_link_in_link_parent_still_traced(guard, tmp_path):
 
 @pytest.mark.parametrize("shape", ["broken-inside", "broken-outside", "self-loop", "pair-loop"])
 @pytest.mark.parametrize("tool", TOOLS)
-def test_d0087_ac12_broken_and_loop_denied(guard, tmp_path, shape, tool):
-    """D0087-AC-12: 壊れたリンク（先が書ける場所の中でも外でも）と、輪になったリンクは、coder で止まり、例外を出さずに理由の文を返す。"""
+def test_d0088_ac12_broken_and_loop_denied(guard, tmp_path, shape, tool):
+    """D0088-AC-12: 壊れたリンク（先が書ける場所の中でも外でも）と、輪になったリンクは、coder で止まり、例外を出さずに理由の文を返す。"""
     p = make_project(tmp_path)
     src = p / "src"
     if shape == "broken-inside":
@@ -278,8 +278,8 @@ def _run_main(guard, monkeypatch, data: dict) -> tuple[int, bytes]:
 
 
 @pytest.mark.parametrize("agent", ["pipe-in-coder", "pipe-in-tester"])
-def test_d0087_ac12_hook_does_not_crash(guard, tmp_path, monkeypatch, agent):
-    """D0087-AC-12: 先をたどる関数（os.path.realpath）が例外を出しても、フックは落ちず、pipe-in-* の書き込みは deny の JSON で止める
+def test_d0088_ac12_hook_does_not_crash(guard, tmp_path, monkeypatch, agent):
+    """D0088-AC-12: 先をたどる関数（os.path.realpath）が例外を出しても、フックは落ちず、pipe-in-* の書き込みは deny の JSON で止める
     （終了コード 0）。読むだけの道具は通す。"""
     p = make_project(tmp_path)
     rel = "src/new.py" if agent == "pipe-in-coder" else "tests/test_new.py"
@@ -297,8 +297,8 @@ def test_d0087_ac12_hook_does_not_crash(guard, tmp_path, monkeypatch, agent):
         assert (code, out) == (0, b"")
 
 
-def test_d0087_ac12_main_caller_unaffected_by_links(guard, tmp_path, monkeypatch):
-    """D0087-AC-12: メイン（agent_type 無し）は絞らない相手：壊れたリンク・輪のリンク・守る場所を指すリンクへの書き込みも、今までどおり通し、
+def test_d0088_ac12_main_caller_unaffected_by_links(guard, tmp_path, monkeypatch):
+    """D0088-AC-12: メイン（agent_type 無し）は絞らない相手：壊れたリンク・輪のリンク・守る場所を指すリンクへの書き込みも、今までどおり通し、
     たどる関数が例外を出しても何も出さない（今のまま通る。守る）。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "to_claude.json", p / ".claude" / "settings.json")
@@ -320,8 +320,8 @@ def test_d0087_ac12_main_caller_unaffected_by_links(guard, tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("agent", WRITERS)
-def test_d0087_ac15_dev_never_widens(guard, tmp_path, agent):
-    """D0087-AC-15: 今の判断（project_path ＋ その役の can_write の写し）が止める入力は、リンクが絡んでも、たどったあとも止まる
+def test_d0088_ac15_dev_never_widens(guard, tmp_path, agent):
+    """D0088-AC-15: 今の判断（project_path ＋ その役の can_write の写し）が止める入力は、リンクが絡んでも、たどったあとも止まる
     （.. ・基準の外・名前の違い・守る場所を直接指すパス・止まる所から書ける所を指すリンク）。リンクの無い入力は、止める・通すが今と同じ。"""
     p = make_project(tmp_path)
     can_write = guard.AGENTS[agent][0]
@@ -378,8 +378,8 @@ def test_d0087_ac15_dev_never_widens(guard, tmp_path, agent):
         ("NotebookEdit", {"notebook_path": ".claude/a.ipynb"}),
     ],
 )
-def test_d0087_ac15_dev_other_roads_still_denied(guard, tmp_path, agent, tool, tool_input):
-    """D0087-AC-15: Bash の書き込み・PowerShell・MCP・サブエージェント・ノートブックの道は、リンクのあるプロジェクトでも止まる（今のまま通る。守る）。"""
+def test_d0088_ac15_dev_other_roads_still_denied(guard, tmp_path, agent, tool, tool_input):
+    """D0088-AC-15: Bash の書き込み・PowerShell・MCP・サブエージェント・ノートブックの道は、リンクのあるプロジェクトでも止まる（今のまま通る。守る）。"""
     p = make_project(tmp_path)
     link_or_skip(p / "src" / "link.json", p / ".claude" / "settings.json")
     payload_ = {"tool_name": tool, "tool_input": tool_input, "cwd": str(p), "agent_type": agent}

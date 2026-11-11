@@ -326,7 +326,7 @@ export async function chatPageHtml(dest: string, theme: Theme): Promise<string> 
   return panelPreviewHtml(view, theme, undefined, STALE_AFTER_SEC);
 }
 
-// ---- 開発用の新しい記録の見本（D0089）--------------------------------------------------------
+// ---- 開発用の新しい記録の見本（D0090）--------------------------------------------------------
 // 見本の記録（devSamples.ts）を一時フォルダ（dest）の docs/pipeline に書いて、本物の読み取りで読む。tests/fixtures/ には書かない。
 // 時計は渡さない（「今」は記録から読めた一番新しい時刻になり、全体が 1 秒ほどの短い記録になる）。
 

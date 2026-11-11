@@ -1,4 +1,4 @@
-# D0090 会話の道の回数を、記録の `flow` に寄せる（#140）
+# D0091 会話の道の回数を、記録の `flow` に寄せる（#140）
 
 ## 目的
 
@@ -11,23 +11,23 @@ D0081 で、SDK の道（`pipe-in --pipe`）は、段を流した回数（`steps
 テストは、断りの無いかぎり `tests/test_chat_flow_counts.py`。
 
 - FR-01 `chat start` は、記録に `flow`（`steps` が 0、`retries` が空）を書く。
-  - D0090-AC-01：`flow` が 0 と空で書かれ、鍵の位置は `warnings` の後ろ・`open` の前。`chat.steps`・`chat.retries` にも同じ値がある。
+  - D0091-AC-01：`flow` が 0 と空で書かれ、鍵の位置は `warnings` の後ろ・`open` の前。`chat.steps`・`chat.retries` にも同じ値がある。
 - FR-02 2つの道は、同じ台本で同じ回数になる。
-  - D0090-AC-02：同じパイプ・同じ台本（通る／不合格で戻す／上限に達する／確認で承認／確認で直しを頼む）を2つの道で流すと、`flow` が各時点で一致する。止まる回も同じ。違うのは1点だけで、`max_steps` を超えて止まった時点の `steps` が、SDK の道は `max_steps + 1`、会話の道は `max_steps`（テストで固定）。
+  - D0091-AC-02：同じパイプ・同じ台本（通る／不合格で戻す／上限に達する／確認で承認／確認で直しを頼む）を2つの道で流すと、`flow` が各時点で一致する。止まる回も同じ。違うのは1点だけで、`max_steps` を超えて止まった時点の `steps` が、SDK の道は `max_steps + 1`、会話の道は `max_steps`（テストで固定）。
 - FR-03 会話の道は、`flow` の鍵が無ければ古い `chat.steps`・`chat.retries` を読む。鍵があれば、`flow` と `chat.*` の大きいほうを採る。保存のたびに、`flow` と `chat.*` に同じ値を書く。
-  - D0090-AC-03：`flow` の無い古い記録を `next`・`review` で続けると、数が引き継がれて `flow` が足される。古い記録の上限（`max_steps`・`max_retries`）は、続けたあとも効く。
-  - D0090-AC-07：壊れた `flow`（辞書でない・負の数・文字・真偽値・小数）は、壊れた部分だけ 0 と読み、落ちない。`flow` と `chat.*` が食い違う記録は大きいほうを採り、上限が甘くならない。
+  - D0091-AC-03：`flow` の無い古い記録を `next`・`review` で続けると、数が引き継がれて `flow` が足される。古い記録の上限（`max_steps`・`max_retries`）は、続けたあとも効く。
+  - D0091-AC-07：壊れた `flow`（辞書でない・負の数・文字・真偽値・小数）は、壊れた部分だけ 0 と読み、落ちない。`flow` と `chat.*` が食い違う記録は大きいほうを採り、上限が甘くならない。
 - FR-04 止まる回・文・終わりの形は今と同じ。
-  - D0090-AC-04：`max_retries` で止まる文・`final`・`99_summary.md` が今と同じ。既存の `tests/test_chat_*.py` は書き換えなしで通る。
+  - D0091-AC-04：`max_retries` で止まる文・`final`・`99_summary.md` が今と同じ。既存の `tests/test_chat_*.py` は書き換えなしで通る。
 - FR-05 `chat status` の `steps`・`retries` と文は、今と同じ値を返す。
-  - D0090-AC-05：新しい記録・古い記録で同じ値と文を返し、`status` は記録を書き換えない（`state.json` のバイトが前後で同じ）。
+  - D0091-AC-05：新しい記録・古い記録で同じ値と文を返し、`status` は記録を書き換えない（`state.json` のバイトが前後で同じ）。
 - FR-06 拡張は `flow` を読まない（コードを変えない）。
-  - D0090-AC-06：`flow` の入った会話の道の記録を、落ちずに読み、`flow` の無い記録と同じ結果になる（`vscode/src/domain/stateRecord.test.ts`）。
+  - D0091-AC-06：`flow` の入った会話の道の記録を、落ちずに読み、`flow` の無い記録と同じ結果になる（`vscode/src/domain/stateRecord.test.ts`）。
 - FR-07 `read_flow` を、標準ライブラリだけの小さな部品 `pipe_in/engine/flow.py` に移す。
-  - D0090-AC-08：`flow.py` は標準ライブラリだけ。`chat.py` は `read_flow` を SDK の道のモジュール（`pipe_in.pipe.pipeline`）から読まない（`tests/test_architecture.py`）。`pipe_in.pipe.pipeline` からも同じ名前で読める。
+  - D0091-AC-08：`flow.py` は標準ライブラリだけ。`chat.py` は `read_flow` を SDK の道のモジュール（`pipe_in.pipe.pipeline`）から読まない（`tests/test_architecture.py`）。`pipe_in.pipe.pipeline` からも同じ名前で読める。
 - FR-08 共通の表（`tests/fixtures/state_record.json`）の `chat` の行に、任意の鍵 `flow` を足す。
-  - D0090-AC-09：`flow` のある記録と、`flow` を消した古い記録の両方が、表の検査を通る。
-- D0090-AC-10：文書（`docs/guide/records.md`・`docs/guide/pipes.md`・`docs/development/design.md`）が、会話の道も `flow` を書くことに合っている（この番号の付いたテストは無い。人が読んで確かめる）。
+  - D0091-AC-09：`flow` のある記録と、`flow` を消した古い記録の両方が、表の検査を通る。
+- D0091-AC-10：文書（`docs/guide/records.md`・`docs/guide/pipes.md`・`docs/development/design.md`）が、会話の道も `flow` を書くことに合っている（この番号の付いたテストは無い。人が読んで確かめる）。
 
 ## 決めたことと理由
 
@@ -45,7 +45,7 @@ D0081 で、SDK の道（`pipe-in --pipe`）は、段を流した回数（`steps
 
 - 開発フロー（`pipe_in/dev/`）の回数を `flow` に寄せること、拡張で `flow` を画面に出すこと、`chat.steps`・`chat.retries` を消すことは、対象外。
 - 数える順（`max_steps` で止まった時点の `steps` が 1 違う）は、司会役をまとめるとき（#143）にそろえるかを決める。
-- 監査の報告（直していない。人の確認は朝）：A-01 `tests/test_pipe_flow_counts.py` の D0081 のテストの docstring に、「`new_state` は `flow` を渡さなければ鍵を書かない（DevPipeline・会話の道の記録を変えない守り）」という言い方が1か所残っている。会話の道は D0090 で `flow` を渡すようになったので、「会話の道」は外すのが正しい。
+- 監査の報告（直していない。人の確認は朝）：A-01 `tests/test_pipe_flow_counts.py` の D0081 のテストの docstring に、「`new_state` は `flow` を渡さなければ鍵を書かない（DevPipeline・会話の道の記録を変えない守り）」という言い方が1か所残っている。会話の道は D0091 で `flow` を渡すようになったので、「会話の道」は外すのが正しい。
 - 助言と審査は流さなかった（守り・プラグイン・`.claude/` に触れていない）。
 
 ## 確かめたこと

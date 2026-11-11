@@ -1,32 +1,32 @@
-# D0091 司会役を1つにまとめる設計：純粋な部品と薄い殻に分け、動きを変えない段で移す（#143）
+# D0092 司会役を1つにまとめる設計：純粋な部品と薄い殻に分け、動きを変えない段で移す（#143）
 
 ## 目的
 
-「次にどの段を流すか・確認で止めるか・不合格ならどこへ戻すか・上限で止めるか・記録に何を書くか」を決める司会役が、3つある（SDK の道のパイプと開発フロー・会話の道・開発用の記録）。同じ決まりを別々に書いているので、1つを直すと、ほかがずれる。D0080（記録の土台）・D0081 と D0090（回数）・D0082（能力表）・D0083 と D0084（守り）で足場はそろえたが、判断そのものは、まだ別々。
+「次にどの段を流すか・確認で止めるか・不合格ならどこへ戻すか・上限で止めるか・記録に何を書くか」を決める司会役が、3つある（SDK の道のパイプと開発フロー・会話の道・開発用の記録）。同じ決まりを別々に書いているので、1つを直すと、ほかがずれる。D0080（記録の土台）・D0081 と D0091（回数）・D0082（能力表）・D0083 と D0084（守り）で足場はそろえたが、判断そのものは、まだ別々。
 
 この記録は、まとめた形と、移す順番を決める**設計**。この件では、製品コードもテストも変えない。実装は、下の段ごとの issue で行う。
 
-行の番号は、この版（D0090 が入ったあと）の実物のもの。直すと動くので、段で直すときは関数の名前で探す。
+行の番号は、この版（D0091 が入ったあと）の実物のもの。直すと動くので、段で直すときは関数の名前で探す。
 
 ## 機能要件と受け入れ基準
 
 受け入れ基準は、この記録を読むか、差分を見て確かめる（テストは足さない。テストの名前に ID は付けない）。
 
 - FR-01 3つの司会役の判断を、項目ごとに並べた表を作る。同じ所と、違う所（理由があって違う／歴史で違う）を分ける。
-  - D0091-AC-01：下の「1. 判断の表」が、11項目（次の段の決め方・確認の取り方・`revise`・検査と差し戻し・上限・並列の枠・分岐・`--from`・`--after`・終わり方・記録に書く鍵）をすべて含み、各行に司会役ごとの欄と「同じ／違う（理由）／違う（歴史）」の別がある。
+  - D0092-AC-01：下の「1. 判断の表」が、11項目（次の段の決め方・確認の取り方・`revise`・検査と差し戻し・上限・並列の枠・分岐・`--from`・`--after`・終わり方・記録に書く鍵）をすべて含み、各行に司会役ごとの欄と「同じ／違う（理由）／違う（歴史）」の別がある。
 - FR-02 まとめた形を決める（実行役に依らない純粋な部品と、実行役ごとの薄い殻。置き場所と依存の向き）。
-  - D0091-AC-02：「2. 選んだ形」に、純粋な部品の入力と出力、殻ごとの受け持ち、置き場所が書いてある。
-  - D0091-AC-03：「3. 選ばなかった形」が2つ以上あり（「会話の道を SDK の道の殻にする」「3つとも1つのクラスにする」を含む）、それぞれに理由がある。
-  - D0091-AC-06：置く部品はすべて、依存の向き（`pipe_in_generator` → `pipe_in.pipe` / `pipe_in.dev` → `pipe_in.engine` → `pipe_in.usage`）の逆向きの import を要しない。「5. 依存の向き」に、部品ごとの表で示してある。
+  - D0092-AC-02：「2. 選んだ形」に、純粋な部品の入力と出力、殻ごとの受け持ち、置き場所が書いてある。
+  - D0092-AC-03：「3. 選ばなかった形」が2つ以上あり（「会話の道を SDK の道の殻にする」「3つとも1つのクラスにする」を含む）、それぞれに理由がある。
+  - D0092-AC-06：置く部品はすべて、依存の向き（`pipe_in_generator` → `pipe_in.pipe` / `pipe_in.dev` → `pipe_in.engine` → `pipe_in.usage`）の逆向きの import を要しない。「5. 依存の向き」に、部品ごとの表で示してある。
 - FR-03 移す順番を、動きを変えない小さな段に切る。段ごとの issue の下書きを付ける。
-  - D0091-AC-04：「4. 移す順番」の全部の段に、「先に足すテスト」「動きが変わらないことの確かめ」「大きさ」の3つが書いてある。
-  - D0091-AC-05：各段に issue の下書きがある。#140（D0090）との前後が書いてある。
+  - D0092-AC-04：「4. 移す順番」の全部の段に、「先に足すテスト」「動きが変わらないことの確かめ」「大きさ」の3つが書いてある。
+  - D0092-AC-05：各段に issue の下書きがある。#140（D0091）との前後が書いてある。
 - FR-04 まとめない所と、その理由を書く。
-  - D0091-AC-07：「6. まとめない所と理由」に1つ以上あり、各々に理由がある。
+  - D0092-AC-07：「6. まとめない所と理由」に1つ以上あり、各々に理由がある。
 - FR-05 記録の形・`pipe.toml`・コマンドの引数は変えない。変えたい所は、別の案として分ける。
-  - D0091-AC-08：「7. 変えないもの」に明記してあり、変えたい所は「9. 別の案」に分けてある。
-- D0091-AC-09：この件のコミットの差分が `docs/` の文書だけで、`pipe_in/`・`generator/`・`plugin/`・`vscode/`・`tests/`・`.claude/` に差分が無い。
-- D0091-AC-10：この記録が `docs/decisions/README.md` の一覧に1行あり、`tests/test_rules.py` と `tests/test_doc_shape.py` が通る。
+  - D0092-AC-08：「7. 変えないもの」に明記してあり、変えたい所は「9. 別の案」に分けてある。
+- D0092-AC-09：この件のコミットの差分が `docs/` の文書だけで、`pipe_in/`・`generator/`・`plugin/`・`vscode/`・`tests/`・`.claude/` に差分が無い。
+- D0092-AC-10：この記録が `docs/decisions/README.md` の一覧に1行あり、`tests/test_rules.py` と `tests/test_doc_shape.py` が通る。
 
 ## 決めたことと理由
 
@@ -37,11 +37,11 @@
 - 能力表（D0082）は `pipe_in/pipe/capability.py` にある（`pipe_in/engine/` ではない）。標準ライブラリだけで、`chat.py` の `unsupported()`・`ineffective()` が使う。
 - 会話の道（`Chat`）は、`start`・`probe`・`next`・`done`・`review`・`status`。1回の呼び出しで1つの出来事を受け、`state.json` を読んで書いて終わる。「出来事を受けて次の動きを返す」形に、もう近い。
 - SDK の道は2つの司会役を持つ。`LinearPipeline`（`_flow`・`_step`・`_member`・`review`）と `DevPipeline`（`_stages_from`・`_doc_stage`・`_red_stage`・`_build_and_test`・`review`＝土台のもの）。土台 `BasePipeline` は確認・保存・要約・終了コードを持つが、「次の段」は子に任せている。
-- `chat.py` は `verdict_outcome`・`command_outcome`・`stage_checks`・`exit_message`・`check_summary_lines` を `pipe_in.pipe.pipeline`（SDK の道の司会役）から読む（L38）。D0090 が「司会役をまとめる件で扱う」と残した所。
+- `chat.py` は `verdict_outcome`・`command_outcome`・`stage_checks`・`exit_message`・`check_summary_lines` を `pipe_in.pipe.pipeline`（SDK の道の司会役）から読む（L38）。D0091 が「司会役をまとめる件で扱う」と残した所。
 - 開発用の記録 `Recorder`（`record.py`）は、次の段も上限も決めない。段の表（`OUTPUTS`・`REVIEWED`・`STAGES`）と終わりの名前（`FINALS`）を持つだけ。判断は会話のスキルが持つ。
 - 開発フローの差し戻しの回数は、記録の `flow` にも段の `check` にも無く、`cfg.max_retries`（`pipeline.toml`）を `_build_and_test` の `for` の範囲で使う。`load_config`（`config.py` L158）は負の数を検めない。
 
-### 1. 判断の表（D0091-AC-01）
+### 1. 判断の表（D0092-AC-01）
 
 セルの根拠は関数の名前（と、この版の行）。「別」は 同じ／違う（理由）／違う（歴史）。1行に混ざるときは、混ざった所を分けて書いた。
 
@@ -51,7 +51,7 @@
 | 確認の取り方 | `_step`（L329-349）：`review` の段で、`auto_approve` なら飛ばし、`pause_for_review` なら `pending`（`next` 付き）、それ以外は `_confirm`。検査に通ってから取る。 | `_doc_stage`（L311-334）・`_red_stage`（L157-173）：形は同じ。`_pause`（`engine/pipeline.py` L302-309）の `pending` に `next` が無い。 | `done`（L620-629）：`review` の段は必ず `pending_review`（`next` 付き）。`auto_approve` は黙って効かない（能力表）。 | `wait`（L218-227）・`review`（L229-244）：印と結果を書くだけ。止める段は `REVIEWED`（L32）。 | 待ち方は違う（理由：端末・返事のファイル・会話・スキルで入出力が別）。開発の `pending` に `next` が無いのは違う（歴史）。「検査のあとに `review` の旗で止める」は同じ。 |
 | `revise` | `_step`（L348-349）：同じ会話の続き（`resume`）でその場でやり直す。`review()`（L225-229）は `first=` で `_flow` を再開。`steps` に数えない（L259）。 | `_doc_stage`（L331-334）・土台の `review`（L349-352）：同じ。数える物が無い。 | `review`（L674-678）が `chat["revise"]` に置き、`next`（L395-397）が `kind="revise"` で返す。`steps` に数えない。直す点が空なら断る（L657-660）。 | `review`（L229-244）：直す点が無ければ断り（L238）、履歴に足すだけ。 | 数えない・直す点が要るは同じ。会話の続き（`resume`）は違う（理由：会話の道の `session_id` は `None`）。 |
 | 検査と差し戻し | `_check`（L351-383）：判定・審査・確認用コマンド → 履歴に `check` → `_flow`（L265-276）が `flow_retries` を見て `on_fail`（無ければ自分）へ戻す。 | `_test`（L177-202）・`_build_and_test`（L204-223）：判定は pass / fail / blocked の3値。`cfg.test_command` で pass を fail に直す。戻し先は常に実装。履歴は `verdict`。 | `done`（L585-612）：`verdict_outcome`・`command_outcome`（パイプと同じ関数）。審査は断る。直す点は `chat.notes` に保存。 | `verdict`（L264-284）・`red`（L248-262）：結果を書くだけ。 | パイプと会話は同じ（関数を共有）。開発は違う（歴史：3値・`verdict` の記録・`cfg.max_retries`）。審査は違う（理由：会話の道に構造化出力が無い）。 |
-| 上限（`max_steps`・`max_retries`） | `max_steps`：増やしてから比べ（L260-262）、超えたら `_too_many_steps`（L305-308）で `STAGE_ERROR`。`max_retries`：段の `check.max_retries` を `flow_retries` と比べる（L267-270）。 | `max_steps` は無い。`cfg.max_retries` を試行の `for`（L206-223）で使う。回数は `flow` に書かない。 | `max_steps`：比べてから増やす（`next` L399-404）。同じ文・同じ `STAGE_ERROR`。`max_retries`：`done`（L601-605）。回数は `_counts`（L116-126）が `flow` と `chat.*` の大きいほうを採る。 | 持たない。 | 止まる回と文は同じ。止まった時点の `steps` が1違うのは違う（歴史：D0090 で固定）。開発は違う（歴史）。 |
+| 上限（`max_steps`・`max_retries`） | `max_steps`：増やしてから比べ（L260-262）、超えたら `_too_many_steps`（L305-308）で `STAGE_ERROR`。`max_retries`：段の `check.max_retries` を `flow_retries` と比べる（L267-270）。 | `max_steps` は無い。`cfg.max_retries` を試行の `for`（L206-223）で使う。回数は `flow` に書かない。 | `max_steps`：比べてから増やす（`next` L399-404）。同じ文・同じ `STAGE_ERROR`。`max_retries`：`done`（L601-605）。回数は `_counts`（L116-126）が `flow` と `chat.*` の大きいほうを採る。 | 持たない。 | 止まる回と文は同じ。止まった時点の `steps` が1違うのは違う（歴史：D0091 で固定）。開発は違う（歴史）。 |
 | 並列の枠 | `_flow`（L245-256）・`_group_members`・`_member`（L289-303）：同じ `group` を `asyncio.gather`。枠の中は自分だけやり直す（その場の `tries`）。`steps` は人数分。 | 無い。 | 断る（能力表 `PipeStage.group`）。 | 無い。 | 違う（理由：会話の道は段を1つずつしか流せない）。 |
 | 分岐 | `_next_of`（L387-396）：`choice` が `routes` に無ければ `_BadRoute`。履歴に `route`。 | 無い。 | 断る（能力表 `PipeStage.routes`。構造化出力が無い）。 | 無い。 | 違う（理由：同上）。 |
 | `--from` | `run`（L179-206）：`from_stage` より前の成果物があるかを見る（`routes`・`next`・`group` のある段は除く）。回数は 0 から。受けた元は記録から。 | `run`（L239-250）・`_check_prereq`（L227-237）：段ごとに手で書いた必要なファイルの表。`skip_first_impl`。 | 無い。やり直しは `chat start`（途中の記録があれば断る。L302-306）。 | 無い。やり直しは `start`。 | 会話・記録は違う（理由：記録の続きで進める）。パイプと開発は違う（歴史：開発の表が手書き）。 |
@@ -61,7 +61,7 @@
 
 表から分かること：同じ決まり（`next` の次・検査の読み・差し戻しの上限・`revise` を数えない・確認の旗・終わりの名前）が、パイプと会話で2回書かれている。開発フローは「歴史で違う」所が多く、パイプの定義に載せ直せる（5段の固定・`test` の検査・`implement` へ戻す）。
 
-### 2. 選んだ形（D0091-AC-02）
+### 2. 選んだ形（D0092-AC-02）
 
 #### 2.1 考え方
 
@@ -156,25 +156,25 @@ decide(plan, counts, event, policy) ──→ 次の動き（RunStage・CheckSta
 
 #### 2.6 `chat.py` が SDK の司会役を読まなくする
 
-`verdict_outcome`・`command_outcome`・`stage_checks`・`exit_message`・`check_summary_lines`（とその補助 `_judge_line`）を、新しい `pipe_in/pipe/outcome.py` へ移す。`pipe/pipeline.py` からは同じ名前で読めるまま（D0090 の `read_flow` と同じやり方）。`chat.py` は `outcome.py` と `engine/conductor.py` を読み、`pipe/pipeline.py` を読まない。
+`verdict_outcome`・`command_outcome`・`stage_checks`・`exit_message`・`check_summary_lines`（とその補助 `_judge_line`）を、新しい `pipe_in/pipe/outcome.py` へ移す。`pipe/pipeline.py` からは同じ名前で読めるまま（D0091 の `read_flow` と同じやり方）。`chat.py` は `outcome.py` と `engine/conductor.py` を読み、`pipe/pipeline.py` を読まない。
 
-### 3. 選ばなかった形（D0091-AC-03）
+### 3. 選ばなかった形（D0092-AC-03）
 
 | 形 | 理由（選ばなかった） |
 | --- | --- |
 | **A. 会話の道を SDK の道の殻にする**（`LinearPipeline` を会話の道から使う） | `LinearPipeline` の `_flow` は、1回の `await` の中で最後まで（または確認まで）走るループ。会話の道は、1つの出来事ごとにプロセスが終わり、`state.json` から再開する。ループを「1歩ずつ」に割ると、`runner`・`ask`・`asyncio.gather` を持つ SDK の道そのものを作り直すことになる。会話の道は SDK を読まない（D0077-AC-35、`tests/test_architecture_chat.py`）ので、`BasePipeline`（`engine.runner` を読む）を継ぐ形も取れない。 |
 | **B. 3つとも1つのクラスにする** | 3つの道は、入出力が違う（SDK・JSON・記録だけ）。1つのクラスに `if 実行役 ==` を入れると、能力表（D0082）が追い出した「項目の名前で分ける条件」が戻る。開発用の記録は判断を持たない設計（スキルが持つ）で、クラスにまとめると判断を持たされる。 |
-| **C. 今のまま、足場（D0080〜D0090）だけで続ける** | 記録の形・回数・断る形は共通になった。だが「次の段」「上限」「差し戻し」「確認の旗」の判断は、`_flow` と `done` と `review` に2回書かれたまま。直すたびにずれる（#143 の困りごと）が残る。 |
+| **C. 今のまま、足場（D0080〜D0091）だけで続ける** | 記録の形・回数・断る形は共通になった。だが「次の段」「上限」「差し戻し」「確認の旗」の判断は、`_flow` と `done` と `review` に2回書かれたまま。直すたびにずれる（#143 の困りごと）が残る。 |
 | **D. 能力表（D0082）に判断を入れる** | 表は「項目 × 実行役の動き」のデータ。順番・回数・分岐は状態を持つ判断で、表のデータにすると表が手続きになる。能力表は「この形は扱えるか」を答え、部品は「扱えるとして次に何をするか」を答える、と分ける。 |
 | **E. 純粋な部品を `pipe/` に置いて `dev` が読む** | `dev → pipe` は向きとして逆（`RULES` で `pipe_in.dev` は `pipe_in.pipe` を import できない）。`dev` が部品を読めるようにするには `engine` に置くしかない。 |
 
-### 4. 移す順番（D0091-AC-04・05）
+### 4. 移す順番（D0092-AC-04・05）
 
 どの段も「動きを変えない」。先にテストを足し、今の動きで通ることを確かめてから移す。段の途中でも `pytest -q` が全部通る状態でコミットする（1つの機能を1コミット）。
 
-#140（D0090。済み）は先。段3 以降は、D0090 の `read_flow`・`_counts`・二つの道の台本（`tests/test_chat_flow_counts.py` の `SCRIPTS`）の上に立つ。
+#140（D0091。済み）は先。段3 以降は、D0091 の `read_flow`・`_counts`・二つの道の台本（`tests/test_chat_flow_counts.py` の `SCRIPTS`）の上に立つ。
 
-D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」は、本線では**そのまま保つ**（`Policy.count_refused_step`：SDK は `True`、会話は `False`。`test_d0090_ac02_max_stepsで止まった時点のstepsは…` が固定している）。そろえるのは段7（任意。記録の値が1変わるので人の確認が要る）。
+D0091 で残した「`max_steps` で止まった時点の `steps` が1違う」は、本線では**そのまま保つ**（`Policy.count_refused_step`：SDK は `True`、会話は `False`。`test_d0091_ac02_max_stepsで止まった時点のstepsは…` が固定している）。そろえるのは段7（任意。記録の値が1変わるので人の確認が要る）。
 
 #### 段の一覧
 
@@ -192,7 +192,7 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 
 - すること：製品コードは変えない。「3つの司会役の台本表」のテストを足す。1つの台本を、流せる道に流して、止まる所・`final`・終了コード・`flow`・`runs` の `check`・`review`・`route` の並び・`state.json` の鍵の並びを、そのまま期待値にして固定する。
 - 先に足すテスト：`tests/test_conductor_script.py`。
-  - 二つの道の共通の台本：D0090 の `SCRIPTS`（通る／不合格で戻す／上限／承認／直しを頼む）に、`on_fail` が前の段・自分・`max_steps` ちょうど・`max_retries = 0`・`end` への飛び先・最後の段で確認を足す。SDK の道は `runner` と `ask` を、会話の道は `chat next`・`done`・`review` を差し替えて流す。
+  - 二つの道の共通の台本：D0091 の `SCRIPTS`（通る／不合格で戻す／上限／承認／直しを頼む）に、`on_fail` が前の段・自分・`max_steps` ちょうど・`max_retries = 0`・`end` への飛び先・最後の段で確認を足す。SDK の道は `runner` と `ask` を、会話の道は `chat next`・`done`・`review` を差し替えて流す。
   - SDK だけの台本：`routes`（合う・合わない `BadRoute`）、並列の枠（steps が人数分・枠の中のやり直し）、`--from`（前の成果物が無ければ断る）、`--after`、`--review` の古い記録（`pending` に `next` が無い）。
   - 開発フローの台本：既存の `tests/test_pipeline.py` の `test_all_pass`・`test_retry_then_pass`・`test_retry_limit`・`test_blocked_stops_without_retry` を台本表に載せる。`cfg.max_retries = 0` と、負の数（今の動きを固定。「10. 危ない所」）を足す。
 - 動きが変わらないことの確かめ：製品コードに差分が無い（`git diff` が `tests/` だけ）。足したテストが、今の版で全部通る。赤は無い（固定のテストなので、期待どおりに「始めから通る」ことを確かめる）。
@@ -210,7 +210,7 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 #### 段3 会話の道を部品に任せる
 
 - すること：`Chat.next`・`done`・`review` の判断を `decide` への出来事に置き換える。`chat.py` は `pipe/pipeline.py` を読まず、`outcome.py` を読む。`_counts`・`_set_counts`・`_save`・`chat.notes`・`chat.revise`・`next_stage` は殻に残す。`Policy(auto_approve=False, pause_for_review=True, count_refused_step=False)`。
-- 先に足すテスト：段1の台本表が、そのまま段3の確かめ。さらに、`tests/test_chat_flow.py`・`test_chat_flow_counts.py`・`test_chat_start.py`・`test_chat_capability_text.py` を書き換えない。足すのは、`tests/test_architecture_conductor.py` の「`chat.py` は `.pipeline` から何も読まない」（D0090-AC-08 を広げる）と、「`chat.py` に `max_steps`・`max_retries` の比べる式が残らない」（D0082-AC-10 と同じやり方）。この2つは、移す前は落ちる（赤）ことを確かめる。
+- 先に足すテスト：段1の台本表が、そのまま段3の確かめ。さらに、`tests/test_chat_flow.py`・`test_chat_flow_counts.py`・`test_chat_start.py`・`test_chat_capability_text.py` を書き換えない。足すのは、`tests/test_architecture_conductor.py` の「`chat.py` は `.pipeline` から何も読まない」（D0091-AC-08 を広げる）と、「`chat.py` に `max_steps`・`max_retries` の比べる式が残らない」（D0082-AC-10 と同じやり方）。この2つは、移す前は落ちる（赤）ことを確かめる。
 - 動きが変わらないことの確かめ：段1の台本表・既存の会話の道のテスト（`test_chat_*.py` 全部）・`tests/test_state_schema.py` の鍵の並びが、書き換えなしで通る。`state.json` のバイト列が、同じ台本・同じ時計で前後で同じ（段1の表に「バイト列の一致」の列を入れておく）。
 - 大きさ：中。
 - 触るファイル：`pipe_in/pipe/chat.py`、テスト（`tests/test_architecture_conductor.py` に検査を足す）、`docs/guide/` は変えない（見える動きが無い）。
@@ -219,7 +219,7 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 
 - すること：`LinearPipeline._flow`・`_step`・`_member`・`_next_of`・`review` の判断を部品に置き換える。`_BadRoute` は `BadRoute` の戻りに置き換える。`Policy(auto_approve=cfg.auto_approve, pause_for_review=cfg.pause_for_review, count_refused_step=True)`。履歴を書く順番（`check` → `route` → `review`）と画面の出力は変えない。
 - 先に足すテスト：段1の台本表（SDK だけの台本を含む）。加えて、`LinearPipeline` の判断の呼び出しが、群のとき `admit_steps(n=len(members))` を1回だけ呼ぶこと、`revise` の流し直しが `steps` を増やさないことを、`tests/test_conductor_script.py` の中で足す。
-- 動きが変わらないことの確かめ：既存の `tests/test_pipe_flow.py`・`test_pipe_flow_counts.py`・`test_pipe_group_record.py`・`test_pipe_check_record.py`・`test_reply_pipeline.py`・`test_pipe_after_flow.py` が書き換えなしで通る。段1の台本で `state.json` と `99_summary.md` が前後で同じ。`test_d0090_ac02_*`（二つの道で `flow` が一致・止まった時点の `steps` の違い）が通る。
+- 動きが変わらないことの確かめ：既存の `tests/test_pipe_flow.py`・`test_pipe_flow_counts.py`・`test_pipe_group_record.py`・`test_pipe_check_record.py`・`test_reply_pipeline.py`・`test_pipe_after_flow.py` が書き換えなしで通る。段1の台本で `state.json` と `99_summary.md` が前後で同じ。`test_d0091_ac02_*`（二つの道で `flow` が一致・止まった時点の `steps` の違い）が通る。
 - 大きさ：大。`_flow` は群・分岐・`first`・差し戻し・上限を1つのループに持つ。この段だけは、`_member`（群）と `review()` を別のコミットで先に移し、最後に `_flow` の本体を移すこともできる（段の中で割ってよい。コミットは機能ごと）。
 - 触るファイル：`pipe_in/pipe/pipeline.py`、必要なら `pipe_in/engine/pipeline.py`（`pending` の作り）。
 
@@ -241,8 +241,8 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 
 #### 段7（任意）数える順をそろえる
 
-- すること：SDK の道の `Policy.count_refused_step` を `False` にして、`max_steps` で止まった時点の `steps` を `max_steps` にそろえる（会話の道と同じ）。**`state.json` の `flow.steps` の値が、止まった時だけ1変わる**。人の確認が要る（D0091 の本線に入れない）。
-- 先に足すテスト：`test_d0090_ac02_max_stepsで止まった時点のstepsは…` を「両方の道で `max_steps`」に書き換える（意図した変更）。群の途中で拒んだときに `steps` が増えないことを足す。
+- すること：SDK の道の `Policy.count_refused_step` を `False` にして、`max_steps` で止まった時点の `steps` を `max_steps` にそろえる（会話の道と同じ）。**`state.json` の `flow.steps` の値が、止まった時だけ1変わる**。人の確認が要る（D0092 の本線に入れない）。
+- 先に足すテスト：`test_d0091_ac02_max_stepsで止まった時点のstepsは…` を「両方の道で `max_steps`」に書き換える（意図した変更）。群の途中で拒んだときに `steps` が増えないことを足す。
 - 動きが変わらないことの確かめ：止まる回・文・`final`・終了コードは同じ。変わるのは `flow.steps` の値だけ。終わった記録（`final` あり）は `--review` で続けないので、続きの上限には効かない。拡張は `flow` を読まない。
 - 大きさ：小。
 - 触るファイル：`pipe_in/pipe/pipeline.py`・テスト・`docs/development/design.md`（「形を変えるとき」に1項目）。
@@ -252,9 +252,9 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 形は `.github/ISSUE_TEMPLATE/feature.yml`（困っていること／してほしいこと／対象外／触る側／ほかに）。受け入れ基準はその issue の中での番号。
 
 **段1：司会役の動きを台本の表で固定する（テストだけ）**
-- 困っていること：司会役を1つにまとめる（#143・D0091）前に、今の動きを固定したい。そうしないと、移したときに動きが変わったかを確かめられない。
+- 困っていること：司会役を1つにまとめる（#143・D0092）前に、今の動きを固定したい。そうしないと、移したときに動きが変わったかを確かめられない。
 - してほしいこと：FR-01 同じ台本を SDK の道・会話の道・開発フローに流す表のテストを足す（止まる所・`final`・`flow`・履歴の並び・`state.json` の鍵の並び）。FR-02 SDK だけの台本（分岐・並列・`--from`・`--after`・古い `pending`）と、開発の `cfg.max_retries` の境界も固定する。
-- 受け入れ基準：AC-01 今の版で全部通る。AC-02 製品コードの差分が無い。AC-03 止まった時点の `steps` の違い（D0090）も表に載っている。
+- 受け入れ基準：AC-01 今の版で全部通る。AC-02 製品コードの差分が無い。AC-03 止まった時点の `steps` の違い（D0091）も表に載っている。
 - 対象外：製品コードの変更。 触る側：本体のテスト。 大きさ：小。
 
 **段2：司会役の部品の足場を作る（`conductor.py`・`plan.py`・`outcome.py`）**
@@ -288,12 +288,12 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 - 対象外：動きの変更。 触る側：本体のテスト・文書。 大きさ：小。
 
 **段7（任意）：`max_steps` で止まった時点の `steps` をそろえる**
-- 困っていること：SDK の道は `max_steps + 1`、会話の道は `max_steps` を記録する（D0090）。
+- 困っていること：SDK の道は `max_steps + 1`、会話の道は `max_steps` を記録する（D0091）。
 - してほしいこと：FR-01 SDK の道も `max_steps` にそろえる。
 - 受け入れ基準：AC-01 止まる回・文・終了コードは同じ。AC-02 `flow.steps` が両方の道で `max_steps`。
 - 対象外：記録のほかの値。 触る側：本体。 大きさ：小。 ほかに：記録の値が1変わる。人の確認が要る。
 
-### 5. 依存の向き（D0091-AC-06）
+### 5. 依存の向き（D0092-AC-06）
 
 依存の向きは `pipe_in_generator` → `pipe_in.pipe` / `pipe_in.dev` → `pipe_in.engine` → `pipe_in.usage`。新しい部品は、どれも矢印の向きに読むだけ。
 
@@ -314,14 +314,14 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 
 1. `conductor.py` は標準ライブラリだけで、読んでよいのは `__future__`・`dataclasses`・`enum`・`typing`・`collections.abc` の範囲（`os`・`subprocess`・`datetime`・`time`・`random`・`json`・`pathlib` を読まない＝ファイル・時計・乱数に触れない）。
 2. `conductor.py` が `pipe_in` の他の部品を import しない。
-3. `chat.py` が `pipe_in.pipe.pipeline` から何も読まない（D0090-AC-08 は `read_flow` についてだけ見ている。それを、全部の名前に広げる）。
+3. `chat.py` が `pipe_in.pipe.pipeline` から何も読まない（D0091-AC-08 は `read_flow` についてだけ見ている。それを、全部の名前に広げる）。
 4. 3つの殻（`chat.py`・`pipe/pipeline.py`・`dev/pipeline.py`）に、`max_steps`・`max_retries` を含む比較の式と、`.routes` の読みが無い（`plan_of`・`dev_plan` の中は除く。D0082-AC-10 と同じ、属性と比較の並びを AST で見る）。
 5. `record.py` は `engine.conductor` から `Exit` だけを読む（`decide` ほかを読まない）。
 6. `dev/plan.py` は `pipe_in.pipe` を読まない。
 7. 検査そのものが違反を見つけられること（偽のソースで、`os` の import・`pipe_in.pipe` の import・残った式を見つける）。
 8. `conductor.END == definition.END`、`conductor.Exit is engine.pipeline.Exit`。
 
-### 6. まとめない所と理由（D0091-AC-07）
+### 6. まとめない所と理由（D0092-AC-07）
 
 | まとめない所 | 理由 |
 | --- | --- |
@@ -337,7 +337,7 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 | `state.json` を読んで書くこと（`_counts` の「大きいほう」の合成・`read_flow` 以外の読み） | 記録の読み書きは殻の仕事。壊れた記録の読みは `read_flow` のまま。 |
 | 費用・使用量・`reply_wait`・`received_from` | SDK の道だけの記録の鍵（使用量は会話・記録では取れない）。 |
 
-### 7. 変えないもの（D0091-AC-08）
+### 7. 変えないもの（D0092-AC-08）
 
 この設計では、次のものは**変えない**。
 
@@ -359,9 +359,9 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 | 4 | 出口の形 | (a) `decide` ＋ 4つの関数を公開、(b) 関数だけ、(c) `decide` だけ | (a)。会話の道は出来事ごとに `decide` を呼ぶのが自然。群のやり直しは `retry_left` を直接使う |
 | 5 | 記録だけの道 | (a) 表だけ読む（`decide` は呼ばない）、(b) 含めない、(c) `record next` を足す | (a)。段の表が1か所になる。判断はスキルのまま |
 | 6 | 数える順 | (a) 本線では保つ（`count_refused_step`）。そろえるのは段7（任意）、(b) 本線でそろえる | (a)。記録の値が変わる（FR-05）ので、人の確認がある別の段にする |
-| 7 | 移す順番 | (a) 会話 → パイプ → 開発、(b) パイプ → 会話 → 開発 | (a)。会話の道は出来事ごとの形で、`decide` と合う。D0090 の二道比較がある。いちばん大きい `_flow` は最後に回す |
+| 7 | 移す順番 | (a) 会話 → パイプ → 開発、(b) パイプ → 会話 → 開発 | (a)。会話の道は出来事ごとの形で、`decide` と合う。D0091 の二道比較がある。いちばん大きい `_flow` は最後に回す |
 | 8 | 検査の読みの置き場所 | (a) `pipe/outcome.py`、(b) `engine/` | (a)。`verdict_outcome` は `ShellResult` と `PipeStage` の言葉に近く、`engine` に置くと範囲が広がる |
-| 9 | 設計の文書の置き場所 | (a) 決定の記録 D0091 に全部、(b) `docs/guide/` に別の文書 | (a)。長ければ記録の中の節で分ける |
+| 9 | 設計の文書の置き場所 | (a) 決定の記録 D0092 に全部、(b) `docs/guide/` に別の文書 | (a)。長ければ記録の中の節で分ける |
 
 ### 9. 別の案（本線に入れない）
 
@@ -372,7 +372,7 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 - **B-3 開発フローを `kind = "linear"` のパイプとして定義し直す**：`_stages_from` を無くして `LinearPipeline` で流す。`blocked`・`verdict` の記録・赤の段の中身が変わるので、記録と挙動が変わる。やるなら、赤の段を `check` の外に出す設計が先に要る。
 - **B-4 まとめ（`99_summary.md`）の3つの書き手を1つにする**：書式の差（費用の表の有無）を残す形で。
 - **B-5 `_check_prereq` の表を `dev_plan()` から作る**：開発の `--from` の必要なファイルを、段の `output` から導く。
-- **B-6 `chat.steps`・`chat.retries` を消して `flow` だけにする**：D0081 が「寄せるのは司会役をまとめるときに」と残し、D0090 で `flow` にも書くようにした（`chat.*` は写しとして残した）。写しを消すと記録の形が変わる（古い版の本体が続きを読めなくなる）ので、本線には入れない。
+- **B-6 `chat.steps`・`chat.retries` を消して `flow` だけにする**：D0081 が「寄せるのは司会役をまとめるときに」と残し、D0091 で `flow` にも書くようにした（`chat.*` は写しとして残した）。写しを消すと記録の形が変わる（古い版の本体が続きを読めなくなる）ので、本線には入れない。
 
 ### 10. 危ない所
 
@@ -397,4 +397,4 @@ D0090 で残した「`max_steps` で止まった時点の `steps` が1違う」�
 
 - 表と形は、実物（`pipe_in/engine/pipeline.py`・`pipe_in/pipe/pipeline.py`・`pipe_in/dev/pipeline.py`・`pipe_in/pipe/chat.py`・`pipe_in/dev/record.py`・`pipe_in/engine/state.py`・`flow.py`・`pipe_in/pipe/capability.py`）を読んで、関数の名前と行を根拠に書いた。
 - 監査で、この記録の食い違いが4件見つかり、どれもこの記録の文を直した：`dev_plan()` から読むのは名前の並びと確認の旗までで、成果物と表示の名前は `dev.specs` のまま／`BadRoute` は `decide` が `Finish(STAGE_ERROR)` にする／`outcome.py` の読むものに `pipe.definition` と `Exit` を足した／`chat.*` を消す案を B-6 に足した。動きの説明（数える順・`revise`・`pending` の `next`・負の `max_retries`）と依存の向きの表は、実物と合っていた。
-- この件の差分は `docs/decisions/` の2ファイルだけ（D0091-AC-09）。`tests/test_rules.py`・`tests/test_doc_shape.py` が通った（D0091-AC-10）。助言と審査は流さなかった（製品コード・守り・`.claude/` に触れていない）。
+- この件の差分は `docs/decisions/` の2ファイルだけ（D0092-AC-09）。`tests/test_rules.py`・`tests/test_doc_shape.py` が通った（D0092-AC-10）。助言と審査は流さなかった（製品コード・守り・`.claude/` に触れていない）。

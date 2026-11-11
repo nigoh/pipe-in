@@ -190,7 +190,7 @@ def _trace(path: str) -> str | None:
 def project_real_path(file_path: Any, root: str) -> str | None:
     """リンクをたどったあとの、プロジェクトの中の相対パス（/ 区切り）。外・決められない（輪・壊れたリンク・例外）は None。
 
-    書き込み先も基準（root）も同じようにたどってから比べる（D0087）。文字の上の判断（project_path）は別に残し、
+    書き込み先も基準（root）も同じようにたどってから比べる（D0088）。文字の上の判断（project_path）は別に残し、
     呼ぶ側は両方が通るときだけ通す。書ける場所の中のリンクが、書けない場所（.claude/ など）を指す道を止める。
     """
     if not isinstance(file_path, str) or not file_path.strip():
@@ -298,7 +298,7 @@ def decide(payload: dict[str, Any], *, root: str) -> str | None:
         rel = project_path(tool_input.get("file_path"), root)
         if not where:
             return f"{agent} はどこにも書けません（報告は SubagentHandback で親に返す）（{tool_input.get('file_path')}）"
-        # 文字の上の場所（rel）と、リンクをたどった場所（real_rel）の、両方が書ける場所のときだけ通す（D0087）
+        # 文字の上の場所（rel）と、リンクをたどった場所（real_rel）の、両方が書ける場所のときだけ通す（D0088）
         real_rel = project_real_path(tool_input.get("file_path"), root) if rel is not None else None
         if rel is None or real_rel is None or not can_write(rel) or not can_write(real_rel):
             return f"{agent} が書けるのは {where} だけです（{tool_input.get('file_path')}）"

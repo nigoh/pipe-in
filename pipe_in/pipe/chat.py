@@ -114,7 +114,7 @@ class Chat:
 
     @staticmethod
     def _counts(state: dict[str, Any]) -> tuple[int, dict[str, int]]:
-        """流した回数と段ごとの戻した回数。flow と chat.* の大きいほうを採る（上限が甘くならない側。D0090）。"""
+        """流した回数と段ごとの戻した回数。flow と chat.* の大きいほうを採る（上限が甘くならない側。D0091）。"""
         chat = state["chat"]
         old_steps, old_retries = read_flow({"steps": chat.get("steps"), "retries": chat.get("retries")})
         if "flow" not in state:

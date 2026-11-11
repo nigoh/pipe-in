@@ -1,4 +1,4 @@
-"""D0086：既定で守る場所に、プロジェクト直下の `.mcp.json` を足す（issue #136）。
+"""D0087：既定で守る場所に、プロジェクト直下の `.mcp.json` を足す（issue #136）。
 
 `.mcp.json` は setting_sources に project があると読まれ、MCP サーバーの定義を足せる。D0084 の既定で守る場所に足して、
 設定なしで、どの段も書けないようにする。守りの部品（guard.py・bashwrite.py）は変えず、定数と、場所を字で持つ文だけを確かめる。
@@ -73,8 +73,8 @@ def with_link(env) -> bool:
 
 @pytest.mark.parametrize("tool,key", WRITE_TOOLS)
 @pytest.mark.parametrize("kind", ALL_KINDS)
-def test_d0086_ac01_全段の種類で_mcp_json_への書き込み道具が止まる(tmp_path, kind, tool, key):
-    """D0086-AC-01: 開発フローの全段とパイプの access のどの種類の段でも、.mcp.json への Write・Edit・MultiEdit・NotebookEdit が止まる
+def test_d0087_ac01_全段の種類で_mcp_json_への書き込み道具が止まる(tmp_path, kind, tool, key):
+    """D0087-AC-01: 開発フローの全段とパイプの access のどの種類の段でも、.mcp.json への Write・Edit・MultiEdit・NotebookEdit が止まる
     （can_write が偽、判断の関数が止める、フックが deny）。絶対パスでも相対パスでも。"""
     env = build(tmp_path, kind)
     assert env.spec.can_write(MCP) is False, f"{kind}: can_write({MCP}) が真"
@@ -88,8 +88,8 @@ def test_d0086_ac01_全段の種類で_mcp_json_への書き込み道具が止�
 
 @pytest.mark.parametrize("form", [*BASH_FORMS, "echo x > $(echo {t})"])
 @pytest.mark.parametrize("kind", BASH_KINDS)
-def test_d0086_ac02_bashの書き込みが止まる(tmp_path, kind, form):
-    """D0086-AC-02: .mcp.json への Bash の書き込み（> >> tee cp mv sed -i touch rm truncate python -c node -e bash -c と $(…)）が止まる。"""
+def test_d0087_ac02_bashの書き込みが止まる(tmp_path, kind, form):
+    """D0087-AC-02: .mcp.json への Bash の書き込み（> >> tee cp mv sed -i touch rm truncate python -c node -e bash -c と $(…)）が止まる。"""
     env = build(tmp_path, kind)
     assert env.spec.allow_bash
     cmd = form.format(t=MCP)
@@ -98,8 +98,8 @@ def test_d0086_ac02_bashの書き込みが止まる(tmp_path, kind, form):
 
 @pytest.mark.parametrize("target", SLIP_TARGETS)
 @pytest.mark.parametrize("kind", BASH_KINDS)
-def test_d0086_ac02_dotdotと絶対パスでも止まる(tmp_path, kind, target):
-    """D0086-AC-02: src/../.mcp.json・./.mcp.json・絶対パスでも、Bash の書き込みと Write が止まる。"""
+def test_d0087_ac02_dotdotと絶対パスでも止まる(tmp_path, kind, target):
+    """D0087-AC-02: src/../.mcp.json・./.mcp.json・絶対パスでも、Bash の書き込みと Write が止まる。"""
     env = build(tmp_path, kind)
     t = target.format(p=MCP, abs=env.project)
     for cmd in (f"echo x > {t}", f"cp src/a.py {t}"):
@@ -108,8 +108,8 @@ def test_d0086_ac02_dotdotと絶対パスでも止まる(tmp_path, kind, target)
 
 
 @pytest.mark.parametrize("kind", BASH_KINDS)
-def test_d0086_ac02_リンクを経た道でも止まる(tmp_path, kind):
-    """D0086-AC-02: src/mcp-link.json（.mcp.json を指すリンク）を通る書き込みも、Write と Bash で止まる。"""
+def test_d0087_ac02_リンクを経た道でも止まる(tmp_path, kind):
+    """D0087-AC-02: src/mcp-link.json（.mcp.json を指すリンク）を通る書き込みも、Write と Bash で止まる。"""
     env = build(tmp_path, kind)
     if not with_link(env):
         pytest.skip("この環境ではリンクを作れない")
@@ -129,8 +129,8 @@ CD_CASES = [
 
 @pytest.mark.parametrize("cmds,_why", CD_CASES, ids=[c[1] for c in CD_CASES])
 @pytest.mark.parametrize("kind", BASH_KINDS)
-def test_d0086_ac02_cdをまたぐ相対パスでも止まる(tmp_path, kind, cmds, _why):
-    """D0086-AC-02: cd をまたいだ相対パスで .mcp.json に書く形も止まる（別の呼び出しをまたいで BashState が覚える）。"""
+def test_d0087_ac02_cdをまたぐ相対パスでも止まる(tmp_path, kind, cmds, _why):
+    """D0087-AC-02: cd をまたいだ相対パスで .mcp.json に書く形も止まる（別の呼び出しをまたいで BashState が覚える）。"""
     env = build(tmp_path, kind)
     results = [env("Bash", command=c) for c in cmds]
     assert results[-1] is not None, f"{kind}: {cmds} の最後が通ってしまう"
@@ -140,8 +140,8 @@ def test_d0086_ac02_cdをまたぐ相対パスでも止まる(tmp_path, kind, cm
 
 
 @pytest.mark.parametrize("access_kind", ["read", "docs", "tests", "code", "code+bash"])
-def test_d0086_ac03_会話の道でも止まる(tmp_path, monkeypatch, no_sdk, access_kind):  # noqa: F811
-    """D0086-AC-03: 会話の道（chat_hook）でも、段が開いている間の .mcp.json への書き込み（Write・Edit・MultiEdit・NotebookEdit）が止まる。
+def test_d0087_ac03_会話の道でも止まる(tmp_path, monkeypatch, no_sdk, access_kind):  # noqa: F811
+    """D0087-AC-03: 会話の道（chat_hook）でも、段が開いている間の .mcp.json への書き込み（Write・Edit・MultiEdit・NotebookEdit）が止まる。
     Bash を持つ段では Bash の書き込みも。"""
     monkeypatch.delenv("PIPE_IN_PIPES_DIR", raising=False)
     env = build_kind(tmp_path, access_kind)
@@ -157,8 +157,8 @@ def test_d0086_ac03_会話の道でも止まる(tmp_path, monkeypatch, no_sdk, a
 
 
 @pytest.mark.parametrize("kind", ALL_KINDS)
-def test_d0086_ac04_止めた理由に_mcp_json_が出る(tmp_path, kind):
-    """D0086-AC-04: .mcp.json に書こうとして止まったとき、止めた理由の文に、書ける範囲の説明として既定で守る場所の一覧に
+def test_d0087_ac04_止めた理由に_mcp_json_が出る(tmp_path, kind):
+    """D0087-AC-04: .mcp.json に書こうとして止まったとき、止めた理由の文に、書ける範囲の説明として既定で守る場所の一覧に
     .mcp.json が出る（理由の文の中の既定で守る場所の一覧の部分）。"""
     env = build(tmp_path, kind)
     reason = env("Write", file_path=str(env.project / MCP), content="{}")
@@ -166,8 +166,8 @@ def test_d0086_ac04_止めた理由に_mcp_json_が出る(tmp_path, kind):
     assert MCP in reason.split(HINT_WORD, 1)[1], f"既定で守る場所の一覧に {MCP} が出ない: {reason}"
 
 
-def test_d0086_ac04_書ける範囲の説明は全段に1回ずつ_mcp_json_を出す(tmp_path):
-    """D0086-AC-04: 書ける範囲の説明（write_scope_hint）に .mcp.json が全段に1回ずつ出る（元の文で始まり、既定で守る場所は1回）。"""
+def test_d0087_ac04_書ける範囲の説明は全段に1回ずつ_mcp_json_を出す(tmp_path):
+    """D0087-AC-04: 書ける範囲の説明（write_scope_hint）に .mcp.json が全段に1回ずつ出る（元の文で始まり、既定で守る場所は1回）。"""
     cfg = load_config(tmp_path, None)
     out = protect({"s": permissive_spec(), "t": permissive_spec("t")}, cfg)
     for spec in out.values():
@@ -176,8 +176,8 @@ def test_d0086_ac04_書ける範囲の説明は全段に1回ずつ_mcp_json_を�
         assert spec.write_scope_hint.count(MCP) == 1, spec.write_scope_hint
 
 
-def test_d0086_ac04_利用者が_protected_paths_に書いても1回だけ(tmp_path):
-    """D0086-AC-04: 利用者が protected_paths にも .mcp.json を書いても、説明の文に .mcp.json は1回だけ出る（既定の一覧の中。
+def test_d0087_ac04_利用者が_protected_paths_に書いても1回だけ(tmp_path):
+    """D0087-AC-04: 利用者が protected_paths にも .mcp.json を書いても、説明の文に .mcp.json は1回だけ出る（既定の一覧の中。
     利用者の分として二重に出ない）。別の場所を足せば、その場所は protected_paths の分として1回出る。"""
     cfg = replace(load_config(tmp_path, None), protected_paths=[])
     base = protect({"s": permissive_spec()}, cfg)["s"]
@@ -194,15 +194,15 @@ def test_d0086_ac04_利用者が_protected_paths_に書いても1回だけ(tmp_p
 
 
 @pytest.mark.parametrize("work_dir", [MCP, f"{MCP}/x"])
-def test_d0086_ac05_work_dirが_mcp_json_の中なら断り文に出る(tmp_path, work_dir):
-    """D0086-AC-05: work_dir が .mcp.json そのもの・その下なら、work_dir_conflict が断り、直し方（docs/pipeline）が出る。"""
+def test_d0087_ac05_work_dirが_mcp_json_の中なら断り文に出る(tmp_path, work_dir):
+    """D0087-AC-05: work_dir が .mcp.json そのもの・その下なら、work_dir_conflict が断り、直し方（docs/pipeline）が出る。"""
     msg = spec_mod.work_dir_conflict(cfg_with_work_dir(tmp_path / "app", work_dir))
     assert msg, work_dir
     assert "work_dir" in msg and "docs/pipeline" in msg, msg
 
 
-def test_d0086_ac05_断り文の一覧に_mcp_json_が出る(tmp_path):
-    """D0086-AC-05: 断り文の「段が書いてはいけない場所」の一覧に .mcp.json が出る（work_dir 自身の名前ではなく、一覧の部分を見る）。"""
+def test_d0087_ac05_断り文の一覧に_mcp_json_が出る(tmp_path):
+    """D0087-AC-05: 断り文の「段が書いてはいけない場所」の一覧に .mcp.json が出る（work_dir 自身の名前ではなく、一覧の部分を見る）。"""
     msg = spec_mod.work_dir_conflict(cfg_with_work_dir(tmp_path / "app", ".claude/x"))
     assert msg
     assert f"（.claude/・.git/・.pipe-in/・{OLD_DIR}/・.mcp.json・pipeline.toml）" in msg, msg
@@ -210,8 +210,8 @@ def test_d0086_ac05_断り文の一覧に_mcp_json_が出る(tmp_path):
 
 @pytest.mark.parametrize("entrance", ["pipe-in --pipe", "pipe-in（開発フロー）"])
 @pytest.mark.parametrize("work_dir", [MCP, f"{MCP}/x"])
-def test_d0086_ac05_work_dirが_mcp_json_の中なら流す前に止まる(tmp_path, monkeypatch, work_dir, entrance):
-    """D0086-AC-05: work_dir が .mcp.json の中だと、pipe-in は段を流す前に止まる（流す入口に着かない）。"""
+def test_d0087_ac05_work_dirが_mcp_json_の中なら流す前に止まる(tmp_path, monkeypatch, work_dir, entrance):
+    """D0087-AC-05: work_dir が .mcp.json の中だと、pipe-in は段を流す前に止まる（流す入口に着かない）。"""
     from pipe_in import cli
 
     args = {"pipe-in --pipe": ["--pipe", "p", "--text", "x", "--yes"], "pipe-in（開発フロー）": ["--text", "x", "--yes"]}[entrance]
@@ -229,8 +229,8 @@ def test_d0086_ac05_work_dirが_mcp_json_の中なら流す前に止まる(tmp_p
 
 
 @pytest.mark.parametrize("work_dir", ["docs/pipeline", "build/records", "mcp.json"])
-def test_d0086_ac05_ふつうのwork_dirは止まらない(tmp_path, work_dir):
-    """D0086-AC-05: 既定の docs/pipeline と、似た名前（mcp.json）の work_dir は止まらない。今のまま通る。守る。"""
+def test_d0087_ac05_ふつうのwork_dirは止まらない(tmp_path, work_dir):
+    """D0087-AC-05: 既定の docs/pipeline と、似た名前（mcp.json）の work_dir は止まらない。今のまま通る。守る。"""
     assert spec_mod.work_dir_conflict(cfg_with_work_dir(tmp_path / "app", work_dir)) is None
 
 
@@ -240,8 +240,8 @@ CONFLICT_WORD = {".claude/*": ".claude/", "*/.claude/*": ".claude/", ".git/*": "
 W7_WORD = {**CONFLICT_WORD, f"{OLD_DIR}/*": "前の版の置き場所"}
 
 
-def test_d0086_ac05_断り文とW7の文が定数の全部の型の語を持つ(tmp_path):
-    """D0086-AC-05（設計 1 節）: 断り文（work_dir_conflict）と W7 の文が、定数の全部の型の語を持つ。.mcp.json を必ず含める。
+def test_d0087_ac05_断り文とW7の文が定数の全部の型の語を持つ(tmp_path):
+    """D0087-AC-05（設計 1 節）: 断り文（work_dir_conflict）と W7 の文が、定数の全部の型の語を持つ。.mcp.json を必ず含める。
     定数に型を足して文を直し忘れる、または表に無い型が定数に入ると落ちる。"""
     globs = set(spec_mod.DEFAULT_PROTECTED_PATHS) | {MCP}
     unknown = globs - set(CONFLICT_WORD)
@@ -266,16 +266,16 @@ OVERLAP_MCP = [
 
 
 @pytest.mark.parametrize("access,extra", OVERLAP_MCP, ids=[e.strip() for _, e in OVERLAP_MCP])
-def test_d0086_ac06_docs_dirとwritesが重なるとW7が出て文に_mcp_json_が出る(tmp_path, access, extra):
-    """D0086-AC-06: docs_dir か writes が .mcp.json と重なるパイプに、lint_pipe が W7 を1件出し、文の一覧に .mcp.json が出る。"""
+def test_d0087_ac06_docs_dirとwritesが重なるとW7が出て文に_mcp_json_が出る(tmp_path, access, extra):
+    """D0087-AC-06: docs_dir か writes が .mcp.json と重なるパイプに、lint_pipe が W7 を1件出し、文の一覧に .mcp.json が出る。"""
     found = w7(lint_pipe(pipe_with(tmp_path, access, extra)))
     assert len(found) == 1, found
     assert "段 1" in found[0] and "（a）" in found[0]
     assert "・.mcp.json・pipeline.toml・" in found[0], found[0]
 
 
-def test_d0086_ac06_終了コードは変わらない(tmp_path, capsys):
-    """D0086-AC-06: .mcp.json と重なっていても pipe-in-gen check の終了コードは 0 のまま。出力に警告が出て、文に .mcp.json が出る。"""
+def test_d0087_ac06_終了コードは変わらない(tmp_path, capsys):
+    """D0087-AC-06: .mcp.json と重なっていても pipe-in-gen check の終了コードは 0 のまま。出力に警告が出て、文に .mcp.json が出る。"""
     from pipe_in_generator.cli import main as gen_main
 
     pipe_with(tmp_path, "docs", f'docs_dir = "{MCP}"\n')
@@ -287,8 +287,8 @@ def test_d0086_ac06_終了コードは変わらない(tmp_path, capsys):
 
 
 @pytest.mark.parametrize("access,extra", [("docs", 'docs_dir = "docs/out"\n'), ("code", 'writes = ["src/.mcp.json"]\n'), ("code", 'writes = ["mcp.json"]\n')])
-def test_d0086_ac06_重ならなければ出ない(tmp_path, access, extra):
-    """D0086-AC-06: 重ならない docs_dir・writes（直下でない同じ名前・似た名前を含む）には W7 が出ない。今のまま通る。守る。"""
+def test_d0087_ac06_重ならなければ出ない(tmp_path, access, extra):
+    """D0087-AC-06: 重ならない docs_dir・writes（直下でない同じ名前・似た名前を含む）には W7 が出ない。今のまま通る。守る。"""
     assert w7(lint_pipe(pipe_with(tmp_path, access, extra))) == []
 
 
@@ -297,8 +297,8 @@ def test_d0086_ac06_重ならなければ出ない(tmp_path, access, extra):
 LOOKALIKES = ["src/.mcp.json", "a/b/.mcp.json", "mcp.json", ".mcp.json.bak", ".mcp.jsonl"]
 
 
-def test_d0086_ac07_型は直下だけに当たる():
-    """D0086-AC-07: 定数の型 .mcp.json は記号を含まない字面で、相対パス .mcp.json にだけ当たる。直下でない同じ名前・似た名前には、
+def test_d0087_ac07_型は直下だけに当たる():
+    """D0087-AC-07: 定数の型 .mcp.json は記号を含まない字面で、相対パス .mcp.json にだけ当たる。直下でない同じ名前・似た名前には、
     定数のどの型も当たらない。今のまま通る。守る。（大文字小文字違いの当たる・当たらないは断定しない）"""
     globs = spec_mod.DEFAULT_PROTECTED_PATHS
     assert MCP in globs, "定数に .mcp.json が無い"
@@ -310,8 +310,8 @@ def test_d0086_ac07_型は直下だけに当たる():
 
 @pytest.mark.parametrize("rel", LOOKALIKES)
 @pytest.mark.parametrize("kind", CODE_KINDS)
-def test_d0086_ac07_段の書ける範囲では似た名前が通る(tmp_path, kind, rel):
-    """D0086-AC-07: 直下でない .mcp.json（src/.mcp.json など）と似た名前への書き込みは、コードを書く段で今までどおり通る
+def test_d0087_ac07_段の書ける範囲では似た名前が通る(tmp_path, kind, rel):
+    """D0087-AC-07: 直下でない .mcp.json（src/.mcp.json など）と似た名前への書き込みは、コードを書く段で今までどおり通る
     （Write・Edit・Bash）。今のまま通る。守る。"""
     env = build(tmp_path, kind)
     (env.project / Path(rel).parent).mkdir(parents=True, exist_ok=True)
@@ -332,8 +332,8 @@ def _code_lines(text: str) -> list[str]:
 
 
 @pytest.mark.parametrize("name", TEMPLATE_NAMES)
-def test_d0086_ac08_ひな形に_mcp_json_を書く所が無い(tmp_path, name):
-    """D0086-AC-08: ひな形（generator/templates/）を描いた pipe.toml に、.mcp.json を書く行（docs_dir・writes を含む）が無い。
+def test_d0087_ac08_ひな形に_mcp_json_を書く所が無い(tmp_path, name):
+    """D0087-AC-08: ひな形（generator/templates/）を描いた pipe.toml に、.mcp.json を書く行（docs_dir・writes を含む）が無い。
     実物を読むだけで書かない。今のまま通る。守る。"""
     pipe_dir = render(ROOT / "generator" / "templates" / name, tmp_path / "pipe-in-x")
     text = (pipe_dir / "pipe.toml").read_text(encoding="utf-8")
@@ -343,8 +343,8 @@ def test_d0086_ac08_ひな形に_mcp_json_を書く所が無い(tmp_path, name):
 
 
 @pytest.mark.parametrize("name", ["diagrams", "spec-qa", "research", "video"])
-def test_d0086_ac08_見本に_mcp_json_を書く所が無い(name):
-    """D0086-AC-08: 見本（examples/）のパイプの pipe.toml に、.mcp.json を書く行（docs_dir・writes を含む）が無い。読むだけ。今のまま通る。守る。"""
+def test_d0087_ac08_見本に_mcp_json_を書く所が無い(name):
+    """D0087-AC-08: 見本（examples/）のパイプの pipe.toml に、.mcp.json を書く行（docs_dir・writes を含む）が無い。読むだけ。今のまま通る。守る。"""
     pipe_dir = ROOT / "examples" / name / "pipes" / f"pipe-in-{name}"
     text = (pipe_dir / "pipe.toml").read_text(encoding="utf-8")
     assert not any(MCP in ln for ln in _code_lines(text)), name
@@ -355,8 +355,8 @@ def test_d0086_ac08_見本に_mcp_json_を書く所が無い(name):
 # ---- AC-09：守りの比較の表 ----------------------------------------------------------------------------
 
 
-def test_d0086_ac09_比較の表に_mcp_json_の行があり_sdkと会話の道は止める():
-    """D0086-AC-09: 守りの比較の表に行 write-mcpjson があり、SDK の道（sdk・sdk_protected）と会話の道とプラグインは止める（D）。
+def test_d0087_ac09_比較の表に_mcp_json_の行があり_sdkと会話の道は止める():
+    """D0087-AC-09: 守りの比較の表に行 write-mcpjson があり、SDK の道（sdk・sdk_protected）と会話の道とプラグインは止める（D）。
     開発用の期待は実測のまま（dev_coder だけ A）。ほかの行の照合は tests/test_guard_matrix.py が見る。"""
     from guard_matrix import COLUMNS, EXPECT
 
@@ -370,8 +370,8 @@ def test_d0086_ac09_比較の表に_mcp_json_の行があり_sdkと会話の道�
 # ---- AC-10：古い形 ------------------------------------------------------------------------------------
 
 
-def test_d0086_ac10_mcp_jsonを書かない設定はそのまま読める(tmp_path):
-    """D0086-AC-10: .mcp.json を書いていない今までの pipeline.toml（protected_paths だけのもの・無いもの）はそのまま読め、
+def test_d0087_ac10_mcp_jsonを書かない設定はそのまま読める(tmp_path):
+    """D0087-AC-10: .mcp.json を書いていない今までの pipeline.toml（protected_paths だけのもの・無いもの）はそのまま読め、
     Config の protected_paths は読んだまま。protect() で .mcp.json が足され、ふつうの書き込みは通る。"""
     (tmp_path / "pipeline.toml").write_text('[pipeline]\nprotected_paths = ["tests/arch/*"]\n', encoding="utf-8")
     cfg = load_config(tmp_path, None)
@@ -386,8 +386,8 @@ def test_d0086_ac10_mcp_jsonを書かない設定はそのまま読める(tmp_pa
     assert protect({"s": permissive_spec()}, none)["s"].can_write(MCP) is False
 
 
-def test_d0086_ac10_前の版の置き場所のパイプは_mcp_json_を足してもそのまま流せる(tmp_path, monkeypatch):
-    """D0086-AC-10: 前の版の置き場所のパイプを読んで流す動きは変わらない（成果物は書け、前の版の置き場所は止まり、.mcp.json も止まる）。"""
+def test_d0087_ac10_前の版の置き場所のパイプは_mcp_json_を足してもそのまま流せる(tmp_path, monkeypatch):
+    """D0087-AC-10: 前の版の置き場所のパイプを読んで流す動きは変わらない（成果物は書け、前の版の置き場所は止まり、.mcp.json も止まる）。"""
     from chat_support import OLD_NAME
     from test_pipe_flow import pipe_toml, stage_toml
 
@@ -408,8 +408,8 @@ def test_d0086_ac10_前の版の置き場所のパイプは_mcp_json_を足し�
     assert spec.can_write("src/app.py") is True
 
 
-def test_d0086_ac10_protected_pathsに書いても読めて説明に1回(tmp_path):
-    """D0086-AC-10: 利用者が protected_paths に .mcp.json を書いていても今までどおり読め、止まり、重複は説明の文に1回だけ出る
+def test_d0087_ac10_protected_pathsに書いても読めて説明に1回(tmp_path):
+    """D0087-AC-10: 利用者が protected_paths に .mcp.json を書いていても今までどおり読め、止まり、重複は説明の文に1回だけ出る
     （既定の一覧の中。利用者の分として別に出ない）。"""
     (tmp_path / "pipeline.toml").write_text(f'[pipeline]\nprotected_paths = ["{MCP}", "tests/arch/*"]\n', encoding="utf-8")
     cfg = load_config(tmp_path, None)

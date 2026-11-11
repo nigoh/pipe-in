@@ -1,4 +1,4 @@
-"""D0090：会話の道（pipe-in-gen chat）の回数を state.json の flow に寄せる（issue #140）。
+"""D0091：会話の道（pipe-in-gen chat）の回数を state.json の flow に寄せる（issue #140）。
 
 会話の道も回数を flow: {steps, retries} に書き、SDK の道と同じ関数 read_flow で読む。chat.steps・chat.retries は同じ値を写して残す。
 動き（止まる回・文・chat status の値）は変えない。SDK は呼ばない（SDK の道は偽の runner、会話の道は外の入口 chat_cmd.main）。
@@ -132,8 +132,8 @@ def drive_chat(root: Path, toml: str, a_results: list[str], decisions: list[str]
 # ---- AC-01：始めた記録の flow ----------------------------------------------------------------------------
 
 
-def test_d0090_ac01_startはflowを0と空で書き鍵はwarningsの次でopenの前(tmp_path):
-    """D0090-AC-01: chat start の記録に flow があり、steps が 0・retries が {}。鍵の並びは warnings → flow → open。chat.steps・chat.retries も 0 と {} を写す。"""
+def test_d0091_ac01_startはflowを0と空で書き鍵はwarningsの次でopenの前(tmp_path):
+    """D0091-AC-01: chat start の記録に flow があり、steps が 0・retries が {}。鍵の並びは warnings → flow → open。chat.steps・chat.retries も 0 と {} を写す。"""
     r = Run(tmp_path)
     r.make(three())
     assert r.start()["ok"] is True
@@ -159,15 +159,15 @@ SCRIPTS = [
 
 
 @pytest.mark.parametrize("a_results,decisions,expected", [s[1:] for s in SCRIPTS], ids=[s[0] for s in SCRIPTS])
-def test_d0090_ac02_二つの道で同じ台本を流すとflowが各時点で一致する(tmp_path, a_results, decisions, expected):
-    """D0090-AC-02: 同じパイプ・同じ台本を SDK の道と会話の道で流し、止まるたび（確認待ち・終わり）の flow（steps・retries）が一致する。"""
+def test_d0091_ac02_二つの道で同じ台本を流すとflowが各時点で一致する(tmp_path, a_results, decisions, expected):
+    """D0091-AC-02: 同じパイプ・同じ台本を SDK の道と会話の道で流し、止まるたび（確認待ち・終わり）の flow（steps・retries）が一致する。"""
     want = [(where, {"steps": steps, "retries": retries}) for where, steps, retries in expected]
     assert drive_sdk(tmp_path / "sdk", three(), a_results, decisions) == want, "SDK の道の期待（台本の誤りでなければ、本体の今の動きと違う）"
     assert drive_chat(tmp_path / "chat", three(), a_results, decisions) == want
 
 
-def test_d0090_ac02_max_stepsで止まった時点のstepsはsdkがmax_steps足す1で会話の道がmax_steps(tmp_path):
-    """D0090-AC-02: 違う1点を固定する。max_steps = 2 の3段で、止まった時点の flow.steps は、SDK の道が 3（増やしてから判定する）、
+def test_d0091_ac02_max_stepsで止まった時点のstepsはsdkがmax_steps足す1で会話の道がmax_steps(tmp_path):
+    """D0091-AC-02: 違う1点を固定する。max_steps = 2 の3段で、止まった時点の flow.steps は、SDK の道が 3（増やしてから判定する）、
     会話の道が 2（判定してから増やす。chat status が止める前の値を見せているため）。どちらも3段目は流さない。"""
     root_sdk, root_chat = tmp_path / "sdk", tmp_path / "chat"
     pipe = make_sdk_pipe(root_sdk, plain(3, "max_steps = 2\n"), "hp")
@@ -187,8 +187,8 @@ def test_d0090_ac02_max_stepsで止まった時点のstepsはsdkがmax_steps足�
 
 
 @pytest.mark.parametrize("n", [1, 2, 3])
-def test_d0090_ac02_止まる回は二つの道で同じ(tmp_path, n):
-    """D0090-AC-02: max_steps = n のとき、2つの道とも n 段目までは流せ、n + 1 段目で STAGE_ERROR で止まる（flow の値を見ない。今のまま通る。守る）。"""
+def test_d0091_ac02_止まる回は二つの道で同じ(tmp_path, n):
+    """D0091-AC-02: max_steps = n のとき、2つの道とも n 段目までは流せ、n + 1 段目で STAGE_ERROR で止まる（flow の値を見ない。今のまま通る。守る）。"""
     root_sdk, root_chat = tmp_path / "sdk", tmp_path / "chat"
     head = f"max_steps = {n}\n"
     names = [f"s{i}" for i in range(1, n + 2)]
@@ -209,8 +209,8 @@ def test_d0090_ac02_止まる回は二つの道で同じ(tmp_path, n):
 # ---- AC-03：flow の無い古い記録を続ける ----------------------------------------------------------------------
 
 
-def test_d0090_ac03_flowの無い古い記録をnextで続けflowが足される(tmp_path):
-    """D0090-AC-03: flow が無く chat.steps だけが 1 の古い記録を chat next で続けると、続きの数（2）が数えられ、flow が足されて chat.steps と同じ値になる。"""
+def test_d0091_ac03_flowの無い古い記録をnextで続けflowが足される(tmp_path):
+    """D0091-AC-03: flow が無く chat.steps だけが 1 の古い記録を chat next で続けると、続きの数（2）が数えられ、flow が足されて chat.steps と同じ値になる。"""
     r = Run(tmp_path)
     r.ready(three())
     set_counts(r, flow=DROP, steps=1, retries={})
@@ -219,8 +219,8 @@ def test_d0090_ac03_flowの無い古い記録をnextで続けflowが足される
     assert r.state()["chat"]["steps"] == 2
 
 
-def test_d0090_ac03_古い記録のsteps上限はnextで止まる(tmp_path):
-    """D0090-AC-03: flow が無く chat.steps が max_steps の古い記録は、次の chat next で STAGE_ERROR で止まる（止まるところは今のまま通る）。続けた後の記録に flow が足され、steps は止める前の値のまま。"""
+def test_d0091_ac03_古い記録のsteps上限はnextで止まる(tmp_path):
+    """D0091-AC-03: flow が無く chat.steps が max_steps の古い記録は、次の chat next で STAGE_ERROR で止まる（止まるところは今のまま通る）。続けた後の記録に flow が足され、steps は止める前の値のまま。"""
     r = Run(tmp_path)
     r.ready(three("max_steps = 2\n"))
     set_counts(r, flow=DROP, steps=2, retries={})
@@ -230,8 +230,8 @@ def test_d0090_ac03_古い記録のsteps上限はnextで止まる(tmp_path):
     assert chat_flow(r) == {"steps": 2, "retries": {}}
 
 
-def test_d0090_ac03_古い記録のretries上限は次の不合格で止まる(tmp_path):
-    """D0090-AC-03: flow が無く chat.retries が {a: 1}（max_retries = 1）の古い記録は、次の不合格で TEST_FAILED で止まる（止まるところは今のまま通る）。続けた後の記録に flow が足され、続きの数と一致する。"""
+def test_d0091_ac03_古い記録のretries上限は次の不合格で止まる(tmp_path):
+    """D0091-AC-03: flow が無く chat.retries が {a: 1}（max_retries = 1）の古い記録は、次の不合格で TEST_FAILED で止まる（止まるところは今のまま通る）。続けた後の記録に flow が足され、続きの数と一致する。"""
     r = Run(tmp_path)
     r.ready(three())
     set_counts(r, flow=DROP, steps=0, retries={"a": 1})
@@ -241,8 +241,8 @@ def test_d0090_ac03_古い記録のretries上限は次の不合格で止まる(t
     assert chat_flow(r) == {"steps": 1, "retries": {"a": 1}}
 
 
-def test_d0090_ac03_古い記録をreviewで続けflowが足される(tmp_path):
-    """D0090-AC-03: 確認待ちで止まった古い記録（flow 無し・chat.steps = 2）を chat review approved で続けると、flow が足され、chat.steps と同じ値になる。"""
+def test_d0091_ac03_古い記録をreviewで続けflowが足される(tmp_path):
+    """D0091-AC-03: 確認待ちで止まった古い記録（flow 無し・chat.steps = 2）を chat review approved で続けると、flow が足され、chat.steps と同じ値になる。"""
     r = Run(tmp_path)
     r.ready(three())
     r.run_and_finish("a", status="pass")
@@ -257,8 +257,8 @@ def test_d0090_ac03_古い記録をreviewで続けflowが足される(tmp_path):
 # ---- AC-04：止まる文と終わりの形 ----------------------------------------------------------------------------
 
 
-def test_d0090_ac04_max_retriesで止まる文と終わりの形が今と同じ(tmp_path):
-    """D0090-AC-04: max_retries = 1 で2回目の不合格のとき、TEST_FAILED で終わり、終わりの文・final・99_summary.md の結果の文は今のまま（今のまま通る。守る）。"""
+def test_d0091_ac04_max_retriesで止まる文と終わりの形が今と同じ(tmp_path):
+    """D0091-AC-04: max_retries = 1 で2回目の不合格のとき、TEST_FAILED で終わり、終わりの文・final・99_summary.md の結果の文は今のまま（今のまま通る。守る）。"""
     from pipe_in.pipe.pipeline import exit_message
 
     r = Run(tmp_path)
@@ -288,8 +288,8 @@ STATUS_CASES = [
 
 
 @pytest.mark.parametrize("flow,chat_steps,chat_retries,steps,retries", [c[1:] for c in STATUS_CASES], ids=[c[0] for c in STATUS_CASES])
-def test_d0090_ac05_statusは新旧の記録で同じ値と文を返し記録を書き換えない(tmp_path, flow, chat_steps, chat_retries, steps, retries):
-    """D0090-AC-05: chat status は、新しい記録でも古い記録でも同じ steps・retries（と文の「段を流した回数」）を返し、記録（state.json のバイト）を書き換えない。
+def test_d0091_ac05_statusは新旧の記録で同じ値と文を返し記録を書き換えない(tmp_path, flow, chat_steps, chat_retries, steps, retries):
+    """D0091-AC-05: chat status は、新しい記録でも古い記録でも同じ steps・retries（と文の「段を流した回数」）を返し、記録（state.json のバイト）を書き換えない。
     食い違う記録では大きいほう（retries は段ごとに大きいほう）を返す。"""
     r = Run(tmp_path)
     r.ready(three())
@@ -328,8 +328,8 @@ def merged(x: dict[str, int], y: dict[str, int]) -> dict[str, int]:
 
 @pytest.mark.parametrize("chat_counts", [(0, {}), (3, {"a": 1})], ids=["chatは0", "chatは正しい"])
 @pytest.mark.parametrize("flow,valid_steps,valid_retries", [b[1:] for b in BROKEN], ids=[b[0] for b in BROKEN])
-def test_d0090_ac07_壊れたflowは壊れた部分だけ0で読み落ちない(tmp_path, flow, valid_steps, valid_retries, chat_counts):
-    """D0090-AC-07: flow が壊れた記録を chat next で続けても落ちず、壊れた部分だけ 0 として読む。chat.* が 0 なら 0 のまま、
+def test_d0091_ac07_壊れたflowは壊れた部分だけ0で読み落ちない(tmp_path, flow, valid_steps, valid_retries, chat_counts):
+    """D0091-AC-07: flow が壊れた記録を chat next で続けても落ちず、壊れた部分だけ 0 として読む。chat.* が 0 なら 0 のまま、
     chat.* が正しければ大きいほうが効く。続けた後の flow は、読んだ数に 1 回分を足した値。"""
     chat_steps, chat_retries = chat_counts
     r = Run(tmp_path)
@@ -342,8 +342,8 @@ def test_d0090_ac07_壊れたflowは壊れた部分だけ0で読み落ちない(
     assert {k: v for k, v in got["retries"].items() if v} == merged(valid_retries, chat_retries)
 
 
-def test_d0090_ac07_食い違う記録は大きいほうを採り上限が甘くならない_steps(tmp_path):
-    """D0090-AC-07: flow.steps と chat.steps が食い違う記録は、大きいほう（どちらも max_steps = 2 に達している側）が効き、次の chat next で止まる。
+def test_d0091_ac07_食い違う記録は大きいほうを採り上限が甘くならない_steps(tmp_path):
+    """D0091-AC-07: flow.steps と chat.steps が食い違う記録は、大きいほう（どちらも max_steps = 2 に達している側）が効き、次の chat next で止まる。
     flow が小さいほうは今のまま通る（守る）。flow が大きいほうは、flow を読んでいないうちは止まらない。"""
     for name, flow_steps, chat_steps in [("flowが小さい", 0, 2), ("flowが大きい", 2, 0)]:
         r = Run(tmp_path / name)
@@ -353,8 +353,8 @@ def test_d0090_ac07_食い違う記録は大きいほうを採り上限が甘く
         assert out["action"] == "finished" and out["final"] == "STAGE_ERROR", f"{name}: {out}"
 
 
-def test_d0090_ac07_食い違う記録は大きいほうを採り上限が甘くならない_retries(tmp_path):
-    """D0090-AC-07: flow.retries と chat.retries が食い違う記録は、段ごとに大きいほうが効き、max_retries = 1 の段は次の不合格で TEST_FAILED で止まる。
+def test_d0091_ac07_食い違う記録は大きいほうを採り上限が甘くならない_retries(tmp_path):
+    """D0091-AC-07: flow.retries と chat.retries が食い違う記録は、段ごとに大きいほうが効き、max_retries = 1 の段は次の不合格で TEST_FAILED で止まる。
     flow が小さいほうは今のまま通る（守る）。flow が大きいほうは、flow を読んでいないうちは止まらない。"""
     for name, flow_retries, chat_retries in [("flowが小さい", {}, {"a": 1}), ("flowが大きい", {"a": 1}, {})]:
         r = Run(tmp_path / name)
@@ -368,8 +368,8 @@ def test_d0090_ac07_食い違う記録は大きいほうを採り上限が甘く
 # ---- AC-08：read_flow の置き場所 ---------------------------------------------------------------------------------
 
 
-def test_d0090_ac08_read_flowはpipelineからも同じ名前で読める():
-    """D0090-AC-08: read_flow は pipe_in.engine.flow にあり、pipe_in.pipe.pipeline からも同じものを読める。"""
+def test_d0091_ac08_read_flowはpipelineからも同じ名前で読める():
+    """D0091-AC-08: read_flow は pipe_in.engine.flow にあり、pipe_in.pipe.pipeline からも同じものを読める。"""
     from pipe_in.engine import flow as engine_flow
     from pipe_in.pipe import pipeline
 
@@ -379,8 +379,8 @@ def test_d0090_ac08_read_flowはpipelineからも同じ名前で読める():
 # ---- AC-09：共通の表 ---------------------------------------------------------------------------------------------
 
 
-def test_d0090_ac09_表のchat行はflowを任意の鍵として持ち新旧の記録が通る(tmp_path):
-    """D0090-AC-09: 共通の表の chat の行は flow を任意の鍵に持ち（鍵の並びには入れない）、flow のある記録も、flow を消した古い記録も、表の検査が通る。"""
+def test_d0091_ac09_表のchat行はflowを任意の鍵として持ち新旧の記録が通る(tmp_path):
+    """D0091-AC-09: 共通の表の chat の行は flow を任意の鍵に持ち（鍵の並びには入れない）、flow のある記録も、flow を消した古い記録も、表の検査が通る。"""
     row = TABLE["kinds"]["chat"]
     assert "flow" in row["optional_keys"] and "flow" not in row["keys"]
     state = build_chat(tmp_path)

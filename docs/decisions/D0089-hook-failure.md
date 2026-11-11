@@ -1,4 +1,4 @@
-# D0088 プラグインのフックが動かないときは、今は止めない（onFailure を付けない。#138）
+# D0089 プラグインのフックが動かないときは、今は止めない（onFailure を付けない。#138）
 
 ## 目的
 
@@ -11,18 +11,18 @@
 テストは `tests/test_hook_failure.py`。
 
 - FR-01 公式の文書で、フックの失敗を止める側にする仕組みと、プラグインの `hooks/hooks.json` で使えるかを確かめ、この記録に書く。
-  - D0088-AC-01：この記録に、公式の文書の該当の文（URL つき）がある。
-  - D0088-AC-02：この記録に、選んだ形と、選ばなかった形の理由がある。
-  - D0088-AC-03：この記録に、付けられる条件・確かめていないこと・残った課題がある（3つとも `test_d0088_ac01_03_決定の記録に必要な言葉がある`）。
+  - D0089-AC-01：この記録に、公式の文書の該当の文（URL つき）がある。
+  - D0089-AC-02：この記録に、選んだ形と、選ばなかった形の理由がある。
+  - D0089-AC-03：この記録に、付けられる条件・確かめていないこと・残った課題がある（3つとも `test_d0089_ac01_03_決定の記録に必要な言葉がある`）。
 - FR-02 `onFailure` は付けない。`plugin/hooks/hooks.json` の今の形を、テストで固定する。
-  - D0088-AC-05：`hooks.json` は、PreToolUse の1件・`matcher "*"`・`command "pipe-in-gen"`・`args ["guard-hook"]`・`timeout 30` で、`onFailure` がどこにも無い（`test_d0088_ac05_hooks_jsonの形は固定_onFailureは無い`）。
-  - D0088-AC-06：`onFailure` を見つける補助は、設定のどの深さにあっても見つける（`test_d0088_ac06_onFailureの見つけ方_偽の設定`）。
+  - D0089-AC-05：`hooks.json` は、PreToolUse の1件・`matcher "*"`・`command "pipe-in-gen"`・`args ["guard-hook"]`・`timeout 30` で、`onFailure` がどこにも無い（`test_d0089_ac05_hooks_jsonの形は固定_onFailureは無い`）。
+  - D0089-AC-06：`onFailure` を見つける補助は、設定のどの深さにあっても見つける（`test_d0089_ac06_onFailureの見つけ方_偽の設定`）。
 - FR-03・04 フックが動かないと守りが効かないことと、確かめ方を、文書に書く。
-  - D0088-AC-07：`docs/guide/plugin.md` に、付けない理由・作る役と審査役には流す前の確かめが無いこと・`hook error` の知らせが書いてある（`test_d0088_ac07_plugin_mdに付けない理由と確かめの無いことが書いてある`）。
-  - D0088-AC-08：`docs/guide/safety.md` に、節「プラグインのフックが動かないとき」がある（`test_d0088_ac08_safety_mdにフックが動かないときの節がある`）。
-- D0088-AC-04（実機）：`pipe-in-gen` を PATH から外した会話で、作る役の書き込みがどうなるかを確かめる。まだ。
-- D0088-AC-09：`plugin/hooks/hooks.json`・`generator/guard_hook.py`・`.claude/settings.json` は変えない（差分で確かめる）。
-- D0088-AC-10：決定の記録の一覧に載っている（`test_d0088_ac10_決定の記録の一覧に載っている`）。
+  - D0089-AC-07：`docs/guide/plugin.md` に、付けない理由・作る役と審査役には流す前の確かめが無いこと・`hook error` の知らせが書いてある（`test_d0089_ac07_plugin_mdに付けない理由と確かめの無いことが書いてある`）。
+  - D0089-AC-08：`docs/guide/safety.md` に、節「プラグインのフックが動かないとき」がある（`test_d0089_ac08_safety_mdにフックが動かないときの節がある`）。
+- D0089-AC-04（実機）：`pipe-in-gen` を PATH から外した会話で、作る役の書き込みがどうなるかを確かめる。まだ。
+- D0089-AC-09：`plugin/hooks/hooks.json`・`generator/guard_hook.py`・`.claude/settings.json` は変えない（差分で確かめる）。
+- D0089-AC-10：決定の記録の一覧に載っている（`test_d0089_ac10_決定の記録の一覧に載っている`）。
 
 ## 決めたことと理由
 

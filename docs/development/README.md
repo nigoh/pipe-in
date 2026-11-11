@@ -25,7 +25,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | プラグインの pipe-builder が書ける場所と Bash、pipe-judge が読む道具だけであること、/pipe-in のサブエージェント（監査と助言を含む）が書ける場所と Bash・助言の Web の行き先 | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
 | パイプの段の Bash の書き込みが、段の書き込み範囲に収まること（決まった形で先が読めるもの） | `tests/test_bash_write_guard.py` |
 | /pipe-in のサブエージェント用のフックが、内側で例外が出ても `pipe-in-*` の呼び出しを止める（読むだけの道具と報告は通す）こと。deny の JSON を書けないときは終了コード 2 で止めること（D0032） | `tests/test_pipe_in_guard.py` |
-| 書き込み先のリンクを、どの守りも先をたどって止めること（D0087。4つの守りの比較の表の期待は `tests/test_guard_symlink_common.py`） | `tests/test_guard_hook_symlink.py`・`tests/test_pipe_in_guard_symlink.py` |
+| 書き込み先のリンクを、どの守りも先をたどって止めること（D0088。4つの守りの比較の表の期待は `tests/test_guard_symlink_common.py`） | `tests/test_guard_hook_symlink.py`・`tests/test_pipe_in_guard_symlink.py` |
 | /pipe-in のスキルの形（冒頭に「必ず守ること」、長い手順は補助ファイル）、`.claude/settings.json` の `ask`・`allow` の形、確認用のページの一覧の持ち場（`docs/assets/README.md`）、それに合わせた文書と決定の記録（D0039）。フックの判断が変わらないことの総当たりは `tests/test_pipe_in_guard.py` の末尾 | `tests/test_skill_tidy.py`・`tests/test_skill_tidy_docs.py` |
 | 人に確認・質問・承認を求めるときは質問欄（AskUserQuestion）で聞く決まりが、CLAUDE.md の「必ず守ること」にあり、7つの開発用のスキルがそれを指していること（D0057） | `tests/test_ask_question.py` |
 | 無人の実行（人が開始の指示で承認したときだけ、その枝への commit・push・PR の作成をする）の決まりが、`CLAUDE.md`・`/pipe-in` のスキル・文書にあり、`.claude/settings.json` の `ask` が main へ届きうる `git push` の形を止め、枝名を書く形は止めないこと（D0073） | `tests/test_unattended_run.py` |

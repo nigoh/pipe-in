@@ -260,7 +260,7 @@ _DEFS: list[Row] = [
     Row("bypass-dotdot-abs", "Write", {"file_path": "{P}/src/../.claude/settings.json", "content": "{}"}, "code", Q),
     Row("bypass-dotdot-rel", "Write", {"file_path": "src/../.claude/settings.json", "content": "{}"}, "code", Q),
     # リンクを経た道：src/link.json と パイプの prompts/link.md は、どちらも .claude/settings.json を指す。
-    # どの守りも先をたどって止める（D0087。SDK の道と会話の道は Path.resolve()、プラグインと開発用は os.path.realpath）
+    # どの守りも先をたどって止める（D0088。SDK の道と会話の道は Path.resolve()、プラグインと開発用は os.path.realpath）
     Row("bypass-link-src", "Write", {"file_path": "{P}/src/link.json", "content": "{}"}, "code", Q),
     Row("bypass-link-pipe-prompt", "Write", {"file_path": "{P}/.pipe-in/pipes/pipe-in-hp/prompts/link.md", "content": "x"}, "code", Q),
     Row("bypass-edit", "Edit", {"file_path": SETTINGS, "old_string": "a", "new_string": "b"}, "code", Q),
@@ -285,7 +285,7 @@ _DEFS: list[Row] = [
 # 読み方の例：
 #  - 4か所（.claude/・.git/・.pipe-in/・pipeline.toml）は、SDK の道でも設定なしで止める（D0084。sdk と sdk_protected が同じ）。
 #    会話の道とプラグインも、いつも止める。開発用は pipe-in-coder が .pipe-in/・pipeline.toml に書ける（.claude/・.git/ は止まる）。
-#  - .mcp.json（D0086）は、SDK の道・会話の道・プラグインで止める。開発用は pipe-in-coder だけが通す（実測）。
+#  - .mcp.json（D0087）は、SDK の道・会話の道・プラグインで止める。開発用は pipe-in-coder だけが通す（実測）。
 #  - プラグインの作る役と、開発用の pipe-in-coder だけが、流しているパイプのフォルダ（.pipe-in/pipes/pipe-in-hp/）の決まったファイルに書ける。
 #  - git add・git commit は、SDK の道と会話の道（Bash を持つ段）では通り、プラグインと開発用では止まる。git push はどこも止まる。
 #  - Skill は SDK の道だけが通す。Agent・Task は agents を持つ段の SDK の道だけが通す（会話の中では流せない形）。
@@ -313,7 +313,7 @@ EXPECT: dict[str, str] = {
     "write-dotgit": "DDDDDDDDD",
     "write-dotpipein": "DDDDDDDAD",
     "write-pipelinetoml": "DDDDDDDAD",
-    # D0086：.mcp.json。SDK の道（sdk・sdk_protected）と会話の道（chat）は止める（D）。
+    # D0087：.mcp.json。SDK の道（sdk・sdk_protected）と会話の道（chat）は止める（D）。
     # プラグインの作る役・審査役・dev_analyst・dev_tester・dev_verifier も止め、dev_coder は自前の一覧に無いので通す（A。残った課題）
     "write-mcpjson": "DDDDDDDAD",
     "write-running-pipe-toml": "DDDADDDAD",
@@ -323,7 +323,7 @@ EXPECT: dict[str, str] = {
     "bypass-rel": "DDDDDDDDD",
     "bypass-dotdot-abs": "DDDDDDDDD",
     "bypass-dotdot-rel": "DDDDDDDDD",
-    # リンクを経た道：どの守りも先をたどって止める（D0087）
+    # リンクを経た道：どの守りも先をたどって止める（D0088）
     "bypass-link-src": "DDDDDDDDD",
     "bypass-link-pipe-prompt": "DDDDDDDDD",
     "bypass-edit": "DDDDDDDDD",

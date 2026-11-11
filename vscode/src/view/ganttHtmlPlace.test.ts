@@ -1,4 +1,4 @@
-// 時系列の確認待ちの字を行の下へ出す（D0089・AC-09〜11・15）：renderGantt の出力。
+// 時系列の確認待ちの字を行の下へ出す（D0090・AC-09〜11・15）：renderGantt の出力。
 // - AC-09（赤）：再現の入力（実行 0〜1.0 秒・長さ 0 の live の待ち・全体 1.0 秒）で、待ちの字は data-side="below"、その行だけ has-below。
 // - AC-10（守る。今の作りで通る）：既存の入力の時系列の行は、変える前に今の ganttHtml.ts が返した HTML をそのまま固定する。
 //   has-below と data-side="below" が、入口（幅 5% 未満で右端 85% 超の待ち）を持たない既存の確認用ページに出ないことも確かめる。
@@ -72,13 +72,13 @@ const REPRO = gModel(
   { totalSec: 1.0, ticks: [0, 0.5, 1.0], live: true },
 );
 
-test('D0089-AC-09: 再現の入力：確認待ちの字は実行の帯の上に乗る位置（data-side="left"）に出ず、帯の下（data-side="below"）に出る', () => {
+test('D0090-AC-09: 再現の入力：確認待ちの字は実行の帯の上に乗る位置（data-side="left"）に出ず、帯の下（data-side="below"）に出る', () => {
   const out = renderGantt(REPRO);
   assert.doesNotMatch(out, /data-side="left"[^<]*>確認待ち/, '左（実行の帯の上）に確認待ちの字を出さない');
   assert.match(out, /<span class="g-text r\d+" data-side="below">確認待ち 0:00 ● 待っている<\/span>/);
 });
 
-test('D0089-AC-09: 再現の入力：below の字の位置のクラス（r の数）は 0〜100 の範囲内で、帯の右端にそろえる（右端 100% なら r0）', () => {
+test('D0090-AC-09: 再現の入力：below の字の位置のクラス（r の数）は 0〜100 の範囲内で、帯の右端にそろえる（右端 100% なら r0）', () => {
   const out = renderGantt(REPRO);
   const m = /<span class="g-text r(\d+)" data-side="below">/.exec(out);
   assert.ok(m !== null, 'below の字がある');
@@ -87,7 +87,7 @@ test('D0089-AC-09: 再現の入力：below の字の位置のクラス（r の�
   assert.equal(n, 0);
 });
 
-test('D0089-AC-09: 再現の入力：字が below の行だけが has-below を持つ。ほかの 2 行は今までと同じ <div class="g-row">', () => {
+test('D0090-AC-09: 再現の入力：字が below の行だけが has-below を持つ。ほかの 2 行は今までと同じ <div class="g-row">', () => {
   const rows = splitRows(renderGantt(REPRO));
   assert.equal(rows.length, 3);
   assert.ok(rows[0]!.startsWith('<div class="g-row">'), '1 行目は has-below なし');
@@ -95,20 +95,20 @@ test('D0089-AC-09: 再現の入力：字が below の行だけが has-below を�
   assert.ok(rows[2]!.startsWith('<div class="g-row has-below">'), '3 行目は has-below つき');
 });
 
-test('D0089-AC-09: 再現の入力：実行の帯の中の字（要件定義 0:00・設計 0:00・テスト先行 0:01）は今までどおり帯の真ん中（g-in・x15・x30・x50）に出る', () => {
+test('D0090-AC-09: 再現の入力：実行の帯の中の字（要件定義 0:00・設計 0:00・テスト先行 0:01）は今までどおり帯の真ん中（g-in・x15・x30・x50）に出る', () => {
   const out = renderGantt(REPRO);
   assert.match(out, /<span class="g-text g-in x15">0:0\d<\/span>/);
   assert.match(out, /<span class="g-text g-in x30">0:0\d<\/span>/);
   assert.match(out, /<span class="g-text g-in x50">0:01<\/span>/);
 });
 
-test('D0089-AC-09: below の字と行のための CSS 規則がある（.g-text[data-side="below"]・.g-row.has-below）。font-size は足さない', () => {
+test('D0090-AC-09: below の字と行のための CSS 規則がある（.g-text[data-side="below"]・.g-row.has-below）。font-size は足さない', () => {
   assert.match(GANTT_STYLE, /\.g-text\[data-side="below"\]\s*\{/);
   assert.match(GANTT_STYLE, /\.g-row\.has-below\s*\{/);
   assert.equal((GANTT_STYLE.match(/font-size/g) ?? []).length, 1, 'font-size は .gantt の 1 か所のまま（既存の px の検査を保つ）');
 });
 
-test('D0089-AC-09: 待ちが短い（5% 未満）でも、右端が 85% 以下の待ちや、実行の帯が字の範囲にかからない待ちでは、below にも has-below にもならない（今の作りで通る。守る）', () => {
+test('D0090-AC-09: 待ちが短い（5% 未満）でも、右端が 85% 以下の待ちや、実行の帯が字の範囲にかからない待ちでは、below にも has-below にもならない（今の作りで通る。守る）', () => {
   const noRun = renderGantt(gModel([gRow({ seq: 1, label: 'a', run: runBar(0, 50), wait: waitBar(100, 100, true) })], { live: true }));
   assert.doesNotMatch(noRun, /has-below|data-side="below"/);
   const middle = renderGantt(gModel([gRow({ seq: 1, label: 'a', run: runBar(0, 40), wait: waitBar(40, 41, true) })], { live: true }));
@@ -150,16 +150,16 @@ const GOLDEN: [string, GanttModel, string][] = [
 ];
 
 for (const [name, model, golden] of GOLDEN) {
-  test(`D0089-AC-10: 既存の入力（${name}）の行の HTML は、変える前と 1 字も違わない（今の作りで通る。守る）`, () => {
+  test(`D0090-AC-10: 既存の入力（${name}）の行の HTML は、変える前と 1 字も違わない（今の作りで通る。守る）`, () => {
     assert.equal(rowsOf(renderGantt(model)), golden);
   });
 }
 
-test('D0089-AC-10: 既存の入力のどれも has-below・data-side="below" を出さない（守る）', () => {
+test('D0090-AC-10: 既存の入力のどれも has-below・data-side="below" を出さない（守る）', () => {
   for (const [name, model] of GOLDEN) assert.doesNotMatch(renderGantt(model), /has-below|data-side="below"/, name);
 });
 
-test('D0089-AC-10: 時系列に待ちの無い行（実行だけ・実行の帯が無い行）も has-below にならない（守る）', () => {
+test('D0090-AC-10: 時系列に待ちの無い行（実行だけ・実行の帯が無い行）も has-below にならない（守る）', () => {
   const out = renderGantt(gModel([gRow({ seq: 1, label: 'a', run: runBar(0, 50) }), gRow({ seq: 2, label: 'b', run: null })]));
   assert.doesNotMatch(out, /has-below/);
   assert.match(out, /<span class="g-note">時刻の記録なし<\/span>/);
@@ -204,7 +204,7 @@ function hasEntrance(html: string): boolean {
   return [...html.matchAll(WAIT_RECT)].some((m) => Number(m[2]) < 5 && Number(m[1]) + Number(m[2]) > 85);
 }
 
-test('D0089-AC-10: 既存の確認用ページのうち、新しい置き方の入口の待ちを持たないページ（done・running・waiting・budget・check・group・chat）の時系列に、has-below の行と data-side="below" の字は出ない（今の作りで通る。守る）', async () => {
+test('D0090-AC-10: 既存の確認用ページのうち、新しい置き方の入口の待ちを持たないページ（done・running・waiting・budget・check・group・chat）の時系列に、has-below の行と data-side="below" の字は出ない（今の作りで通る。守る）', async () => {
   let checked = 0;
   for (const [name, html] of await existingPages()) {
     if (ENTRANCE_PAGES.includes(name)) continue;
@@ -216,12 +216,12 @@ test('D0089-AC-10: 既存の確認用ページのうち、新しい置き方の�
   assert.ok(checked >= 10, `確かめたページが ${checked} 件しかない`);
 });
 
-test('D0089-AC-10: （前提の記録）新しい置き方の入口（幅 5% 未満で右端が 85% 超の待ち）を持つ確認用ページは runs・runs-omitted・stale・stale-soon・artifacts・tools・reply だけ。ほかのページには無い（今の作りで通る。守る）', async () => {
+test('D0090-AC-10: （前提の記録）新しい置き方の入口（幅 5% 未満で右端が 85% 超の待ち）を持つ確認用ページは runs・runs-omitted・stale・stale-soon・artifacts・tools・reply だけ。ほかのページには無い（今の作りで通る。守る）', async () => {
   const withEntrance = (await existingPages()).filter(([, html]) => hasEntrance(html)).map(([name]) => name);
   assert.deepEqual(withEntrance, ENTRANCE_PAGES);
 });
 
-test('D0089-AC-10: 入口を持つ 7 ページ以外の待ちの帯は、幅が 5% 未満でも右端が 85% 以下（置き場所は今のまま right）で、見え方が変わらない（今の作りで通る。守る）', async () => {
+test('D0090-AC-10: 入口を持つ 7 ページ以外の待ちの帯は、幅が 5% 未満でも右端が 85% 以下（置き場所は今のまま right）で、見え方が変わらない（今の作りで通る。守る）', async () => {
   let waits = 0;
   for (const [name, html] of await existingPages()) {
     if (ENTRANCE_PAGES.includes(name)) continue;
@@ -238,7 +238,7 @@ test('D0089-AC-10: 入口を持つ 7 ページ以外の待ちの帯は、幅が 
 
 const EVIL = '<img src=x onerror=alert(1)>"&';
 
-test('D0089-AC-11: below の行でも、段の表示名・受け持ちの < " & は escapeHtml を通る（生のタグが出ない）', () => {
+test('D0090-AC-11: below の行でも、段の表示名・受け持ちの < " & は escapeHtml を通る（生のタグが出ない）', () => {
   const out = renderGantt(
     gModel([gRow({ seq: 1, label: EVIL, agent: EVIL, run: runBar(0, 100), wait: waitBar(100, 100, true) })], { totalSec: 100, live: true }),
   );
@@ -247,7 +247,7 @@ test('D0089-AC-11: below の行でも、段の表示名・受け持ちの < " & 
   assert.match(out, /&lt;img src=x onerror=alert\(1\)&gt;&quot;&amp;/);
 });
 
-test('D0089-AC-11: 時系列の出力と GANTT_STYLE に、style 属性・動き（animation・@keyframes）・外部の読み込み（http・@import・url(http)）を足さない', () => {
+test('D0090-AC-11: 時系列の出力と GANTT_STYLE に、style 属性・動き（animation・@keyframes）・外部の読み込み（http・@import・url(http)）を足さない', () => {
   const out = renderGantt(REPRO);
   assert.doesNotMatch(out, /\sstyle=/);
   assert.doesNotMatch(out, /https?:/);
@@ -256,7 +256,7 @@ test('D0089-AC-11: 時系列の出力と GANTT_STYLE に、style 属性・動き
 
 // ---- AC-15：時刻の無い記録 ----
 
-test('D0089-AC-15: 時刻の記録が無い（hasTimes: false）ときは、今までどおり「時刻の記録がありません」だけで、has-below も行も出ない（今の作りで通る。守る）', () => {
+test('D0090-AC-15: 時刻の記録が無い（hasTimes: false）ときは、今までどおり「時刻の記録がありません」だけで、has-below も行も出ない（今の作りで通る。守る）', () => {
   const out = renderGantt(gModel([gRow({ seq: 1, label: 'a', run: null })], { hasTimes: false }));
   assert.equal(out, '<h2 class="terminal-title">時系列</h2><p class="gantt-none">時刻の記録がありません</p>');
 });

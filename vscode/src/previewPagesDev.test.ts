@@ -1,4 +1,4 @@
-// 確認用ページの素材のテスト（D0089・AC-01〜05 の見本の行）：scripts/previewPages.ts と scripts/devSamples.ts が作る、開発用の新しい記録の見本ページ。
+// 確認用ページの素材のテスト（D0090・AC-01〜05 の見本の行）：scripts/previewPages.ts と scripts/devSamples.ts が作る、開発用の新しい記録の見本ページ。
 //   run-panel-dev-light・run-panel-dev-dark（schema: 1・費用と使用量が取れない・段が 1 秒ほどで終わる短い記録・テスト先行の確認待ちで止まる）。
 // 画面そのもの（AC-05・12・13）は Playwright で見る。ここで確かめるのは、画面で見る前の素材：ページの一覧・種類の判定・見本の記録の形・
 // 共通の表（tests/fixtures/state_record.json）との突き合わせ・本物の読み取りで読んだ時系列・描くと下の行に出ること・tests/fixtures/ に書かないこと。
@@ -64,7 +64,7 @@ const BASE_PAGES: [string, string][] = [
 
 // ---- ページの一覧・種類（AC-01・02） ----
 
-test('D0089-AC-01: PANEL_PAGES に run-panel-dev-light（明るい）・run-panel-dev-dark（暗い）の 2 件が、chat-dark の次・reply-runs-light の前にある', () => {
+test('D0090-AC-01: PANEL_PAGES に run-panel-dev-light（明るい）・run-panel-dev-dark（暗い）の 2 件が、chat-dark の次・reply-runs-light の前にある', () => {
   const names = PANEL_PAGES.map(([name]) => name);
   const at = names.indexOf('run-panel-dev-light');
   assert.ok(at >= 0, 'run-panel-dev-light がある');
@@ -80,18 +80,18 @@ test('D0089-AC-01: PANEL_PAGES に run-panel-dev-light（明るい）・run-pane
   assert.equal(names.filter((n) => n.includes('-dev-')).length, 2, '-dev- を含む名前はこの 2 件だけ');
 });
 
-test('D0089-AC-01: panelKind は run-panel-dev-light・run-panel-dev-dark に dev を返す', () => {
+test('D0090-AC-01: panelKind は run-panel-dev-light・run-panel-dev-dark に dev を返す', () => {
   assert.equal(panelKind('run-panel-dev-light'), 'dev');
   assert.equal(panelKind('run-panel-dev-dark'), 'dev');
 });
 
-test('D0089-AC-01: scripts/preview.ts に kind === \'dev\' の枝があり、devPageHtml で書く（out/preview/ に 2 つのページができる）', async () => {
+test('D0090-AC-01: scripts/preview.ts に kind === \'dev\' の枝があり、devPageHtml で書く（out/preview/ に 2 つのページができる）', async () => {
   const text = await readFile(path.join(SCRIPTS, 'preview.ts'), 'utf8');
   assert.match(text, /kind === 'dev'/);
   assert.match(text, /devPageHtml\(/);
 });
 
-test('D0089-AC-02: 既存のページ名の種類は今のまま（-dev- を含む名前だけが dev になる）。今のまま通る。守る', () => {
+test('D0090-AC-02: 既存のページ名の種類は今のまま（-dev- を含む名前だけが dev になる）。今のまま通る。守る', () => {
   const expected: Record<string, string> = {
     'run-panel-light': 'done',
     'run-panel-running-dark': 'running',
@@ -111,7 +111,7 @@ test('D0089-AC-02: 既存のページ名の種類は今のまま（-dev- を含�
   assert.deepEqual(Object.fromEntries(Object.keys(expected).map((name) => [name, panelKind(name)])), expected);
 });
 
-test('D0089-AC-02: 先頭 32 件（run-panel-light から run-panel-chat-dark まで）の名前・順・テーマは今のまま。名前の重複が無い。今のまま通る。守る', () => {
+test('D0090-AC-02: 先頭 32 件（run-panel-light から run-panel-chat-dark まで）の名前・順・テーマは今のまま。名前の重複が無い。今のまま通る。守る', () => {
   assert.deepEqual(
     PANEL_PAGES.slice(0, BASE_PAGES.length).map(([name, theme]) => [name, theme]),
     BASE_PAGES,
@@ -122,7 +122,7 @@ test('D0089-AC-02: 先頭 32 件（run-panel-light から run-panel-chat-dark �
 
 // ---- 見本の記録の形（AC-03） ----
 
-test('D0089-AC-03: buildDevDir(dest) は dest の中の docs/pipeline に state.json・logs/01_requirements.jsonl・02_design.jsonl・03_red.jsonl・00_input.md を書く', async () => {
+test('D0090-AC-03: buildDevDir(dest) は dest の中の docs/pipeline に state.json・logs/01_requirements.jsonl・02_design.jsonl・03_red.jsonl・00_input.md を書く', async () => {
   const build = buildDevDir();
   await withTempDir(async (dest) => {
     const dir = await build(dest);
@@ -134,7 +134,7 @@ test('D0089-AC-03: buildDevDir(dest) は dest の中の docs/pipeline に state.
   });
 });
 
-test('D0089-AC-03: buildDevDir は tests/fixtures/ に何も書かない（前後の指紋が同じ）', async () => {
+test('D0090-AC-03: buildDevDir は tests/fixtures/ に何も書かない（前後の指紋が同じ）', async () => {
   const build = buildDevDir();
   const before = await fingerprint(FIXTURES_DIR);
   await withTempDir(async (dest) => {
@@ -143,7 +143,7 @@ test('D0089-AC-03: buildDevDir は tests/fixtures/ に何も書かない（前�
   assert.deepEqual(await fingerprint(FIXTURES_DIR), before);
 });
 
-test('D0089-AC-03: 見本の state.json：schema 1・driver pipe-dev・費用 null・使用量は取れない（available false と理由）・各段の cost_usd は null・metrics は持たない', () => {
+test('D0090-AC-03: 見本の state.json：schema 1・driver pipe-dev・費用 null・使用量は取れない（available false と理由）・各段の cost_usd は null・metrics は持たない', () => {
   const state = JSON.parse(devStateJson()) as Record<string, any>;
   assert.equal(state.schema, 1);
   assert.equal(state.driver, 'pipe-dev');
@@ -158,7 +158,7 @@ test('D0089-AC-03: 見本の state.json：schema 1・driver pipe-dev・費用 nu
   }
 });
 
-test('D0089-AC-03: 見本の state.json：5 段（要件定義・設計・テスト先行・実装・検証。実装と検証は確認なし）・pending_review.stage は red・runs の duration_sec は 0.3・0.6・1.0', () => {
+test('D0090-AC-03: 見本の state.json：5 段（要件定義・設計・テスト先行・実装・検証。実装と検証は確認なし）・pending_review.stage は red・runs の duration_sec は 0.3・0.6・1.0', () => {
   const state = JSON.parse(devStateJson()) as Record<string, any>;
   assert.deepEqual(
     state.stages.map((s: any) => [s.name, s.label, s.review]),
@@ -181,14 +181,14 @@ test('D0089-AC-03: 見本の state.json：5 段（要件定義・設計・テス
   );
 });
 
-test('D0089-AC-03: 見本の時刻はすべて時差なし（タイムゾーンに左右されない）で、started_at は 11:40:42・pending_review.since は 11:40:43', () => {
+test('D0090-AC-03: 見本の時刻はすべて時差なし（タイムゾーンに左右されない）で、started_at は 11:40:42・pending_review.since は 11:40:43', () => {
   const state = JSON.parse(devStateJson()) as Record<string, any>;
   assert.match(state.started_at, /^\d{4}-\d\d-\d\dT11:40:42$/);
   assert.match(state.pending_review.since, /^\d{4}-\d\d-\d\dT11:40:43$/);
   for (const log of devLogs()) assert.match(log.text, /"at":"\d{4}-\d\d-\d\dT11:40:42"/, `${log.fileName} の Prompt の at`);
 });
 
-test('D0089-AC-03: 見本のログは 3 つ（01_requirements・02_design・03_red）で、どれにも _type が Prompt の行（stage と at つき）がある', () => {
+test('D0090-AC-03: 見本のログは 3 つ（01_requirements・02_design・03_red）で、どれにも _type が Prompt の行（stage と at つき）がある', () => {
   const logs = devLogs();
   assert.deepEqual(
     logs.map((l) => l.fileName),
@@ -206,7 +206,7 @@ test('D0089-AC-03: 見本のログは 3 つ（01_requirements・02_design・03_r
   }
 });
 
-test('D0089-AC-03: 見本の鍵は共通の表（tests/fixtures/state_record.json）の dev の行と合う：鍵の並び（任意の鍵を除く）・driver・schema・値の種類', () => {
+test('D0090-AC-03: 見本の鍵は共通の表（tests/fixtures/state_record.json）の dev の行と合う：鍵の並び（任意の鍵を除く）・driver・schema・値の種類', () => {
   const table = loadStateTable();
   const row = table.kinds.dev;
   const state = JSON.parse(devStateJson()) as Record<string, unknown>;
@@ -225,7 +225,7 @@ test('D0089-AC-03: 見本の鍵は共通の表（tests/fixtures/state_record.jso
 
 // ---- 再現（AC-04）----
 
-test('D0089-AC-04: 見本の記録を本物の読み取り（readShowcaseView。時計なし）で読むと、時系列は 3 行・全体 1.0 秒で、時刻が読める', async () => {
+test('D0090-AC-04: 見本の記録を本物の読み取り（readShowcaseView。時計なし）で読むと、時系列は 3 行・全体 1.0 秒で、時刻が読める', async () => {
   const build = buildDevDir();
   await withTempDir(async (dest) => {
     const view = await readShowcaseView(await build(dest));
@@ -235,7 +235,7 @@ test('D0089-AC-04: 見本の記録を本物の読み取り（readShowcaseView。
   });
 });
 
-test('D0089-AC-04: 3 行目（テスト先行）の wait は、長さ 0 の live の帯（startSec ＝ endSec ＝ 1.0）。1・2 行目に wait は無い', async () => {
+test('D0090-AC-04: 3 行目（テスト先行）の wait は、長さ 0 の live の帯（startSec ＝ endSec ＝ 1.0）。1・2 行目に wait は無い', async () => {
   const build = buildDevDir();
   await withTempDir(async (dest) => {
     const rows = (await readShowcaseView(await build(dest))).gantt.rows;
@@ -249,7 +249,7 @@ test('D0089-AC-04: 3 行目（テスト先行）の wait は、長さ 0 の live
   });
 });
 
-test('D0089-AC-04: 3 行の実行の帯は、どれも 0 秒から始まり、長さは 0.3・0.6・1.0 秒（3 段のログの Prompt の at が同じ秒）', async () => {
+test('D0090-AC-04: 3 行の実行の帯は、どれも 0 秒から始まり、長さは 0.3・0.6・1.0 秒（3 段のログの Prompt の at が同じ秒）', async () => {
   const build = buildDevDir();
   await withTempDir(async (dest) => {
     const rows = (await readShowcaseView(await build(dest))).gantt.rows;
@@ -266,7 +266,7 @@ test('D0089-AC-04: 3 行の実行の帯は、どれも 0 秒から始まり、�
 
 // ---- ページ（AC-05 の素材・再現の描画） ----
 
-test('D0089-AC-04: devPageHtml で見本を描くと、確認待ちの字が青い帯の上に乗らず下の行に出る（data-side="below"・行は has-below）。明るい・暗いの両方', async () => {
+test('D0090-AC-04: devPageHtml で見本を描くと、確認待ちの字が青い帯の上に乗らず下の行に出る（data-side="below"・行は has-below）。明るい・暗いの両方', async () => {
   const html = devPageHtml();
   await withTempDir(async (dest) => {
     for (const theme of ['light', 'dark'] as const) {
@@ -278,7 +278,7 @@ test('D0089-AC-04: devPageHtml で見本を描くと、確認待ちの字が青�
   });
 });
 
-test('D0089-AC-05: devPageHtml のページ（画面で見る前の素材）：費用は「取れない」・使用量の欄は「使用量は取れません」と理由を出し、「$0.000」はどこにも無い', async () => {
+test('D0090-AC-05: devPageHtml のページ（画面で見る前の素材）：費用は「取れない」・使用量の欄は「使用量は取れません」と理由を出し、「$0.000」はどこにも無い', async () => {
   const html = devPageHtml();
   await withTempDir(async (dest) => {
     for (const theme of ['light', 'dark'] as const) {

@@ -92,7 +92,7 @@ def test_d0077_ac35_検査そのものが違反を見つけられる():
     assert violations("import json\nfrom pathlib import Path\nfrom ..engine.config import Config\n", "pipe_in.pipe.chat", CHAT_FILES["pipe_in/pipe/chat.py"]) == []
 
 
-# 子の頭は補助（tests/gen_loader.py）の CHILD_PRELUDE：作業フォルダの generator/ を読む（D0085）
+# 子の頭は補助（tests/gen_loader.py）の CHILD_PRELUDE：作業フォルダの generator/ を読む（D0086）
 _PROBE_CODE = gen_loader.CHILD_PRELUDE + """
 import sys
 import pipe_in_generator.chat_cmd, pipe_in_generator.chat_hook

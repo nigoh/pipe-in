@@ -385,11 +385,11 @@ def test_d0082_ac11_capabilityは標準ライブラリだけ():
     assert _outside_stdlib(path, "pipe_in.pipe.capability") == []
 
 
-# ---- D0090：回数の読み方（pipe_in/engine/flow.py）----------------------------------------------------------------------------
+# ---- D0091：回数の読み方（pipe_in/engine/flow.py）----------------------------------------------------------------------------
 
 
-def test_d0090_ac08_flowは標準ライブラリだけ():
-    """D0090-AC-08: 回数の読み方（pipe_in/engine/flow.py）は、標準ライブラリだけを読む（pipe_in の他の部品も SDK も読まない）。"""
+def test_d0091_ac08_flowは標準ライブラリだけ():
+    """D0091-AC-08: 回数の読み方（pipe_in/engine/flow.py）は、標準ライブラリだけを読む（pipe_in の他の部品も SDK も読まない）。"""
     path = ROOT / "pipe_in" / "engine" / "flow.py"
     assert path.is_file(), "pipe_in/engine/flow.py がまだ無い（新しい部品をまだ作っていない）"
     assert _outside_stdlib(path, "pipe_in.engine.flow") == []
@@ -409,16 +409,16 @@ def _read_flow_sources(source: str) -> tuple[list[str], list[str]]:
     return from_pipeline, from_flow
 
 
-def test_d0090_ac08_chatはread_flowをSDKの道のモジュールから読まない():
-    """D0090-AC-08: 会話の道（pipe_in/pipe/chat.py）は read_flow を engine.flow から読み、SDK の道の司会役のモジュール（.pipeline）からは読まない。"""
+def test_d0091_ac08_chatはread_flowをSDKの道のモジュールから読まない():
+    """D0091-AC-08: 会話の道（pipe_in/pipe/chat.py）は read_flow を engine.flow から読み、SDK の道の司会役のモジュール（.pipeline）からは読まない。"""
     source = (ROOT / "pipe_in" / "pipe" / "chat.py").read_text(encoding="utf-8")
     from_pipeline, from_flow = _read_flow_sources(source)
     assert from_pipeline == [], f"chat.py が .pipeline から read_flow を読んでいる: {from_pipeline}"
     assert from_flow, "chat.py が engine.flow から read_flow を読んでいない（回数をまだ flow から読んでいない）"
 
 
-def test_d0090_ac08_検査そのものがpipeline経由とengine経由の読み方を見分ける_守る():
-    """D0090-AC-08: read_flow の読み元の検査が、.pipeline 経由と engine.flow 経由を見分ける（今のまま通る。守る）。"""
+def test_d0091_ac08_検査そのものがpipeline経由とengine経由の読み方を見分ける_守る():
+    """D0091-AC-08: read_flow の読み元の検査が、.pipeline 経由と engine.flow 経由を見分ける（今のまま通る。守る）。"""
     assert _read_flow_sources("from .pipeline import exit_message, read_flow\n") == ([".pipeline"], [])
     assert _read_flow_sources("from ..engine.flow import read_flow\n") == ([], ["..engine.flow"])
     assert _read_flow_sources("from .pipeline import exit_message\nimport json\n") == ([], [])

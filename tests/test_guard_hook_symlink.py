@@ -1,4 +1,4 @@
-"""D0087 (1)：プラグインのフック（generator/guard_hook.py）が、書き込み先のリンクの先をたどって判断する。
+"""D0088 (1)：プラグインのフック（generator/guard_hook.py）が、書き込み先のリンクの先をたどって判断する。
 
 pipe-builder の書き込みは、パイプのフォルダ（…/pipes/pipe-in-<名前>/ か、環境変数の置き場所の下）の
 pipe.toml・README.md・prompts/*.md だけ。書ける場所の中のリンクが外（.claude/settings.json など）を指すときは止める。
@@ -81,8 +81,8 @@ def denied(reason) -> bool:
 
 @pytest.mark.parametrize("tool", TOOLS)
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac01_link_in_prompts_to_settings_denied(tmp_path, env, prefix, tool):
-    """D0087-AC-01: パイプの prompts/link.md が .claude/settings.json を指すリンクのとき、Write・Edit・MultiEdit は止まる
+def test_d0088_ac01_link_in_prompts_to_settings_denied(tmp_path, env, prefix, tool):
+    """D0088-AC-01: パイプの prompts/link.md が .claude/settings.json を指すリンクのとき、Write・Edit・MultiEdit は止まる
     （途中一致の道と、PIPE_IN_PIPES_DIR・前の版の環境変数の道。パイプのフォルダ名は新旧どちらの頭でも）。
     文字の上の判断は通るが、リンクをたどった判断が止めるので、全体は止まる。"""
     lay = Lay(tmp_path, env, prefix)
@@ -95,8 +95,8 @@ def test_d0087_ac01_link_in_prompts_to_settings_denied(tmp_path, env, prefix, to
 
 @pytest.mark.parametrize("rel", ["pipe.toml", "README.md", "prompts/a.md", "prompts/new.md"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac02_plain_writable_still_allowed(tmp_path, env, prefix, rel):
-    """D0087-AC-02: リンクでない pipe.toml・README.md・prompts/*.md（まだ無い新しいファイルも）は通る（リンクをたどる判断を足しても、狭めない）。"""
+def test_d0088_ac02_plain_writable_still_allowed(tmp_path, env, prefix, rel):
+    """D0088-AC-02: リンクでない pipe.toml・README.md・prompts/*.md（まだ無い新しいファイルも）は通る（リンクをたどる判断を足しても、狭めない）。"""
     lay = Lay(tmp_path, env, prefix)
     for tool in TOOLS:
         assert lay.verdict(lay.x / rel, tool) is None, (tool, rel)
@@ -104,8 +104,8 @@ def test_d0087_ac02_plain_writable_still_allowed(tmp_path, env, prefix, rel):
 
 @pytest.mark.parametrize("which", ["run.py", "prompts/x/a.md", "prompts/a.txt", "prompts/.md", "src", "base-readme", "other-dir", "wrong-name"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac02_plain_not_writable_still_denied(tmp_path, env, prefix, which):
-    """D0087-AC-02: pipe.toml 以外・prompts/ の下の入れ子・パイプのフォルダの外は、今のまま止まる（今のまま通る。守る）。"""
+def test_d0088_ac02_plain_not_writable_still_denied(tmp_path, env, prefix, which):
+    """D0088-AC-02: pipe.toml 以外・prompts/ の下の入れ子・パイプのフォルダの外は、今のまま止まる（今のまま通る。守る）。"""
     lay = Lay(tmp_path, env, prefix)
     paths = {
         "run.py": lay.x / "run.py",
@@ -126,8 +126,8 @@ def test_d0087_ac02_plain_not_writable_still_denied(tmp_path, env, prefix, which
 
 @pytest.mark.parametrize("target", ["own-toml", "other-pipe-toml"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac03_link_to_writable_inside_allowed(tmp_path, env, prefix, target):
-    """D0087-AC-03: prompts/l.md が、同じパイプの pipe.toml か、同じ置き場所の別のパイプの pipe.toml を指すときは通る
+def test_d0088_ac03_link_to_writable_inside_allowed(tmp_path, env, prefix, target):
+    """D0088-AC-03: prompts/l.md が、同じパイプの pipe.toml か、同じ置き場所の別のパイプの pipe.toml を指すときは通る
     （文字の上もたどった先も、書ける場所の中。今のまま通る。直したあとも通ること）。"""
     lay = Lay(tmp_path, env, prefix)
     dest = lay.x / "pipe.toml" if target == "own-toml" else lay.y / "pipe.toml"
@@ -140,8 +140,8 @@ def test_d0087_ac03_link_to_writable_inside_allowed(tmp_path, env, prefix, targe
 
 
 @pytest.mark.parametrize("prefix", PREFIXES)
-def test_d0087_ac04_pipes_dir_is_link_allowed(tmp_path, prefix):
-    """D0087-AC-04: パイプの置き場所（.pipe-in/pipes）が、名前が pipes でないフォルダ（shared/pipe-set）へのリンクのとき、
+def test_d0088_ac04_pipes_dir_is_link_allowed(tmp_path, prefix):
+    """D0088-AC-04: パイプの置き場所（.pipe-in/pipes）が、名前が pipes でないフォルダ（shared/pipe-set）へのリンクのとき、
     その下の決まったファイルは通り、pipe.toml 以外は止まる（今のまま。基準の側もたどって比べるので、直したあとも通ること）。"""
     root = tmp_path / "proj"
     real = root / "shared" / "pipe-set" / f"{prefix}x"
@@ -158,8 +158,8 @@ def test_d0087_ac04_pipes_dir_is_link_allowed(tmp_path, prefix):
 
 @pytest.mark.parametrize("env", ["new", "old"])
 @pytest.mark.parametrize("prefix", PREFIXES)
-def test_d0087_ac04_env_dir_is_link_allowed(tmp_path, env, prefix):
-    """D0087-AC-04: 環境変数の置き場所そのものがリンクのとき、その下の決まったファイルは今のまま通る（直したあとも通ること）。"""
+def test_d0088_ac04_env_dir_is_link_allowed(tmp_path, env, prefix):
+    """D0088-AC-04: 環境変数の置き場所そのものがリンクのとき、その下の決まったファイルは今のまま通る（直したあとも通ること）。"""
     real = tmp_path / "real_place" / f"{prefix}x"
     (real / "prompts").mkdir(parents=True)
     link_or_skip(tmp_path / "alias_place", tmp_path / "real_place", directory=True)
@@ -172,8 +172,8 @@ def test_d0087_ac04_env_dir_is_link_allowed(tmp_path, env, prefix):
 
 
 @pytest.mark.parametrize("form", ["cwd-link-relative", "cwd-link-abs-link", "cwd-link-abs-real", "cwd-real-abs-link"])
-def test_d0087_ac04_cwd_and_file_path_via_link_allowed(tmp_path, form):
-    """D0087-AC-04: プロジェクトのフォルダがリンクの先にあるとき（cwd と file_path の片方だけ、または両方がリンクを経た形）も、今のまま通る
+def test_d0088_ac04_cwd_and_file_path_via_link_allowed(tmp_path, form):
+    """D0088-AC-04: プロジェクトのフォルダがリンクの先にあるとき（cwd と file_path の片方だけ、または両方がリンクを経た形）も、今のまま通る
     （/tmp → /private/tmp の形。直したあとも通ること）。"""
     real_root = tmp_path / "real_root"
     (real_root / ".pipe-in" / "pipes" / "pipe-in-x" / "prompts").mkdir(parents=True)
@@ -195,8 +195,8 @@ def test_d0087_ac04_cwd_and_file_path_via_link_allowed(tmp_path, form):
 
 @pytest.mark.parametrize("target", ["src-app", "outside-file", "other-place-pipe"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac05_link_outside_denied(tmp_path, env, prefix, target):
-    """D0087-AC-05: prompts/l.md が src/app.py・パイプの置き場所の外のファイル・別の置き場所のパイプを指すリンクのとき、止まる。"""
+def test_d0088_ac05_link_outside_denied(tmp_path, env, prefix, target):
+    """D0088-AC-05: prompts/l.md が src/app.py・パイプの置き場所の外のファイル・別の置き場所のパイプを指すリンクのとき、止まる。"""
     lay = Lay(tmp_path, env, prefix)
     elsewhere = tmp_path / "elsewhere" / "pipes" / f"{prefix}z" / "prompts"
     elsewhere.mkdir(parents=True)
@@ -212,8 +212,8 @@ def test_d0087_ac05_link_outside_denied(tmp_path, env, prefix, target):
 
 
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac05_dir_link_outside_denied(tmp_path, env, prefix):
-    """D0087-AC-05: 途中のフォルダがリンクで外を指す形（prompts 自体が外のフォルダを指す）は、その下の a.md への書き込みが止まる。"""
+def test_d0088_ac05_dir_link_outside_denied(tmp_path, env, prefix):
+    """D0088-AC-05: 途中のフォルダがリンクで外を指す形（prompts 自体が外のフォルダを指す）は、その下の a.md への書き込みが止まる。"""
     lay = Lay(tmp_path, env, prefix, prompts=False)
     (tmp_path / "outside_dir").mkdir()
     link_or_skip(lay.x / "prompts", tmp_path / "outside_dir", directory=True)
@@ -222,8 +222,8 @@ def test_d0087_ac05_dir_link_outside_denied(tmp_path, env, prefix):
 
 
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac05_pipe_dir_link_outside_denied(tmp_path, env, prefix):
-    """D0087-AC-05: 置き場所の中の pipe-in-<名前> 自体が、置き場所の外のフォルダを指すリンクのとき、その下の決まったファイルへの書き込みは止まる。"""
+def test_d0088_ac05_pipe_dir_link_outside_denied(tmp_path, env, prefix):
+    """D0088-AC-05: 置き場所の中の pipe-in-<名前> 自体が、置き場所の外のフォルダを指すリンクのとき、その下の決まったファイルへの書き込みは止まる。"""
     lay = Lay(tmp_path, env, prefix)
     (tmp_path / "outside_pipe" / "prompts").mkdir(parents=True)
     link_or_skip(lay.base / f"{prefix}z", tmp_path / "outside_pipe", directory=True)
@@ -237,8 +237,8 @@ def test_d0087_ac05_pipe_dir_link_outside_denied(tmp_path, env, prefix):
 
 @pytest.mark.parametrize("target", ["missing-inside", "missing-outside"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac06_broken_link_denied(tmp_path, env, prefix, target):
-    """D0087-AC-06: 壊れたリンク（先がまだ無い）は止まる。先が書ける場所の中（pipe の missing.toml）でも外でも止める（設計：一律止める。安全側）。"""
+def test_d0088_ac06_broken_link_denied(tmp_path, env, prefix, target):
+    """D0088-AC-06: 壊れたリンク（先がまだ無い）は止まる。先が書ける場所の中（pipe の missing.toml）でも外でも止める（設計：一律止める。安全側）。"""
     lay = Lay(tmp_path, env, prefix)
     dest = lay.x / "missing.toml" if target == "missing-inside" else tmp_path / "ghost" / "none.md"
     link_or_skip(lay.x / "prompts" / "l.md", dest)
@@ -248,8 +248,8 @@ def test_d0087_ac06_broken_link_denied(tmp_path, env, prefix, target):
 
 @pytest.mark.parametrize("shape", ["self", "pair"])
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac06_loop_link_denied(tmp_path, env, prefix, shape):
-    """D0087-AC-06: 輪になったリンク（自分自身を指す・a と b が互いを指す）は止まり、例外を出さずに理由の文を返す。"""
+def test_d0088_ac06_loop_link_denied(tmp_path, env, prefix, shape):
+    """D0088-AC-06: 輪になったリンク（自分自身を指す・a と b が互いを指す）は止まり、例外を出さずに理由の文を返す。"""
     lay = Lay(tmp_path, env, prefix)
     prompts = lay.x / "prompts"
     if shape == "self":
@@ -264,8 +264,8 @@ def test_d0087_ac06_loop_link_denied(tmp_path, env, prefix, shape):
 
 
 @pytest.mark.parametrize("env", [None, "new"])
-def test_d0087_ac06_main_does_not_raise(tmp_path, monkeypatch, env):
-    """D0087-AC-06: 先をたどる関数（os.path.realpath）が例外を出しても、decide は理由の文を返し（落ちない）、main は終了コード 0 で deny の JSON を出す。
+def test_d0088_ac06_main_does_not_raise(tmp_path, monkeypatch, env):
+    """D0088-AC-06: 先をたどる関数（os.path.realpath）が例外を出しても、decide は理由の文を返し（落ちない）、main は終了コード 0 で deny の JSON を出す。
     たどれないときは止める側に倒す。ふつうの書ける場所への書き込みでも、たどれなければ止める。"""
     lay = Lay(tmp_path, env, "pipe-in-")
     target = lay.x / "pipe.toml"
@@ -297,8 +297,8 @@ def test_d0087_ac06_main_does_not_raise(tmp_path, monkeypatch, env):
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows では \\ が区切りなので別のテスト（junction は実機）")
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac07_backslash_path_unchanged(tmp_path, env, prefix):
-    """D0087-AC-07: Linux では \\ は名前の一部に見える。\\ を含む文字列の判断は今と同じ（止まる）で、たどる前もあとも変わらない（今のまま通る。守る）。"""
+def test_d0088_ac07_backslash_path_unchanged(tmp_path, env, prefix):
+    """D0088-AC-07: Linux では \\ は名前の一部に見える。\\ を含む文字列の判断は今と同じ（止まる）で、たどる前もあとも変わらない（今のまま通る。守る）。"""
     lay = Lay(tmp_path, env, prefix)
     for tail in ("\\prompts\\a.md", "\\pipe.toml"):
         assert denied(lay.verdict(str(lay.x) + tail)), tail
@@ -308,8 +308,8 @@ def test_d0087_ac07_backslash_path_unchanged(tmp_path, env, prefix):
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows でだけ：区切りと大文字小文字は normcase で比べる")
 @pytest.mark.parametrize("env", ["new", "old"])
-def test_d0087_ac07_case_only_difference_windows(tmp_path, env):
-    """D0087-AC-07（Windows でだけ）: / 区切りの書き方と、置き場所の部分だけ大文字小文字の違う書き方でも、判断は変わらない。junction は実機で確かめる。"""
+def test_d0088_ac07_case_only_difference_windows(tmp_path, env):
+    """D0088-AC-07（Windows でだけ）: / 区切りの書き方と、置き場所の部分だけ大文字小文字の違う書き方でも、判断は変わらない。junction は実機で確かめる。"""
     lay = Lay(tmp_path, env, "pipe-in-")
     plain = lay.x / "pipe.toml"
     assert lay.verdict(str(plain).replace("\\", "/")) is None
@@ -345,8 +345,8 @@ def _old_check_write(file_path, cwd, pipes_env) -> bool:
 
 
 @pytest.mark.parametrize("env,prefix", CASES, ids=CASE_IDS)
-def test_d0087_ac15_plugin_never_widens(tmp_path, env, prefix):
-    """D0087-AC-15: 今の判断（写し）が止める入力は、リンクが絡んでも、たどったあとも止まる（.. ・基準の外・フォルダ名の違い・pipe.toml 以外・
+def test_d0088_ac15_plugin_never_widens(tmp_path, env, prefix):
+    """D0088-AC-15: 今の判断（写し）が止める入力は、リンクが絡んでも、たどったあとも止まる（.. ・基準の外・フォルダ名の違い・pipe.toml 以外・
     入れ子・止まる所から書ける所を指すリンク）。リンクの無い入力は、止める・通すの結果が今と同じ（今のまま通る。守る）。"""
     lay = Lay(tmp_path, env, prefix)
     link_or_skip(lay.root / ".claude" / "l.md", lay.x / "pipe.toml")
@@ -394,8 +394,8 @@ def test_d0087_ac15_plugin_never_widens(tmp_path, env, prefix):
         ("NotebookEdit", {"notebook_path": ".claude/a.ipynb"}),
     ],
 )
-def test_d0087_ac15_other_roads_still_denied(tmp_path, tool, tool_input):
-    """D0087-AC-15: Bash の書き込み・PowerShell・MCP・サブエージェント・ノートブックの道は、リンクのある置き場所でも止まる（今のまま通る。守る）。"""
+def test_d0088_ac15_other_roads_still_denied(tmp_path, tool, tool_input):
+    """D0088-AC-15: Bash の書き込み・PowerShell・MCP・サブエージェント・ノートブックの道は、リンクのある置き場所でも止まる（今のまま通る。守る）。"""
     lay = Lay(tmp_path, None, "pipe-in-")
     link_or_skip(lay.x / "prompts" / "link.md", lay.root / ".claude" / "settings.json")
     payload = {"tool_name": tool, "tool_input": tool_input, "cwd": str(lay.root), "agent_type": BUILDER}

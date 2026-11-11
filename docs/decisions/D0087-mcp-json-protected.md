@@ -1,4 +1,4 @@
-# D0086 既定で守る場所に .mcp.json を足す（#136）
+# D0087 既定で守る場所に .mcp.json を足す（#136）
 
 ## 目的
 
@@ -18,22 +18,22 @@ Claude の公式の文書では、`.mcp.json` は `setting_sources` に `project
 
 止める側
 
-- D0086-AC-01：開発フローの全段とパイプの `access` のどの段でも、`.mcp.json` への Write・Edit・MultiEdit・NotebookEdit が止まる（`test_d0086_ac01_全段の種類で_mcp_json_への書き込み道具が止まる`）。
-- D0086-AC-02：Bash の書き込みが止まる。`..`・絶対パス・リンクを経た道・`cd` をまたぐ相対パスでも同じ（`test_d0086_ac02_*`）。
-- D0086-AC-03：会話の道でも止まる（`test_d0086_ac03_会話の道でも止まる`）。
-- D0086-AC-04：止めた理由の文と、段に渡す説明の文に `.mcp.json` が出る。利用者が `protected_paths` に書いても、出るのは1回（`test_d0086_ac04_*`）。
-- D0086-AC-05：`work_dir` が `.mcp.json` と重なる設定は、流す前に止まり、断りの文に出る。ふつうの `work_dir` は止まらない。断りの文と W7 の文は、定数の全部の型の語を持つ（`test_d0086_ac05_*`）。
-- D0086-AC-06：`docs_dir`・`writes` が `.mcp.json` と重なるパイプに、警告 W7 が出る。終了コードは変わらない（`test_d0086_ac06_*`）。
+- D0087-AC-01：開発フローの全段とパイプの `access` のどの段でも、`.mcp.json` への Write・Edit・MultiEdit・NotebookEdit が止まる（`test_d0087_ac01_全段の種類で_mcp_json_への書き込み道具が止まる`）。
+- D0087-AC-02：Bash の書き込みが止まる。`..`・絶対パス・リンクを経た道・`cd` をまたぐ相対パスでも同じ（`test_d0087_ac02_*`）。
+- D0087-AC-03：会話の道でも止まる（`test_d0087_ac03_会話の道でも止まる`）。
+- D0087-AC-04：止めた理由の文と、段に渡す説明の文に `.mcp.json` が出る。利用者が `protected_paths` に書いても、出るのは1回（`test_d0087_ac04_*`）。
+- D0087-AC-05：`work_dir` が `.mcp.json` と重なる設定は、流す前に止まり、断りの文に出る。ふつうの `work_dir` は止まらない。断りの文と W7 の文は、定数の全部の型の語を持つ（`test_d0087_ac05_*`）。
+- D0087-AC-06：`docs_dir`・`writes` が `.mcp.json` と重なるパイプに、警告 W7 が出る。終了コードは変わらない（`test_d0087_ac06_*`）。
 
 許す側
 
-- D0086-AC-07：型は直下の `.mcp.json` だけに当たる。`src/.mcp.json`・`mcp.json`・`.mcp.json.bak` は、今までどおり通る（`test_d0086_ac07_*`）。
-- D0086-AC-08：ひな形と見本のパイプに、`.mcp.json` を書く所が無く、定義を変えずに流せる（`test_d0086_ac08_*`）。
-- D0086-AC-09：比較の表に `.mcp.json` の行があり、SDK の道と会話の道は止める。ほかの行は変わらない（`test_d0086_ac09_比較の表に_mcp_json_の行があり_sdkと会話の道は止める`・`tests/test_guard_matrix.py`）。
+- D0087-AC-07：型は直下の `.mcp.json` だけに当たる。`src/.mcp.json`・`mcp.json`・`.mcp.json.bak` は、今までどおり通る（`test_d0087_ac07_*`）。
+- D0087-AC-08：ひな形と見本のパイプに、`.mcp.json` を書く所が無く、定義を変えずに流せる（`test_d0087_ac08_*`）。
+- D0087-AC-09：比較の表に `.mcp.json` の行があり、SDK の道と会話の道は止める。ほかの行は変わらない（`test_d0087_ac09_比較の表に_mcp_json_の行があり_sdkと会話の道は止める`・`tests/test_guard_matrix.py`）。
 
 古い形
 
-- D0086-AC-10：今までの `pipeline.toml`・前の版の置き場所のパイプは、そのまま読める。利用者が `protected_paths` に `.mcp.json` を書いていても読める（`test_d0086_ac10_*`）。
+- D0087-AC-10：今までの `pipeline.toml`・前の版の置き場所のパイプは、そのまま読める。利用者が `protected_paths` に `.mcp.json` を書いていても読める（`test_d0087_ac10_*`）。
 
 ## 決めたことと理由
 
@@ -53,7 +53,7 @@ Claude の公式の文書では、`.mcp.json` は `setting_sources` に `project
 - 開発用のフックの `pipe-in-coder` は、今も `.mcp.json` に書ける（比較の表の実測。自前の一覧に無い）。開発用のフックは、この件では変えていない。
 - 大文字小文字の違う名前（`.MCP.JSON`）は、OS によって当たり方が変わる（ほかの守る場所と同じ）。
 - 監査の報告（3件。直していない。人の確認は朝）：
-  - A-01 比較の表の「守る場所を書いた SDK の道」の列は、`protected_paths` に `.mcp.json` を書いていない。`.mcp.json` の行で2つの列が同じなのは「既定で止まるから」で、書いた場合の確かめにはなっていない（書いた場合は `test_d0086_ac04_利用者が_protected_paths_に書いても1回だけ` が見ている）。`docs/guide/safety.md` の説明を書き分けるか、表の設定に足す。
+  - A-01 比較の表の「守る場所を書いた SDK の道」の列は、`protected_paths` に `.mcp.json` を書いていない。`.mcp.json` の行で2つの列が同じなのは「既定で止まるから」で、書いた場合の確かめにはなっていない（書いた場合は `test_d0087_ac04_利用者が_protected_paths_に書いても1回だけ` が見ている）。`docs/guide/safety.md` の説明を書き分けるか、表の設定に足す。
   - A-02 `tests/guard_matrix.py` のコメントの「4か所」の見出しの下に、`.mcp.json` の行が入っている。
   - A-03 `pipe_in/pipe/chat_record.py` の `chat_specs` の説明の列挙が、守る場所の全部（`.mcp.json` と前の版の置き場所）を挙げていない（D0084 の監査 A-02 からの持ち越し）。
 - 助言と審査は流さなかった（変えたのは `pipe_in/engine/spec.py` と `pipe_in/pipe/lint.py` で、助言を流す対象のファイルに当たらない。この件は、D0084 の助言 V-01 を受けた直し）。

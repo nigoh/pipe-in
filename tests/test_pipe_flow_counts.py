@@ -319,7 +319,7 @@ def test_d0081_ac09_new_state_without_flow_has_no_flow_key():
 
 
 def test_d0081_ac09_table_sdk_row_lists_flow_as_optional_only_for_sdk_and_chat():
-    """D0081-AC-09（D0090 で直した）: 共通の表の任意の鍵に flow があるのは sdk と chat の行だけ（dev には足さない）。chat は D0090 で足した。"""
+    """D0081-AC-09（D0091 で直した）: 共通の表の任意の鍵に flow があるのは sdk と chat の行だけ（dev には足さない）。chat は D0091 で足した。"""
     kinds = TABLE["kinds"]
     assert "flow" in kinds["sdk"]["optional_keys"]
     assert "flow" not in kinds["dev"]["optional_keys"]

@@ -1,4 +1,4 @@
-"""テストが、いつもこの作業フォルダの pipe_in/ と generator/（pipe_in_generator という名前）を読むようにする（D0085）。
+"""テストが、いつもこの作業フォルダの pipe_in/ と generator/（pipe_in_generator という名前）を読むようにする（D0086）。
 
 開発用の入れ込み（pip install -e）が別の checkout を指していても、そちらは使わない。
 generator/ は、補助（tests/gen_loader.py）で読み込み、読んだ場所が作業フォルダと違えば、テストの始めに直し方つきの文で落ちる。

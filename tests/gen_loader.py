@@ -1,4 +1,4 @@
-"""テストが、いつも作業フォルダの generator/ を pipe_in_generator として読むための補助（D0085）。
+"""テストが、いつも作業フォルダの generator/ を pipe_in_generator として読むための補助（D0086）。
 
 開発用の入れ込み（pip install -e）が別の checkout を指していても、そちらは使わない。
 入れ込み先を import してしまうと、worktree で generator/ を直しても、テストは直す前のコードを見る。

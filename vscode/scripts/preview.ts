@@ -272,7 +272,7 @@ for (const [page, theme] of PANEL_PAGES) {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('chat', (dest) => chatPageHtml(dest, theme)), 'utf8');
     continue;
   }
-  // 開発用の新しい記録の見本（D0089）：費用・使用量が取れない・段が 1 秒ほどで終わる短い記録・確認待ち。記録は一時フォルダの中に書いて読む
+  // 開発用の新しい記録の見本（D0090）：費用・使用量が取れない・段が 1 秒ほどで終わる短い記録・確認待ち。記録は一時フォルダの中に書いて読む
   if (kind === 'dev') {
     writeFileSync(path.join(OUT, `${page}.html`), await inTempDir('dev', (dest) => devPageHtml(dest, theme)), 'utf8');
     continue;
