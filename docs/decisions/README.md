@@ -119,3 +119,4 @@
 | [D0083](D0083-guard-matrix.md) | 4つの守り（SDK の道・会話の道・プラグイン・開発用）の、道具ごとの 許す／止める を1つの表（`tests/guard_matrix.py`）でテストに固定する。プラグインのフックは、入力が読めない・大きすぎる・止める返事を書けない・`agent_type` の型がおかしいときも、止める側に倒す（#132） |
 | [D0084](D0084-default-protected.md) | SDK の道（`pipe-in`）も、`.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・前の版の置き場所への書き込みを、設定なしでどの段でも止める（#134）。守る場所は `pipe_in/engine/spec.py` の定数1つで、会話の道も同じ定数を使う。外す設定は無い |
 | [D0085](D0085-test-generator-loader.md) | テストは、開発用の入れ込みがどこにあっても、作業フォルダの `generator/` を `pipe_in_generator` として読む（`tests/gen_loader.py`。#141）。読む場所が違えば、テストの始めに直し方つきの文で落ちる |
+| [D0086](D0086-mcp-json-protected.md) | 既定で守る場所に、プロジェクトの直下の `.mcp.json` を足す（#136）。SDK の道と会話の道で、どの段も書けない。`CLAUDE.md` は入れず、守りたいときは `protected_paths` に書く |

@@ -112,7 +112,7 @@ def build_kind(root: Path, kind: str) -> KindEnv:
     """root の下に kind 用のプロジェクトを作り、会話の道の段を開く。リンクを作れなければ links_ok は False。"""
     project = root / kind.replace("+", "_")
     project.mkdir(parents=True)
-    for rel in (".claude/settings.json", ".git/config", "src/app.py", "tests/test_a.py", ".pipe-in/config.json", "pipeline.toml"):
+    for rel in (".claude/settings.json", ".git/config", "src/app.py", "tests/test_a.py", ".pipe-in/config.json", "pipeline.toml", ".mcp.json"):
         f = project / rel
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text("x\n", encoding="utf-8")
@@ -250,6 +250,7 @@ _DEFS: list[Row] = [
     Row("write-dotgit", "Write", {"file_path": "{P}/.git/config", "content": "x"}, "code", Q),
     Row("write-dotpipein", "Write", {"file_path": "{P}/.pipe-in/config.json", "content": "x"}, "code", Q),
     Row("write-pipelinetoml", "Write", {"file_path": "{P}/pipeline.toml", "content": "x"}, "code", Q),
+    Row("write-mcpjson", "Write", {"file_path": "{P}/.mcp.json", "content": "{}"}, "code", Q),
     Row("write-running-pipe-toml", "Write", {"file_path": "{P}/.pipe-in/pipes/pipe-in-hp/pipe.toml", "content": "x"}, "code", Q),
     Row("write-running-pipe-prompt", "Write", {"file_path": "{P}/.pipe-in/pipes/pipe-in-hp/prompts/a.md", "content": "x"}, "code", Q),
     Row("write-record", "Write", {"file_path": "{P}/docs/pipeline/hp/state.json", "content": "{}"}, "code", Q),
@@ -285,6 +286,7 @@ _DEFS: list[Row] = [
 # 読み方の例：
 #  - 4か所（.claude/・.git/・.pipe-in/・pipeline.toml）は、SDK の道でも設定なしで止める（D0084。sdk と sdk_protected が同じ）。
 #    会話の道とプラグインも、いつも止める。開発用は pipe-in-coder が .pipe-in/・pipeline.toml に書ける（.claude/・.git/ は止まる）。
+#  - .mcp.json（D0086）は、SDK の道・会話の道・プラグインで止める。開発用は pipe-in-coder だけが通す（実測）。
 #  - プラグインの作る役だけが、流しているパイプのフォルダ（.pipe-in/pipes/pipe-in-hp/）の決まったファイルに書ける。
 #  - git add・git commit は、SDK の道と会話の道（Bash を持つ段）では通り、プラグインと開発用では止まる。git push はどこも止まる。
 #  - Skill は SDK の道だけが通す。Agent・Task は agents を持つ段の SDK の道だけが通す（会話の中では流せない形）。
@@ -312,6 +314,9 @@ EXPECT: dict[str, str] = {
     "write-dotgit": "DDDDDDDDD",
     "write-dotpipein": "DDDDDDDAD",
     "write-pipelinetoml": "DDDDDDDAD",
+    # D0086：.mcp.json。今の作りの実測は AAADDDDAD（sdk・sdk_protected・chat が A）。この件のあとは SDK の道と会話の道が止める（D）。
+    # プラグインの作る役・審査役・dev_analyst・dev_tester・dev_verifier は元から止め、dev_coder は自前の一覧に無いので通す（A。残った課題）
+    "write-mcpjson": "DDDDDDDAD",
     "write-running-pipe-toml": "DDDADDDAD",
     "write-running-pipe-prompt": "DDDADDDAD",
     "write-record": "DDDDDDDDD",
