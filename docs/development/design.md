@@ -30,7 +30,7 @@
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
-| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る） | `generator/guard_hook.py` |
+| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083） | `generator/guard_hook.py` |
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
 | 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py` |
