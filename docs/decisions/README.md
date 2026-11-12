@@ -142,3 +142,4 @@ D0085 以降の記録は、`### 要求と前提` と `### 非機能要件` の�
 | [D0090](D0090-dev-preview-page.md) | 開発用の記録の確認用ページ `run-panel-dev-*` を足し、時系列の確認待ちの言葉が実行の帯の上に重なるのを直す（#139）。右端にある細い待ちの言葉は、帯の下の行に出す |
 | [D0091](D0091-chat-flow-counts.md) | 会話の道（`pipe-in-gen chat`）も、段を流した回数とやり直しの回数を記録の `flow` に書く（#140）。`chat.steps`・`chat.retries` にも同じ値を写し、読むときは大きいほうを採る。読み方 `read_flow` は `pipe_in/engine/flow.py` に移した |
 | [D0092](D0092-conductor-design.md) | 司会役（SDK の道の2つ・会話の道・開発用の記録）の判断を、実行役に依らない純粋な部品 `pipe_in/engine/conductor.py` と薄い殻に分ける設計と、動きを変えない6段（と任意の1段）の移し方（#143）。この件では製品コードは変えない |
+| [D0093](D0093-pipe-design.md) | 画面の見本を触って比べて決めるスキル `/pipe-design`（つまみで切り替える見本・良さの条件の照らし合わせ・★ を保存先から読む・要約と issue と `docs/design/` への見本）と、良さの条件の調べ係 `pipe-in-ux-researcher`（読むだけ・軽いモデル・Web は UX の出典の場所 `UX_HOSTS` だけ）を足す |

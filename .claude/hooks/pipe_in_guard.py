@@ -10,9 +10,11 @@ agent_type が文字列でも null でもないとき（リスト・辞書・数
 - pipe-in-documenter（文書をそろえる）：README.md・vscode/README.md・pipes/README.md・docs/assets/README.md と docs/guide/・docs/development/ の .md だけ。Bash なし。
   CLAUDE.md・.claude/・決定の記録（docs/decisions/）は書けず、案を親に返す
 - pipe-in-auditor（矛盾監査）・pipe-in-advisor（助言）・pipe-in-judge（審査）：どこにも書けない・Bash なし。報告は返答で返すだけ（auto モードでは SubagentHandback）
-- Web は pipe-in-advisor（WebFetch・WebSearch）と pipe-in-judge（WebFetch だけ）だけ、公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ
+- pipe-in-ux-researcher（/pipe-design の良さの条件の調べ係）：どこにも書けない・Bash なし。報告は返答で返すだけ
+- Web は pipe-in-advisor（WebFetch・WebSearch）と pipe-in-judge（WebFetch だけ）が公式の文書の場所（DOC_HOSTS・GITHUB_HOSTS）だけ、
+  pipe-in-ux-researcher（WebFetch・WebSearch）が UX の出典の場所（UX_HOSTS）だけ。役ごとの場所は混ぜない（D0093）
 - 表に無い pipe-in-* は、Read・Glob・Grep・SubagentHandback だけ（表に足し忘れても絞られるように）
-PowerShell・MCP・Agent・Web（アドバイザーと審査役の公式の文書のほか）・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
+PowerShell・MCP・Agent・Web（アドバイザーと審査役の公式の文書・調べ係の UX の出典のほか）・ノートブックなど、上に挙げていない道具は止める（すり抜けの道を開けない）。
 報告を親に渡す SubagentHandback（auto モードで渡される）は止めない。書いてよい場所の基準は、サブエージェントがいる git の作業フォルダ
 （worktree ならその worktree。見つからなければ CLAUDE_PROJECT_DIR）。
 
@@ -53,7 +55,25 @@ GITHUB_OWNER = "anthropics"
 WEB_AGENTS: dict[str, frozenset[str]] = {
     "pipe-in-advisor": frozenset({"WebFetch", "WebSearch"}),
     "pipe-in-judge": frozenset({"WebFetch"}),
+    "pipe-in-ux-researcher": frozenset({"WebFetch", "WebSearch"}),
 }
+# 調べ係（pipe-in-ux-researcher）が読んでよい UX の出典の場所。定義（.claude/agents/pipe-in-ux-researcher.md）はここを写す（D0093-AC-18）。
+# 役は読むだけ・書けない・Bash なしで、読んだ文は報告にしか使わない。公式の文書の場所（DOC_HOSTS）とは混ぜない
+UX_HOSTS = (
+    "www.nngroup.com",
+    "lawsofux.com",
+    "design.digital.go.jp",
+    "www.w3.org",
+    "developer.mozilla.org",
+    "web.dev",
+    "m3.material.io",
+    "developer.apple.com",
+    "baymard.com",
+    "www.smashingmagazine.com",
+    "smashingmagazine.com",
+)
+# UX の出典の場所を読む役（WEB_AGENTS のうち、DOC_HOSTS の代わりに UX_HOSTS を使う役）
+UX_AGENTS = frozenset({"pipe-in-ux-researcher"})
 # この名前で始まり、表に無いエージェントは読むだけにする
 UNKNOWN_PREFIX = "pipe-in-"
 # 止める理由の本文の長さの上限（文字数）。外から来た文字列が極端に長くても、deny の出力が読まれるように切る。
@@ -126,6 +146,7 @@ AGENTS: dict[str, tuple[Any, list[str], str]] = {
     "pipe-in-auditor": (_nowhere, [], ""),
     "pipe-in-advisor": (_nowhere, [], ""),
     "pipe-in-judge": (_nowhere, [], ""),
+    "pipe-in-ux-researcher": (_nowhere, [], ""),
 }
 
 
@@ -224,6 +245,16 @@ def check_bash(command: Any, allowed: list[str], agent: str) -> str | None:
 
 def official_doc_url(url: Any) -> bool:
     """WebFetch の URL が、公式の文書の場所の https:// の URL のときだけ True。迷うものは止める。"""
+    return _https_url_on(url, DOC_HOSTS, GITHUB_HOSTS)
+
+
+def ux_source_url(url: Any) -> bool:
+    """WebFetch の URL が、UX の出典の場所（UX_HOSTS）の https:// の URL のときだけ True。github は含めない（D0093）。"""
+    return _https_url_on(url, UX_HOSTS, ())
+
+
+def _https_url_on(url: Any, hosts: tuple[str, ...], github_hosts: tuple[str, ...]) -> bool:
+    """URL が hosts（と、道の1つ目が GITHUB_OWNER のときの github_hosts）の https:// の URL のときだけ True。迷うものは止める。"""
     if not isinstance(url, str) or not url:
         return False
     # 空白・制御文字と、\ を / と読む作りへの見せかけを止める
@@ -240,22 +271,31 @@ def official_doc_url(url: Any) -> bool:
     if "@" in parts.netloc or ":" in parts.netloc:
         return False
     host = parts.netloc.lower()
-    if host not in DOC_HOSTS and host not in GITHUB_HOSTS:
+    if host not in hosts and host not in github_hosts:
         return False
     segments = [unquote(s) for s in parts.path.split("/")[1:]]
     # 道の正規化（.. や %2f）で別の所へ行くのを止める
     if any(s in (".", "..") or "/" in s or "\\" in s for s in segments):
         return False
-    if host in GITHUB_HOSTS and (not segments or segments[0].lower() != GITHUB_OWNER):
+    if host in github_hosts and (not segments or segments[0].lower() != GITHUB_OWNER):
         return False
     return True
 
 
 def official_search_domains(domains: Any) -> bool:
     """WebSearch の allowed_domains が、空でなく、すべて公式の文書のホストのときだけ True。"""
+    return _domains_within(domains, DOC_HOSTS)
+
+
+def ux_search_domains(domains: Any) -> bool:
+    """WebSearch の allowed_domains が、空でなく、すべて UX の出典のホストのときだけ True（D0093）。"""
+    return _domains_within(domains, UX_HOSTS)
+
+
+def _domains_within(domains: Any, hosts: tuple[str, ...]) -> bool:
     if not isinstance(domains, list) or not domains:
         return False
-    return all(isinstance(d, str) and d in DOC_HOSTS for d in domains)
+    return all(isinstance(d, str) and d in hosts for d in domains)
 
 
 def _places() -> str:
@@ -263,6 +303,8 @@ def _places() -> str:
 
 
 def check_web(tool: str, tool_input: dict[str, Any], agent: str) -> str | None:
+    if agent in UX_AGENTS:
+        return _check_ux_web(tool, tool_input, agent)
     if tool == "WebFetch":
         if official_doc_url(tool_input.get("url")):
             return None
@@ -270,6 +312,17 @@ def check_web(tool: str, tool_input: dict[str, Any], agent: str) -> str | None:
     if official_search_domains(tool_input.get("allowed_domains")):
         return None
     return f"{agent} の WebSearch は、allowed_domains に公式の文書の場所（{'・'.join(DOC_HOSTS)}）だけを付けたときだけ使えます（{tool_input.get('allowed_domains')}）"
+
+
+def _check_ux_web(tool: str, tool_input: dict[str, Any], agent: str) -> str | None:
+    places = "・".join(UX_HOSTS)
+    if tool == "WebFetch":
+        if ux_source_url(tool_input.get("url")):
+            return None
+        return f"{agent} の WebFetch で取れるのは、UX の出典の場所（{places}）の https:// の URL だけです（{tool_input.get('url')}）"
+    if ux_search_domains(tool_input.get("allowed_domains")):
+        return None
+    return f"{agent} の WebSearch は、allowed_domains に UX の出典の場所（{places}）だけを付けたときだけ使えます（{tool_input.get('allowed_domains')}）"
 
 
 def decide(payload: dict[str, Any], *, root: str) -> str | None:
