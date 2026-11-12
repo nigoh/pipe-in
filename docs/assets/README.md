@@ -156,3 +156,14 @@ README（リポジトリの `README.md` と `vscode/README.md`）とガイド（
 2. `page.clock.runFor()` で 1/15 秒ずつ進め、そのたびに `#stage` を PNG に撮る。はじめの間（約1.2秒）から、オレンジが広がりきって画面が落ち着くまで（約5秒。そのあとはプラグを抜く動きに入るので撮らない）。
 3. 幅 800 に縮め、コマを間引いて並べた絵から作った 40 色の共通のパレットで、ぼかし（ディザ）なしで GIF にする。1コマ 60ms、最後のコマは 1.26 秒止め、くり返す。同じ絵が続くところ（はじめの間）は1枚にまとめます。
 4. 確かめる：`python -m pytest -q tests/test_plug_logo.py tests/test_readme_media.py`（幅 800 以下・900KB 以下・くり返すか）。GIF を開いて、はじめの間 → 差し込む → 広がる、が見えるかを目で見ます。
+
+## プラグインのアイコンを撮る
+
+`plugin/.claude-plugin/icon.png`（1024×1024）は、Anthropic のディレクトリに載せるプラグインのアイコンです（D0095。申請の手順は [docs/guide/plugin.md](../guide/plugin.md#ディレクトリへの申請)）。ここ（`docs/assets/`）には置かず、プラグインのフォルダに置きます。入れた人に届くのはプラグインのフォルダだけだからです。元は `pipe-in-logo-dark.svg` です。
+
+1. 地の色を `#0D1117`（ほぼ黒）にする。白・薄いグレーも見比べ、明るいページで縁が溶け込まない色として決めた。
+2. リポジトリの外の作業用のフォルダで、Playwright（Node.js。`require('playwright')`）を使う。ページの大きさ 1024×1024・`deviceScaleFactor: 1` で、`<body style="margin:0;width:1024px;height:1024px;background:#0D1117;display:flex;align-items:center;justify-content:center">` の中に、SVG の `<svg ` を `<svg width="840" ` に置き換えて入れる。
+3. `page.screenshot({ path, clip: { x: 0, y: 0, width: 1024, height: 1024 } })` で撮り、`plugin/.claude-plugin/icon.png` に置く。
+4. 確かめる：`python -m pytest -q tests/test_plugin_directory.py -k ac07`（PNG で、正方形で、512〜2048 の範囲で、2,000,000 バイト未満か）。画像を開いて目で見る。
+
+ポータルで使われるのは、最初に保存・申請したときの1回だけです。あとから置き換えても、登録のアイコンは変わりません。

@@ -100,7 +100,7 @@ The detailed guides are in `docs/guide/` (index: [docs/guide/README.md](docs/gui
 | [The VSCode extension](docs/guide/vscode.md) | Installing, viewing runs, the pipe workbench, running from the workbench |
 | [For people who do not type commands](docs/guide/start-without-commands.md) | The way to view, choose a sample, and answer confirmations with only the extension, a browser, and a conversation, and where one line in a terminal is still needed |
 | [Pipes](docs/guide/pipes.md) | How to build, check warnings, templates, sample pipes, `pipe.toml`, verification and send-back, branching, Agent SDK settings |
-| [The Claude Code plugin](docs/guide/plugin.md) | Installing and what comes with it (`/pipe-in:pipe-build`, the pipe-builder, check, judge, and live skills, hooks, and `/pipe-in:pipe-run`, which runs a pipe inside the conversation where the SDK cannot start (not yet checked on a real machine)) |
+| [The Claude Code plugin](docs/guide/plugin.md) | Install with one line in a conversation, `/plugin install pipe-in --marketplace nigoh/pipe-in` (then install `pipe-in-gen` too), and what comes with it (`/pipe-in:pipe-build`, the pipe-builder, check, judge, and live skills, hooks, and `/pipe-in:pipe-run`, which runs a pipe inside the conversation where the SDK cannot start (not yet checked on a real machine)) |
 | [How safety works](docs/guide/safety.md) | What each stage may write, and the operations blocked at every stage |
 | [Records and usage](docs/guide/records.md) | The files that are created, the copy shown in the artifact, usage in the summary, exit codes |
 | [Settings](docs/guide/config.md) | `pipeline.toml` |

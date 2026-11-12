@@ -1,14 +1,21 @@
 {
   "name": "pipe-in",
   "owner": {
-    "name": "pipe-in"
+    "name": "pipe-in",
+    "url": "https://github.com/nigoh"
   },
   "description": "pipe-in のパイプを Claude Code の会話で作る・直すためのプラグイン",
   "plugins": [
     {
       "name": "pipe-in",
+      "displayName": "pipe-in",
       "source": "./plugin",
-      "description": "パイプ（.pipe-in/pipes/pipe-in-<名前>/）を作る・直すスキル /pipe-in:pipe-build と、手を動かすエージェント pipe-builder。成果物を検査する /pipe-in:pipe-eval と、審査する /pipe-in:pipe-judge（審査役 pipe-judge）。ターミナルで流している pipe-in の進み具合をアーティファクトで見る /pipe-in:pipe-live。SDK を起こせない場所でパイプを会話の中で流す /pipe-in:pipe-run（エージェント pipe-stage・pipe-probe）"
+      "description": "パイプ（.pipe-in/pipes/pipe-in-<名前>/）を作る・直すスキル /pipe-in:pipe-build と、手を動かすエージェント pipe-builder。成果物を検査する /pipe-in:pipe-eval と、審査する /pipe-in:pipe-judge（審査役 pipe-judge）。ターミナルで流している pipe-in の進み具合をアーティファクトで見る /pipe-in:pipe-live。SDK を起こせない場所でパイプを会話の中で流す /pipe-in:pipe-run（エージェント pipe-stage・pipe-probe）",
+      "homepage": "https://github.com/nigoh/pipe-in",
+      "repository": "https://github.com/nigoh/pipe-in",
+      "keywords": ["pipe-in", "pipeline", "agents", "guard-hook", "eval"],
+      "tags": ["pipeline", "agents", "guard-hook", "eval", "artifact"],
+      "category": "development"
     }
   ]
 }

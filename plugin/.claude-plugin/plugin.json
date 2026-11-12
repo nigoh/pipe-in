@@ -1,9 +1,17 @@
 {
   "name": "pipe-in",
-  "version": "0.5.2",
+  "displayName": "pipe-in",
+  "icon": "./.claude-plugin/icon.png",
+  "version": "0.6.0",
   "description": "pipe-in のパイプを会話で作る・直す。会話の中でパイプを流す。成果物を検査・審査する。ターミナルの pipe-in の進み具合をアーティファクトで見る。書き込みと審査役の道具はフック（pipe-in-gen guard-hook）で絞る",
   "author": {
-    "name": "pipe-in"
+    "name": "pipe-in",
+    "url": "https://github.com/nigoh"
   },
-  "license": "MIT"
+  "homepage": "https://github.com/nigoh/pipe-in",
+  "repository": "https://github.com/nigoh/pipe-in",
+  "documentationUrl": "https://github.com/nigoh/pipe-in/blob/main/docs/guide/plugin.md",
+  "supportUrl": "https://github.com/nigoh/pipe-in/issues",
+  "license": "MIT",
+  "keywords": ["pipe-in", "pipeline", "agents", "guard-hook", "eval"]
 }
