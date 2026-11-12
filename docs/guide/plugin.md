@@ -5,10 +5,22 @@
 このリポジトリは Claude Code のプラグインのマーケットプレイスにもなっています（`.claude-plugin/marketplace.json` → `plugin/`）。
 入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。PATH に `pipe-in-gen` が無いと、作る役 pipe-builder の絞りが効きません（くわしくは[安全のしくみ](safety.md#プラグインのフックが動かないとき)）。
 
+会話の中なら 1 行で入ります（Claude Code v2.1.275 以降。公式の文書による。実機は未確認）。新しいマーケットプレイスの確認と、入れる範囲（scope）の選択が出ます。シェルでは `claude plugin install pipe-in --marketplace nigoh/pipe-in`（v2.1.292 以降）です。それより前の版のシェルでは、`claude plugin marketplace add nigoh/pipe-in` のあと `claude plugin install pipe-in@pipe-in` です。
+
+```
+/plugin install pipe-in --marketplace nigoh/pipe-in
+```
+
+claude.ai のチャットでは、スキルは読み込まれますが、エージェントとフックは無視されます。どのスキルも手元のコマンド（`pipe-in-gen` か `pipe-in`。`/pipe-in:pipe-eval` はどちらも使わない）に頼るので、ちゃんと使えるのは、それを入れた Claude Code です（[プラグインの README](../../plugin/README.md) の「使える場所」）。
+
+前からの2段の形も使えます。手元のフォルダから入れるときも、こちらです。
+
 ```
 /plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>
 /plugin install pipe-in@pipe-in
 ```
+
+プラグインのフォルダには `README.md`（英語と日本語。入れ方・入るもの・動かすもの・送るもの・取ってくるもの・使える場所）と `LICENSE`（根の `LICENSE` と同じ中身）とアイコンも入っていて、入れた人がフォルダの中だけで読めます。
 
 | 入るもの | すること |
 | --- | --- |
@@ -91,6 +103,7 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 - **Copilot 本来の側（Local ハーネス）**：フックの入力に `agent_type` が来ないため、守りの確かめで止まり、流れません。
 - **会社などの管理設定**：管理設定で Claude のハーネス自体が使えない環境では、使えません。
 - **端末の Claude Code**：同じ手順で使える見込みですが、実機の確かめはこれからです。`pipe-in` を直接使えるので、通常は要りません。
+- **claude.ai のチャット**：エージェントとフックが無視されるので、`pipe-stage` も守りも動かず、流れません。
 - **メインのスレッドを `--agent` で動かしているとき**：段が開いている間、道具の呼び出しはすべて止まります（フックが `agent_type` のある呼び出しを全部絞るため）。使わないでください。
 
 ## プラグインの eval
@@ -136,14 +149,75 @@ claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write E
 - `Bash` を許すと、OS のサンドボックスの中で動きます。サンドボックスの Bash は home の下を読めないので、home の下の venv に入れた `pipe-in-gen` は使えないおそれがあります。`pipe-in-gen` は home の外に入れるか、実機で確かめてください（`pip install -e .` で入ります）。
 - 結果は、`--output-dir` の先の `aggregate-result.json` と `report.html` に出ます。
 - `claude -p` で `/スキル名` が展開されることは公式の文書にありますが、`claude plugin eval` の中で `/pipe-in:<スキル>` の形が展開されるかは、まだ実機で確かめていません。`file_exists` の `path` の基準と、サブエージェントが書いたファイルや呼んだ道具が採点に数えられるかも、まだです。`scaffold.sh` には実行ビットを付けてあります。
-- ケースを足しても、プラグインの版は上げません（ケースは 0.5.0 のときに足しました）。スキル・エージェント・フックの動きは変わりません。`pytest` が見るのはケースのファイルの形だけで、`claude plugin eval` は流しません。
+- ケースを足すだけなら、プラグインの版は上げません（ケースは 0.5.0 のときに足しました。利用者に届けたい変更を入れるときの版の決まりは[下の節](#ディレクトリへの申請)）。スキル・エージェント・フックの動きは変わりません。`pytest` が見るのはケースのファイルの形だけで、`claude plugin eval` は流しません。
 
-## 0.5.0・0.5.1 から更新するとき
+## ディレクトリへの申請
+
+Anthropic のディレクトリ（claude.ai/directory）にこのプラグインを載せるための、人の手順と、事前チェックへの備えです。決まりは 2026-11-12 に公式の文書で確かめました（出典：https://claude.com/docs/plugins/submit 、https://claude.com/docs/plugins/pre-submission-checklist 、https://code.claude.com/docs/en/plugins/publish.md ）。文書が変わったら、ここと `tests/test_plugin_directory.py` の先頭の決まりの定数を直します。申請そのもの（ポータルの操作）は人がします。決めたことは[決定の記録 D0095](../decisions/D0095-plugin-directory-precheck.md)です。
+
+前もって要るもの：有料の claude.ai のプラン（Pro・Max・Ultra は自分のアカウント、Team・Enterprise は Owner）、claude.ai につないだ GitHub（そのアカウントがこのリポジトリに push できること）、public のリポジトリ。1つのリポジトリとフォルダに申請は1つです。
+
+### ポータルでの順番
+
+ポータルは https://claude.ai/directory/manage です。
+
+1. Submit new を押し、Plugin bundle を選ぶ。
+2. Source：Repository に `nigoh/pipe-in`、Plugin path に `plugin` を入れる。Branch or tag は空で、既定の枝になる。
+3. Validate を押す。Blocks が出たら直して push し、Re-validate を押す。ローカルの `claude plugin validate` が通っても、ポータルの Validate はもっと多くを見る。
+4. Listing details：`plugin.json` と README から読み込まれる。変えたいときはリポジトリを直して Validate し直す。
+5. Data handling：4つの問いに答える（下の下書き）。
+6. Compliance：連絡先のメールを入れ、4つの同意を選ぶ。人が選ぶ。
+7. Review and submit：新しい版の届き方を選ぶ。GitHub の push の webhook（既定・推し。リポジトリの admin が要る）か、決まった間隔の確認だけ（Scheduled check only）。Auto-publish の切り替えもここ。
+8. Submit for review を押す。
+
+申請したあとは、追う枝に入れると、検査を通った版が公開の設定どおりに出ます。
+
+### データの扱いの問いへの答えの下書き
+
+スキル・エージェント・フックを読んで確かめた事実からの下書きです。最後に答えるのは人です。
+
+1. 個人のデータを読む・残すか：利用者が頼んだ作業のために、利用者のプロジェクトの中のファイル（パイプの定義・記録）を読み書きする。作者には集めない。残る記録は利用者のプロジェクトの中だけ。
+2. 宣言したコネクタ以外のサービスへデータを送るか：プラグイン自身は送らない。作者や第三者のサーバーへ送るものは無く、`WebFetch`・`WebSearch` も使わない。ただし、`/pipe-in:pipe-eval` が流す検査のコマンドと、段（`pipe-stage`）の中のシェルのコマンドは、利用者のパイプの定義のとおりに動くので、何を送るかはその定義による。例外は `/pipe-in:pipe-live` で、人が呼んだときだけ、進み具合の写しを claude.ai のアーティファクトのデータ（`ArtifactData`）に書く。
+3. データをどのくらい残すか：プラグインは自分ではデータを持たない。記録は利用者のプロジェクトの `docs/pipeline/` などに、利用者が消すまで残る。アーティファクトのデータの扱いは claude.ai の決まり。
+4. 18 歳未満向けか：いいえ。開発者向けの道具。
+
+### 版を上げる決まり
+
+リリースのたびに、`plugin/.claude-plugin/plugin.json` の `version` を上げます。上げないと、申請したあとの利用者に新しい版が届きません。版を書くのは `plugin.json` だけで、`.claude-plugin/marketplace.json` の項目には `version` を書きません（二重にしないため）。`pyproject.toml` の版（`pipe-in-gen` の版）は別物で、ここでは上げません。0.6.0 で README・アイコン・マニフェストの項目を足しました。スキル・エージェント・フックの動きは変わっていません。
+
+### 申請の前の確かめ
+
+手で流します（CI では流しません。Claude Code を CI に入れると依存が増え、版も動くため）。どちらも終了コード 0 で、`ICON_MISSING` と README の警告が出ないことを見ます。
+
+```
+claude plugin validate --strict ./plugin
+```
+
+```
+claude plugin validate --strict .
+```
+
+`plugin.json` の `icon`・`documentationUrl`・`supportUrl` は、ディレクトリの掲載ページが読む欄です。公式の文書によると、`claude plugin validate` がこれらを知らない欄として警告しないのは v2.1.281 以降なので、`--strict` はそれ以降の Claude Code で流します。これらの欄は `plugin.json` にだけ書き、`marketplace.json` の項目には書きません（書くと知らない欄の警告になる）。
+
+ローカルの validate は、ポータルの Validate と同じ検査ではありません。フックの `"command": "pipe-in-gen"`（PATH のコマンド名）が、ポータルの Validate で止められるかは、まだ確かめていません。止められたら、別の機能で見直します。
+
+### アイコン
+
+`plugin/.claude-plugin/icon.png`（1024×1024・約 26 KB）です。元は `docs/assets/pipe-in-logo-dark.svg` で、地の色は `#0D1117` です（作り方は[docs/assets/README.md](../assets/README.md#プラグインのアイコンを撮る)）。`plugin.json` の `icon`（`./.claude-plugin/icon.png`）がこのファイルを指します。公式の文書によると、ディレクトリは `plugin.json` の `icon` を読みます。ポータルで使われるのは、最初の保存・申請の1回だけで、あとから変えても変わりません。
+
+### 事前チェックを pytest で見張る範囲
+
+`tests/test_plugin_directory.py` が見るのは、README の語数・見出し・入れ方・名前と実物の合い（動かすもの・送るものの語を含む）、アイコンの形、`plugin.json` と `marketplace.json` の項目と版、フォルダの大きさと数、シンボリックリンクと不要なファイル、ファイル名、`LICENSE`、`.gitattributes`、フックの形、前書きの `description`、この節の中身です。見ないのは、セキュリティの検査、名前がほかに取られていないか、方針の審査です。これらはポータルと人の審査が決めます。
+
+## 0.5.x から更新するとき
+
+0.6.0 では README・アイコン・`LICENSE`・マニフェストの項目が増えただけで、スキル・エージェント・フックの動きは変わっていません。更新のしかたは下と同じです。
 
 0.5.1 で `references/stage-rules.md` に「比較実験から分かった組み方の目安」が増え、0.5.2 でその中に「2体の共通部分」の項（`pipe-in-gen quorum`・ひな形 `review-quorum`）が増えました。スキル・エージェント・フックの動きは変わりません。入れ方によって、更新のしかたが違います。
 
 - **手元のフォルダからマーケットプレイスを足した人**（`/plugin marketplace add ./`）：プラグインはその場から読まれるので、pipe-in のフォルダで `git pull` をしたあと、次の会話を始めるか `/reload-plugins` をすれば効きます。
 - **GitHub からマーケットプレイスを足した人**：版が変わったときだけ入れ直されます。会話の中なら `/plugin marketplace update pipe-in`、シェルなら `claude plugin update pipe-in@pipe-in` で更新し、開いている会話には `/reload-plugins` で反映します。`/plugin` の Marketplaces で自動の更新（Enable auto-update）を入れておくと、自分で更新しなくても届きます。Anthropic の公式のマーケットプレイスのほかは、自動の更新は既定で切れています。
+- **1 行の形（`--marketplace nigoh/pipe-in`）で入れた人**：1 行の形も、GitHub のマーケットプレイスを足してから入れるので、GitHub からマーケットプレイスを足した人と同じです。
 
 あわせて、警告 W7・W6・W5 の例外・`pipe-in-gen quorum`・ひな形 `review-quorum` を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
 

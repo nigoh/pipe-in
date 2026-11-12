@@ -122,10 +122,10 @@ def test_d0077_ac34_hooks_jsonの説明にpipe_stageとpipe_probeが出る():
 
 
 def test_d0077_ac34_plugin_jsonの説明に会話の中でパイプを流すが出る():
-    """D0077-AC-34（設計 2.2）: plugin.json の description に「会話の中でパイプを流す」が出る。version は変えない（公開は人）。"""
+    """D0077-AC-34（設計 2.2）: plugin.json の description に「会話の中でパイプを流す」が出る。version は変えない（公開は人）。D0095 でプラグインの README・アイコン・項目を足したので 0.6.0 に上げた。"""
     manifest = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert "会話の中でパイプを流す" in manifest["description"]
-    assert manifest["version"] == "0.5.2"
+    assert manifest["version"] == "0.6.0"
 
 
 def test_d0077_ac34_スキルのfrontmatter():
