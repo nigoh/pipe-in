@@ -917,10 +917,10 @@ def test_D0039_AC_23_settingsのhooksはPreToolUse1つとStop1つのまま_守�
 
 
 def test_D0039_AC_23_エージェントの定義8つの前置きにhooksを足さない_守る():
-    """D0039-AC-23: .claude/agents/pipe-in-*.md の 8 つの前置きに hooks: が無い（前置きのフック・onFailure つきは別のイシュー。この機能が直す 7 つのエージェントにも足さない）。
+    """D0039-AC-23: .claude/agents/pipe-in-*.md の 9 つ（D0093 で調べ係を足した）の前置きに hooks: が無い（前置きのフック・onFailure つきは別のイシュー。この機能が直す 7 つのエージェントにも足さない）。
     （今のまま通る。守る）"""
     files = sorted(AGENTS_DIR.glob("pipe-in-*.md"))
-    assert len(files) == 8, [p.name for p in files]
+    assert len(files) == 9, [p.name for p in files]  # D0093 で調べ係を足して 9 つ
     with_hooks = [p.name for p in files if any(line.lstrip().startswith("hooks:") for line in front_matter(p.read_text(encoding="utf-8")).splitlines())]
     assert with_hooks == [], f"前置きに hooks: があるエージェント：{with_hooks}"
 

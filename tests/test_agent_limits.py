@@ -26,7 +26,7 @@ D0012 = DECISIONS / "D0012-headless-audit.md"
 D0015 = DECISIONS / "D0015-rubric-judge.md"
 RECORD_GLOB = "D0041-*.md"
 
-LIMITS = {"pipe-in-auditor": 100, "pipe-in-advisor": 80, "pipe-in-judge": 50}
+LIMITS = {"pipe-in-auditor": 100, "pipe-in-advisor": 80, "pipe-in-judge": 50, "pipe-in-ux-researcher": 60}  # 調べ係は D0093 で足した
 NO_LIMIT = ["pipe-in-documenter", "pipe-in-analyst", "pipe-in-tester", "pipe-in-coder", "pipe-in-verifier"]
 ALL_AGENTS = sorted(LIMITS) + NO_LIMIT
 
@@ -152,7 +152,7 @@ def test_D0041_AC_04_検査は正しいmaxTurnsを通す(text, expected):
 
 
 def test_D0041_AC_05_maxTurnsが付いているのは監査_助言_審査の3つだけ():
-    """D0041-AC-05: .claude/agents/pipe-in-*.md はちょうど8つで、前置きに maxTurns があるのは監査・助言・審査の3つだけ（文書係と段の4つには無い）。"""
+    """D0041-AC-05: .claude/agents/pipe-in-*.md はちょうど9つで、前置きに maxTurns があるのは監査・助言・審査と調べ係（D0093）の4つだけ（文書係と段の4つには無い）。"""
     found = {p.stem: p.read_text(encoding="utf-8") for p in sorted(AGENTS.glob("pipe-in-*.md"))}
     assert sorted(found) == sorted(ALL_AGENTS)
     with_limit = {name for name, text in found.items() if max_turns_lines(text)}

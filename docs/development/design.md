@@ -47,7 +47,9 @@
 | VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
 | 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
 | このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`（必ず守る決まりは `SKILL.md` の冒頭に置き、長い手順は補助ファイルに分けた：記録のコマンド `.claude/skills/pipe-in/record.md`・`--artifact` の手順 `.claude/skills/pipe-in/artifact.md`・画面の確認の手順 `.claude/skills/pipe-in/screen-check.md`・無人の実行の手順 `.claude/skills/pipe-in/unattended.md`）・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/`・計画ボード `.claude/skills/pipe-plan/`（ページのひな形 `board.html`）・壁打ち `.claude/skills/pipe-talk/`（要約は手元だけの `docs/talk/<日時>-<名前>.md`。`.gitignore` 済み） |
+| 画面の見本を触って比べて決めるスキル `/pipe-design` | `.claude/skills/pipe-design/`（`SKILL.md`・見本の作り方 `mock.md`・★ の保存先と読み方 `favs.md`。見本は対象のリポジトリの `docs/design/`、要約は手元だけの `docs/talk/<日時>-<名前>.md`。D0093） |
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` と、文字列でない `agent_type` は読むだけにする。判断の途中で例外が出ても止める） |
+| `/pipe-design` の良さの条件の調べ係 | `.claude/agents/pipe-in-ux-researcher.md`（読むだけ・書けない・Bash なし・軽いモデル。Web は UX の出典の場所 `UX_HOSTS` だけで、フック `.claude/hooks/pipe_in_guard.py` が絞る。D0093） |
 | コードを変えたのに文書が変わっていないまま止まるとき、1回だけ知らせる Stop のフック（標準ライブラリだけ。目印は一時フォルダに置く） | `.claude/hooks/docs_reminder.py` |
 | /pipe-in の記録を書く（pipe-in record。`start` の `--name`・`--session-id`、`begin` の `--agent` もここ） | `pipe_in/dev/record.py` |
 | /pipe-in の記録の順序を読むだけで検べる（pipe-in record check。承認より前に次の段が始まっていないか） | `pipe_in/dev/record_order.py` |
