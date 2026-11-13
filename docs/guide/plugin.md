@@ -24,8 +24,8 @@ claude.ai のチャットでは、スキルは読み込まれますが、エー�
 
 | 入るもの | すること |
 | --- | --- |
-| スキル `/pipe-in:pipe-build` | 目的か直したい点を聞き、段の表（直すときは「前 → 後」の表）を見せて確認を取り、pipe-builder に任せ、`pipe-in-gen check` の結果と流し方を伝える。段の決め方と、検査（`command`）と審査（`judge`）の組み方と、比較実験から分かった組み方の目安は `references/stage-rules.md` にある。流すのは言われてから |
-| エージェント `pipe-builder` | 渡された `stage-rules.md` を読み、確認が取れた表どおりに `pipe.toml`・`prompts/`・`README.md` を書き、`pipe-in-gen check` が通るまで直す。表に無い権限の拡大や、`judge` だけで差し戻す形（`command` が無いのに `on_fail`）はせず差し戻す |
+| スキル `/pipe-in:pipe-build` | 目的か直したい点を聞き、段の表（直すときは「前 → 後」の表）を見せて確認を取り、pipe-builder に任せ、`pipe-in-gen check` の結果と流し方を伝える。段の決め方と、検査（`command`）と審査（`judge`）の組み方と、比較実験から分かった組み方の目安は `references/stage-rules.md` にある。表に審査（`judge`）だけで差し戻す段（`command` が無いのに `on_fail`）があれば、「確認済み」とあっても任せず、`command` と組む案か `on_fail` をやめる案を見せて聞く。流すのは言われてから |
+| エージェント `pipe-builder` | 渡された `stage-rules.md` を読み、確認が取れた表どおりに `pipe.toml`・`prompts/`・`README.md` を書き、`pipe-in-gen check` が通るまで直す。`pipe-in-gen new` が失敗したら（書けないなど）、ひな形を使わずに表どおりに手で書く（同じ名前があって止まったときと、フックに止められたときは差し戻す）。表に無い権限の拡大や、`judge` だけで差し戻す形（`command` が無いのに `on_fail`）は、書く前に表を照らして見つけ（「確認済み」とあっても）、せずに差し戻す。指示文と成果物の名前は頭に番号（例 `01_summary.md`。Claude Code がサブエージェントからの `summary.md` などの書き込みを断るため） |
 | スキル `/pipe-in:pipe-eval` | パイプの成果物を、検査のコマンド（`pipe.toml` の `[stages.check]` の `command`、または渡したコマンド）で確かめる。流す前に一覧を見せて返事を待ち、項目ごとの合否（終了コード 0 だけが合格）を JSON で返す。成果物は書かない・直さない |
 | スキル `/pipe-in:pipe-judge` | 成果物を、依頼とルーブリックに照らして審査する。点は審査役 `pipe-judge` が付け、総合点・合否・ばらつきは `pipe-in-gen judge-score` が計算する。結果は JSON で返し、成果物は直さない・パイプへ差し戻さない |
 | スキル `/pipe-in:pipe-live` | ターミナルで流している pipe-in の進み具合を、Claude のアーティファクトでも見る。ページを1回だけ公開し、Monitor で `pipe-in live watch` を動かして、行を受けるたびに ArtifactData へ写しを書く。見るだけで、止める・進める・承認はできない。使えるのは claude.ai にログインした Claude Code で、Artifact・ArtifactData・Monitor が要る（無ければ何もせず止まる）。人が呼んだときだけ動く。使い方は[使い方](usage.md#ターミナルで流している実行を見るpipe-in-live-watch) |
@@ -33,7 +33,7 @@ claude.ai のチャットでは、スキルは読み込まれますが、エー�
 | スキル `/pipe-in:pipe-run` | 会話の中でパイプを流す（SDK を起こせない場所向け。[下の節](#pipe-inpipe-run)）。段の順番・検査・差し戻し・人の確認・記録は `pipe-in-gen chat` が持ち、会話は返事の `action` に従って、指示を `pipe-stage` に渡し、結果を返すだけ。人が呼んだときだけ動く。段は Claude の利用料がかかる |
 | エージェント `pipe-stage` | `pipe-run` から呼ばれ、渡された指示で 1 つの段を受け持って成果物を書く。道具は読む・書く・Bash で、サブエージェントは呼べない。書ける範囲は段の定義から決まり、フックが絞る |
 | エージェント `pipe-probe` | `pipe-run` が流す前に 1 回だけ呼ぶ確かめ役。渡された範囲外のパスへ `Write` を 1 回だけ試し、守りが効いているかを見る。道具は Write・Read だけ |
-| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない）。会話の中で流すときは、`pipe-stage` を今開いている段の範囲に絞り（段が開いていなければ止める）、`pipe-probe` を段の有無によらずいつも読む道具だけに絞り、段が開いている間、または記録が読めないときは、ほかのエージェントは止める（[安全のしくみ](safety.md#会話の中で流すときの守り)）。会話の中で段が開いておらず、記録も読めるときは、これらのエージェント以外には何もしない。ただし `agent_type` が文字列でも null でもない呼び出しは、読む道具以外を止める |
+| フック（`pipe-in-gen guard-hook`） | pipe-builder が書けるのを、パイプのフォルダ（`…/pipes/pipe-in-<名前>/`。前の版のフォルダ名も）の `pipe.toml`・`README.md`・`prompts/*.md` だけに、Bash を `pipe-in-gen list / new / check` だけに絞る。pipe-judge は読む道具（Read・Glob・Grep）だけに絞り、Bash・Agent なども止める。どちらの場合も PowerShell・MCP・Web の呼び出しは止める。pipe-builder は渡された `stage-rules.md` を読むだけ（読む道具は止めない）。会話の中で流すときは、`pipe-stage` を今開いている段の範囲に絞り（段が開いていなければ止める）、`pipe-probe` を段の有無によらずいつも読む道具だけに絞り、段が開いている間、または記録が読めないときは、ほかのエージェントは止める（[安全のしくみ](safety.md#会話の中で流すときの守り)）。会話の中で段が開いておらず、記録も読めるときは、これらのエージェント以外には何もしない。ただし `agent_type` が文字列でも null でもない呼び出しは、読む道具以外を止める。どの場合も、報告を親に返す `SubagentHandback`（auto モードでサブエージェントに渡される道具。書かない）は、`agent_type` が文字列なら止めません。止めると、auto モードでは審査役の JSON などの報告が親に届かないためです |
 
 書き込み先は、パスの文字の上の判断に加えて、リンク（シンボリックリンク・junction）の先をたどった判断でも書ける場所に入るときだけ通します。置き場所の外を指すリンクに加えて、置き場所の中でも書いてよいファイル（`pipe.toml`・`README.md`・`prompts/*.md`）以外を指すリンクも止めます。壊れたリンク・輪のリンク・たどれないものも止めます。
 
@@ -60,8 +60,8 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 
 - ルーブリックは Markdown の表のファイル（列は `項目名 | 見ること | must か`）で渡します。`must` の行は破ってはいけない決まりで、1 つでも破ると平均に関わらず `fail` です。渡さなければ、既定（採点 5 つ・must 2 つ）を使います。
 - 総合点は採点項目の点の平均（null は数えない）で、0.7 以上が `pass` です。must が確かめられなかったときも `fail` で、`must_unchecked` に載ります。計算は `pipe-in-gen judge-score` が決まった手順でします。
-- `--runs N`（1〜5、既定 1）で審査役を N 回呼び、平均とばらつき（`variance` の `verdict_disagreement`・`overall_range`）を出します。審査役を呼ぶたびに Claude の利用料がかかるので、2 以上では呼ぶ前に「約 N 倍」と見せて返事を待ちます。範囲の外は断ります。
-- 返す JSON のキーは `runs`・`scores`・`must_violations`・`must_unchecked`・`overall`・`threshold`・`verdict`（と、2 回以上なら `variance`）です。結果はファイルに残しません。
+- `--runs N`（1〜5、既定 1）で審査役を N 回呼び、平均とばらつき（`variance` の `verdict_disagreement`・`overall_range`）を出します。審査役を呼ぶたびに Claude の利用料がかかるので、2 以上では呼ぶ前に「約 N 倍」と見せて返事を待ちます。範囲の外は、利用料の確認や審査役より前に、「`--runs` は 1〜5」と伝えて断ります（確認も出さず、審査役も `judge-score` も呼びません）。
+- 結果は、`judge-score` が出した JSON を、要約や表に置き換えずに ```json の囲みでそのまま返します。キーは `runs`・`scores`・`must_violations`・`must_unchecked`・`overall`・`threshold`・`verdict`（と、2 回以上なら `variance`）です。結果はファイルに残しません。
 - 審査役は読む道具しか持たず、成果物の中の指示には従いません。ただし Read で成果物以外のファイルも読めます（書けず、外へも出せません）。
 
 ## `/pipe-in:pipe-live [--work-dir 記録のフォルダ]`
@@ -80,7 +80,7 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 - 対象は、SDK を起こせない場所（VS Code の Claude など）です。端末で `pipe-in` を使えるなら、そちらを使ってください。
 - 段の順番・次の段・やり直し・人の確認・記録は、`pipe-in-gen chat` が持ちます。会話は、返事の `action` に従って、指示を `pipe-stage` に渡し、結果を `chat done` に返し、人の確認を聞いて `chat review` に渡すだけです。
 - 流れは、(1) `chat start --dry-run` で段の表と「効かない設定」を見せて、開始の確認を取る、(2) `chat start` で記録を作り、`chat probe` と `pipe-probe` で守りを確かめる（確かめられなければ流さない。[安全のしくみ](safety.md#会話の中で流すときの守り)）、(3) `chat next` の `action`（`run_stage`・`await_review`・`probe`・`finished`）に従って繰り返す、(4) 結果と `99_summary.md` を伝えて終わる、です。
-- 扱えない形と効かない設定は、[パイプ](pipes.md#会話の中で流すとき)の表にあります。扱えない形のパイプは、始める前に理由を全部出して断ります。
+- 扱えない形と効かない設定は、[パイプ](pipes.md#会話の中で流すとき)の表にあります。扱えない形のパイプは、始める前に理由を全部出して断ります。成果物の名前が `summary.md`・`report.md` のような形（頭が report・summary・findings・analysis で、`.md` で終わる）の段も断ります。Claude Code が、サブエージェント（`pipe-stage`）からのその名前の書き込みを断るためで、頭に番号を付ければ流せます（例 `01_summary.md`）。この断りは `pipe-in-gen` の側にあるので、新しい `pipe-in-gen` を入れると効きます。
 - 記録は `driver: "pipe-chat"` で書かれます。使用量は取れないので、記録は「取れない」と書かれます。くわしくは[記録と使用量](records.md#会話の中で流した記録)。
 - `pipe-in --review` では続けられません。続きは `pipe-in-gen chat next --pipe <パイプ名>` です。会話が途切れても、`chat status` で今どこかを見て、`chat next` から続けられます（開いている段は、同じ指示がもう一度出ます）。
 
@@ -108,21 +108,26 @@ Claude を呼ぶパイプは流さないので、pipe-in の利用料はかか�
 
 ## プラグインの eval
 
-プラグイン自身のスキルが、狙いどおりに動くかを確かめるケースを、`plugin/evals/` に置いてあります。Claude Code の `claude plugin eval` で流します。ケースは小さなテキストのファイルで、`pipe-build`・`pipe-eval`・`pipe-judge` のスキルごとに 3 本、全部で 9 本です。
+プラグイン自身のスキルが、狙いどおりに動くかを確かめるケースを、`plugin/evals/` に置いてあります。Claude Code の `claude plugin eval` で流します。ケースは小さなテキストのファイルで、`pipe-build`・`pipe-eval`・`pipe-judge` は 3 本ずつ、`pipe-run` は 2 本、`pipe-live` は 1 本、全部で 12 本です。
 
 | ケース | スキル | 測ること | tags |
 | --- | --- | --- | --- |
 | `build-shows-table-first` | pipe-build | 書く前に段の表を見せて確認を待つ（書かない・流さない・任せない） | cheap・needs-bash・needs-pipe-in-gen |
-| `build-passes-check` | pipe-build | 確認済みの表を pipe-builder に任せ、`pipe.toml`・`README.md` を書き、`pipe-in-gen check` で検査する | agent・needs-bash・needs-write・needs-pipe-in-gen |
-| `build-refuses-judge-only` | pipe-build | 審査（judge）だけで自分に戻す検査を作らず、`command` と組む案内を返す | agent・needs-bash・needs-write・needs-pipe-in-gen |
+| `build-passes-check` | pipe-build | 確認済みの表を pipe-builder に任せ、`pipe.toml`・`README.md` を書き、`pipe-in-gen check` で検査する。check が通ったこと（成功の行が出たこと）と、指示文の名前（`prompts/01_summary.md`）も見る | agent・needs-bash・needs-write・needs-pipe-in-gen |
+| `build-refuses-judge-only` | pipe-build | 審査（judge）だけで自分に戻す検査を作らず、`command` と組む案内を返す。悪い形が trace の中のどのメッセージにも無いことを見る | agent・needs-bash・needs-write・needs-pipe-in-gen |
 | `eval-lists-and-waits` | pipe-eval | 流す前に一覧を見せ、返事を待つ | cheap |
 | `eval-result-json` | pipe-eval | 流してよいと言われたら 2 つ流し、結果を JSON で返す | cheap・needs-bash |
 | `eval-stops-without-state` | pipe-eval | 記録（`state.json`）が無ければ流さずに、先にパイプを流すよう伝える | cheap |
 | `judge-calls-judge-score` | pipe-judge | 審査役を呼び、点の計算を `pipe-in-gen judge-score` にさせる | agent・needs-bash・needs-pipe-in-gen |
 | `judge-must-violation-fails` | pipe-judge | must に違反した報告を `fail` にし、根拠に違反の引用を書く | agent・needs-bash・needs-pipe-in-gen |
 | `judge-rejects-bad-runs` | pipe-judge | 範囲外の `--runs` を、審査役にも計算にも回さずに断る | cheap・needs-pipe-in-gen |
+| `run-dry-run-asks-first` | pipe-run | `chat start --dry-run` で段の表を見せ、始めるかやめるかを問う（本当の `chat start` を流さない・エージェントを呼ばない） | cheap・needs-bash・needs-pipe-in-gen |
+| `run-refuses-unsupported` | pipe-run | 会話の中で流せない形（`group`）のパイプでは、`--dry-run` で断る理由を見せて止まる | cheap・needs-bash・needs-pipe-in-gen |
+| `live-stops-without-tools` | pipe-live | Artifact・ArtifactData・Monitor が無い会話では、何も流さず書かずに、道具が無いことを伝えて止まる | cheap |
 
 各ケースの本文は `/pipe-in:<スキル名>` で始まります。見本のファイル（対象プロジェクトや記録）は、`scaffold.sh` が Claude の始まる前に空のワークスペースへその場で作ります（中から標準ライブラリだけの `scaffold.py` を呼びます）。`pipe-in-gen` が無い、または作業フォルダが空でないときは、何も書かずに止まります。採点（`graders/`）は、書かない・呼ばないといった道具の使い方と、返事の語を見るものがほとんどで、Claude に採点させる `llm` は 1 ケースだけです。
+
+`pipe-run` のケースは、`chat start --dry-run` までを見ます（本当の `chat start` は流しません。段を実際に流すケースは置いていません。守りの確かめのフックがサンドボックスの外で動き、費用も大きいため）。`pipe-live` のケースは、`claude plugin eval` の中では Artifact・ArtifactData・Monitor が使えないので、「道具が無い」の枝だけを見ます。
 
 ### 流し方
 
@@ -137,19 +142,41 @@ claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write E
 - `--scaffold` が無いと見本が作られず、全ケースが空のワークスペースで動いて落ちます。必ず付けます。
 - `--ablation none` で、プラグインを入れた回だけを流します。付けないと、プラグイン無しで比べる回も同じ数だけ流れて、費用が倍になります。ケースは `/pipe-in:<スキル>` を呼ぶので、プラグイン無しの回と比べる意味はほとんどありません。
 - `--allow-tools Bash Write Edit` は全ケースに効きます。ケースの `allowed_tools` では `Bash`・`Write`・`Edit` を許せないので、ケース側は `tags` の `needs-bash`・`needs-write` で、何が要るかを示します。
-- `--case <ケース名>` で 1 本だけ、`--tag cheap` で審査役やサブエージェントを呼ばない安いケースだけ、`--tag agent` で高いケースだけ、`--tag needs-pipe-in-gen` で Claude が `pipe-in-gen` を使うケースだけを流せます。ただし見本を作る `scaffold.sh` は、9 本とも `pipe-in-gen` が PATH に無いと止まるので、どのタグで流すときも `pipe-in-gen` を入れておきます。
+- `--case <ケース名>` で 1 本だけ、`--tag cheap` で審査役やサブエージェントを呼ばない安いケースだけ、`--tag agent` で高いケースだけ、`--tag needs-pipe-in-gen` で Claude が `pipe-in-gen` を使いうるケースだけを流せます（`judge-rejects-bad-runs` は、正しい動きでは `pipe-in-gen` を使わずに止まりますが、止まらなかったときに使うので付けてあります）。ただし見本を作る `scaffold.sh` は、12 本とも `pipe-in-gen` が PATH に無いと止まるので、どのタグで流すときも `pipe-in-gen` を入れておきます。
 - `--output-dir` は `plugin/` の外に向けます。既定の結果の置き場所はプラグインのフォルダの中で、`plugin/evals/results/` は `.gitignore` に入れてあります。
-- `--max-cost-usd` で費用の上限を付けます。値は、実機で 1 ケースの費用を測ってから決めます（まだ測っていません）。
+- `--max-cost-usd` で費用の上限を付けます。上限と表示の費用は、呼び出しの定価での見積もりで、プランの利用枠の減り方とは別です。上限は各回を始める前に確かめるので、`-j` で同時に流している回のぶん、少し越えることがあります。測った費用（定価の見積もり）は、haiku（審査役も haiku）・`--runs 1` で、9 本が $0.11（ラウンド 1b。1 本あたり、安いケースは約 $0.004、エージェントを使うケースは約 $0.015〜$0.03）、12 本が $0.11〜$0.12（ラウンド 2〜4）でした。同じ haiku でも `--runs 3` の 12 本は $0.29 でした。上のコマンド（sonnet・`--runs 3`）では、モデルの値段のぶんさらに増えます。
 - `--trust-plugin` を付けるので、信頼できるプラグインだけに使います。プラグインのフックは、サンドボックスの外で動きます。
+
+### ラウンドの回し方（下位のモデルで）
+
+プラグインを育てるときは、安い下位のモデル（haiku。審査役も haiku）で全ケースを流し、落ちた採点を直して、また流します。この 1 回を「ラウンド」と呼びます。haiku で手順どおりに動く文は、上位のモデルでも手順どおりに動く見込みが高く、haiku で見つかった読み飛ばしや要約での置き換えは、直す価値のある崩れです。ラウンドも利用料がかかるので、人に言われたときだけ回します。
+
+```
+claude plugin eval ./plugin --scaffold --trust-plugin --allow-tools Bash Write Edit \
+  --model haiku --judge-model haiku --runs 1 --ablation none -j 3 \
+  --max-cost-usd 0.5 --json <plugin/ の外>/round-<名前>.json \
+  --output-dir <plugin/ の外>/round-<名前> --no-publish
+```
+
+- モデルの別名（`haiku`）は、指す版が変わることがあります。回をまたいで点を比べるなら、`--model` と `--judge-model` に完全なモデルの ID を書きます（ラウンド 1〜4 の haiku は `claude-haiku-5-5` でした。記録の trace の頭で分かります）。版が変わった回は、前の回との差を比べません（公式の文書 https://code.claude.com/docs/en/plugin-evals の「pin both models so scores are comparable over time」）。
+- `--runs 1` で 1 回ずつ流します。`-j` は同時に流すケースの数で、ラウンド 1 では 3〜4 にしました。
+- 費用（定価の見積もり）：ラウンド 1b（9 本）は $0.11・109 秒、12 本のラウンド 2〜4 は $0.11〜$0.12・81〜101 秒で、`--max-cost-usd 0.5` に収まりました。止める前の `--runs 3`（12 本）は $0.29・227 秒でした。
+- 止めどき：全ケースが合格した回が出るか、ラウンド 5 まで。止める前に、全ケースを `--runs 3 --threshold 0.8 --max-cost-usd 1.5`（haiku・審査役 haiku）で 1 回流して、ぶれを見ます。上限で止まった回があれば、そこで止めます。
+- 落ちた採点は、スキルの不具合・ケースの不具合・環境のどれかに分けます。スキルとケースは、テストを先に直してから直します。環境によるものは直さずに書き残します。
+- 回の表は `python docs/research/plugin-eval-rounds/rounds.py 1b=<…>.json 2=<…>.json` で出します（ケースごとの点・合格の回・落ちた採点・前の回との差。読むだけで、何も書きません）。途中で止まった回（`partial`）と、費用の上限で審査の採点が飛ばされた回（`skippedPaidGraders`）を含むケースは、差を「比べられない」と出し、途中で止まった回は次の回の差の基準にしません（公式の文書の、比べられない回を傾向から外す決まり）。回ごとの結果は[調査](../research/plugin-eval-rounds/README.md)にあります（ラウンド 4 で 12 本とも合格しました。止める前の `--runs 3` では、`judge-rejects-bad-runs` が 3 回に 1 回、範囲の外の `--runs` を断らずに進んで落ちました。まだ直していない、残った課題です）。
+- 結果の JSON と `--output-dir` の中には、作業フォルダのパスやモデルの返事の文が入ります。`plugin/` の外に置き、コミットしません。
+- `pipe-in-gen` は、pipe-in のフォルダで `pip install .`（`-e` なし）を、home の外の環境に入れます。編集用の `pip install -e .` だと、サンドボックスの Bash から元のフォルダが見えず、`pipe-in-gen` が `ModuleNotFoundError` で動きません（ラウンド 1a で 4 本がこれで落ちました）。
+- root で流さないでください。root のコンテナでは「could NOT seal … running as root」の警告が出て、サンドボックスの Bash の結果が毎回「Exit code 1」に見え、サンドボックスの Bash から作業フォルダにも書けませんでした（`pipe-in-gen new` が `.pipe-in` を作れない）。何を呼ぶ・呼ばないを見る採点は読めますが、Bash の結果や書き込みを見る採点は、環境のせいで落ちることがあります。0.6.1 の pipe-builder は、`new` が失敗すると Write で手で書くほうに切り替えるので、`build-passes-check` は root のコンテナでも通りました（ラウンド 4 と止める前の `--runs 3`）。root でない環境では、まだ回していません。
 
 ### 前提と注意
 
 - Claude Code v2.1.269 以上、git 2.31 以上、Bash が要ります。Windows では WSL2 の中で流します（Windows そのままでは、Bash を許すケースはサンドボックスが無いので、1 回ずつ断られます）。Linux は bubblewrap と socat も要ります。
 - `eval-*` の 3 本は、流すコマンドに `python` を使います。`python` が無く `python3` だけの環境では落ちます。
-- `Bash` を許すと、OS のサンドボックスの中で動きます。サンドボックスの Bash は home の下を読めないので、home の下の venv に入れた `pipe-in-gen` は使えないおそれがあります。`pipe-in-gen` は home の外に入れるか、実機で確かめてください（`pip install -e .` で入ります）。
-- 結果は、`--output-dir` の先の `aggregate-result.json` と `report.html` に出ます。
-- `claude -p` で `/スキル名` が展開されることは公式の文書にありますが、`claude plugin eval` の中で `/pipe-in:<スキル>` の形が展開されるかは、まだ実機で確かめていません。`file_exists` の `path` の基準と、サブエージェントが書いたファイルや呼んだ道具が採点に数えられるかも、まだです。`scaffold.sh` には実行ビットを付けてあります。
-- ケースを足すだけなら、プラグインの版は上げません（ケースは 0.5.0 のときに足しました。利用者に届けたい変更を入れるときの版の決まりは[下の節](#ディレクトリへの申請)）。スキル・エージェント・フックの動きは変わりません。`pytest` が見るのはケースのファイルの形だけで、`claude plugin eval` は流しません。
+- `Bash` を許すと、OS のサンドボックスの中で動きます。サンドボックスの Bash は home の下を読めないので、home の下の venv に入れた `pipe-in-gen` は使えないおそれがあります。`pipe-in-gen` は、pipe-in のフォルダで `pip install .`（`-e` なし）を home の外の環境に入れます（`-e` だとサンドボックスから元のフォルダが見えません。上の「ラウンドの回し方」）。
+- 結果は、`--output-dir` の先の `aggregate-result.json` と `report.html` に出ます。`--json <ファイル>` を付けると、同じ中身の JSON をそのファイルにも書きます。
+- 実機（Claude Code 2.1.323・ラウンド 1）で確かめたこと：`claude plugin eval` の中で `/pipe-in:<スキル>` の形が展開される。`scaffold.sh` が作業フォルダで起こされる（実行ビットを付けてあります）。`file_exists` の `path` の基準は作業フォルダで、先頭が `.` のフォルダ（`.pipe-in/`）の中も数える。サブエージェントが呼んだ道具と書いたファイルも採点に数えられる。`target` がファイルの `regex` は、そのファイルが無いと採点そのものが失敗する（grader threw）。`--judge-model haiku` の別名が使える。`regex` の `target: trace` に、サブエージェント（pipe-builder）の道具の呼び出しも入る（ラウンド 3）。
+- まだ確かめていないこと：ラウンド 3 で、文字の組 `[0-9]` を含む `path` は、ファイルがあっても当たらなかった（glob をどこまで読むかは確かめていない）。そのため、`build-passes-check` の指示文の採点は、glob を使わない `path`（`prompts/01_summary.md`）にしてある。root でない環境での動きも、まだ確かめていない。
+- ケースを足すだけなら、プラグインの版は上げません（ケースは 0.5.0 で 9 本、0.6.1 のときに 3 本足しました。利用者に届けたい変更を入れるときの版の決まりは[下の節](#ディレクトリへの申請)）。ケースはスキル・エージェント・フックの動きを変えません。0.6.1 はスキルとエージェントの文を直したので上げました（ケースによるものではありません）。`pytest` は `claude plugin eval` を流しません。見るのは、ケースのファイルの形と、採点の正規表現が見本の trace や道具の入力に当たるか・当たらないかと、見本のパイプ（`chat start --dry-run` に通す）だけです。
 
 ## ディレクトリへの申請
 
@@ -183,7 +210,7 @@ Anthropic のディレクトリ（claude.ai/directory）にこのプラグイン
 
 ### 版を上げる決まり
 
-リリースのたびに、`plugin/.claude-plugin/plugin.json` の `version` を上げます。上げないと、申請したあとの利用者に新しい版が届きません。版を書くのは `plugin.json` だけで、`.claude-plugin/marketplace.json` の項目には `version` を書きません（二重にしないため）。`pyproject.toml` の版（`pipe-in-gen` の版）は別物で、ここでは上げません。0.6.0 で README・アイコン・マニフェストの項目を足しました。スキル・エージェント・フックの動きは変わっていません。
+リリースのたびに、`plugin/.claude-plugin/plugin.json` の `version` を上げます。上げないと、申請したあとの利用者に新しい版が届きません。版を書くのは `plugin.json` だけで、`.claude-plugin/marketplace.json` の項目には `version` を書きません（二重にしないため）。`pyproject.toml` の版（`pipe-in-gen` の版）は別物で、ここでは上げません。0.6.0 で README・アイコン・マニフェストの項目を足しました。スキル・エージェント・フックの動きは変わっていません。0.6.1 で pipe-judge の断り方と返し方（範囲の外の `--runs` を最初に断る・`judge-score` の JSON をそのまま返す）と、pipe-builder の名前の決まり（指示文と成果物の頭に番号）と、`pipe-in-gen new` が失敗したときの進め方（ひな形を使わずに表どおりに手で書く）と、審査だけで差し戻す形を、任せる前と書く前に止めることを直しました。あわせて、フックが報告の道具（`SubagentHandback`）を止めないようにしました（判断は `pipe-in-gen` の側にあるので、`pipe-in-gen` を入れ直すと効きます）。
 
 ### 申請の前の確かめ
 
@@ -208,6 +235,19 @@ claude plugin validate --strict .
 ### 事前チェックを pytest で見張る範囲
 
 `tests/test_plugin_directory.py` が見るのは、README の語数・見出し・入れ方・名前と実物の合い（動かすもの・送るものの語を含む）、アイコンの形、`plugin.json` と `marketplace.json` の項目と版、フォルダの大きさと数、シンボリックリンクと不要なファイル、ファイル名、`LICENSE`、`.gitattributes`、フックの形、前書きの `description`、この節の中身です。見ないのは、セキュリティの検査、名前がほかに取られていないか、方針の審査です。これらはポータルと人の審査が決めます。
+
+## 0.6.0 から更新するとき
+
+0.6.1 で、スキルとエージェントの文を直しました。
+
+- `/pipe-in:pipe-judge`：範囲の外の `--runs` を、利用料の確認や審査役より前に断ります。結果は、`judge-score` が出した JSON を ```json の囲みでそのまま返します。
+- `pipe-builder` と `references/stage-rules.md`：指示文と成果物の名前の頭に、段の順の 2 桁の番号を付けます（例 `01_summary.md`）。Claude Code が、サブエージェントからの `summary.md` などの書き込みを断るためです。
+- `pipe-builder`：`pipe-in-gen new` が失敗したとき（作業フォルダが書けないなど）は、止まらずに、ひな形を使わずに確認の取れた表どおりに Write で `pipe.toml`・`prompts/`・`README.md` を手で書き、`pipe-in-gen check` が通るまで直します。そのときは、手で書いたことと `new` の失敗の理由を返します。書ける範囲は変わりません（同じ名前があって止まったときと、フックに止められたときは、今までどおり差し戻します）。
+- `/pipe-in:pipe-build` と `pipe-builder`：審査（`judge`）の不合格で `on_fail` へ差し戻すのに `command` が無い段は、「確認済み」とあっても、pipe-build は任せる前に、pipe-builder は書く前に止めます。pipe-build は `command` と組む案と、`on_fail` をやめて審査を指摘だけにする案を見せて聞き、pipe-builder は書かずに差し戻します。
+
+更新のしかたは下の節と同じです（手元のフォルダから足した人は `git pull` のあと `/reload-plugins`、GitHub から足した人は更新してから `/reload-plugins`）。
+
+あわせて、会話の中で流す（`/pipe-in:pipe-run`）ときに、成果物の名前が断られる形の段を始める前に断る仕組みと、審査だけで差し戻す段を知らせる `pipe-in-gen check` の警告 W8 と、auto モードでエージェントの報告（`SubagentHandback`）をフックが止めないことは `pipe-in-gen` の側にあります。古い `pipe-in-gen` のままでは、報告は今までどおり止まります。pipe-in のフォルダで `git pull` して `pip install -e .` をやり直すと効きます（`claude plugin eval` を回す環境では `pip install .`）。
 
 ## 0.5.x から更新するとき
 

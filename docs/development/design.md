@@ -27,18 +27,18 @@
 | 流す前の費用の目安：モデルの系統ごとの「1ターンの費用」の表（`prices.py`。直すのはここだけ）と、段のリスト → 少なめ・多め・前の実績・注意の文の計算（`estimate.py`）。どちらも標準ライブラリだけで、ファイル・SDK・時計に触れない（今日は引数）。入口 `pipe-in estimate` と本流の確認前の 2 行は、段のリストの組み立てと `state.json` の読み出しも含めて `estimate_cmd.py`（読むだけで書かない） | `pipe_in/usage/prices.py`・`pipe_in/usage/estimate.py`・`pipe_in/estimate_cmd.py` |
 | 費用の目安の単価表・計算のケース・注意の文を、本体（`prices.py`・`estimate.py`）と拡張（`costEstimate.ts`）で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む。単価表を直すときは3か所を一緒に直す） | `tests/fixtures/cost_estimate.json` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
-| パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/`（警告は `lint.py`。誤りの検査 `check_pipe` とは別で、`definition` だけを読む） |
+| パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/`（警告は `lint.py`。誤りの検査 `check_pipe` とは別で、`definition` と `engine.spec` の定数だけを読む） |
 | 前のパイプの記録を受ける（`--after`。前の記録を読んで受けてよいかを決める・断る文・後ろの段が前の記録を書けない守りの判定・流す前の1行。記録の受け渡しは `pipeline.py` と `specs.py` が行う） | `pipe_in/pipe/after.py` |
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-builder に絶対パスで渡して Read させる。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのディレクトリ申請の備え（D0095）：入れた人に届く `plugin/README.md`（英語・日本語）・`plugin/LICENSE`（根と同じ）・アイコン `plugin/.claude-plugin/icon.png`、`plugin.json` と `marketplace.json` の表示の項目。事前チェックの決まりを見張るテスト（検査の関数は同じファイルの中）と、申請の手順の文書 | `plugin/README.md`・`plugin/LICENSE`・`plugin/.claude-plugin/icon.png`・`tests/test_plugin_directory.py`・`docs/guide/plugin.md` の「ディレクトリへの申請」 |
-| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083。書き込み先はリンクの先もたどり、文字の上の判断とたどった判断の両方が通るときだけ通す。壊れた・輪のリンクは止める。D0088） | `generator/guard_hook.py` |
-| 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
+| プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083。書き込み先はリンクの先もたどり、文字の上の判断とたどった判断の両方が通るときだけ通す。壊れた・輪のリンクは止める。D0088。報告を親に渡す `SubagentHandback` は、`agent_type` が文字列なら止めない（許す名前は `REPORT_TOOLS`。D0096）） | `generator/guard_hook.py` |
+| 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。報告の道具は段や記録の状態によらず止めない。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
 | 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083）と、リンクを経た道のテスト（フックのリンクの扱い。D0088）で使うリンクの補助（`tests/symlink_support.py`。リンクを作れない環境では skip する） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py`・`tests/symlink_support.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
-| 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
+| 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。判断は、値がある・None でない・値が違う・Claude Code にサブエージェントの書き込みを断られる名前（D0096）。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
 | 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
 | 会話の中で段を受け持つ・守りを確かめるエージェントと、流すスキル `/pipe-in:pipe-run` | `plugin/agents/pipe-stage.md`・`pipe-probe.md`、`plugin/skills/pipe-run/SKILL.md` |
@@ -67,6 +67,7 @@
 | アーキテクチャの検査（依存の向き・標準ライブラリだけ。新しい検査は決定ごとの別ファイル。D0075） | `tests/test_architecture.py`・新しい検査は `tests/test_architecture_<名前>.py`（例：`tests/test_architecture_doc_shape.py`） |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
+| プラグインの eval のラウンド（下位のモデルで回した回ごとの点・落ちた採点・費用と回し方）と、結果の JSON からケースごとの点と前の回との差の表を出す集計（標準ライブラリだけ・読むだけ・書かない・知らない形で止まる。D0096） | `docs/research/plugin-eval-rounds/README.md`・`docs/research/plugin-eval-rounds/rounds.py` |
 | 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
 | 確認用ページ：開発用の新しい記録の見本（`driver: "pipe-dev"`・費用と使用量が取れない・段が 1 秒ほどで終わる短い記録を一時フォルダに書いて、`run-panel-dev-*` を出す） | `vscode/scripts/devSamples.ts` |
 | 時系列の確認待ちの字の置き場所（右・左・帯の下。純粋な関数。`ganttHtml.ts` だけが使う） | `vscode/src/view/ganttPlace.ts` |
@@ -256,6 +257,7 @@ pipe_in.usage
 - D0084 で、段の書ける範囲から外す場所に、既定の一覧 `DEFAULT_PROTECTED_PATHS`（`pipe_in/engine/spec.py`）を足しました。`pipeline.toml`・`pipe.toml`・記録の形は変えません。意味が変わる（今まで通って、これから止まる）のは、SDK の道の段が `.claude/`・`.git/`・`.pipe-in/`・`pipeline.toml`・`.devpipe/` を `protected_paths` の設定なしでも書けなくなること、会話の道で `.devpipe/` が止まること、止めた理由の文に「既定で守る場所」が付くこと、`work_dir` がこれらの中か `.` のとき流す前に止まることです。外す設定は作りません。
 - D0087 で、既定で守る場所に `.mcp.json`（プロジェクト直下だけ）を足しました。形は変えません。意味が変わる（今まで通って、これから止まる）のは、SDK の道と会話の道の段が直下の `.mcp.json` を書けなくなること、`docs_dir`・`writes` が重なると警告 W7 が出ること、`work_dir` が `.mcp.json` の中だと流す前に止まることです。MCP の定義を段に渡したいときは、`.mcp.json` でなくパイプの定義の `mcp_servers` を使います。外す設定は作りません。
 - D0091 で、会話の道（`pipe-in-gen chat`）も `flow` を書くようにしました。`read_flow` は `pipe_in/engine/flow.py` に移し、`pipe_in/pipe/pipeline.py` からも同じ名前で読めます。`chat.steps`・`chat.retries` は写して残し、保存のたびに `flow` と同じ値で書きます。共通の表の `chat` 行の `optional_keys` に `flow` を足しました。`flow` の無い古い記録は `chat.*` を読んで続け、続けて保存したときに `flow` を足します（`probe` も保存するので、古い記録に `flow` を足すのは `probe` でも起きます。`status` は記録を書き換えません）。食い違う記録は、steps も段ごとの retries も大きいほうを採ります（上限が甘くならない側）。古い版の本体は `flow` を読まずに捨てますが、`chat.*` が写されているので上限は続きます。拡張は読み飛ばします。`max_steps` を超えて止まった時点の `steps` の記録の値だけ、SDK の道は `max_steps + 1`、会話の道は `max_steps` で違います（止まる回は同じ）。D0080・D0081 のテスト 2 件（`flow` は sdk だけ・会話の鍵の並びは今のまま）を、この変更に合わせて直しました。`pipe.toml`・`pipeline.toml`・`guard` は変えません。
+- D0096 で、会話の道の能力表の `PipeStage.output` を「SDK の道は効く・会話の道は断る」の行にし、名前の形を見る判断（`subagent_report_name`。頭が report・summary・findings・analysis で `.md` で終わる名前。大文字と小文字を区別しない）を足しました。記録・`pipe.toml`・`pipeline.toml` の形は変えません。意味が変わるのは、`pipe-in-gen chat start`（`--dry-run` も）が、その名前の成果物を持つ段のあるパイプを、記録を作る前に断って終了コード 1 を返すことだけです（Claude Code がサブエージェントからのその名前の書き込みを断るため）。SDK の道・`pipe-in-gen check`・作業台の検査は今までどおりで、会話の道で途中の記録は `next`・`done` で断り直しません。古い `pipe-in-gen` では、この断りは効きません。D0082-AC-10 の検査は、値の形で断る項目について、属性の検査から「条件の中で読まない」検査へ替えました。あわせて、`pipe-in-gen check`・`new` に警告 W8（審査（`judge`）で `on_fail` へ差し戻すのに `command` が無い）を足しました。誤りではなく、終了コードは変わりません（注意の件数が 1 増えるだけ）。前からあるその形のパイプは、SDK の道で今までどおり流れます。プラグインの pipe-build（任せる前）と pipe-builder（書く前）も、表をこの形に照らして止めますが、文の手順だけで、書ける範囲とフックは変えていません。これとは別に、プラグインのフック（`pipe-in-gen guard-hook`）は、`agent_type` が文字列の呼び出しの `SubagentHandback`（auto モードの報告）を止めなくなりました。記録・設定・パイプの形と、ほかの道具の判断は変えていません。古い `pipe-in-gen` では今までどおり止まります。
 - 項目を足すときは、無くても読めるようにします（既定の値を決める）。
 - パイプの定義（`PipeDef`・`PipeStage` など）や設定（`StageConfig`・`Config`）に項目を足すときは、会話の道の能力表 `pipe_in/pipe/capability.py` にも 1 行足します（実行役 `sdk`・`chat` ごとに、効く・断る・一覧に出す・黙る・関係しない を決める）。足し忘れは `tests/test_capability.py` が落とします。断る文と効かない設定の一覧は表から作るので、`chat.py` に項目の名前の条件を足さないでください。
 - 項目の意味を変える・消すときは、古いものを読んだときに、黙って違う動きをしないようにします（読めるようにするか、何をすればよいかを出して止まる）。

@@ -39,9 +39,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。D0076: references/stage-rules.md に「2体の共通部分」の項を足し、同じ理由で 0.5.2。D0095-AC-10: README・アイコン・マニフェストの項目を足したので 0.6.0。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。D0076: references/stage-rules.md に「2体の共通部分」の項を足し、同じ理由で 0.5.2。D0095-AC-10: README・アイコン・マニフェストの項目を足したので 0.6.0。D0096-AC-22: pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.6.0"
+    assert manifest["version"] == "0.6.1"
 
 
 PLUGIN_TEXTS = [

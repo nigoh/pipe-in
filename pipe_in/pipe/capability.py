@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,7 +33,7 @@ class Row:
     # ---- 判断のしかた（断る・一覧に出す行だけ。子の項目は書かない）----
     scope: str = ""  # 断る: pipe | after | stage | config_stage、一覧: stage_list | config_list
     path: tuple[str, ...] = ()  # 値の読み方。複数は「どれか」。nested=True なら入れ子をたどる
-    test: str = "truthy"  # truthy | not_none | ne:<値>
+    test: str = "truthy"  # truthy | not_none | ne:<値> | subagent_report_name
     sentence: str = ""  # 断る文のひな形。{stage}・{value} を format で埋める
     where: str = ""  # 一覧の where（pipe.toml | pipeline.toml）
     via: str = ""  # 子の項目の親の鍵。動きは親と同じで、文は親の行が出す
@@ -84,7 +85,6 @@ TABLE: tuple[Row, ...] = (
     # ---- PipeStage（断る行は、この並びが段ごとの文の順）----
     _w("PipeStage.name"),
     _w("PipeStage.label"),
-    _w("PipeStage.output"),
     _w("PipeStage.access"),
     _w("PipeStage.prompt"),
     _w("PipeStage.prompt_file"),
@@ -145,7 +145,7 @@ TABLE: tuple[Row, ...] = (
     _w("PipeStage.next"),
     _w("PipeStage.writes"),
     _w("PipeStage.system_append"),
-    # 断る行（段ごとの文の順：group → routes → check.judge → agents → mcp → mcp_servers → web → max_budget_usd）
+    # 断る行（段ごとの文の順：group → routes → check.judge → agents → mcp → mcp_servers → web → max_budget_usd → output）
     Row(
         "PipeStage.group",
         WORKS,
@@ -221,6 +221,29 @@ TABLE: tuple[Row, ...] = (
         path=("max_budget_usd",),
         test="not_none",
         sentence="段「{stage}」のmax_budget_usd（費用の上限）は、会話の中では守れないので流せません",
+    ),
+    Row(
+        "PipeStage.output",
+        WORKS,
+        REFUSE,
+        reason=(
+            "Claude Code は、サブエージェントからの Write で、名前が report・summary・findings・analysis で始まり .md で終わるファイル"
+            "（大文字と小文字を区別しない）を断る（2.1.323 で本体の判定の文を確かめた。公式の文書には無い）。"
+            "会話の道の段は pipe-stage（サブエージェント）が書くので、成果物を書けずに段の途中で失敗する"
+        ),
+        caveat=(
+            "値があるかではなく、名前の形で断る。SDK の道の段は SDK のメインのエージェントが書くので当たらず、効く。"
+            "大文字と小文字は re.IGNORECASE（Unicode）で区別しないので、ASCII の外の数文字では Claude Code の判定より断る側に倒れうる。"
+            "決まりが変わったら SUBAGENT_REFUSED_HEADS と subagent_refused_name だけを直す"
+        ),
+        scope="stage",
+        path=("output",),
+        test="subagent_report_name",
+        sentence=(
+            "段「{stage}」のoutput（{value}）は、会話の中では流せません"
+            "（Claude Code が、サブエージェントからの report・summary・findings・analysis で始まる .md の書き込みを断るため）。"
+            "頭に段の順の番号を付けてください（例 01_summary.md）"
+        ),
     ),
     _child("PipeStage.fetch_domains", "PipeStage.web"),
     Row(
@@ -335,6 +358,24 @@ def _read(obj: Any, row: Row) -> list[Any]:
     return [getattr(obj, name) for name in row.path]
 
 
+# Claude Code がサブエージェントからの Write を断るファイル名の頭（D0096。公式の文書に無い本体の判定）
+SUBAGENT_REFUSED_HEADS = ("report", "summary", "findings", "analysis")
+_SUBAGENT_REFUSED = re.compile(r"(?:" + "|".join(map(re.escape, SUBAGENT_REFUSED_HEADS)) + r")[\s\S]*\.md", re.IGNORECASE)
+# 値の形を見る判断（値があるかではなく、名前の形で断る。tests/test_capability.py が属性の検査から項目を除くのに使う）
+VALUE_TESTS: tuple[str, ...] = ("subagent_report_name",)
+
+
+def subagent_refused_name(value: Any) -> bool:
+    """名前（最後の / か \\ の後ろ）が、頭が SUBAGENT_REFUSED_HEADS のどれかで .md で終わるか。文字でなければ False。
+
+    Claude Code（2.1.323）の判定 /^(REPORT|SUMMARY|FINDINGS|ANALYSIS).*\\.md$/i に合わせる。大文字と小文字は区別しない。
+    """
+    if not isinstance(value, str):
+        return False
+    name = re.split(r"[\\/]", value)[-1]
+    return _SUBAGENT_REFUSED.fullmatch(name) is not None
+
+
 def _hit(obj: Any, row: Row) -> bool:
     """行の test を満たすか（path が複数なら、どれか）。"""
     for v in _read(obj, row):
@@ -344,6 +385,8 @@ def _hit(obj: Any, row: Row) -> bool:
             ok = v is not None
         elif row.test.startswith("ne:"):
             ok = v != row.test[3:]
+        elif row.test == "subagent_report_name":
+            ok = subagent_refused_name(v)
         else:
             raise ValueError(f"知らない test: {row.test}（{row.key}）")
         if ok:
@@ -368,7 +411,8 @@ def refusals(pipe: Any, cfg: Any, after: Any, table: tuple[Row, ...] = TABLE, ac
     for s in pipe.stages:
         for r in stage_rows:
             if _hit(s, r):
-                out.append(r.sentence.format(stage=s.name))
+                # {value} を持たない文では、余った引数は使われない（今の文は 1 文字も変わらない）
+                out.append(r.sentence.format(stage=s.name, value=_read(s, r)[0]))
     config_rows = _rows(table, actor, REFUSE, "config_stage")
     for name, sc in cfg.stages.items():
         for r in config_rows:
@@ -444,6 +488,8 @@ def check_table(table: tuple[Row, ...], classes: Any, extra_keys: tuple[str, ...
                 problems.append(f"知らない scope: {r.key}（{r.scope}）")
             if not r.path and r.scope != "after":  # --after は引数の真だけを見る
                 problems.append(f"path が無い: {r.key}")
+            if r.test not in ("truthy", "not_none", *VALUE_TESTS) and not r.test.startswith("ne:"):
+                problems.append(f"知らない test: {r.key}（{r.test}）")
         if r.via:
             parent = by_key.get(r.via)
             if parent is None:

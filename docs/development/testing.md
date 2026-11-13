@@ -13,7 +13,7 @@
 
 検査の二重化（`check_pipe` と `validatePipe`）の見本は `tests/fixtures/check_parity/` に置き、Python と拡張のテストが同じ表を読みます（[design.md](design.md) の「検査の二重化」）。
 
-プラグインの eval のケース（`plugin/evals/`）は、`pytest` でファイルの形だけを確かめます（`tests/test_plugin_evals.py`）。`claude plugin eval` を流すのは実機で、利用料がかかるので、人に言われたときだけです。
+プラグインの eval のケース（`plugin/evals/`）は、`pytest` でファイルの形だけを確かめます（`tests/test_plugin_evals.py`）。`claude plugin eval` を流すのは実機で、利用料がかかるので、人に言われたときだけです。採点の正規表現は、trace と道具の入力の見本の文字に当てて確かめます（`tests/test_plugin_eval_rounds.py`。D0096）。下位のモデルで回すラウンドの集計のスクリプトは `tests/test_research_plugin_eval_rounds.py` が見ます。
 
 - 本体：`python -m pytest -q`（`tests/`）
 - 拡張：`cd vscode && npm test`（`vscode/src/**/*.test.ts`、node:test）と `npm run typecheck`
