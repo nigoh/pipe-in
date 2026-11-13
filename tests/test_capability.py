@@ -2,6 +2,7 @@
 
 表に全項目が載っていること・載っている鍵が実在すること・検査そのものが働くこと・断る/黙る項目に理由があること・
 docs/guide/pipes.md の2つの表と同じ集合であること・chat.py に項目名で分ける条件が残らないこと。
+D0096 で、AC-10 の属性の検査から、値の形で断る行の項目（今は output）を除いた（代わりの検査は tests/test_chat_output_name.py）。
 SDK は呼ばない。リポジトリの実物には書かない（読むだけ。偽の dataclass・偽の表・偽の chat.py は tmp_path の中）。
 """
 
@@ -184,9 +185,18 @@ def test_d0082_ac08_文書の表の読み方が項目名を取り出す():
 CONTAINERS = {"check"}  # ("check", "judge") の途中の入れ物の名前。段の検証の表示など、別の用途でも chat.py が読むので除く
 
 
+def value_items() -> set[str]:
+    """値の形で断る行（test が capability.VALUE_TESTS のどれか）の path の項目名。表から取る（書き写さない）。
+
+    D0096：output（成果物の名前）は、値があるかではなく名前の形で断る。chat.py は段の表・成果物の場所・archive の名前に
+    s.output / ps.output を読む（断る判断ではない）ので、属性の検査からは除き、代わりに「条件の中で読まない」検査
+    （tests/test_chat_output_name.py の D0096-AC-08）で埋める。"""
+    return {n for r in capability.TABLE if r.scope and r.test in capability.VALUE_TESTS for n in r.path}
+
+
 def item_names() -> set[str]:
-    """判断の行（scope のある行）の path の項目名。表から取る（書き写さない）。"""
-    return {n for r in capability.TABLE if r.scope for n in r.path} - CONTAINERS
+    """判断の行（scope のある行）の path の項目名。表から取る（書き写さない）。値の形で断る項目は除く（D0096。value_items を参照）。"""
+    return {n for r in capability.TABLE if r.scope for n in r.path} - CONTAINERS - value_items()
 
 
 def names_in_source(source: str, names: set[str]) -> list[str]:

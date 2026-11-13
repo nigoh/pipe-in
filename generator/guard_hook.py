@@ -7,6 +7,8 @@ pipe-builder に許すのは、読む道具と、パイプのフォルダの決�
 pipe-in-gen list / new / check だけ。ほか（PowerShell・MCP・Web・Agent など）は止める。
 書き込み先は、リンクの先をたどった判断でも書ける場所に入るときだけ通す。
 pipe-judge（審査役）に許すのは読む道具（Read・Glob・Grep）だけ。ほかはすべて止める。
+報告を親に渡す SubagentHandback（auto モード）は、agent_type が文字列なら止めない（許す名前は REPORT_TOOLS。D0096）。
+型のおかしい agent_type・読めない入力・例外では止める。
 想定外の入力で検査が落ちたときも、止めない側に倒れないよう deny を出す。
 
 パイプのフォルダは pipe-in-<名前>/ と、前の版の名前 devpipe-<名前>/ の両方を同じ決まりで守る。
@@ -34,6 +36,9 @@ STAGE = "pipe-stage"
 PROBE = "pipe-probe"
 READ_TOOLS = {"Read", "Glob", "Grep"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
+# 報告を親の会話に渡すだけの道具（auto モードでサブエージェントに渡される。書かず、外へも出さない）。名前の完全一致だけ（D0096）。
+# auto モードでないときは最後の返答の文が同じ会話に届くので、通しても新しくできることは無い
+REPORT_TOOLS = frozenset({"SubagentHandback"})
 # 標準入力の上限。超えたら読めない入力として止める
 MAX_STDIN_BYTES = 16 * 1024 * 1024
 
@@ -81,6 +86,11 @@ def is_stage(agent_type: Any) -> bool:
 def is_probe(agent_type: Any) -> bool:
     """pipe-probe（守りの確かめ役）の呼び出しか。判断は chat_hook.py がする。"""
     return _is_agent(agent_type, PROBE)
+
+
+def is_report_tool(tool: Any) -> bool:
+    """報告の道具か。文字列で、REPORT_TOOLS の名前とちょうど同じときだけ True（大文字小文字・空白・前方一致・mcp__ の形は違う）。例外は出さない。"""
+    return isinstance(tool, str) and tool in REPORT_TOOLS
 
 
 def _in_pipe(rest: tuple[str, ...]) -> bool:
@@ -183,7 +193,8 @@ def check_bash(command: Any) -> str | None:
 
 def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) -> str | None:
     """止める理由を返す。止めないときは None。pipe-builder と pipe-judge 以外の呼び出しには何もしない。
-    ただし、文字列でも null でもない agent_type は、読む道具以外を止める。"""
+    ただし、文字列でも null でもない agent_type は、読む道具以外を止める。
+    報告の道具（REPORT_TOOLS）は、agent_type が文字列なら止めない（D0096）。"""
     agent_type = payload.get("agent_type")
     tool = payload.get("tool_name")
     if agent_type is not None and not isinstance(agent_type, str):
@@ -191,6 +202,9 @@ def decide(payload: dict[str, Any], *, pipes_env: str | Sequence[str] | None) ->
         if isinstance(tool, str) and tool in READ_TOOLS:
             return None
         return f"agent_type の型が文字列ではないため止めました（{type(agent_type).__name__}）"
+    if is_report_tool(tool):
+        # 名前の分かる相手（pipe-judge・pipe-builder・ほか）の報告は止めない（D0096）。入力（報告の文）は見ない
+        return None
     if is_judge(agent_type):
         # 許すものの一覧：読む道具だけ。型のおかしい tool_name（list など）も止める
         if isinstance(tool, str) and tool in READ_TOOLS:

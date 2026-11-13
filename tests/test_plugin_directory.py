@@ -897,11 +897,12 @@ def test_d0095_ac09_listing_mismatch_found():
 
 
 def test_d0095_ac10_version_is_bumped():
-    """D0095-AC-10: plugin.json の版が 0.5.2 より上（0.6.0）で、marketplace.json の項目に version を書かない。"""
+    """D0095-AC-10: plugin.json の版が 0.5.2 より上で、marketplace.json の項目に version を書かない。
+    D0096 で pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので、0.6.0 から 0.6.1 に上げた。"""
     version = json.loads(PLUGIN_JSON.read_text(encoding="utf-8"))["version"]
     parts = tuple(int(x) for x in version.split("."))
     assert parts > (0, 5, 2), f"版が {version}（0.5.2 より上にする）"
-    assert version == "0.6.0"
+    assert version == "0.6.1"
     entry = json.loads(MARKET_JSON.read_text(encoding="utf-8"))["plugins"][0]
     assert "version" not in entry
 

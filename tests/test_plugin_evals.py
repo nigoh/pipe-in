@@ -2,6 +2,11 @@
 
 ケースを流す（claude plugin eval）のは実機で、利用料がかかる。ここでは流さず、ファイルを読むだけ。
 frontmatter の読み手と検査関数（check_case・check_suite）は、このテストのファイルの中に置く（PyYAML は使わない）。
+
+D0096 で、D0045 の決め打ち（9 本・スキルごとに 3 本）を、スキル 5 つ・12 本の表（CASES）に置き換えた
+（pipe-run 2 本と pipe-live 1 本を足したため）。check_suite は表と比べる。build-refuses-judge-only の悪い形の採点は
+trace を読む形に替えたので、pipe.toml を読む採点の検査は build-passes-check だけにした。D0096 の新しい検査は
+tests/test_plugin_eval_rounds.py にあり、読み手と検査関数はここのものを使う。
 """
 
 from __future__ import annotations
@@ -46,14 +51,18 @@ KNOWN_TARGETS = {"last_message", "trace", "files", "mock_calls"}
 CASE_ALLOWED_TOOLS = {"Read", "Glob", "Grep", "NotebookRead", "Skill", "AskUserQuestion", "Agent", "TodoWrite"}
 NEEDS_ALLOW_TOOLS = {"Bash", "Write", "Edit", "WebFetch", "WebSearch"}
 SCHEMA_VERSION = "1.1"
-SKILLS = ("pipe-build", "pipe-eval", "pipe-judge")
+# D0096：pipe-run と pipe-live を足して 5 つ（D0045 は 3 つの決め打ちだった）
+SKILLS = ("pipe-build", "pipe-eval", "pipe-judge", "pipe-run", "pipe-live")
 COST_TAGS = {"cheap", "agent"}
 NEEDS_TAGS = {"needs-bash", "needs-write", "needs-pipe-in-gen"}
 
+# ケースの表（スキル → ケース名）。D0096 で、スキルごとに 3 本の決め打ちから、この表と比べる形にした（全部で 12 本）
 CASES = {
     "pipe-build": ["build-shows-table-first", "build-passes-check", "build-refuses-judge-only"],
     "pipe-eval": ["eval-lists-and-waits", "eval-result-json", "eval-stops-without-state"],
     "pipe-judge": ["judge-calls-judge-score", "judge-must-violation-fails", "judge-rejects-bad-runs"],
+    "pipe-run": ["run-dry-run-asks-first", "run-refuses-unsupported"],
+    "pipe-live": ["live-stops-without-tools"],
 }
 CASE_NAMES = [name for names in CASES.values() for name in names]
 
@@ -339,10 +348,12 @@ def check_case(case_dir: Path) -> list[str]:
     return errors
 
 
-def check_suite(evals_dir: Path) -> list[str]:
+def check_suite(evals_dir: Path, cases: dict[str, list[str]] = CASES) -> list[str]:
+    """evals/ の全体を、ケースの表（スキル → ケース名）と比べる。D0096 で、9 本・3 本ずつの決め打ちを表との比べに替えた。"""
     if not evals_dir.is_dir():
-        return [f"AC-01: {evals_dir} がない（9 本のケースが無い）"]
+        return [f"AC-01: {evals_dir} がない（ケースが無い）"]
     errors: list[str] = []
+    table_names = sorted(n for names in cases.values() for n in names)
     children = sorted(p for p in evals_dir.iterdir() if p.name != "results")
     for p in children:
         if not p.is_dir():
@@ -350,8 +361,11 @@ def check_suite(evals_dir: Path) -> list[str]:
         elif not (p / "prompt.md").is_file():
             errors.append(f"AC-01: results 以外のフォルダはケースでなければならない（prompt.md がない）: {p.name}")
     names = sorted(p.name for p in children if p.is_dir())
-    if names != sorted(CASE_NAMES):
-        errors.append(f"AC-01: ケースが 9 本そろっていない: {names}")
+    if names != table_names:
+        errors.append(f"AC-01: ケースが表（{len(table_names)} 本）とそろっていない: {names}")
+    no_cases = [s for s in SKILLS if not cases.get(s)]
+    if no_cases:
+        errors.append(f"AC-01: ケースの無いスキル: {no_cases}")
     per_skill = {s: 0 for s in SKILLS}
     llm_total = 0
     for p in children:
@@ -369,8 +383,9 @@ def check_suite(evals_dir: Path) -> list[str]:
                 llm_total += read_front(g.read_text(encoding="utf-8"))[0].get("type") == "llm"
             except ValueError:
                 pass
-    if any(n != 3 for n in per_skill.values()):
-        errors.append(f"AC-01: スキルごとに 3 本ずつ要る: {per_skill}")
+    want = {s: len(cases.get(s, [])) for s in SKILLS}
+    if per_skill != want:
+        errors.append(f"AC-01: スキルごとのケースの数が表と違う: {per_skill}（表は {want}）")
     if llm_total > 2:
         errors.append(f"AC-05: llm は全体で 2 つ以下: {llm_total}")
     return errors
@@ -400,11 +415,12 @@ def _graders(name: str) -> list[tuple[Path, dict, str]]:
     return out
 
 
-# ---- AC-01：9 本のケース -----------------------------------------------------------------------------
+# ---- AC-01：ケースの表 -------------------------------------------------------------------------------
 
 
-def test_D0045_AC_01_suite_has_nine_cases():
-    """D0045-AC-01: plugin/evals/ に 9 本のケース（スキルごとに 3 本）があり、results 以外の子はすべてケースで、どれにも prompt.md と graders/ の採点がある。"""
+def test_D0045_AC_01_suite_matches_case_table():
+    """D0045-AC-01: plugin/evals/ のケースが表（CASES）とそろい、results 以外の子はすべてケースで、どれにも prompt.md と graders/ の採点がある。
+    D0096-AC-16 で、9 本（スキルごとに 3 本）の決め打ちを、スキル 5 つ・12 本の表に置き換えた。"""
     assert suite_errors("AC-01") == []
 
 
@@ -471,8 +487,10 @@ def test_D0045_AC_04_bad_shape_regex_matches_only_the_bad_example():
 
 
 def test_D0045_AC_04_content_regex_reads_the_pipe_file_not_the_path_list():
-    """D0045-AC-04: 書かれたパイプの中身を見る regex は target: files（作られたパスの一覧）ではなく、そのパイプの pipe.toml を読む。"""
-    for name, pipe in [("build-passes-check", "notes-summary"), ("build-refuses-judge-only", "notes-review")]:
+    """D0045-AC-04: 書かれたパイプの中身を見る regex は target: files（作られたパスの一覧）ではなく、そのパイプの pipe.toml を読む。
+    D0096 で build-refuses-judge-only の悪い形の採点を trace を読む形に替えた（pipe.toml が無いと grader threw になるため）ので、
+    pipe.toml を読むことを見るのは build-passes-check だけにした（trace を読むことは D0096-AC-12 が見る）。"""
+    for name, pipe in [("build-passes-check", "notes-summary")]:
         content = [fm for _, fm, _ in _graders(name) if fm.get("type") == "regex" and "stages" in fm.get("pattern", "")]
         assert content, name
         for fm in content:
@@ -589,6 +607,10 @@ EXPECTED_SCAFFOLD_FILES = {
     "judge-calls-judge-score": {"request.md", "report.md"},
     "judge-must-violation-fails": {"request.md", "report.md", "rubric.md"},
     "judge-rejects-bad-runs": {"request.md", "report.md"},
+    # D0096 で足した 3 本
+    "run-dry-run-asks-first": {"README.md", "notes/a.md", "notes/b.md", ".pipe-in/pipes/pipe-in-notes-digest/pipe.toml"},
+    "run-refuses-unsupported": {"README.md", "notes/a.md", "notes/b.md", ".pipe-in/pipes/pipe-in-notes-parallel/pipe.toml"},
+    "live-stops-without-tools": {"pipeline.toml", "docs/pipeline/sample/state.json"},
 }
 
 
@@ -663,7 +685,7 @@ def test_D0045_AC_08_scaffold_main_needs_pipe_in_gen_and_builds_in_empty_dir(nam
 
 
 def test_D0045_AC_08_scaffold_common_block_is_identical():
-    """D0045-AC-08: 各 scaffold.py の「# --- common ---」から「# --- /common ---」までの共通の囲みが、9 本で同じ。"""
+    """D0045-AC-08: 各 scaffold.py の「# --- common ---」から「# --- /common ---」までの共通の囲みが、12 本で同じ（D0096 で 9 本から 12 本に）。"""
     blocks = set()
     for name in CASE_NAMES:
         text = (_case_dir(name) / "scaffold.py").read_text(encoding="utf-8")
@@ -853,11 +875,12 @@ def test_D0045_AC_04_js_python_safe(pattern, safe):
 
 
 def test_D0045_AC_11_check_suite_rejects_stray_folder_and_wrong_count(tmp_path):
-    """D0045-AC-11: check_suite は、prompt.md の無いフォルダ（results 以外）・9 本に足りない・名前違いを落とし、results/ は許す。"""
+    """D0045-AC-11: check_suite は、prompt.md の無いフォルダ（results 以外）・表に足りない・名前違いを落とし、results/ は許す。
+    D0096 で、文の「9 本」を、表とそろっていないことの文に替えた。"""
     make_good_case(tmp_path)
     (tmp_path / "results/2026").mkdir(parents=True)
     errors = check_suite(tmp_path)
-    assert any("9 本" in e for e in errors)
+    assert any("そろっていない" in e for e in errors)
     assert not any("results" in e for e in errors)
     (tmp_path / "fixtures").mkdir()
     assert any("fixtures" in e for e in check_suite(tmp_path))
@@ -883,15 +906,18 @@ def test_D0045_AC_14_skills_and_hooks_do_not_depend_on_evals():
         PLUGIN / "skills/pipe-build/SKILL.md", PLUGIN / "skills/pipe-build/references/stage-rules.md",
         PLUGIN / "skills/pipe-eval/SKILL.md", PLUGIN / "skills/pipe-judge/SKILL.md", PLUGIN / "skills/pipe-live/SKILL.md",
         PLUGIN / "agents/pipe-builder.md", PLUGIN / "agents/pipe-judge.md", PLUGIN / "hooks/hooks.json",
+        # D0096：監査 A-10 で、pipe-run のスキルと会話の道のエージェントも足した
+        PLUGIN / "skills/pipe-run/SKILL.md", PLUGIN / "agents/pipe-stage.md", PLUGIN / "agents/pipe-probe.md",
     ]
     for path in texts:
         assert "evals" not in path.read_text(encoding="utf-8"), path.name
 
 
-def test_D0045_AC_14_plugin_version_stays_0_5_0():
-    """D0045-AC-14: evals/ を足しても版は上げなかった（0.5.0）。D0053 で references/ の中身を変えたので 0.5.1 に上げた（evals/ によるものではない）。D0076 で references/ の中身を変えたので 0.5.2 に上げた（同じく evals/ によるものではない）。D0095 でプラグインの README・アイコン・項目を足したので 0.6.0 に上げた（同じく evals/ によるものではない）。"""
+def test_D0045_AC_14_plugin_version_is_not_raised_by_evals():
+    """D0045-AC-14: evals/ を足しても版は上げなかった（0.5.0）。D0053 で references/ の中身を変えたので 0.5.1 に上げた（evals/ によるものではない）。D0076 で references/ の中身を変えたので 0.5.2 に上げた（同じく evals/ によるものではない）。D0095 でプラグインの README・アイコン・項目を足したので 0.6.0 に上げた（同じく evals/ によるものではない）。
+    D0096 で pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1 に上げた（evals/ によるものではない）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.6.0"
+    assert manifest["version"] == "0.6.1"
 
 
 def test_D0045_AC_14_guide_update_notes_still_say_0_5_0():
@@ -912,7 +938,7 @@ GUIDE_WORDS = [
 
 
 def test_D0045_AC_15_guide_has_eval_section():
-    """D0045-AC-15: docs/guide/plugin.md に節「プラグインの eval」があり（検査と審査の節と 0.4.0 以前の節の間）、流し方・注意・9 本のケース名が書かれている。"""
+    """D0045-AC-15: docs/guide/plugin.md に節「プラグインの eval」があり（検査と審査の節と 0.4.0 以前の節の間）、流し方・注意・12 本のケース名が書かれている（D0096 で 9 本から 12 本に）。"""
     guide = (ROOT / "docs/guide/plugin.md").read_text(encoding="utf-8")
     assert "\n## プラグインの eval\n" in guide
     start = guide.index("## プラグインの eval")

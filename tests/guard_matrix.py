@@ -245,6 +245,9 @@ _DEFS: list[Row] = [
     Row("agent-not-listed", "Agent", {"prompt": "x", "run_in_background": False}, "read", Q),
     Row("agent-background", "Agent", {"prompt": "x", "run_in_background": True}, "code+bash+agents", Q),
     Row("agent-nested", "Agent", {"prompt": "x", "run_in_background": False}, "code+bash+agents", Q, {"agent_id": "a-1"}),
+    # SubagentHandback（D0096）：報告を親の会話に渡すだけの道具（auto モードでサブエージェントに渡される）。書かない。
+    # プラグインの 2 役・会話の道・開発用は通す。SDK の道は段が auto で動かずこの道具を受け取らないので、guard.py は変えず止めたまま
+    Row("report-handback", "SubagentHandback", {"message": "報告"}, "read", Q),
     # ---- 止める行：既定で守る場所（.claude/・.git/・.pipe-in/・pipeline.toml・.mcp.json）・パイプのフォルダ・記録・外 ----
     Row("write-dotclaude", "Write", {"file_path": SETTINGS, "content": "{}"}, "code", Q),
     Row("write-dotgit", "Write", {"file_path": "{P}/.git/config", "content": "x"}, "code", Q),
@@ -309,6 +312,9 @@ EXPECT: dict[str, str] = {
     "agent-not-listed": "DDDDDDDDD",
     "agent-background": "DD-DDDDDD",
     "agent-nested": "DD-DDDDDD",
+    # D0096：報告の道具。SDK の道（sdk・sdk_protected）は止め、ほかの 7 列は通す。開発用の 4 列（A）と SDK の道の 2 列（D）は、
+    # 行を足した時点の実測（DDDDDAAAA）と同じ。会話の道とプラグインの 2 役（実測では D）は、設計 18.2.2〜3 の直しで A になる見込みを入れた
+    "report-handback": "DDAAAAAAA",
     "write-dotclaude": "DDDDDDDDD",
     "write-dotgit": "DDDDDDDDD",
     "write-dotpipein": "DDDDDDDAD",

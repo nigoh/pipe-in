@@ -17,7 +17,7 @@ REAL_TREE_MARKERS = (".git", "plugin", "docs/pipeline", "pipes", ".pipe-in")
 def require_pipe_in_gen() -> None:
     """pipe-in-gen が PATH に無ければ、利用料を使う前に気づけるよう 1 で終わる（作りはしない）。"""
     if shutil.which("pipe-in-gen") is None:
-        print("pipe-in-gen が PATH にありません。pipe-in のフォルダで pip install -e . をしてから流してください。", file=sys.stderr)
+        print("pipe-in-gen が PATH にありません。pipe-in のフォルダで pip install . をしてから流してください。", file=sys.stderr)
         sys.exit(1)
 
 
