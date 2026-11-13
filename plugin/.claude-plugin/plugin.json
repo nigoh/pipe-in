@@ -2,7 +2,7 @@
   "name": "pipe-in",
   "displayName": "pipe-in",
   "icon": "./.claude-plugin/icon.png",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "pipe-in のパイプを会話で作る・直す。会話の中でパイプを流す。成果物を検査・審査する。ターミナルの pipe-in の進み具合をアーティファクトで見る。書き込みと審査役の道具はフック（pipe-in-gen guard-hook）で絞る",
   "author": {
     "name": "pipe-in",

@@ -2,6 +2,7 @@
 
 check_pipe（誤りだけを返す）とは別にして、返り値は変えない。ファイルには書かず、
 読むのは定義と段の指示文だけ。標準ライブラリと .definition と pipe_in.engine.spec の定数のほかは import しない。
+D0096 で W8（審査で差し戻すのに command が無い）を足した。
 D0084 で W7（docs_dir・writes が既定で守る場所と重なる）を足した。
 D0053 で W6（指摘を出す段に、引用の指示も findings-check も無い）を足した。
 D0076 で W5 に例外を足した（検査の command が戻り先の段の成果物を名指しするときは出さない）。
@@ -94,6 +95,14 @@ def lint_pipe(pipe: PipeDef) -> list[str]:
             warnings.append(
                 at + "docs_dir / writes は、既定で守る場所（.claude/・.git/・.pipe-in/・.mcp.json・pipeline.toml・前の版の置き場所）と重なります。"
                 "重なった部分は書けません（D0084）。成果物は docs/ など別の場所に置いてください"
+            )
+        # W8: 審査（judge）の不合格で on_fail の段へ差し戻すのに、機械の検査（command）が無い（D0096）。
+        # 書いた on_fail だけを見る（省いた段は、決まりの「on_fail を書かず指摘だけにする」の形なので出さない）
+        if s.check is not None and s.check.judge is not None and s.check.on_fail and not s.check.command:
+            warnings.append(
+                at + "審査（judge）の不合格で on_fail の段へ差し戻すのに、機械の検査（command）がありません（D0096）。"
+                "審査の指摘で書き直すと決まりが崩れることがあり、それを拾えるのは command です。"
+                "command と組むか、組めないなら on_fail を書かずに、審査を指摘だけにしてください（on_fail を省くと自分の段に戻る点に注意）"
             )
     return warnings
 

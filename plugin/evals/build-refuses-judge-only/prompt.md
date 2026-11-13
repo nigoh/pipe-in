@@ -1,8 +1,8 @@
 ---
 name: build-refuses-judge-only
-description: 審査（judge）だけの検査で自分に戻す表を渡されても、command と組む形に直すか差し戻す
+description: 審査（judge）だけの検査で自分に戻す表を渡されても、自分で command を足さず、command と組む案と指摘だけにする案を見せて聞く（任せない）
 tags: [pipe-build, agent, needs-bash, needs-write, needs-pipe-in-gen]
-expected_outcome: command の無い judge だけの検査で on_fail を書いたパイプを作らず、command と組む案内か差し戻しを返す
+expected_outcome: command の無い judge だけの検査で on_fail を書いたパイプを作らず、command と組む案と指摘だけにする案を見せて聞くか、差し戻しを返す
 max_turns: 40
 timeout_seconds: 900
 allowed_tools: [Read, Glob, Grep, Skill, Agent]

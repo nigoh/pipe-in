@@ -39,9 +39,14 @@ disable-model-invocation: true
 1. `pipe.toml` と `prompts/` を読み、今の段を表にして見せる（名前・表示名・`access`・`review`・`bash`・`check`（`verdict`／`command`／`judge` を分けて）・つなぎ（`on_fail`・`routes`・`next`・`group`））。
 2. 直したい点を聞き、変える点を「前 → 後」の表で見せて確認を取る。
    - 段の名前を変える・段を消すときは、つられて変わる所（ほかの段の `on_fail`・`routes`・`next`、`prompts/` のファイル名、README の段の表）も表に入れる。
-   - **権限が広がる変更**（`access` を広くする・`bash`・`web`・`mcp` を足す・`writes` を緩める）には「⚠ 権限が広がる」と印を付け、なぜ要るのかを添えて、はっきり確認を取る。
+   - **権限が広がる変更**（`access` を広くする・`bash`・`web`・`mcp` を足す・`writes` を緩める・許可の型（`plan` など）を変える）には「⚠ 権限が広がる」と印を付け、なぜ要るのかを添えて、はっきり確認を取る。
 
 ## 3. pipe-builder に任せる
+
+任せる前に、表を見る（依頼に「確認済み」とあっても見る）。`check` に審査（`judge`）と `on_fail` があるのに `command` が無い段があれば、任せない。`references/stage-rules.md` の「検査と審査の組み方」の決まり（審査で差し戻すなら、必ず `command` と組む）を伝え、次の 2 つの案を見せて、どちらにするかを聞く。選ばれた案で表を直し、確認を取り直してから任せる。自分で `command` を足して先へ進めない（どの検査を組むかは対象による）。
+
+- 案 1：`command`（機械の検査）と組む。何を確かめるコマンドにするかも聞く。
+- 案 2：`on_fail` をやめて、審査は指摘だけにする（`on_fail` を省くと自分の段に戻る点も添える）。
 
 確認が取れたら、エージェント pipe-builder（一覧では `pipe-in:pipe-builder`）を呼ぶ。渡すもの:
 

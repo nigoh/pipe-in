@@ -3,8 +3,9 @@
 標準入力の JSON（Claude Code のフックの入力）を読み、今の段の範囲の外なら deny の JSON を出す。
 - pipe-stage：開いている段（記録の open）の範囲を、本体の判断（guard.check_tool）と同じ関数で絞る。
 - pipe-probe：読む道具のほかは止める（止めたことを跡に残す。司会役が読んで守りを確かめる）。
-- 段が開いている間のほかのエージェント：すべて止める。
+- 段が開いている間のほかのエージェント：すべて止める（報告の道具のほか）。
 - それ以外（会話本体・記録の無い作業フォルダ）は、今の guard_hook.decide に渡す（pipe-builder・pipe-judge の絞りは変えない）。
+- 報告を親に渡す SubagentHandback は、agent_type が文字列なら、段や記録の状態によらず止めない（D0096。許す名前と判定は guard_hook）。
 読めない・分からない・例外のときは止める側に倒す。入口の読み書きと deny の形は guard_hook.main と同じ。
 SDK は読まない。agent_type の無い呼び出し（会話本体）は、記録も本体の部品も読まずに decide へ渡す。
 """
@@ -130,6 +131,9 @@ def _stage(payload: dict[str, Any], project: Path, recs: list[Any], broken: list
 
 def _agent(payload: dict[str, Any], pipes_env: Any) -> str | None:
     agent = payload["agent_type"]
+    if isinstance(agent, str) and guard_hook.is_report_tool(payload.get("tool_name")):
+        # 報告を親の会話に渡すだけの道具（D0096）。名前の分かる相手には、段や記録の状態によらず止めず、跡にも残さない
+        return None
     cwd = payload.get("cwd")
     project = Path(cwd) if isinstance(cwd, str) and cwd else None
     if guard_hook.is_probe(agent):

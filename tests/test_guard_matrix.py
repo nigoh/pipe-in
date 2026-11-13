@@ -113,6 +113,8 @@ ALLOWED_AT = {
     "skill": ["sdk", "sdk_protected"],
     "agent-listed": ["sdk", "sdk_protected"],  # 会話の道は agents を持つ段を流せないので判断しない（-）
     "task-listed": ["sdk", "sdk_protected"],
+    # D0096：報告の道具。SDK の道は段がこの道具を受け取らないので止めたまま
+    "report-handback": ["chat", "plugin_builder", "plugin_judge", "dev_analyst", "dev_tester", "dev_coder", "dev_verifier"],
 }
 
 
