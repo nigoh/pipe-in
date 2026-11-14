@@ -915,9 +915,10 @@ def test_D0045_AC_14_skills_and_hooks_do_not_depend_on_evals():
 
 def test_D0045_AC_14_plugin_version_is_not_raised_by_evals():
     """D0045-AC-14: evals/ を足しても版は上げなかった（0.5.0）。D0053 で references/ の中身を変えたので 0.5.1 に上げた（evals/ によるものではない）。D0076 で references/ の中身を変えたので 0.5.2 に上げた（同じく evals/ によるものではない）。D0095 でプラグインの README・アイコン・項目を足したので 0.6.0 に上げた（同じく evals/ によるものではない）。
-    D0096 で pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1 に上げた（evals/ によるものではない）。"""
+    D0096 で pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1 に上げた（evals/ によるものではない）。
+    D0097-AC-17: スキルとエージェントの文を縮めたので 0.6.2 に上げた（evals/ によるものではない。D0096 の 0.6.1 の決め打ちを置き換えた）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.6.1"
+    assert manifest["version"] == "0.6.2"
 
 
 def test_D0045_AC_14_guide_update_notes_still_say_0_5_0():

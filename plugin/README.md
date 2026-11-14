@@ -52,7 +52,7 @@ What it runs. Before every tool call, the hook starts `pipe-in-gen guard-hook` (
 
 What it sends. The plugin itself sends nothing to the author or to any third-party server. Records stay in your project. The check commands that `/pipe-in:pipe-eval` runs, and the shell commands of a stage, are whatever your pipe definition says; what they send depends on that definition. Only `/pipe-in:pipe-live`, and only when you call it, writes a copy of the run progress to the data store of a claude.ai artifact (`ArtifactData`), through the Artifact and Monitor tools of Claude Code. It uses no other service.
 
-What it fetches. It does not use `WebFetch` or `WebSearch`. The links in the skills (github.com/nigoh/pipe-in and code.claude.com) are references for people and are not opened by the plugin. Pipes you build may allow web access in a stage, but only if you ask for it.
+What it fetches. It does not use `WebFetch` or `WebSearch`. The only link in the skills (github.com/nigoh/pipe-in, in the install steps) is for people and is not opened by the plugin. Pipes you build may allow web access in a stage, but only if you ask for it.
 
 Cost. Stages run by `pipe-run`, the builder, and the judge use your Claude usage. `pipe-eval`, `pipe-live`, and the hook do not start pipe-in stages.
 
@@ -112,7 +112,7 @@ pipe-in-gen --help
 
 送るもの。プラグイン自身は、作者や第三者のサーバーへ何も送りません。記録は利用者のプロジェクトの中に残ります。`/pipe-in:pipe-eval` が流す検査のコマンドと、段の中のシェルのコマンドは、利用者のパイプの定義のとおりに動くので、何を送るかはその定義によります。人が `/pipe-in:pipe-live` を呼んだときだけ、Claude Code の Artifact と Monitor の道具で、進み具合の写しを claude.ai のアーティファクトのデータ（`ArtifactData`）に書きます。ほかのサービスは使いません。
 
-取ってくるもの。`WebFetch` も `WebSearch` も使いません。スキルの中のリンク（github.com/nigoh/pipe-in と code.claude.com）は人が読むための案内で、プラグインは開きません。作るパイプの段で Web を許すのは、頼んだときだけです。
+取ってくるもの。`WebFetch` も `WebSearch` も使いません。スキルの中のリンクは入れ方の github.com/nigoh/pipe-in だけで、人が読むための案内です。プラグインは開きません。作るパイプの段で Web を許すのは、頼んだときだけです。
 
 利用料。`pipe-run` の段・作る役・審査役は、Claude の利用料がかかります。`pipe-eval`・`pipe-live`・フックは、pipe-in の段を流しません。
 

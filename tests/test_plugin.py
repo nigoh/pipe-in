@@ -39,9 +39,9 @@ def test_marketplace_points_to_plugin():
 
 
 def test_plugin_version():
-    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。D0076: references/stage-rules.md に「2体の共通部分」の項を足し、同じ理由で 0.5.2。D0095-AC-10: README・アイコン・マニフェストの項目を足したので 0.6.0。D0096-AC-22: pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1。"""
+    """D0006-AC-14・D0022-AC-03・D0031-AC-56・D0037-AC-10: プラグインの版は 0.5.0（採点のスキルを足したので 0.2.0 から 0.3.0、進み具合を見るスキル pipe-live を足したので 0.4.0、検査と審査の組み方の文書 references/ を足したので 0.5.0）。D0053: references/stage-rules.md に比較実験の目安を足し、入れている人に届くよう 0.5.1。D0076: references/stage-rules.md に「2体の共通部分」の項を足し、同じ理由で 0.5.2。D0095-AC-10: README・アイコン・マニフェストの項目を足したので 0.6.0。D0096-AC-22: pipe-judge の断り方と返し方・pipe-builder の名前の決まりを直したので 0.6.1。D0097-AC-17: スキルとエージェントの文を縮めたので 0.6.2（D0096-AC-22 の 0.6.1 の決め打ちを置き換えた）。"""
     manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.6.1"
+    assert manifest["version"] == "0.6.2"
 
 
 PLUGIN_TEXTS = [
@@ -257,11 +257,13 @@ def test_guide_plugin_update_notes():
 
 
 def test_judge_skill_stops_without_judge_score():
-    """D0022-AC-29: pipe-judge のスキルは始め（## 1. の前）に pipe-in-gen --help と judge-score を確かめ、無ければ入れ方を案内して止まる。"""
+    """D0097-AC-04: D0022-AC-29 の理由の語「フックが古い」を外した（judge-score が無いときに止まる理由で、決まりの語ではない。
+    理由はガイドの「## 0.2.0 から更新するとき」と冒頭にある）。止まる決まりの 4 語と、「## 1.」の前を見る位置は今のまま。
+    D0022-AC-29: pipe-judge のスキルは始め（## 1. の前）に pipe-in-gen --help と judge-score を確かめ、無ければ入れ方を案内して止まる。"""
     _, body = _skill("pipe-judge")
     first = body.split("## 1.")[0]
     assert "## 0." in first or "0." in first
-    assert _missing(first, ["`pipe-in-gen --help`", "judge-score", "pip install -e .", "止まる", "フックが古い"]) == []
+    assert _missing(first, ["`pipe-in-gen --help`", "judge-score", "pip install -e .", "止まる"]) == []
 
 
 def test_guide_plugin_lists_new_skills():
@@ -364,7 +366,9 @@ def test_d0031_ac57_pipe_live_skill_is_listed_with_the_other_plugin_texts():
 
 
 def test_d0031_ac58_pipe_live_skill_flags_match_watch_parser():
-    """D0031-AC-58: スキルの pipe-in live watch / page の引数（--out・--interval・--timeout・--work-dir）が、live_cmd の本当の引数と一致する。watch には --out が付き、値は範囲の中。"""
+    """D0097-AC-12: D0031-AC-58 の既定の値の説明（--timeout 21600）を、見張りのコマンドの値（--timeout 1750）に置き換えた
+    （21600 は 1750 にする理由の説明で、見張りが使う値ではない。既定の値はガイド docs/guide/usage.md と D0031 にある）。
+    D0031-AC-58: スキルの pipe-in live watch / page の引数（--out・--interval・--timeout・--work-dir）が、live_cmd の本当の引数と一致する。watch には --out が付き、値は範囲の中。"""
     import argparse
 
     from pipe_in.engine import live_cmd
@@ -389,7 +393,7 @@ def test_d0031_ac58_pipe_live_skill_flags_match_watch_parser():
         elif words[0] == "page":
             assert flags <= page_opts, cmd
     assert seen_watch
-    assert "--interval 2" in body and "--timeout 21600" in body, "既定と同じ値（2 秒・6 時間）を示す"
+    assert "--interval 2" in body and "--timeout 1750" in body, "見張りのコマンドの値（2 秒・1750 秒）を示す"
 
 
 def test_d0031_ac58_pipe_live_skill_uses_the_documented_line_keys():
