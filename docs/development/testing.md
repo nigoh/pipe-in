@@ -13,7 +13,7 @@
 
 検査の二重化（`check_pipe` と `validatePipe`）の見本は `tests/fixtures/check_parity/` に置き、Python と拡張のテストが同じ表を読みます（[design.md](design.md) の「検査の二重化」）。
 
-プラグインの eval のケース（`plugin/evals/`）は、`pytest` でファイルの形だけを確かめます（`tests/test_plugin_evals.py`）。`claude plugin eval` を流すのは実機で、利用料がかかるので、人に言われたときだけです。採点の正規表現は、trace と道具の入力の見本の文字に当てて確かめます（`tests/test_plugin_eval_rounds.py`。D0096）。下位のモデルで回すラウンドの集計のスクリプトは `tests/test_research_plugin_eval_rounds.py` が見ます。スキル・エージェント・`references/stage-rules.md` の文を縮める・書き直すときは、決まりの一覧（決まりごとの目印の語が、そのファイルのその節にあるか）と、10 のファイルの合計の大きさの上限と、言い回しを直した採点が振る舞いの見本に当たるかを、`tests/test_plugin_distill.py` が見ます（D0097）。
+プラグインの eval のケース（`plugin/evals/`）は、`pytest` でファイルの形だけを確かめます（`tests/test_plugin_evals.py`）。`claude plugin eval` を流すのは実機で、利用料がかかるので、人に言われたときだけです。採点の正規表現は、trace と道具の入力の見本の文字に当てて確かめます（`tests/test_plugin_eval_rounds.py`。D0096）。下位のモデルで回すラウンドの集計のスクリプトは `tests/test_research_plugin_eval_rounds.py` が見ます。スキル・エージェント・`references/stage-rules.md` の文を縮める・書き直すときは、決まりの一覧（決まりごとの目印の語が、そのファイルのその節にあるか）と、10 のファイルの合計の大きさの上限と、言い回しを直した採点が振る舞いの見本に当たるかを、`tests/test_plugin_distill.py` が見ます（D0097）。言い回しの採点の `pattern` を広げる・絞るときは、直す前の `pattern` をテストに写し、取りこぼした返事の形に今の `pattern` だけが当たること、正しくない返事と絞った見本には当たらないこと、直す前の `pattern` が当たるほかの見本には今の `pattern` も当たることを見ます（D0098 の 3 本は `tests/test_plugin_grader_misses.py`）。
 
 - 本体：`python -m pytest -q`（`tests/`）
 - 拡張：`cd vscode && npm test`（`vscode/src/**/*.test.ts`、node:test）と `npm run typecheck`
