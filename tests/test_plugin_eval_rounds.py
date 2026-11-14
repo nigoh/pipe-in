@@ -608,9 +608,11 @@ def test_D0096_AC_17_guide_has_round_section_words():
 
 def test_D0096_AC_22_version_and_guide_notes():
     """D0096-AC-22: plugin.json の version が 0.6.1。ガイドの「版を上げる決まり」に 0.6.1 があり、「## 0.6.0 から更新するとき」の節
-    （ディレクトリへの申請の節と 0.5.x の節の間）に、0.6.1 で変わること（pipe-judge・pipe-builder）と pipe-in-gen の入れ直しがある。"""
+    （ディレクトリへの申請の節と 0.5.x の節の間）に、0.6.1 で変わること（pipe-judge・pipe-builder）と pipe-in-gen の入れ直しがある。
+    D0097-AC-17: スキルとエージェントの文を縮めたので、plugin.json の version は 0.6.2 を見る（D0096-AC-22 の 0.6.1 の決め打ちを置き換えた）。
+    ガイドの「版を上げる決まり」の 0.6.1 と「## 0.6.0 から更新するとき」の確かめは今のまま。"""
     manifest = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.6.1"
+    assert manifest["version"] == "0.6.2"
     md = GUIDE.read_text(encoding="utf-8")
     versioning = section(section(md, "## ディレクトリへの申請"), "### 版を上げる決まり")
     assert "0.6.1" in versioning
