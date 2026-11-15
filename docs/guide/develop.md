@@ -22,6 +22,8 @@ pip install -e '.[dev]' && pytest
 
 テストは、入れ込み（`pip install -e`）がどこにあっても、作業フォルダの `generator/` を `pipe_in_generator` として読みます（`tests/gen_loader.py`）。読んでいる場所が違うときは、テストの始めに直し方つきの文で落ちます。`pipe-in`・`pipe-in-gen` のコマンドは入れ込み先のコードを動かすので、worktree では `python -m pipe_in …` を使ってください。
 
+上の表は、よく直す所だけです。リポジトリ全体の品（アプリ・作る・プラグイン・開発用）の地図と、品ごとの置き場所の表は、[docs/development/design.md](../development/design.md) にあります。
+
 直す・機能を足すときの決まり（原則・仕様の書き方・設計・テスト・進め方）は [docs/development/](../development/) に、機能ごとに何をなぜ決めたかは [docs/decisions/](../decisions/) にあります。README とガイドの画像の撮り直し方は [docs/assets/README.md](../assets/README.md) にあります。
 
 ## CI（GitHub Actions）
@@ -80,6 +82,8 @@ claude -p "/pipe-advise <テーマ>" --max-budget-usd 5 --permission-mode dontAs
 - 新しい worktree では、その枝の `.claude/settings.json` が読まれます。枝がこの変更より前の main から切られていると、5 つの `allow` はまだありません。共有の `allow` は作業フォルダの信頼のあとに効き、worktree の信頼は main の作業フォルダの場所で見ます（`ask` と `deny` は信頼を待たずに効きます）。どちらも公式の文書によるもので、実機では確かめていません。効かなくても、確認が今までどおり出るだけです。 同じく、D0073 より前の main から切った枝は、`ask` に `git commit`・`git push`・`gh pr create` がまだ残り、その枝では確認が出ます（無人の実行の前に `python -m pipe_in worktree sync` で載せ直します。`sync` は origin の main を取ってから載せます。取れなければ止まり、手元の main に載せるときは `--no-fetch` を付けます）。
 
 この決めたことと理由は [D0039](../decisions/D0039-skill-tidy.md) にあります。
+
+同じ名前のスキルが、個人の置き場所（`~/.claude/skills/`）とこのリポジトリ（`.claude/skills/`）の両方にあると、個人のものが勝ちます（公式の文書。企業 → 個人 → プロジェクトの順）。たとえば `~/.claude/skills/pipe-in/` があると、`/pipe-in` はこのリポジトリのスキルの代わりにそちらを動かします。プラグインのスキルは名前に `pipe-in:` が付くので、ぶつかりません（D0099）。
 
 `/pipe-in` は、段の区切りで成果物を見せるとき、人が見て気づけるように「見てほしい問い」を 2〜3 個添えます（要件定義・設計・テスト先行のそれぞれ）。要件定義には、要求 `UR-xx`・前提・非機能要件 `NFR-xx`・「状態を持ち、操作や出来事で移り変わるか」の問いの答えが入ります。設計では、答えが はい のときだけ状態遷移の表（`DS-xx`）を書きます。つながりの抜けは `python -m pipe_in skill spec-check` で数えます（設計のあとと検証の段で流し、結果を会話と `05_test_report.md` に書きます。数と問題が出るだけで、合否は決めません）。ID の書き方は [specs.md](../development/specs.md) の「要件定義の形」にあります。
 

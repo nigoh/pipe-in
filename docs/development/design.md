@@ -1,52 +1,100 @@
 # 設計の決まり
 
+## リポジトリの地図
+
+このリポジトリには、4つの品（アプリ・作る・プラグイン・開発用）があります。下の図と箇条書きは主な中身が同じで、元は箇条書きです（図は大まかな形を描き、くわしい所は箇条書きにあります（図は `docs/assets/` の4枚の SVG。直すときは一緒に直します。[workflow.md](workflow.md) の「8.」）。置き場所の表は、4つの品に「共通」を足した5つの見出しで分けてあります（下の「置き場所」）。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/repo-map-dark.svg">
+  <img src="../assets/repo-map-light.svg" alt="リポジトリの地図。アプリ（pipe_in/・vscode/・pipes/）、作る（generator/ の new・design・check・list）、プラグイン（plugin/ と generator/ の裏の道具）、開発用（.claude/・docs/development/・docs/decisions/）の4つの品と、import・コマンドを起こす・読むだけの3種の矢印。主な中身は下の箇条書きと同じ" width="900">
+</picture>
+
+- **アプリ**（配布物 `pipe-in` のコマンド `pipe-in`・VSCode の拡張）：`pipe_in/`（`pipe_in.pipe`・`pipe_in.engine`・`pipe_in.usage`。`pipe_in/dev/` の5段の開発フローも）・`vscode/`・`pipes/`（今までの置き場所）
+  - 添え書き：`pipe_in/` の中でも、`pipe_in/dev/` の `record.py`・`record_order.py`・`worktree.py`・`decision_number.py`・`skill_cmd.py`・`spec_check.py` は開発用（`/pipe-in` のスキルが使う道具）、`pipe_in/pipe/` の `chat.py`・`capability.py`・`chat_record.py` はプラグイン（`pipe-in-gen chat` の中身）が使う。置き場所の表では、使う品の見出しに置く。
+- **作る**（同じ配布物のコマンド `pipe-in-gen` の new・design・check・list）：`generator/` の `cli.py`・`design.py`・`render.py`・`detect.py`・`legacy.py`（前の名前の別名。置き場所の表では `pipe_in/legacy.py` と1行にまとめて「共通」に置く）・ひな形 `generator/templates/`・指摘の形 `generator/schemas/`、ひな形の段が呼ぶ `findings_check.py`（`pipe-in-gen findings-check`）・`quorum.py`（`pipe-in-gen quorum`）
+- **プラグイン**（`/plugin install` で入れる。根の `.claude-plugin/marketplace.json` が `./plugin` を指す）：`plugin/`（スキル `/pipe-in:*`・エージェント `pipe-in:pipe-*`（ファイルは `plugin/agents/pipe-*.md`）・フック・`plugin/evals/`）と、`generator/` の裏の道具（配布物 `pipe-in` と一緒に pip で入る） `guard_hook.py`（`pipe-in-gen guard-hook`）・`chat_cmd.py`・`chat_hook.py`（`pipe-in-gen chat`）・`judge_score.py`（`pipe-in-gen judge-score`）
+- **開発用**（このリポジトリを直すときだけ使う。`pipe_in/dev/` の道具は配布物 `pipe-in` に入るが、使うのは `/pipe-in` のスキル）：`.claude/`（スキル `/pipe-*`・エージェント `pipe-in-*`・フック）・`docs/development/`・`docs/decisions/`
+- **似た名前の組**（名前は変えない。プラグインのものには `pipe-in:` が付くので、名前はぶつからない）：
+  - `/pipe-judge` は開発用（`.claude/skills/pipe-judge/`。助言の報告の採点）、`/pipe-in:pipe-judge` はプラグイン（`plugin/skills/pipe-judge/`。成果物の審査）
+  - エージェントの `pipe-in-*` は開発用（`.claude/agents/`）、`pipe-*` はプラグイン（`plugin/agents/`。呼ぶ名前は `pipe-in:pipe-*`）。`pipe-in-judge`（開発用）と `pipe-in:pipe-judge`（プラグイン）は `-` と `:` だけが違う
+- **向き**（矢印の3種）：
+  - import（実線）：`pipe_in_generator` の作る（`cli.py`・`design.py` など）と裏の道具の chat（`chat_cmd.py`・`chat_hook.py`）→ `pipe_in.pipe`・`pipe_in.engine`。`judge_score.py` と `guard_hook.py` の入口は標準ライブラリだけ。モジュールの向きは下の「本体の依存の向き」
+  - コマンドを起こす（破線）：プラグイン → `pipe-in-gen`・`pipe-in`、拡張 → `pipe-in`（作業台の「流す」）、開発用のスキル → `pipe-in record`・`pipe-in skill`
+  - 読むだけ（点線）：拡張 → work_dir の実行の記録。拡張が書くのは、返事の `reply.json` を新しく作るときと、作業台の「保存」でのパイプのファイルだけ（下の「拡張の層」）
+
 ## 置き場所
+
+表は、4つの品に「共通」を足した5つに分けてあります（品は上の「リポジトリの地図」）。行は、その部品を使う入口（コマンド・Claude Code のスキル・フック）の品の表に置きます。例外が3つあります。本体（`pipe_in/engine/`・`pipe_in/pipe/` など配布物 `pipe-in` の土台）は、作る・プラグイン・開発用から読まれても「アプリ」に置きます。拡張の中の開発用の道具（`vscode/scripts/` の確認用ページなど）は、拡張と一緒に「アプリ」に置きます。見本のパイプ（`examples/`）は、パイプを作る見本として「作る」に置きます。2つ以上の品の入口から使い、本体の外にあるもの（記録の土台・本体と拡張を結ぶ共通の表・テストの補助・利用者向けの文書・CI など）は「共通」に置きます。足すときは、その品の表の近いものの隣に 1 部品 1 行です（[workflow.md](workflow.md) の「8.」。表のパスが実物と合っているかは `tests/test_rules.py` が検査します）。
+
+### アプリ
 
 | やりたいこと | 場所 |
 | --- | --- |
 | 入口（pipe-in コマンド） | `pipe_in/cli.py` |
-| 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
 | どのパイプにも共通：段の実行・記録・確認・まとめ | `pipe_in/engine/pipeline.py` |
-| 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
-| 流れの回数 `flow` の読み方 `read_flow`（壊れた部分は 0。標準ライブラリだけ。SDK の道と会話の道が読む） | `pipe_in/engine/flow.py` |
 | 段の設定の型・protected_paths・既定で守る場所 `DEFAULT_PROTECTED_PATHS`・段の費用の上限を決める `stage_budget_usd`（SDK に渡す値と記録に残す値は、必ずこの関数から取る） | `pipe_in/engine/spec.py` |
 | 止める操作（pipe-in が流す段の PreToolUse フック）と、Bash のコマンドの文字列から書き込み先を読む部品（標準ライブラリだけ。シェルは起こさない） | `pipe_in/engine/guard.py`・`bashwrite.py` |
 | SDK の呼び出し（段のログの `Prompt` 行の形もここ） | `pipe_in/engine/runner.py` |
 | 記録に書く時刻の書き方（UTC からのずれつき、秒まで） | `pipe_in/engine/clock.py` |
 | 設定の読み込み（`max_budget_usd` の値の検査もここ。`pipe.toml` 側も同じ判定と文を使う） | `pipe_in/engine/config.py` |
 | セッション名の取り方と、セッション ID・受け持ちの検査（標準ライブラリだけ。拡張の `sessionName.ts` と同じ規則を、同じ表で確かめる） | `pipe_in/engine/session.py`・共通の表 `tests/fixtures/session_names.json` |
-| テストが `generator/` を `pipe_in_generator` として読む補助（入れ込みの場所によらず作業フォルダの `generator/` を読み、違えば直し方つきで落とす。`conftest.py` と、子プロセスを起こすテストの `CHILD_PRELUDE` が使う） | `tests/gen_loader.py` |
-| 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
-| 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
-| 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
-| 記録の土台（`schema`・鍵の並び・費用と使用量の値の種類）を、3つの書き手（SDK・開発用・会話）と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/state_record.json` |
-| 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
-| 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
 | 実行パネルの返事のファイル（D0079。実行のフォルダの `reply.json`）を読む・今の待ちと照らす・消す部品と、端末の行の元（標準ライブラリと `live_answer.py` の定数だけ。返事を作る関数は持たない。リンクは辿らない。断る理由は決まった一覧で、入力の文字は入れない。端末の行は、錠を持たない読み方で、頼まれたときだけ 1 行読む）。人の確認の待ち方は `checkpoint.py` が持ち、標準入力が端末のときだけ、標準入力と返事のファイルを 0.5 秒ごとに一緒に待つ | `pipe_in/engine/reply.py`・`pipe_in/engine/checkpoint.py` |
 | 使用量の集計と表 | `pipe_in/usage/` |
 | 流す前の費用の目安：モデルの系統ごとの「1ターンの費用」の表（`prices.py`。直すのはここだけ）と、段のリスト → 少なめ・多め・前の実績・注意の文の計算（`estimate.py`）。どちらも標準ライブラリだけで、ファイル・SDK・時計に触れない（今日は引数）。入口 `pipe-in estimate` と本流の確認前の 2 行は、段のリストの組み立てと `state.json` の読み出しも含めて `estimate_cmd.py`（読むだけで書かない） | `pipe_in/usage/prices.py`・`pipe_in/usage/estimate.py`・`pipe_in/estimate_cmd.py` |
-| 費用の目安の単価表・計算のケース・注意の文を、本体（`prices.py`・`estimate.py`）と拡張（`costEstimate.ts`）で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む。単価表を直すときは3か所を一緒に直す） | `tests/fixtures/cost_estimate.json` |
 | 開発フロー（5段・差し戻し・指示文） | `pipe_in/dev/` |
 | パイプ（定義の読み込み・検査・探す順番・流れ・権限の型） | `pipe_in/pipe/`（警告は `lint.py`。誤りの検査 `check_pipe` とは別で、`definition` と `engine.spec` の定数だけを読む） |
 | 前のパイプの記録を受ける（`--after`。前の記録を読んで受けてよいかを決める・断る文・後ろの段が前の記録を書けない守りの判定・流す前の1行。記録の受け渡しは `pipeline.py` と `specs.py` が行う） | `pipe_in/pipe/after.py` |
 | 検証の審査の計算（`[stages.check.judge]`。合否・平均・直す点。標準ライブラリだけ。`generator/judge_score.py` と決まりを同じにして二重に持つ） | `pipe_in/pipe/judge.py` |
+| VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
+| 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
+| 初めての人向けの案内（VSCode の「ようこそ」から開く walkthrough。宣言は `contributes.walkthroughs`、手順ごとの本文は Markdown。外から何も読み込まず、自動では開かない。D0072） | `vscode/package.json`・`vscode/walkthrough/` |
+| 時系列の確認待ちの字の置き場所（右・左・帯の下。純粋な関数。`ganttHtml.ts` だけが使う） | `vscode/src/view/ganttPlace.ts` |
+| 画面の確認用のページ（開発用。`npm run preview`）。ページの種類と名前の一覧は `docs/assets/README.md`、確かめる手順は `.claude/skills/pipe-in/screen-check.md`。ページごとの作り方（見本の記録の持ち方）は、次の「確認用ページ：…」の行に 1 ページ 1 行で書く | `vscode/scripts/preview.ts`・ページを作る関数と木を組み立てる関数 `vscode/scripts/previewPages.ts`・見本の成果物の文章 `vscode/scripts/artifactSamples.ts`・見本の呼び出しの記録 `vscode/scripts/toolsSamples.ts`・上限と費用の表の見本の記録の中身 `vscode/scripts/budgetSamples.ts`・判定とやり直しの見本の記録の中身 `vscode/scripts/checkSamples.ts`・並列の枠の見本の記録の中身 `vscode/scripts/groupSamples.ts` |
+| 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
+| 確認用ページ：開発用の新しい記録の見本（`driver: "pipe-dev"`・費用と使用量が取れない・段が 1 秒ほどで終わる短い記録を一時フォルダに書いて、`run-panel-dev-*` を出す） | `vscode/scripts/devSamples.ts` |
+| 確認用ページ：返事を受け付けている確認待ちの見本（印 `reply_wait` のある記録・ボタンの出ない記録を一時フォルダに書いて、`run-panel-reply-runs-*` を出す。`window.__previewReply(name)` で、描き直しと送ったあとを送る） | `vscode/scripts/replySamples.ts` |
+| 確認用ページ：実行の一覧の見本 | 「共通」の画面用の見本の記録（`tests/fixtures/showcase*`）の4つから、一時フォルダの中に「主の checkout＋別の worktree＋前の実行の置き場所」の木を組み立てて作る（`tests/fixtures/` には足さない）。`vscode/scripts/previewPages.ts` |
+| 確認用ページ：更新なしの見本 | 実行の一覧の見本と同じ作りで、動いている・確認待ちの見本とあわせて、見本の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」からの相対にそろえて読む（`tests/fixtures/` の更新時刻に左右されない）。`vscode/scripts/previewPages.ts` |
+| 確認用ページ：成果物のタブの見本 | 同じ作りで、動いている開発フローと12個のパイプの2つの実行を持ち、成果物の更新時刻を固定の値にそろえる（見本の文章は長い Markdown・外から来た文字・上限を超える日本語）。`vscode/scripts/artifactSamples.ts` |
+| 確認用ページ：エージェント・スキルのタブの見本 | 見本の記録（ログと `state.json`）を一時フォルダの中に生成して作り（`tests/fixtures/` には足さない）、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`vscode/scripts/toolsSamples.ts` |
+| 確認用ページ：上限と費用の表の見本 | 上限と費用の表の見本のページ（`run-panel-budget-*`）は、10 段のパイプの記録を一時フォルダに書いて本物の読み取りで読む（`tests/fixtures/` には見本の記録を足さない）。`vscode/scripts/budgetSamples.ts` |
+| 確認用ページ：判定とやり直しの見本 | 判定とやり直しの見本のページ（`run-panel-check-*`）。判定のある段が fail → pass した記録・前の段へ戻す判定が上限まで落ちた記録・判定の情報の無い古い記録を一時フォルダに書いて読む。`vscode/scripts/checkSamples.ts` |
+| 確認用ページ：並列の枠の見本 | 並列の枠の見本のページ（`run-panel-group-*`）も同じ作りで、枠の中が同時に動く記録・完了と失敗と判定のやり直しの記録・`group` の無い古い記録を一時フォルダに書いて読む（`tests/fixtures/` には足さない）。`vscode/scripts/groupSamples.ts` |
+| 確認用ページ：スタブでの確かめ | 作業台の外で書き換わったときの見本のページ（名前は `docs/assets/README.md`）は、スタブの `window.__previewExternal(kind)` で拡張からの知らせを送る。作業台の「費用の目安」の節の確かめも、ページは足さず、今の作業台のページのスタブの `window.__previewEstimate({ today, actualUsd })` で今日と前の実績を送る。作業台の「流す」の節の確かめも、ページは足さず、スタブの `window.__previewRun(ctx)` で、入力の種類・保存前・実行中・信頼・実行ファイルの有無を送る。`vscode/scripts/preview.ts` |
+| 作業台の「見本から作る」の見本のデータ（`examples/` から `npm run examples:gen` で作って、コミットする。拡張は実行時に `examples/` を読まない。`pipe.toml` と `prompts/*.md` だけを持つ）と、見本の一覧とモデル作り、名前の確かめと見本から未保存のモデルを作る手順（書く口を受け取らない）、生成の道具 | `vscode/src/domain/exampleData.ts`・`vscode/src/domain/pipeExamples.ts`・`vscode/src/app/exampleFlow.ts`・`vscode/scripts/genExamples.ts` |
+| 作業台から流す（D0078。拡張が起こしてよい子プロセスは、決まった形の `pipe-in` 1つだけ。実行ファイルは絶対パスに決めてから Tasks API の `ProcessExecution` で起こし、`child_process` は使わない）。コマンドの形と依頼メモの検め・実行ファイルの決め方の純粋な部分・流してよいかの判断（理由は決まった順で1つ）はドメイン、実行ファイルを探す手順・実行中の記録（入口が持つ）・流す計画はアプリ、`stat` で通常のファイルかを返すのは基盤、「流す」の節は画面 | `vscode/src/domain/runCommand.ts`・`vscode/src/domain/runExecutable.ts`・`vscode/src/domain/runDecision.ts`・`vscode/src/app/runExecutable.ts`・`vscode/src/app/runActive.ts`・`vscode/src/app/runFlow.ts`・`vscode/src/infra/fsFileProbe.ts`・`vscode/src/view/runHtml.ts` |
+| 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
+
+### 作る
+
+| やりたいこと | 場所 |
+| --- | --- |
 | ジェネレーター（pipe-in-gen・環境の検出・ひな形） | `generator/`（Python では `pipe_in_generator`）・`generator/templates/` |
+| 仕様書レビューの指摘の検査（指摘の形 v1。形・出典・引用の一致・役割の決まりを LLM なしで調べる `pipe-in-gen findings-check`。標準ライブラリだけ。Schema は他の道具に渡す契約で、実行時には読まない。ひな形 `generator/templates/spec-review/` の `verify` 段が呼ぶ） | `generator/findings_check.py`・`generator/schemas/` |
+| 2体の共通部分（指摘の形 v1 のファイル2つか3つから、`location.source` と正規化した `location.section` が合う指摘を残す `pipe-in-gen quorum`。標準ライブラリと findings_check だけ。ひな形 `generator/templates/review-quorum/` の `quorum` 段が呼ぶ） | `generator/quorum.py` |
+| 動画を作るパイプの見本（`pipe-in --pipe examples/video/pipes/pipe-in-video` で流し、`pipe-in-gen check video --pipes-dir examples/video/pipes` で確かめる。受付とテンプレートの2つ以外のコードは置かない） | `examples/video/pipes/pipe-in-video/`・`examples/video/` |
+| 流せる見本のパイプ（図を作る・仕様とソースの突き合わせ・調べものをまとめる）と、見本の案内。`diagrams`・`spec-qa` は `generator/templates/` のひな形を決まった値で埋めた写しに上限を足したもので、`tests/test_examples.py` がひな形との食い違いを見張る。`pipe-in-gen check <名前> --pipes-dir examples/<名前>/pipes` で確かめる | `examples/diagrams/pipes/pipe-in-diagrams/`・`examples/spec-qa/pipes/pipe-in-spec-qa/`・`examples/research/pipes/pipe-in-research/`・`examples/README.md` |
+
+### プラグイン
+
+| やりたいこと | 場所 |
+| --- | --- |
 | Claude Code のプラグイン（スキル・エージェント・フックの定義。作る `pipe-build`・検査 `pipe-eval`・審査 `pipe-judge`・進み具合を見る `pipe-live` のスキル、エージェント `pipe-builder`・`pipe-judge`。`plugin/skills/pipe-build/references/stage-rules.md` は段の決め方と検査・審査の組み方と比較実験から分かった組み方の目安で、pipe-build が自分で Read して pipe-builder への依頼文に貼る（絶対パスも添え、貼られていなければ pipe-builder がそれを Read する）。プラグイン自身の確かめのケースは `plugin/evals/` に、ケースごとのフォルダで置く（`claude plugin eval` 用の `prompt.md`・採点の `graders`・`case.yaml`・`scaffold.sh`・`scaffold.py`。ケースの形の検査は `tests/test_plugin_evals.py`）） | `.claude-plugin/marketplace.json`・`plugin/` |
 | プラグインのディレクトリ申請の備え（D0095）：入れた人に届く `plugin/README.md`（英語・日本語）・`plugin/LICENSE`（根と同じ）・アイコン `plugin/.claude-plugin/icon.png`、`plugin.json` と `marketplace.json` の表示の項目。事前チェックの決まりを見張るテスト（検査の関数は同じファイルの中）と、申請の手順の文書 | `plugin/README.md`・`plugin/LICENSE`・`plugin/.claude-plugin/icon.png`・`tests/test_plugin_directory.py`・`docs/guide/plugin.md` の「ディレクトリへの申請」 |
 | プラグインのフックの本体（pipe-builder と pipe-judge の操作を絞る。入力が読めない・16 MiB の上限超え・文字列でも null でもない `agent_type`（読む道具以外）は止め、止める返事を書けないときは標準エラーと終了コード 2。D0083。書き込み先はリンクの先もたどり、文字の上の判断とたどった判断の両方が通るときだけ通す。壊れた・輪のリンクは止める。D0088。報告を親に渡す `SubagentHandback` は、`agent_type` が文字列なら止めない（許す名前は `REPORT_TOOLS`。D0096）） | `generator/guard_hook.py` |
 | 会話の中で流す段のフック（pipe-stage を開いている段の範囲に、pipe-probe を読む道具だけに絞り、段の間のほかのエージェントを止める。報告の道具は段や記録の状態によらず止めない。残りは `guard_hook.decide` に渡す） | `generator/chat_hook.py` |
 | 会話の中でパイプを流す入口（`pipe-in-gen chat start / probe / next / done / review / status`。引数の解釈と JSON の出力だけ） | `generator/chat_cmd.py` |
-| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083）と、リンクを経た道のテスト（フックのリンクの扱い。D0088）で使うリンクの補助（`tests/symlink_support.py`。リンクを作れない環境では skip する） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py`・`tests/symlink_support.py` |
 | 会話の中でパイプを流す司会役（段の順番・検査・差し戻し・人の確認・記録。SDK を呼ばない） | `pipe_in/pipe/chat.py` |
 | 会話の道の能力表（項目 × 実行役の動き：効く・断る・一覧に出す・黙る・関係しない。断る文と効かない設定の一覧を作り、全項目が載っているかを検査する。判断は、値がある・None でない・値が違う・Claude Code にサブエージェントの書き込みを断られる名前（D0096）。標準ライブラリだけ。`chat.py` が使う） | `pipe_in/pipe/capability.py` |
 | 会話の道の記録の読み書き（指紋・段の範囲 `chat_specs`・フックの跡・Bash の覚え。司会役とフックが共有） | `pipe_in/pipe/chat_record.py` |
-| 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
 | 会話の中で段を受け持つ・守りを確かめるエージェントと、流すスキル `/pipe-in:pipe-run` | `plugin/agents/pipe-stage.md`・`pipe-probe.md`、`plugin/skills/pipe-run/SKILL.md` |
 | プラグインの採点の計算（総合点・合否・`--runs` のばらつき。標準ライブラリだけ） | `generator/judge_score.py` |
-| 仕様書レビューの指摘の検査（指摘の形 v1。形・出典・引用の一致・役割の決まりを LLM なしで調べる `pipe-in-gen findings-check`。標準ライブラリだけ。Schema は他の道具に渡す契約で、実行時には読まない。ひな形 `generator/templates/spec-review/` の `verify` 段が呼ぶ） | `generator/findings_check.py`・`generator/schemas/` |
-| 2体の共通部分（指摘の形 v1 のファイル2つか3つから、`location.source` と正規化した `location.section` が合う指摘を残す `pipe-in-gen quorum`。標準ライブラリと findings_check だけ。ひな形 `generator/templates/review-quorum/` の `quorum` 段が呼ぶ） | `generator/quorum.py` |
-| VSCode 拡張 | `vscode/`（層は下の「拡張の層」） |
-| 拡張の名前の表（コマンド ID・設定の節・パネルの型）と、前の版の設定・コマンド ID の読み替え | `vscode/src/app/names.ts` |
+| プラグインの eval のラウンド（下位のモデルで回した回ごとの点・落ちた採点・費用と回し方）と、結果の JSON からケースごとの点と前の回との差の表を出す集計（標準ライブラリだけ・読むだけ・書かない・知らない形で止まる。D0096） | `docs/research/plugin-eval-rounds/README.md`・`docs/research/plugin-eval-rounds/rounds.py` |
+
+### 開発用
+
+| やりたいこと | 場所 |
+| --- | --- |
 | このリポジトリを開発する Claude Code のスキル | `.claude/skills/pipe-in/`（必ず守る決まりは `SKILL.md` の冒頭に置き、長い手順は補助ファイルに分けた：記録のコマンド `.claude/skills/pipe-in/record.md`・`--artifact` の手順 `.claude/skills/pipe-in/artifact.md`・画面の確認の手順 `.claude/skills/pipe-in/screen-check.md`・無人の実行の手順 `.claude/skills/pipe-in/unattended.md`）・`.claude/skills/pipe-help/`・矛盾監査 `.claude/skills/pipe-audit/`・助言 `.claude/skills/pipe-advise/`・審査 `.claude/skills/pipe-judge/`・文書をそろえる `.claude/skills/pipe-docs/`・計画ボード `.claude/skills/pipe-plan/`（ページのひな形 `board.html`）・壁打ち `.claude/skills/pipe-talk/`（要約は手元だけの `docs/talk/<日時>-<名前>.md`。`.gitignore` 済み） |
 | 画面の見本を触って比べて決めるスキル `/pipe-design` | `.claude/skills/pipe-design/`（`SKILL.md`・見本の作り方 `mock.md`・★ の保存先と読み方 `favs.md`。見本は対象のリポジトリの `docs/design/`、要約は手元だけの `docs/talk/<日時>-<名前>.md`。D0093） |
 | /pipe-in の段を受け持つサブエージェントと、その書ける場所を絞るフック | `.claude/agents/`（`pipe-in-*`。監査と助言の `pipe-in-auditor`・`pipe-in-advisor` は読むだけで、助言は公式の文書を Web（WebFetch・WebSearch）で読める。助言の報告を採点する審査の `pipe-in-judge` も読むだけで、公式の文書を WebFetch だけで読める。文書係の `pipe-in-documenter` は文書だけを書ける）・`.claude/hooks/pipe_in_guard.py`（標準ライブラリだけ。表に無い `pipe-in-*` と、文字列でない `agent_type` は読むだけにする。判断の途中で例外が出ても止める） |
@@ -57,42 +105,38 @@
 | 機能ごとの worktree を切る・main に入ったものを片付ける・main に載せ直す（pipe-in worktree new・clean・sync。origin の main を取って使う。D0048・D0049・D0074）と、決定の記録の次の番号を出す（pipe-in decision-number。D0074） | `pipe_in/dev/worktree.py`・`pipe_in/dev/decision_number.py` |
 | /pipe-in が打つ記録・worktree・decision-number・spec-check のコマンドを、今のフォルダだけを相手にする形で流す入口（pipe-in skill。allow に入れる。D0049・D0085） | `pipe_in/dev/skill_cmd.py` |
 | 要件定義・設計・決定の記録の ID のつながり（要求 → 機能要件・非機能要件 → 受け入れ基準 → 状態遷移のマス）を数えて問題を出す検査（pipe-in skill spec-check。標準ライブラリだけ・読むだけで書かない・旗も引数も取らない。読み方の正規表現と問題の種類はこの 1 ファイルに閉じ込め、`tests/test_rules.py` が D0085 以降の決定の記録にかける。D0085） | `pipe_in/dev/spec_check.py` |
-| 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発・コマンドを打たない人向けの案内）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md`・`docs/guide/start-without-commands.md` |
-| 初めての人向けの案内（VSCode の「ようこそ」から開く walkthrough。宣言は `contributes.walkthroughs`、手順ごとの本文は Markdown。外から何も読み込まず、自動では開かない。D0072） | `vscode/package.json`・`vscode/walkthrough/` |
-| 英語の入口（`README.md`・`vscode/README.md` の英語版。人が書き、見出し・コードの塊・コマンドの行・画像の食い違いは `tests/test_english_docs.py` が見る。ほかの文書は日本語だけ。D0072） | `README.en.md`・`vscode/README.en.md`・`tests/test_english_docs.py` |
-| CI（main に入る前のテスト・型検査・ビルド。権限は contents: read だけで、秘密を使わない）と、その更新（Dependabot） | `.github/workflows/ci.yml`・`.github/dependabot.yml` |
 | GitHub の PR と issue のテンプレート（PR の本文の節・issue forms の不具合と機能の要望・白紙の issue の許可。決まりは workflow.md の「7. PR と issue」） | `.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` |
 | 開発のルール・決定の記録 | `docs/development/`・`docs/decisions/` |
 | 文書の形の検査（決定の記録の一覧の昇順・表の行の長さ・.gitattributes の union。D0075） | `tests/test_doc_shape.py`・`.gitattributes` |
+
+### 共通
+
+| やりたいこと | 場所 |
+| --- | --- |
+| 前の名前のコマンドの別名（0.3 の間だけ。案内を出して新しい入口を呼ぶ） | `pipe_in/legacy.py`・`generator/legacy.py` |
+| 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
+| 流れの回数 `flow` の読み方 `read_flow`（壊れた部分は 0。標準ライブラリだけ。SDK の道と会話の道が読む） | `pipe_in/engine/flow.py` |
+| テストが `generator/` を `pipe_in_generator` として読む補助（入れ込みの場所によらず作業フォルダの `generator/` を読み、違えば直し方つきで落とす。`conftest.py` と、子プロセスを起こすテストの `CHILD_PRELUDE` が使う） | `tests/gen_loader.py` |
+| 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
+| 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
+| 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
+| 記録の土台（`schema`・鍵の並び・費用と使用量の値の種類）を、3つの書き手（SDK・開発用・会話）と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/state_record.json` |
+| 検査の二重化（`check_pipe` と `validatePipe`）の見本と、両側のテスト | `tests/fixtures/check_parity/`・`tests/test_check_parity.py`・`vscode/src/app/pipeCheckParity.test.ts` |
+| 進み具合の写し（`state.json` などから、Claude のアーティファクトに出す JSON を作る。標準ライブラリだけ）と、そのページの HTML（外部の読み込みは書体の Google Fonts の `<link>` 2本だけ）、コマンド `pipe-in live`、記録を見張って変わったときだけ1行を出す `pipe-in live watch`（読むだけ。時計・眠り・読み・書きは引数で差し替える）、ページから来た答えの文を作る・読む・記録と照らす `live_answer.py`（ほかの部品を読まない葉。`live.py` は識別子と段の形のためにこれだけを読む）とコマンド `pipe-in live answer`（記録は変えない） | `pipe_in/engine/live.py`・`live_page.py`・`live_cmd.py`・`live_watch.py`・`live_answer.py` |
+| 費用の目安の単価表・計算のケース・注意の文を、本体（`prices.py`・`estimate.py`）と拡張（`costEstimate.ts`）で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む。単価表を直すときは3か所を一緒に直す） | `tests/fixtures/cost_estimate.json` |
+| 守りの比較表（同じ呼び出しを SDK の道・会話の道・プラグインの 2 役・開発用の 4 役の 9 列に通した今の結果。表のデータは `tests/guard_matrix.py`、固定するのは `tests/test_guard_matrix.py`。結果が動くと落ちる。D0083）と、リンクを経た道のテスト（フックのリンクの扱い。D0088）で使うリンクの補助（`tests/symlink_support.py`。リンクを作れない環境では skip する） | `tests/guard_matrix.py`・`tests/test_guard_matrix.py`・`tests/symlink_support.py` |
+| 終わった記録を `archive/<日時>/` へ移す（開発フローの記録と会話の道が共有） | `pipe_in/engine/archive.py` |
+| 利用者向けの説明（使い方・拡張・パイプ・プラグイン・安全・記録・設定・移行・開発・コマンドを打たない人向けの案内）。README は入口だけ | `docs/guide/`・目次 `docs/guide/README.md`・`docs/guide/start-without-commands.md` |
+| 英語の入口（`README.md`・`vscode/README.md` の英語版。人が書き、見出し・コードの塊・コマンドの行・画像の食い違いは `tests/test_english_docs.py` が見る。ほかの文書は日本語だけ。D0072） | `README.en.md`・`vscode/README.en.md`・`tests/test_english_docs.py` |
+| CI（main に入る前のテスト・型検査・ビルド。権限は contents: read だけで、秘密を使わない）と、その更新（Dependabot） | `.github/workflows/ci.yml`・`.github/dependabot.yml` |
 | アーキテクチャの検査（依存の向き・標準ライブラリだけ。新しい検査は決定ごとの別ファイル。D0075） | `tests/test_architecture.py`・新しい検査は `tests/test_architecture_<名前>.py`（例：`tests/test_architecture_doc_shape.py`） |
 | ロードマップ（目指す姿と段階） | `docs/roadmap.md` |
 | 調べた結果（実験の方法・結果・やり直すためのスクリプトと集計の結果。生のデータは置かない） | `docs/research/`・目次 `docs/research/README.md` |
-| プラグインの eval のラウンド（下位のモデルで回した回ごとの点・落ちた採点・費用と回し方）と、結果の JSON からケースごとの点と前の回との差の表を出す集計（標準ライブラリだけ・読むだけ・書かない・知らない形で止まる。D0096） | `docs/research/plugin-eval-rounds/README.md`・`docs/research/plugin-eval-rounds/rounds.py` |
-| 確認用ページ：会話の道の記録の見本（`driver: "pipe-chat"`・使用量が取れない記録を一時フォルダに書いて、`run-panel-chat-*` を出す） | `vscode/scripts/chatSamples.ts` |
-| 確認用ページ：開発用の新しい記録の見本（`driver: "pipe-dev"`・費用と使用量が取れない・段が 1 秒ほどで終わる短い記録を一時フォルダに書いて、`run-panel-dev-*` を出す） | `vscode/scripts/devSamples.ts` |
-| 時系列の確認待ちの字の置き場所（右・左・帯の下。純粋な関数。`ganttHtml.ts` だけが使う） | `vscode/src/view/ganttPlace.ts` |
-| 確認用ページ：返事を受け付けている確認待ちの見本（印 `reply_wait` のある記録・ボタンの出ない記録を一時フォルダに書いて、`run-panel-reply-runs-*` を出す。`window.__previewReply(name)` で、描き直しと送ったあとを送る） | `vscode/scripts/replySamples.ts` |
 | 画面のデザインの土台（ブランド「プラグ」の色の決まり・部品と画面の見本。Claude のデザインのキャンバスの写し） | `docs/design/`・`docs/design/README.md` |
 | ロゴ（README に載せる SVG。明るい表示用と暗い表示用）とロゴの動き（HTML と GIF。検査は `tests/test_plug_logo.py`）、README とガイドの画像（明暗の PNG）、撮り直しの手順 | `docs/assets/`・`docs/assets/README.md` |
 | 画面用の見本の記録（本体の流れを差し替えた runner で作る。README とガイドの画像と確認用のページが読む。4つ：完了・動いている2つ（うち1つは、戻る矢印が光る描き直しの素材）・確認待ち） | `tests/fixtures/showcase/`・`tests/fixtures/showcase_running/`・`tests/fixtures/showcase_running_next/`・`tests/fixtures/showcase_waiting/`・作り方 `tests/showcase.py` |
-| 画面の確認用のページ（開発用。`npm run preview`）。ページの種類と名前の一覧は `docs/assets/README.md`、確かめる手順は `.claude/skills/pipe-in/screen-check.md`。ページごとの作り方（見本の記録の持ち方）は、次の「確認用ページ：…」の行に 1 ページ 1 行で書く | `vscode/scripts/preview.ts`・ページを作る関数と木を組み立てる関数 `vscode/scripts/previewPages.ts`・見本の成果物の文章 `vscode/scripts/artifactSamples.ts`・見本の呼び出しの記録 `vscode/scripts/toolsSamples.ts`・上限と費用の表の見本の記録の中身 `vscode/scripts/budgetSamples.ts`・判定とやり直しの見本の記録の中身 `vscode/scripts/checkSamples.ts`・並列の枠の見本の記録の中身 `vscode/scripts/groupSamples.ts` |
-| 確認用ページ：実行の一覧の見本 | 上の4つの見本の記録から、一時フォルダの中に「主の checkout＋別の worktree＋前の実行の置き場所」の木を組み立てて作る（`tests/fixtures/` には足さない）。`vscode/scripts/previewPages.ts` |
-| 確認用ページ：更新なしの見本 | 実行の一覧の見本と同じ作りで、動いている・確認待ちの見本とあわせて、見本の記録を一時フォルダに写し、段のログの更新時刻を見本の「今」からの相対にそろえて読む（`tests/fixtures/` の更新時刻に左右されない）。`vscode/scripts/previewPages.ts` |
-| 確認用ページ：成果物のタブの見本 | 同じ作りで、動いている開発フローと12個のパイプの2つの実行を持ち、成果物の更新時刻を固定の値にそろえる（見本の文章は長い Markdown・外から来た文字・上限を超える日本語）。`vscode/scripts/artifactSamples.ts` |
-| 確認用ページ：エージェント・スキルのタブの見本 | 見本の記録（ログと `state.json`）を一時フォルダの中に生成して作り（`tests/fixtures/` には足さない）、動いている SDK の実行・`/pipe-in` の記録・受け持ちを付けなかった `/pipe-in` の記録・呼び出しがまだ無い実行の4つを持つ。`vscode/scripts/toolsSamples.ts` |
-| 確認用ページ：上限と費用の表の見本 | 上限と費用の表の見本のページ（`run-panel-budget-*`）は、10 段のパイプの記録を一時フォルダに書いて本物の読み取りで読む（`tests/fixtures/` には見本の記録を足さない）。`vscode/scripts/budgetSamples.ts` |
-| 確認用ページ：判定とやり直しの見本 | 判定とやり直しの見本のページ（`run-panel-check-*`）。判定のある段が fail → pass した記録・前の段へ戻す判定が上限まで落ちた記録・判定の情報の無い古い記録を一時フォルダに書いて読む。`vscode/scripts/checkSamples.ts` |
-| 確認用ページ：並列の枠の見本 | 並列の枠の見本のページ（`run-panel-group-*`）も同じ作りで、枠の中が同時に動く記録・完了と失敗と判定のやり直しの記録・`group` の無い古い記録を一時フォルダに書いて読む（`tests/fixtures/` には足さない）。`vscode/scripts/groupSamples.ts` |
-| 確認用ページ：スタブでの確かめ | 作業台の外で書き換わったときの見本のページ（名前は `docs/assets/README.md`）は、スタブの `window.__previewExternal(kind)` で拡張からの知らせを送る。作業台の「費用の目安」の節の確かめも、ページは足さず、今の作業台のページのスタブの `window.__previewEstimate({ today, actualUsd })` で今日と前の実績を送る。作業台の「流す」の節の確かめも、ページは足さず、スタブの `window.__previewRun(ctx)` で、入力の種類・保存前・実行中・信頼・実行ファイルの有無を送る。`vscode/scripts/preview.ts` |
-| 動画を作るパイプの見本（`pipe-in --pipe examples/video/pipes/pipe-in-video` で流し、`pipe-in-gen check video --pipes-dir examples/video/pipes` で確かめる。受付とテンプレートの2つ以外のコードは置かない） | `examples/video/pipes/pipe-in-video/`・`examples/video/` |
-| 流せる見本のパイプ（図を作る・仕様とソースの突き合わせ・調べものをまとめる）と、見本の案内。`diagrams`・`spec-qa` は `generator/templates/` のひな形を決まった値で埋めた写しに上限を足したもので、`tests/test_examples.py` がひな形との食い違いを見張る。`pipe-in-gen check <名前> --pipes-dir examples/<名前>/pipes` で確かめる | `examples/diagrams/pipes/pipe-in-diagrams/`・`examples/spec-qa/pipes/pipe-in-spec-qa/`・`examples/research/pipes/pipe-in-research/`・`examples/README.md` |
-| 作業台の「見本から作る」の見本のデータ（`examples/` から `npm run examples:gen` で作って、コミットする。拡張は実行時に `examples/` を読まない。`pipe.toml` と `prompts/*.md` だけを持つ）と、見本の一覧とモデル作り、名前の確かめと見本から未保存のモデルを作る手順（書く口を受け取らない）、生成の道具 | `vscode/src/domain/exampleData.ts`・`vscode/src/domain/pipeExamples.ts`・`vscode/src/app/exampleFlow.ts`・`vscode/scripts/genExamples.ts` |
-| 作業台から流す（D0078。拡張が起こしてよい子プロセスは、決まった形の `pipe-in` 1つだけ。実行ファイルは絶対パスに決めてから Tasks API の `ProcessExecution` で起こし、`child_process` は使わない）。コマンドの形と依頼メモの検め・実行ファイルの決め方の純粋な部分・流してよいかの判断（理由は決まった順で1つ）はドメイン、実行ファイルを探す手順・実行中の記録（入口が持つ）・流す計画はアプリ、`stat` で通常のファイルかを返すのは基盤、「流す」の節は画面 | `vscode/src/domain/runCommand.ts`・`vscode/src/domain/runExecutable.ts`・`vscode/src/domain/runDecision.ts`・`vscode/src/app/runExecutable.ts`・`vscode/src/app/runActive.ts`・`vscode/src/app/runFlow.ts`・`vscode/src/infra/fsFileProbe.ts`・`vscode/src/view/runHtml.ts` |
 | 作業台から流す引数の形を、拡張（`buildRunCommand`）と本体（`pipe_in.cli._parse_args`）で結ぶ共通の表（見本の記録ではない。拡張と本体のテストが同じ表を読む） | `tests/fixtures/run_command.json` |
 | 返事のファイルの中身を、拡張が作る関数（`buildReplyText`）と本体の読み取り（`parse_reply`）で結ぶ共通の表（見本の記録ではない。拡張と本体のテストが同じ表を読む。直してほしい点の長さはコードポイント） | `tests/fixtures/reply_file.json` |
-| 作ったパイプ（どれも .gitignore 済み） | 対象の `.pipe-in/pipes/`（前の版の置き場所も読む）、今までの `pipes/` |
-
-新しいものを置く場所に迷ったら、まずこの表の近いものの隣に置き、表に1行足します（表のパスが実物と合っているかは `tests/test_rules.py` が検査します）。
 
 ## 本体の依存の向き
 

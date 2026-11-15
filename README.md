@@ -109,6 +109,19 @@ Claude Code の会話から `/pipe-in --artifact <要件メモ>` で流すと、
 
 拡張のくわしい操作は [vscode/README.md](vscode/README.md)、開発のルールは [docs/development/](docs/development/)、機能ごとに決めたことは [docs/decisions/](docs/decisions/) にあります。
 
+### リポジトリの地図
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/repo-map-dark.svg">
+  <img src="docs/assets/repo-map-light.svg" alt="リポジトリの地図。アプリ（pipe_in/・vscode/・pipes/）、作る（generator/ の new・design・check・list）、プラグイン（plugin/ と generator/ の裏の道具）、開発用（.claude/・docs/development/・docs/decisions/）の4つの品と、import・コマンドを起こす・読むだけの3種の矢印。主な中身は下の箇条書きと同じ" width="900">
+</picture>
+
+- **アプリ**（配布物 `pipe-in` のコマンド `pipe-in`、手元で包んで入れる VSCode の拡張）：`pipe_in/`・`vscode/`・`pipes/`
+- **作る**（同じ配布物のコマンド `pipe-in-gen` の new・design・check・list）：`generator/`・ひな形 `generator/templates/`
+- **プラグイン**（`/plugin install` で入れる。スキル `/pipe-in:*`・エージェント `pipe-in:pipe-*`）：`plugin/`・`.claude-plugin/`・`generator/` の裏の道具（`pipe-in-gen` の guard-hook・chat・judge-score。配布物 `pipe-in` と一緒に pip で入る）
+- **開発用**（このリポジトリを直すときだけ使う。スキル `/pipe-*`・エージェント `pipe-in-*`。道具の `pipe-in record`・`pipe-in skill` は配布物に入る）：`.claude/`・`docs/development/`・`docs/decisions/`
+- 向き：作ると、プラグインの裏の道具の chat は `pipe_in` を import する（judge-score は標準ライブラリだけ）。プラグイン・拡張・開発用のスキルは、コマンド（`pipe-in`・`pipe-in-gen`）を起こす。拡張は実行の記録を読むだけ（書くのは、返事の `reply.json` と、作業台の「保存」でのパイプのファイルだけ）。似た名前の `/pipe-judge`（開発用）と `/pipe-in:pipe-judge`（プラグイン）は別物で、名前はぶつからない。くわしくは [設計の決まりの地図](docs/development/design.md#リポジトリの地図)
+
 <a id="migrate"></a>
 
 ## devpipe から移る

@@ -105,7 +105,7 @@ git rebase --autostash origin/main    # まだコミットしていない自分�
 | 変えたもの | 直す文書 |
 | --- | --- |
 | 使い方（コマンド・オプション・設定） | `README.md`・`docs/guide/`、拡張なら `vscode/README.md`、`/pipe-help`（`.claude/skills/pipe-help/SKILL.md`） |
-| 置き場所（ファイルを足した・動かした） | [design.md](design.md) の「置き場所」の表、必要なら `CLAUDE.md` |
+| 置き場所（ファイルを足した・動かした） | [design.md](design.md) の「置き場所」の、その部品の品の表（足し先は「8.」）、必要なら `CLAUDE.md` |
 | 層・依存の向き | [design.md](design.md) と、それを検査するテスト |
 | 検査の決まり（`check_pipe`・`validatePipe`） | 両側と見本 `tests/fixtures/check_parity/`、[design.md](design.md) の「検査の二重化」の節 |
 | 開発の決まり | `docs/development/` と、それを検査するテスト、`CLAUDE.md` の要約、`/pipe-in` |
@@ -187,11 +187,12 @@ Settings → Actions → General の「Fork pull request workflows」で、初�
 | 足すもの | 足し先 | 守ること |
 | --- | --- | --- |
 | 決定の記録の一覧（`docs/decisions/README.md`） | 表の末尾に 1 記録 1 行 | 番号は `python -m pipe_in skill decision-number` で取る。番号の昇順。`.gitattributes` の `merge=union` で、別々の枝が足した行どうしは載せ直し・cherry-pick・merge で自動で解ける。順序・重複・リンク先は `tests/test_doc_shape.py` が見る（載せ直しで並び違いになったときは、行を並べ替える） |
-| 置き場所の表（[design.md](design.md)） | 近い部品の隣に、1 部品 1 行 | design.md と CLAUDE.md の表の行は 800 字まで（`tests/test_doc_shape.py`）。長くなる前に行を割る。拡張の部品は「層ごとの部品」の表に 1 行足し、層の表の行は書き足さない（D0051 の検査が層の行で読む語は残す）。テストが読む語を持つ行（先頭の言葉）は変えない |
+| 置き場所の表（[design.md](design.md)） | その部品の品の見出し（`### アプリ`・`### 作る`・`### プラグイン`・`### 開発用`・`### 共通`）の表の中の、近い部品の隣に、1 部品 1 行。品は design.md の「置き場所」の頭の決まり（使う入口の品。2つ以上の品から使うものは共通。迷ったら共通） | design.md と CLAUDE.md の表の行は 800 字まで（`tests/test_doc_shape.py`）。長くなる前に行を割る。拡張の部品は「層ごとの部品」の表に 1 行足し、層の表の行は書き足さない（D0051 の検査が層の行で読む語は残す）。テストが読む語を持つ行（先頭の言葉）は変えない |
 | ガイド（`docs/guide/`）の節 | 関連する節の隣か、決まった順の位置 | 文書の末尾に足さない。機械では見ない（節の位置は意味で決まるため） |
 | アーキテクチャのテスト | `tests/test_architecture_<名前>.py`（決定ごとに新しいファイル） | `tests/test_architecture.py` の末尾に足さない。`_imports`・`_module_name`・`_outside_stdlib` は `from test_architecture import …` で使う |
 | 確認用のページ | `docs/assets/README.md` の表に 1 行、`.claude/skills/pipe-in/screen-check.md` の頭の一覧に 1 行（1 行 1 頭） | screen-check.md の足し忘れは、`tests/test_skill_tidy_docs.py` の D0039-AC-17 が、足す頭の名前と足す場所を出して落ちる。README の表の足し忘れは `tests/test_guide.py` が落ちる |
 
+- 地図（README.md・README.en.md の「リポジトリの地図」と、design.md の冒頭の「リポジトリの地図」）は、品・配るもの・品の間の向きが変わったときだけ直します。部品を足すだけでは直しません。直すときは、`docs/assets/` の4枚の SVG（日本語と英語 × 明るい・暗い）と、3つの文書の箇条書きを一緒に直します（食い違いは `tests/test_repo_map.py` が見ます。D0099）。
 - 載せ直し（`worktree sync`）のあと、`pytest -q` を流す。union で自動に解けた一覧が壊れていれば、上の検査が落ちる。
 - `merge=union` が効くのは、git のマージの仕組みを使う手元の操作（`git rebase`・`git cherry-pick`・`git merge`）。GitHub の画面の merge で効くかは確かめていない。入れる直前に手元で載せ直す手順（「5. 終える」）なら、解けたものを GitHub に出せる。
 - 同じ番号を取り合うことは、`decision-number` が防ぐ（`merge=union` は番号の取り合いを解かない）。

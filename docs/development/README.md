@@ -9,7 +9,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | --- | --- |
 | はじめて触る・迷ったとき | [principles.md](principles.md)（原則） |
 | 何を作るかを決める | [specs.md](specs.md)（仕様の書き方・決定の記録・AC の ID） |
-| どこに何を置くか・形を変える | [design.md](design.md)（層・依存の向き・置き場所・互換・依存を足す基準） |
+| どこに何を置くか・形を変える | [design.md](design.md)（冒頭のリポジトリの地図・品ごと（アプリ・作る・プラグイン・開発用・共通）の置き場所の表・層・依存の向き・互換・依存を足す基準） |
 | テストを書く | [testing.md](testing.md)（テストの種類・偽物・やってはいけないこと・赤の確かめ方） |
 | 始めてから終えるまで | [workflow.md](workflow.md)（ブランチと worktree・段の進め方・文書をそろえる・コミット・CI・PR と issue） |
 | 前に何をなぜ決めたか | [../decisions/](../decisions/)（機能ごとの決定の記録） |
@@ -37,6 +37,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 手元の事情（ユーザー名の入ったパス・メールアドレス）と秘密のファイルを載せない | `tests/test_rules.py` |
 | 決定の記録の形・テストの AC の ID が記録にある | `tests/test_rules.py` |
 | CLAUDE.md と design.md の置き場所の表が実物と食い違わない | `tests/test_rules.py` |
+| リポジトリの地図（README.md・README.en.md・design.md の箇条書きと `docs/assets/` の4枚の SVG）が食い違わず、SVG が外から何も読み込まないこと、design.md の置き場所の表が5つの品の見出しに分かれていること（D0099） | `tests/test_repo_map.py` |
 | PR と issue のテンプレート（`.github/`）の節・issue forms と、その決まりを書いた文書（workflow.md の「7. PR と issue」など。D0058） | `tests/test_github_templates.py` |
 | 調べた結果の目次がすべての調査を指し、本文に決めた節がある | `tests/test_research.py` |
 | テストがリポジトリの実物（`pipes/`・`.pipe-in/`・前の版の置き場所・`docs/pipeline/`）を変えない | `tests/conftest.py`（テストが通っても、最後に失敗にする） |

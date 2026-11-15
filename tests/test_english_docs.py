@@ -85,6 +85,15 @@ def _image_names(md: str) -> list[str]:
     return names
 
 
+# 英語版の画像の名前の印（D0099）。-light・-dark の直前の -en だけを印とみなす。
+LANG_MARK = re.compile(r"-en(?=-(?:light|dark)\.[A-Za-z0-9]+$)")
+
+
+def _lang_neutral(name: str) -> str:
+    """英語の印 -en を外した画像の名前（日英の組を比べるため）。"""
+    return LANG_MARK.sub("", name, count=1)
+
+
 def mismatches(ja_path: Path, en_path: Path) -> list[str]:
     """日本語版と英語版の食い違いの文。空なら合う。文の頭は「見出し」「コードの塊」「コマンド」「画像」のどれか。"""
     ja = ja_path.read_text(encoding="utf-8")
@@ -104,8 +113,12 @@ def mismatches(ja_path: Path, en_path: Path) -> list[str]:
         for i, ((lang, a), (_, b)) in enumerate(zip(ja_f, en_f)):
             if lang in SHELL_LANGS and shell_commands(a) != shell_commands(b):
                 out.append(f"コマンド：{i + 1} つ目の塊のコマンドの行が違う（日本語版 {shell_commands(a)}、英語版 {shell_commands(b)}）")
-    if _image_names(ja) != _image_names(en):
-        out.append(f"画像：<picture> の画像のファイル名の並びが違う（日本語版 {_image_names(ja)}、英語版 {_image_names(en)}）")
+    ja_img = _image_names(ja)
+    en_img = _image_names(en)
+    if any(LANG_MARK.search(n) for n in ja_img):
+        out.append(f"画像：日本語版が英語の印（-en）の画像を指している（日本語版 {ja_img}）")
+    elif ja_img != [_lang_neutral(n) for n in en_img]:
+        out.append(f"画像：<picture> の画像のファイル名の並びが違う（日本語版 {ja_img}、英語版 {en_img}）")
     return out
 
 
@@ -209,7 +222,7 @@ def test_D0072_AC_15_コードの塊とコマンドの行がそろう(pair):
 
 @pair_param
 def test_D0072_AC_16_pictureの画像の並びがそろう(pair):
-    """D0072-AC-16: <picture> が指す画像のファイル名の並びが同じ。"""
+    """D0099-AC-26: <picture> の画像の名前の並びが、英語版の英語の印 -en を外すと同じ（D0072-AC-16 の「ファイル名の並びが同じ」を置き換えた）。"""
     ja, en = pair_paths(pair)
     assert only(mismatches(ja, en), "画像") == []
 
@@ -343,6 +356,46 @@ def test_D0072_AC_18_検査そのものが食い違いを見つける(tmp_path, 
     ja, en = make_pair(tmp_path, SAMPLE_JA, changed)
     found = mismatches(ja, en)
     assert only(found, kind), f"{name}のに「{kind}」の食い違いが出ない：{found}"
+
+
+def _en_images(s: str, dark: str = "a-en-dark.png", light: str = "a-en-light.png") -> str:
+    """見本の画像の名前を、英語の印つきの名前に置き換える。"""
+    return s.replace("a-dark.png", dark).replace("a-light.png", light)
+
+
+def test_D0099_AC_26_英語の印だけ違う画像の組は通る(tmp_path):
+    """D0099-AC-26: 英語版が、日本語版の画像の名前の -light・-dark の前に -en を足した名前を同じ並びで指すとき、食い違いなしで通る。"""
+    en = _en_images(SAMPLE_EN_SAME_SHAPE)
+    assert "a-en-light.png" in en and "a-en-dark.png" in en, "見本の英語版が英語の印の名前になっていない（テストの誤り）"
+    ja, en_path = make_pair(tmp_path, SAMPLE_JA, en)
+    assert mismatches(ja, en_path) == []
+
+
+LANG_MARK_BROKEN = [
+    ("-en の位置が違う", lambda ja, en: (ja, _en_images(en, light="a-light-en.png"))),
+    ("-en を足しても日本語版と違う名前", lambda ja, en: (ja, _en_images(en, light="b-en-light.png"))),
+    ("-en の明暗の入れ替え", lambda ja, en: (ja, _en_images(en, dark="a-en-light.png", light="a-en-dark.png"))),
+    ("日本語版が -en の名前を指す", lambda ja, en: (_en_images(ja), _en_images(en))),
+]
+
+
+@pytest.mark.parametrize("name, change", LANG_MARK_BROKEN, ids=[b[0] for b in LANG_MARK_BROKEN])
+def test_D0099_AC_27_検査そのものが英語の印の誤りを見つける(tmp_path, name, change):
+    """D0099-AC-27: 英語版の -en の位置が違う名前（a-light-en.png）・-en を足しても日本語版と違う名前・-en の明暗の入れ替え・日本語版が -en の名前を指す形を、
+    それぞれ「画像」の食い違いとして見つける。"""
+    ja_text, en_text = change(SAMPLE_JA, SAMPLE_EN_SAME_SHAPE)
+    assert (ja_text, en_text) != (SAMPLE_JA, SAMPLE_EN_SAME_SHAPE), "見本が変わっていない（テストの誤り）"
+    ja, en = make_pair(tmp_path, ja_text, en_text)
+    found = mismatches(ja, en)
+    assert only(found, "画像"), f"{name}のに「画像」の食い違いが出ない：{found}"
+
+
+def test_D0099_AC_27_印の無い同じ名前の組は今までどおり通る_守る(tmp_path):
+    """D0099-AC-27: -en の無い同じ名前の組（vscode/README.md の形）は、今までどおり食い違いなしで通り、名前を1つ変えると「画像」の食い違いになる。（今のまま通る。守る）"""
+    ja, en = make_pair(tmp_path, SAMPLE_JA, SAMPLE_EN_SAME_SHAPE)
+    assert only(mismatches(ja, en), "画像") == []
+    ja2, en2 = make_pair(tmp_path, SAMPLE_JA, SAMPLE_EN_SAME_SHAPE.replace("a-dark.png", "c-dark.png"))
+    assert only(mismatches(ja2, en2), "画像")
 
 
 def test_D0072_AC_18_コマンド整形はコメントと引用符の中を比べない():

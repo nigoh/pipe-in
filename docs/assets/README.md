@@ -1,12 +1,14 @@
 # docs/assets/
 
-README（リポジトリの `README.md` と `vscode/README.md`）とガイド（`docs/guide/vscode.md`）に載せる画像の置き場所と、画像の撮り直し方。
+README（リポジトリの `README.md`・`README.en.md` と `vscode/README.md`）とガイド（`docs/guide/vscode.md`）、設計の決まり（`docs/development/design.md` の地図）に載せる画像の置き場所と、画像の撮り直し方。
 
 ## ここにあるもの
 
 | ファイル | 中身 | 撮るページ |
 | --- | --- | --- |
 | `pipe-in-logo.svg`・`pipe-in-logo-dark.svg` | 止まったロゴ（明るい表示用・暗い表示用）。README の冒頭では、動きを減らす設定のときに出す | （撮らない） |
+| `repo-map-light.svg`・`repo-map-dark.svg` | リポジトリの地図（日本語。明るい表示用・暗い表示用）。README.md の文書の節と design.md の冒頭に出す。手で書いた SVG で、外から何も読み込まない（許す要素と属性・色の値は D0099）。直すときは英語の2枚と、README.md・README.en.md・design.md の箇条書きを一緒に直す | （撮らない。手で書く） |
+| `repo-map-en-light.svg`・`repo-map-en-dark.svg` | 同じ地図の英語版（明るい・暗い）。README.en.md に出す。D0099 | （撮らない。手で書く） |
 | `run-panel-light.png` | 「実行を見る」パネル（明るい）。一覧の「終わった」の一番下（前の実行・合格、修正の依頼1回・差し戻し1回）を押して選んだところ | `out/preview/run-panel-runs-light.html` |
 | `run-panel-dark.png` | 「実行を見る」パネル（暗い）。同じ | `out/preview/run-panel-runs-dark.html` |
 | `run-list-light.png` | 実行の一覧と詳細（明るい）。上のバー・左の一覧・右の詳細（図・出力・時系列）の 3 領域。確認待ちの別の worktree の行を押して選んだところ | `out/preview/run-panel-runs-light.html` |

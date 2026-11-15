@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" width="1200" height="860" role="img" aria-labelledby="title desc" xml:lang="ja">
+  <title id="title">pipe-in のリポジトリの地図</title>
+  <desc id="desc">リポジトリの地図。アプリ（pipe_in/・vscode/・pipes/）、作る（generator/ の new・design・check・list）、プラグイン（plugin/ と generator/ の裏の道具）、開発用（.claude/・docs/development/・docs/decisions/）の4つの品と、import・コマンドを起こす・読むだけの3種の矢印。中身は下の箇条書きと同じ</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#ada39b"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1200" height="860" fill="#161514"/>
+  <g font-family="system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', 'Noto Sans CJK JP', sans-serif">
+    <text x="40" y="52" font-size="26" font-weight="bold" fill="#f2ece6">pipe-in のリポジトリの地図</text>
+    <text x="1160" y="52" font-size="14" text-anchor="end" fill="#ada39b">品は配るものの単位。矢印は品の間の向き</text>
+
+    <rect x="40" y="80" width="530" height="220" rx="12" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <path d="M40 92 A12 12 0 0 1 52 80 H558 A12 12 0 0 1 570 92 Z" fill="#8a8079"/>
+    <text x="60" y="124" font-size="22" font-weight="bold" fill="#f2ece6">開発用</text>
+    <text x="550" y="124" font-size="14" text-anchor="end" fill="#ada39b">このリポジトリを直すときだけ使う</text>
+    <rect x="60" y="140" width="100" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="70" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">.claude/</text>
+    <text x="172" y="160" font-size="14" fill="#ada39b">スキル</text>
+    <rect x="226" y="140" width="92" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="236" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">/pipe-*</text>
+    <text x="330" y="160" font-size="14" fill="#ada39b">エージェント</text>
+    <rect x="424" y="140" width="108" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="434" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">pipe-in-*</text>
+    <rect x="60" y="180" width="186" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="70" y="200" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">docs/development/</text>
+    <rect x="258" y="180" width="166" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="268" y="200" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">docs/decisions/</text>
+    <text x="60" y="240" font-size="14" fill="#ada39b">例</text>
+    <rect x="92" y="220" width="128" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="102" y="240" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">/pipe-judge</text>
+    <text x="232" y="240" font-size="15" fill="#f2ece6">助言の報告の採点</text>
+    <text x="60" y="280" font-size="14" fill="#ada39b">ほかに /pipe-in・/pipe-docs・/pipe-audit など</text>
+
+    <rect x="630" y="80" width="530" height="220" rx="12" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <path d="M630 92 A12 12 0 0 1 642 80 H1148 A12 12 0 0 1 1160 92 Z" fill="#ff8a65"/>
+    <text x="650" y="124" font-size="22" font-weight="bold" fill="#ff8a65">プラグイン</text>
+    <text x="1140" y="124" font-size="14" text-anchor="end" fill="#ada39b">/plugin install で入れる</text>
+    <rect x="650" y="140" width="88" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="660" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">plugin/</text>
+    <text x="750" y="160" font-size="14" fill="#ada39b">スキル</text>
+    <rect x="804" y="140" width="112" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="814" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">/pipe-in:*</text>
+    <text x="928" y="160" font-size="14" fill="#ada39b">エージェント</text>
+    <rect x="1022" y="140" width="78" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="1032" y="160" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">pipe-*</text>
+    <rect x="650" y="180" width="166" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="660" y="200" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">.claude-plugin/</text>
+    <rect x="828" y="180" width="146" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="838" y="200" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">plugin/evals/</text>
+    <text x="986" y="200" font-size="14" fill="#ada39b">評価のケース</text>
+    <text x="650" y="240" font-size="14" fill="#ada39b">例</text>
+    <rect x="682" y="220" width="204" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="692" y="240" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">/pipe-in:pipe-judge</text>
+    <text x="898" y="240" font-size="15" fill="#f2ece6">成果物の審査</text>
+    <rect x="650" y="260" width="112" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="660" y="280" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">generator/</text>
+    <text x="774" y="280" font-size="14" fill="#ada39b">の裏の道具（guard-hook・chat・judge-score）</text>
+
+    <circle cx="600" cy="235" r="18" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <text x="600" y="243" font-size="22" font-weight="bold" text-anchor="middle" fill="#f2ece6">≠</text>
+    <text x="600" y="276" font-size="13" text-anchor="middle" fill="#ada39b">別物</text>
+
+    <rect x="40" y="360" width="540" height="160" rx="12" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <path d="M40 372 A12 12 0 0 1 52 360 H568 A12 12 0 0 1 580 372 Z" fill="#8db4ee"/>
+    <text x="60" y="404" font-size="22" font-weight="bold" fill="#8db4ee">作る</text>
+    <text x="556" y="404" font-size="14" text-anchor="end" fill="#ada39b">コマンド pipe-in-gen</text>
+    <rect x="60" y="420" width="112" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="70" y="440" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">generator/</text>
+    <text x="184" y="440" font-size="15" fill="#f2ece6">new・design・check・list</text>
+    <rect x="60" y="460" width="212" height="30" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="70" y="480" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">generator/templates/</text>
+    <text x="284" y="480" font-size="14" fill="#ada39b">ひな形</text>
+    <text x="60" y="510" font-size="13" fill="#ada39b">ほかに findings-check・quorum（ひな形の段が呼ぶ）</text>
+
+    <rect x="760" y="360" width="300" height="130" rx="12" fill="#211f1d" stroke="#8a8079" stroke-width="2" stroke-dasharray="4 4"/>
+    <text x="780" y="394" font-size="16" font-weight="bold" fill="#f2ece6">実行の記録（state.json）</text>
+    <text x="780" y="420" font-size="14" fill="#ada39b">pipe-in が書く</text>
+    <text x="780" y="444" font-size="14" fill="#ada39b">対象のプロジェクトの中</text>
+    <text x="780" y="468" font-size="14" fill="#ada39b">拡張は読むだけ（返事だけ書く）</text>
+
+    <rect x="40" y="570" width="1120" height="170" rx="12" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <path d="M40 582 A12 12 0 0 1 52 570 H1148 A12 12 0 0 1 1160 582 Z" fill="#5fc4ab"/>
+    <text x="60" y="614" font-size="22" font-weight="bold" fill="#5fc4ab">アプリ</text>
+    <text x="1136" y="614" font-size="14" text-anchor="end" fill="#ada39b">配布物 pipe-in・VSCode の拡張</text>
+    <rect x="60" y="626" width="370" height="96" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="80" y="654" font-size="16" font-weight="bold" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">pipe_in/</text>
+    <text x="80" y="680" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">pipe_in.pipe・pipe_in.engine</text>
+    <text x="80" y="706" font-size="14" fill="#ada39b">コマンド pipe-in・段を流して記録を書く</text>
+    <rect x="500" y="626" width="320" height="96" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="520" y="654" font-size="16" font-weight="bold" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">vscode/</text>
+    <text x="520" y="680" font-size="15" fill="#f2ece6">VSCode の拡張</text>
+    <text x="520" y="706" font-size="14" fill="#ada39b">実行パネル・作業台</text>
+    <rect x="860" y="626" width="276" height="96" rx="6" fill="#161514" stroke="#36322f" stroke-width="1.5"/>
+    <text x="880" y="654" font-size="16" font-weight="bold" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans Mono', monospace" fill="#f2ece6">pipes/</text>
+    <text x="880" y="680" font-size="15" fill="#f2ece6">今までのパイプの置き場所</text>
+    <text x="880" y="706" font-size="14" fill="#ada39b">いまは対象のプロジェクトに置く</text>
+
+    <path d="M200 520 V622" fill="none" stroke="#ada39b" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <text x="210" y="552" font-size="14" fill="#ada39b">import</text>
+    <path d="M700 290 V598 H400 V622" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="708" y="420" font-size="14" fill="#ada39b">import</text>
+    <path d="M645 300 V432 H584" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="10 6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="638" y="340" font-size="14" text-anchor="end" fill="#ada39b">pipe-in-gen</text>
+    <path d="M1110 300 V566" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="10 6" marker-end="url(#arrow)"/>
+    <text x="1102" y="540" font-size="14" text-anchor="end" fill="#ada39b">pipe-in live</text>
+    <path d="M40 270 H20 V674 H56" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="10 6" stroke-linejoin="round" marker-end="url(#arrow)"/>
+    <text x="30" y="340" font-size="14" fill="#ada39b">pipe-in record・pipe-in skill</text>
+    <path d="M500 674 H434" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="10 6" marker-end="url(#arrow)"/>
+    <text x="465" y="664" font-size="13" text-anchor="middle" fill="#ada39b">pipe-in</text>
+    <path d="M780 626 V494" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="1 6" stroke-linecap="round" marker-end="url(#arrow)"/>
+    <text x="788" y="540" font-size="14" fill="#ada39b">読むだけ</text>
+
+    <rect x="40" y="762" width="1120" height="64" rx="12" fill="#211f1d" stroke="#36322f" stroke-width="1.5"/>
+    <text x="60" y="799" font-size="14" font-weight="bold" fill="#f2ece6">凡例</text>
+    <path d="M124 794 H180" fill="none" stroke="#ada39b" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <text x="194" y="799" font-size="14" fill="#f2ece6">import（コードを読み込む）</text>
+    <path d="M412 794 H468" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="10 6" marker-end="url(#arrow)"/>
+    <text x="482" y="799" font-size="14" fill="#f2ece6">コマンドを起こす</text>
+    <path d="M618 794 H674" fill="none" stroke="#ada39b" stroke-width="2.5" stroke-dasharray="1 6" stroke-linecap="round" marker-end="url(#arrow)"/>
+    <text x="688" y="799" font-size="14" fill="#f2ece6">読むだけ（実行の記録）</text>
+    <circle cx="926" cy="794" r="12" fill="#211f1d" stroke="#8a8079" stroke-width="2"/>
+    <text x="926" y="800" font-size="16" font-weight="bold" text-anchor="middle" fill="#f2ece6">≠</text>
+    <text x="950" y="799" font-size="14" fill="#f2ece6">似た名前の別物</text>
+  </g>
+</svg>
