@@ -109,6 +109,19 @@ The detailed guides are in `docs/guide/` (index: [docs/guide/README.md](docs/gui
 
 The extension's detailed operation is in [vscode/README.md](vscode/README.md), the development rules are in [docs/development/](docs/development/), and what was decided for each feature is in [docs/decisions/](docs/decisions/). All of these are in Japanese.
 
+### Repository map
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/repo-map-en-dark.svg">
+  <img src="docs/assets/repo-map-en-light.svg" alt="Repository map. Four parts: App (pipe_in/, vscode/, pipes/), Build (new, design, check, list of generator/), Plugin (plugin/ and the helper tools in generator/), and Dev (.claude/, docs/development/, docs/decisions/), with three kinds of arrows: import, runs a command, reads only. The list below has the main points" width="900">
+</picture>
+
+- **App** (the `pipe-in` command of the `pipe-in` package, and the VSCode extension you pack and install locally): `pipe_in/`, `vscode/`, `pipes/`
+- **Build** (the `pipe-in-gen` command of the same package: new, design, check, list): `generator/`, templates `generator/templates/`
+- **Plugin** (installed with `/plugin install`; skills `/pipe-in:*`, agents `pipe-in:pipe-*`): `plugin/`, `.claude-plugin/`, the helper tools in `generator/` (guard-hook, chat, judge-score of `pipe-in-gen`, installed with pip as part of the `pipe-in` package)
+- **Dev** (only for working on this repository; skills `/pipe-*` and agents `pipe-in-*`; the tools `pipe-in record` and `pipe-in skill` are in the package): `.claude/`, `docs/development/`, `docs/decisions/`
+- Arrows: Build and the plugin's chat tool import `pipe_in` (judge-score uses only the standard library). The plugin, the extension, and the dev skills run commands (`pipe-in`, `pipe-in-gen`). The extension reads only the run records (it writes only the reply file `reply.json`, and pipe files when you save in the workbench). `/pipe-judge` (Dev) and `/pipe-in:pipe-judge` (Plugin) have similar names but are different, and the names do not clash. Details: [the map in design.md](docs/development/design.md#リポジトリの地図) (Japanese)
+
 <a id="migrate"></a>
 
 ## Migrating from the previous name

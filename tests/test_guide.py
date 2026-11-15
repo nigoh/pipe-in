@@ -49,7 +49,7 @@ GUIDE_DOCS = [
 ]
 MIGRATION_TITLE = f"{OLD} から移る"
 README_SECTIONS = ["すぐ試す", "文書", MIGRATION_TITLE, "ライセンス"]
-MAX_README_LINES = 120
+MAX_README_LINES = 140  # D0099：地図の小節の分だけ上げた（D0014 では 120）
 
 
 # ---- 補助 ------------------------------------------------------------------
@@ -484,10 +484,24 @@ def test_D0014_AC_03_要点は5から7項目でどれもガイドの実在する
     assert problems == []
 
 
-def test_D0014_AC_04_READMEは120行以下():
-    """D0014-AC-04: README の行数が 120 行以下。"""
-    n = len(read_doc(README).splitlines())
-    assert n <= MAX_README_LINES, f"README が {n} 行ある"
+def readme_too_long(md: str, limit: int = MAX_README_LINES) -> str | None:
+    """README の行数が上限を超えていれば、その文。超えていなければ None。"""
+    n = len(md.splitlines())
+    return f"README が {n} 行ある（{limit} 行まで）" if n > limit else None
+
+
+def test_D0099_AC_16_READMEは140行以下():
+    """D0099-AC-16: README の行数が 140 行以下（地図の小節の分だけ上げた）。D0014-AC-04（120 行以下）を置き換えた。"""
+    assert MAX_README_LINES == 140
+    problem = readme_too_long(read_doc(README))
+    assert problem is None, problem
+
+
+def test_D0099_AC_16_見本_141行は見つけ140行は通す_守る():
+    """D0099-AC-16: 検査そのものの確かめ。141 行の README は上限を超えたとして見つけ、140 行は通す。（今のまま通る。守る）"""
+    assert readme_too_long("行\n" * 140) is None
+    found = readme_too_long("行\n" * 141)
+    assert found is not None and "141 行" in found and "140 行まで" in found
 
 
 def test_D0014_AC_05_すぐ試すに利用料のIMPORTANTのアラートがある():

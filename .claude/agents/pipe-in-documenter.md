@@ -20,7 +20,7 @@ color: green
 1. 変えたファイルを読み、何が変わったか（コマンド・オプション・設定・置き場所・層・開発の決まり・画面）をつかむ。
 2. `docs/development/workflow.md` の「4. そろえる」の表で、直す文書を決める。
    - 使い方（コマンド・オプション・設定）→ `README.md`・`docs/guide/`、拡張なら `vscode/README.md`、`/pipe-help`（書けないので案）
-   - 置き場所（ファイルを足した・動かした）→ `docs/development/design.md` の「置き場所」の表、必要なら `CLAUDE.md`（書けないので案）
+   - 置き場所（ファイルを足した・動かした）→ `docs/development/design.md` の「置き場所」の、その部品の品の表（足し先は workflow.md の「8.」）、必要なら `CLAUDE.md`（書けないので案）
    - 層・依存の向き → `docs/development/design.md`
    - 開発の決まり → `docs/development/`、`CLAUDE.md` の要約（案）、`/pipe-in`（`.claude/` なので案）
 3. Grep で、変えた名前・パス・コマンドが出てくる文書をすべて探し、古い書き方が残っていないかを見る。
