@@ -21,6 +21,7 @@ pipe-in（本体・ジェネレーター・プラグイン・VSCode 拡張）を
 | 決まり | 検査するテスト |
 | --- | --- |
 | 依存の向き（本体・ジェネレーター） | `tests/test_architecture.py` |
+| ジェネレーター（`generator/`）の中の2つの役（作る・プラグインの裏の道具）の向き：裏の道具は作るを読まず、作るが裏の道具を読むのは入口 `cli.py` の関数の中だけ。`generator/` の `.py` がどちらかの役にちょうど1回ずつ入ること（役の一覧は `tests/test_repo_map.py` の `GENERATOR_KINDS`。D0100） | `tests/test_architecture_generator_roles.py` |
 | 前の名前が、決まったファイル（読み替え・移行の案内・歴史）にしか残っていない | `tests/test_rename.py` |
 | プラグインの pipe-builder が書ける場所と Bash、pipe-judge が読む道具だけであること、/pipe-in のサブエージェント（監査と助言を含む）が書ける場所と Bash・助言の Web の行き先 | `tests/test_guard_hook.py`・`tests/test_pipe_in_guard.py` |
 | パイプの段の Bash の書き込みが、段の書き込み範囲に収まること（決まった形で先が読めるもの） | `tests/test_bash_write_guard.py` |

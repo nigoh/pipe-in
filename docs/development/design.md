@@ -18,7 +18,7 @@
   - `/pipe-judge` は開発用（`.claude/skills/pipe-judge/`。助言の報告の採点）、`/pipe-in:pipe-judge` はプラグイン（`plugin/skills/pipe-judge/`。成果物の審査）
   - エージェントの `pipe-in-*` は開発用（`.claude/agents/`）、`pipe-*` はプラグイン（`plugin/agents/`。呼ぶ名前は `pipe-in:pipe-*`）。`pipe-in-judge`（開発用）と `pipe-in:pipe-judge`（プラグイン）は `-` と `:` だけが違う
 - **向き**（矢印の3種）：
-  - import（実線）：`pipe_in_generator` の作る（`cli.py`・`design.py` など）と裏の道具の chat（`chat_cmd.py`・`chat_hook.py`）→ `pipe_in.pipe`・`pipe_in.engine`。`judge_score.py` と `guard_hook.py` の入口は標準ライブラリだけ。モジュールの向きは下の「本体の依存の向き」
+  - import（実線）：`pipe_in_generator` の作る（`cli.py`・`design.py` など）と裏の道具の chat（`chat_cmd.py`・`chat_hook.py`）→ `pipe_in.pipe`・`pipe_in.engine`。`judge_score.py` と `guard_hook.py` のモジュールそのものは標準ライブラリだけ（コマンド `pipe-in-gen` の入口 `cli.py` は先頭で `pipe_in.pipe` を読む）。モジュールの向きは下の「本体の依存の向き」
   - コマンドを起こす（破線）：プラグイン → `pipe-in-gen`・`pipe-in`、拡張 → `pipe-in`（作業台の「流す」）、開発用のスキル → `pipe-in record`・`pipe-in skill`
   - 読むだけ（点線）：拡張 → work_dir の実行の記録。拡張が書くのは、返事の `reply.json` を新しく作るときと、作業台の「保存」でのパイプのファイルだけ（下の「拡張の層」）
 
@@ -150,9 +150,10 @@ pipe_in.engine
 pipe_in.usage
 ```
 
-- 逆向きの import は `tests/test_architecture.py` が止めます。新しい検査は `tests/test_architecture_<名前>.py` に足します（`tests/test_architecture.py` の末尾には足しません）。
+- 逆向きの import は `tests/test_architecture.py` が止めます。`pipe_in_generator` は `pipe_in.dev`（と `pipe_in.cli`・`pipe_in.legacy`）を読みません（`pipe_in.engine` は直に読んでよい）。新しい検査は `tests/test_architecture_<名前>.py` に足します（`tests/test_architecture.py` の末尾には足しません）。
+- `generator/` の中は、作る（`cli.py`・`design.py` など）と、プラグインの裏の道具（`guard_hook.py`・`chat_cmd.py`・`chat_hook.py`・`judge_score.py`）の2つの役に分けます。裏の道具は作るを読みません（関数の中でも）。作るが裏の道具を読んでよいのは、入口 `cli.py` の関数の中だけです（今はコマンドの分岐で読みます。今 `cli.py` が先頭で読む `generator/` の部品は、作るの `detect.py`・`render.py` です）。役の分け方は地図と同じ `tests/test_repo_map.py` の `GENERATOR_KINDS` で、向きは `tests/test_architecture_generator_roles.py` が見ます（下位パッケージには分けない。D0100）。
 - `pipe_in.engine` は、どのパイプにも共通の仕組みです。特定のパイプ（開発フロー・パイプの定義）や入口（`pipe_in.cli`）を知りません。
-- `generator/guard_hook.py` と `.claude/hooks/pipe_in_guard.py` は、Claude Code が道具を呼ぶたびに動きます。起動を軽くし、本体が壊れていても動くように、**標準ライブラリだけ**を使います（`guard_hook.py` は `tests/test_architecture.py` が検査します）。どちらも書き込み先と基準のリンクの先を `os.path.realpath` でたどり、文字の上の判断とたどった判断の両方が通るときだけ通します（壊れたリンク・輪・例外は止める。D0088）。`generator/judge_score.py`（`pipe-in-gen judge-score`）と `generator/findings_check.py`（`pipe-in-gen findings-check`）・`generator/quorum.py`（`pipe-in-gen quorum`。findings_check の部品だけは読む）も、本体を読み込まず標準ライブラリだけです。
+- `generator/guard_hook.py` と `.claude/hooks/pipe_in_guard.py` は、Claude Code が道具を呼ぶたびに動きます。起動を軽くし、本体が壊れていても動くように、モジュールそのものは**標準ライブラリだけ**を使います（`guard_hook.py` は `tests/test_architecture.py` が検査します）。ただし `pipe-in-gen guard-hook` の入口 `generator/cli.py` は先頭で `pipe_in.pipe` を読むので、コマンドとして起こすときは本体の一部も読み込まれます（入口を軽くするかは別の件。D0100）。どちらも書き込み先と基準のリンクの先を `os.path.realpath` でたどり、文字の上の判断とたどった判断の両方が通るときだけ通します（壊れたリンク・輪・例外は止める。D0088）。`generator/judge_score.py`（`pipe-in-gen judge-score`）と `generator/findings_check.py`（`pipe-in-gen findings-check`）・`generator/quorum.py`（`pipe-in-gen quorum`。findings_check の部品だけは読む）も、本体を読み込まず標準ライブラリだけです。
 
 ## 拡張の層
 

@@ -192,7 +192,7 @@ Settings → Actions → General の「Fork pull request workflows」で、初�
 | アーキテクチャのテスト | `tests/test_architecture_<名前>.py`（決定ごとに新しいファイル） | `tests/test_architecture.py` の末尾に足さない。`_imports`・`_module_name`・`_outside_stdlib` は `from test_architecture import …` で使う |
 | 確認用のページ | `docs/assets/README.md` の表に 1 行、`.claude/skills/pipe-in/screen-check.md` の頭の一覧に 1 行（1 行 1 頭） | screen-check.md の足し忘れは、`tests/test_skill_tidy_docs.py` の D0039-AC-17 が、足す頭の名前と足す場所を出して落ちる。README の表の足し忘れは `tests/test_guide.py` が落ちる |
 
-- 地図（README.md・README.en.md の「リポジトリの地図」と、design.md の冒頭の「リポジトリの地図」）は、品・配るもの・品の間の向きが変わったときだけ直します。部品を足すだけでは直しません。直すときは、`docs/assets/` の4枚の SVG（日本語と英語 × 明るい・暗い）と、3つの文書の箇条書きを一緒に直します（食い違いは `tests/test_repo_map.py` が見ます。D0099）。
+- 地図（README.md・README.en.md の「リポジトリの地図」と、design.md の冒頭の「リポジトリの地図」）は、品・配るもの・品の間の向きが変わったときだけ直します。部品を足すだけでは直しません。ただし `generator/` の直下に `.py` を足したときは、`tests/test_repo_map.py` の `GENERATOR_KINDS` と、design.md の地図の箇条書き（作るかプラグインの項目）にも書きます（SVG と README は直しません。D0099-AC-05・D0100）。直すときは、`docs/assets/` の4枚の SVG（日本語と英語 × 明るい・暗い）と、3つの文書の箇条書きを一緒に直します（食い違いは `tests/test_repo_map.py` が見ます。D0099）。
 - 載せ直し（`worktree sync`）のあと、`pytest -q` を流す。union で自動に解けた一覧が壊れていれば、上の検査が落ちる。
 - `merge=union` が効くのは、git のマージの仕組みを使う手元の操作（`git rebase`・`git cherry-pick`・`git merge`）。GitHub の画面の merge で効くかは確かめていない。入れる直前に手元で載せ直す手順（「5. 終える」）なら、解けたものを GitHub に出せる。
 - 同じ番号を取り合うことは、`decision-number` が防ぐ（`merge=union` は番号の取り合いを解かない）。
