@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" width="1200" height="860" role="img" aria-labelledby="title desc" xml:lang="ja">
   <title id="title">pipe-in のリポジトリの地図</title>
-  <desc id="desc">リポジトリの地図。アプリ（pipe_in/・vscode/・pipes/）、作る（generator/ の new・design・check・list）、プラグイン（plugin/ と generator/ の裏の道具）、開発用（.claude/・docs/development/・docs/decisions/）の4つの品と、import・コマンドを起こす・読むだけの3種の矢印。中身は下の箇条書きと同じ</desc>
+  <desc id="desc">リポジトリの地図。アプリ（pipe_in/・vscode/・pipes/）、作る（generator/ の new・design・check・list）、プラグイン（plugin/ と generator/ の裏の道具）、開発用（.claude/・docs/development/・docs/decisions/）の4つの品と、import・コマンドを起こす・読むだけの3種の矢印。主な中身は下の箇条書きと同じ</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
       <path d="M0 0 L10 5 L0 10 Z" fill="#6b625c"/>
