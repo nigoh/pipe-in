@@ -126,6 +126,7 @@ git rebase --autostash origin/main    # まだコミットしていない自分�
    - 1行目は日本語で、何ができるようになるか。本文に、変えた点を箇条書きで。決定の記録があれば、その番号を書く
 6. main に入れる。**main に入れる直前**にもう一度 `python -m pipe_in skill worktree sync` で載せ直し、テストを流し直す。PR を出してあれば、載せ直したあとの CI が緑かを見る。PR を出さずに入れるなら、手元で Python と拡張の全テストを流した結果を見る。そのうえで、GitHub の PR で入れる（`gh pr merge` は確認が出る。main の保護が関所。下の「6. CI」の「ブランチの保護」）。入れ方は merge commit（squash・rebase の merge は、`worktree clean` が「入った」と見分けられず枝が残る）。入ったら、main の作業フォルダに戻り、`python -m pipe_in worktree clean` で片付ける。手元で main を動かさないので、ほかの会話の変更と同じファイルで断られることはない。
 7. コミット・PR を出す・main に入れる・push は、どれも人に言われてからする。Claude Code は、言われるまでしない。例外は無人の実行（人が開始の指示で、無人であることと、commit・push・PR の作成の承認を書いた実行。定義と範囲は `CLAUDE.md`）だけで、その実行が切った枝への commit・push・PR の作成までする。夜のまとめ実行（D0074）では、開始の指示が名指しした `night/` のまとめの枝への早送りの push も、範囲に入る。main に入れること（`git merge`・`gh pr merge`・main への push）は、無人でもしない。`.claude/settings.json` の `ask` には、`git merge`・`gh pr merge`・main へ届きうる `git push` の形・`gh api` での merge と `refs/heads/main` の更新・publish・`gh issue create` を入れてある（commit・枝名を書く `git push`・`gh pr create` は入れていない）。実機で確かめたこと：`ask` に入れた操作は auto モードでも確認が出て、人が答えるまで進まない（2026-11-02 の夜の実行）。公式の文書によること（実機は未確認）：個人の許可・フックの許可も `ask` を越えない。
+   - 例外がもう1つある：antenna の回（D0101）。持ち主が登録した定期タスクが起こす回で、判定の道具が `VERDICT: merge` と言った、プラグインの4つのスキルの `SKILL.md`・`plugin.json`・`tests/` への追加だけの変更を、その回が自分で main に入れる。守りの仕組みと本体は入らない（PR が残る）。範囲は `.antenna.json`、決まりは `CLAUDE.md`。
 
 ## 6. CI：main に入る前の確認
 
