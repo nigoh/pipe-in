@@ -117,6 +117,7 @@
 | 記録（`state.json`）の土台：鍵の並び・`schema`・費用と使用量の「測れた」「取れない」の2通りを決める `new_state`（標準ライブラリだけ。3つの書き手が呼ぶ） | `pipe_in/engine/state.py` |
 | 流れの回数 `flow` の読み方 `read_flow`（壊れた部分は 0。標準ライブラリだけ。SDK の道と会話の道が読む） | `pipe_in/engine/flow.py` |
 | テストが `generator/` を `pipe_in_generator` として読む補助（入れ込みの場所によらず作業フォルダの `generator/` を読み、違えば直し方つきで落とす。`conftest.py` と、子プロセスを起こすテストの `CHILD_PRELUDE` が使う） | `tests/gen_loader.py` |
+| antenna の回（D0101）の購読：取ってほしい情報のカテゴリと、自動で main に入れてよい範囲（プラグインの4つのスキルの `SKILL.md`・`plugin.json`・`tests/` への追加）。守りの仕組みと本体は範囲に入れない | `.antenna.json`・`tests/test_antenna_rounds.py` |
 | 記録の鍵 `max_budget_usd`・`resumed` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/budget_record.json` |
 | 記録の鍵 `stages[].check`・`runs[]` の `check` の `attempt` を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/check_record.json` |
 | 記録の鍵 `stages[].group`（並列の枠の名前）を、本体が書く側と拡張が読む側で結ぶ共通の表（見本の記録ではない。本体と拡張のテストが同じ表を読む） | `tests/fixtures/group_record.json` |
