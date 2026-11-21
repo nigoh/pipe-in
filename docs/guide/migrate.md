@@ -17,7 +17,7 @@
 
    ```
    /plugin marketplace remove devpipe
-   /plugin marketplace add nigoh/pipe-in
+   /plugin marketplace add nok-Inc-jp/nok-pipe-in
    /plugin install pipe-in@pipe-in
    ```
 
@@ -39,5 +39,5 @@
 8. **GitHub の URL**：リポジトリの名前が変わったあとは、手元の複製の向き先を直します（古い URL からも転送されます）。
 
    ```bash
-   git remote set-url origin https://github.com/nigoh/pipe-in.git
+   git remote set-url origin https://github.com/nok-Inc-jp/nok-pipe-in.git
    ```

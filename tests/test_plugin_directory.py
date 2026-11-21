@@ -26,7 +26,7 @@ MARKET_JSON = ROOT / ".claude-plugin/marketplace.json"
 HOOKS_JSON = PLUGIN / "hooks/hooks.json"
 GUIDE = ROOT / "docs/guide/plugin.md"
 
-INSTALL_ONE_LINE = "/plugin install pipe-in --marketplace nigoh/pipe-in"
+INSTALL_ONE_LINE = "/plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in"
 AUTHOR_URL = "https://github.com/nigoh"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -165,7 +165,7 @@ def readme_drift(section: str, skills: list[str], agents: list[str], gen_subcomm
         if sub not in gen_subcommands:
             problems.append(f"README の pipe-in-gen {sub} は本物のサブコマンドではない")
     sends = runs
-    external = [u for u in re.findall(r"https?://[^\s)`>\]]+", doc_text) if "github.com/nigoh/pipe-in" not in u]
+    external = [u for u in re.findall(r"https?://[^\s)`>\]]+", doc_text) if "github.com/nok-Inc-jp/nok-pipe-in" not in u]
     words = [w for w in NETWORK_WORDS if w in doc_text] + (["https://"] if external else [])
     for w in words:
         if w not in sends:
@@ -257,8 +257,8 @@ def market_problems(m: dict) -> list[str]:
 
 PLUGIN_ONLY_FIELDS = ("icon", "documentationUrl", "supportUrl", "privacyPolicyUrl", "termsOfServiceUrl")
 SHARED_LISTING_FIELDS = ("displayName", "homepage", "repository", "keywords", "license", "author")
-DOCUMENTATION_URL = "https://github.com/nigoh/pipe-in/blob/main/docs/guide/plugin.md"
-SUPPORT_URL = "https://github.com/nigoh/pipe-in/issues"
+DOCUMENTATION_URL = "https://github.com/nok-Inc-jp/nok-pipe-in/blob/main/docs/guide/plugin.md"
+SUPPORT_URL = "https://github.com/nok-Inc-jp/nok-pipe-in/issues"
 
 
 def icon_problems(manifest: dict, plugin_dir: Path) -> list[str]:
@@ -698,7 +698,7 @@ def test_d0095_ac05_network_words_found(tmp_path):
         assert any(word in p and "送るもの" in p for p in problems), word
     written = _en_section(skills, agents, sends="It uses WebFetch, writes ArtifactData, and reads https://example.org/x.")
     assert readme_drift(written, skills, agents, GEN_SUBS, LIVE_SUBS, doc) == []
-    ours = _fake_plugin(tmp_path / "q", ["alpha"], ["gamma"], extra="https://github.com/nigoh/pipe-in/blob/main/x.md")
+    ours = _fake_plugin(tmp_path / "q", ["alpha"], ["gamma"], extra="https://github.com/nok-Inc-jp/nok-pipe-in/blob/main/x.md")
     assert readme_drift(bare, skills, agents, GEN_SUBS, LIVE_SUBS, plugin_doc_text(ours)) == []
 
 
@@ -768,7 +768,7 @@ def test_d0095_ac08_plugin_manifest():
     assert manifest_problems(data) == []
     assert data["author"]["url"] == AUTHOR_URL
     assert data["displayName"] == "pipe-in"
-    assert data["homepage"] == data["repository"] == "https://github.com/nigoh/pipe-in"
+    assert data["homepage"] == data["repository"] == "https://github.com/nok-Inc-jp/nok-pipe-in"
 
 
 def test_d0095_ac08_manifest_listing_urls():

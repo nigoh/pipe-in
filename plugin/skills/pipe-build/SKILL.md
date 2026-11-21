@@ -16,7 +16,7 @@ disable-model-invocation: true
 
 ## 0. 前提を確かめる
 
-- `pipe-in-gen --help` が動かなければ、入れ方（`git clone https://github.com/nigoh/pipe-in.git` で取ってきたフォルダで `pip install -e .`）を案内して止まる。
+- `pipe-in-gen --help` が動かなければ、入れ方（`git clone https://github.com/nok-Inc-jp/nok-pipe-in.git` で取ってきたフォルダで `pip install -e .`）を案内して止まる。
   pipe-builder の書き込みを絞るフックも `pipe-in-gen` で動くので、無いまま先に進まない。
 - 対象のフォルダは、指定がなければ今のフォルダ（違いそうなら聞く）。
 - `pipe-in-gen list --project <対象>` で、ひな形とすでにあるパイプを見る。

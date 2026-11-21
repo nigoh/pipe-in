@@ -72,7 +72,7 @@ test('D0006-AC-15: 拡張の名前・表示名・repository・コマンド・設
   const manifest = readManifest();
   assert.equal(manifest.name, 'pipe-in-vscode');
   assert.equal(manifest.displayName, 'pipe-in');
-  assert.equal(manifest.repository?.url, 'https://github.com/nigoh/pipe-in');
+  assert.equal(manifest.repository?.url, 'https://github.com/nok-Inc-jp/nok-pipe-in');
   assert.equal(manifest.contributes?.configuration?.title, 'pipe-in');
   const commands = (manifest.contributes?.commands ?? []).map((c: any) => c?.command).sort();
   assert.deepEqual(commands, ['pipe-in.editPipe', 'pipe-in.showRun']);

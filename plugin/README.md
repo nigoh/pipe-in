@@ -11,15 +11,15 @@ pipe-in runs a development flow (requirements, design, tests, implementation, ve
 In a conversation (Claude Code v2.1.275 or later):
 
 ```
-/plugin install pipe-in --marketplace nigoh/pipe-in
+/plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in
 ```
 
-Claude Code asks you to confirm the new marketplace and to choose where to install it (the scope). In a shell (v2.1.292 or later): `claude plugin install pipe-in --marketplace nigoh/pipe-in`. On older versions, use two steps: `claude plugin marketplace add nigoh/pipe-in`, then `claude plugin install pipe-in@pipe-in` in a shell, or `/plugin marketplace add nigoh/pipe-in`, then `/plugin install pipe-in@pipe-in` in a conversation.
+Claude Code asks you to confirm the new marketplace and to choose where to install it (the scope). In a shell (v2.1.292 or later): `claude plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in`. On older versions, use two steps: `claude plugin marketplace add nok-Inc-jp/nok-pipe-in`, then `claude plugin install pipe-in@pipe-in` in a shell, or `/plugin marketplace add nok-Inc-jp/nok-pipe-in`, then `/plugin install pipe-in@pipe-in` in a conversation.
 
 Then install `pipe-in-gen`. It is not bundled, because the guard hook and the commands run as ordinary Python programs on your machine. `pip install -e .` installs both commands, `pipe-in-gen` and `pipe-in`:
 
 ```
-git clone https://github.com/nigoh/pipe-in.git
+git clone https://github.com/nok-Inc-jp/nok-pipe-in.git
 cd pipe-in
 pip install -e .
 pipe-in-gen --help
@@ -52,7 +52,7 @@ What it runs. Before every tool call, the hook starts `pipe-in-gen guard-hook` (
 
 What it sends. The plugin itself sends nothing to the author or to any third-party server. Records stay in your project. The check commands that `/pipe-in:pipe-eval` runs, and the shell commands of a stage, are whatever your pipe definition says; what they send depends on that definition. Only `/pipe-in:pipe-live`, and only when you call it, writes a copy of the run progress to the data store of a claude.ai artifact (`ArtifactData`), through the Artifact and Monitor tools of Claude Code. It uses no other service.
 
-What it fetches. It does not use `WebFetch` or `WebSearch`. The only link in the skills (github.com/nigoh/pipe-in, in the install steps) is for people and is not opened by the plugin. Pipes you build may allow web access in a stage, but only if you ask for it.
+What it fetches. It does not use `WebFetch` or `WebSearch`. The only link in the skills (github.com/nok-Inc-jp/nok-pipe-in, in the install steps) is for people and is not opened by the plugin. Pipes you build may allow web access in a stage, but only if you ask for it.
 
 Cost. Stages run by `pipe-run`, the builder, and the judge use your Claude usage. `pipe-eval`, `pipe-live`, and the hook do not start pipe-in stages.
 
@@ -60,7 +60,7 @@ Cost. Stages run by `pipe-run`, the builder, and the judge use your Claude usage
 
 Skills load in claude.ai chat, Cowork, and Claude Code. Agents and hooks are ignored in chat. `/pipe-in:pipe-build`, `/pipe-in:pipe-judge`, and `/pipe-in:pipe-run` need `pipe-in-gen`; `/pipe-in:pipe-live` needs `pipe-in`; `/pipe-in:pipe-eval` needs neither. The guard hook needs `pipe-in-gen` for every tool call. So the plugin works properly only in Claude Code with both commands installed. `/pipe-in:pipe-live` also needs a Claude Code signed in to claude.ai, with the Artifact, `ArtifactData`, and Monitor tools.
 
-More: https://github.com/nigoh/pipe-in (guide: docs/guide/plugin.md).
+More: https://github.com/nok-Inc-jp/nok-pipe-in (guide: docs/guide/plugin.md).
 
 ## 日本語
 
@@ -71,15 +71,15 @@ pipe-in は、要件定義・設計・テスト先行・実装・検証の開発
 会話の中で（Claude Code v2.1.275 以降）：
 
 ```
-/plugin install pipe-in --marketplace nigoh/pipe-in
+/plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in
 ```
 
-新しいマーケットプレイスの確認と、入れる範囲（scope）の選択が出ます。シェルでは `claude plugin install pipe-in --marketplace nigoh/pipe-in`（v2.1.292 以降）。それより前の版では2段で入れます：シェルなら `claude plugin marketplace add nigoh/pipe-in` のあと `claude plugin install pipe-in@pipe-in`、会話の中なら `/plugin marketplace add nigoh/pipe-in` のあと `/plugin install pipe-in@pipe-in`。
+新しいマーケットプレイスの確認と、入れる範囲（scope）の選択が出ます。シェルでは `claude plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in`（v2.1.292 以降）。それより前の版では2段で入れます：シェルなら `claude plugin marketplace add nok-Inc-jp/nok-pipe-in` のあと `claude plugin install pipe-in@pipe-in`、会話の中なら `/plugin marketplace add nok-Inc-jp/nok-pipe-in` のあと `/plugin install pipe-in@pipe-in`。
 
 そのあと `pipe-in-gen` を入れます。守りのフックとコマンドは手元の Python のプログラムなので、プラグインには入っていません。`pip install -e .` で、`pipe-in-gen` と `pipe-in` の2つのコマンドが入ります。
 
 ```
-git clone https://github.com/nigoh/pipe-in.git
+git clone https://github.com/nok-Inc-jp/nok-pipe-in.git
 cd pipe-in
 pip install -e .
 pipe-in-gen --help
@@ -112,7 +112,7 @@ pipe-in-gen --help
 
 送るもの。プラグイン自身は、作者や第三者のサーバーへ何も送りません。記録は利用者のプロジェクトの中に残ります。`/pipe-in:pipe-eval` が流す検査のコマンドと、段の中のシェルのコマンドは、利用者のパイプの定義のとおりに動くので、何を送るかはその定義によります。人が `/pipe-in:pipe-live` を呼んだときだけ、Claude Code の Artifact と Monitor の道具で、進み具合の写しを claude.ai のアーティファクトのデータ（`ArtifactData`）に書きます。ほかのサービスは使いません。
 
-取ってくるもの。`WebFetch` も `WebSearch` も使いません。スキルの中のリンクは入れ方の github.com/nigoh/pipe-in だけで、人が読むための案内です。プラグインは開きません。作るパイプの段で Web を許すのは、頼んだときだけです。
+取ってくるもの。`WebFetch` も `WebSearch` も使いません。スキルの中のリンクは入れ方の github.com/nok-Inc-jp/nok-pipe-in だけで、人が読むための案内です。プラグインは開きません。作るパイプの段で Web を許すのは、頼んだときだけです。
 
 利用料。`pipe-run` の段・作る役・審査役は、Claude の利用料がかかります。`pipe-eval`・`pipe-live`・フックは、pipe-in の段を流しません。
 
@@ -120,4 +120,4 @@ pipe-in-gen --help
 
 スキルは claude.ai のチャット・Cowork・Claude Code で読み込まれます。エージェントとフックはチャットでは無視されます。`/pipe-in:pipe-build`・`/pipe-in:pipe-judge`・`/pipe-in:pipe-run` は `pipe-in-gen` が、`/pipe-in:pipe-live` は `pipe-in` が要り、`/pipe-in:pipe-eval` はどちらも要りません。守りのフックは、道具を呼ぶたびに `pipe-in-gen` を使います。そのため、ちゃんと使えるのは2つのコマンドを入れた Claude Code です。`/pipe-in:pipe-live` は、claude.ai にログインした Claude Code と、Artifact・`ArtifactData`・Monitor の道具も要ります。
 
-くわしくは https://github.com/nigoh/pipe-in（ガイド：docs/guide/plugin.md）にあります。
+くわしくは https://github.com/nok-Inc-jp/nok-pipe-in（ガイド：docs/guide/plugin.md）にあります。
