@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 VSCODE_README = ROOT / "vscode" / "README.md"
 ASSETS = ROOT / "docs" / "assets"
-RAW_PREFIX = "https://raw.githubusercontent.com/nigoh/pipe-in/main/"
+RAW_PREFIX = "https://raw.githubusercontent.com/nok-Inc-jp/nok-pipe-in/main/"
 
 OLD = "dev" + "pipe"
 

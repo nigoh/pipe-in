@@ -808,11 +808,11 @@ LIVE_SUB = re.compile(r"(?:pipe-in|python -m pipe_in)\s+live\s+([a-z]+)")
 FLAG = re.compile(r"(?<![\w-])--[a-z][a-z-]*")
 
 # 10 のファイルの、蒸留の前の URL（設計 6.5）。公開リポジトリの URL と、外の URL（出典）。
-PUBLIC_REPO = "https://github.com/nigoh/pipe-in"
+PUBLIC_REPO = "https://github.com/nok-Inc-jp/nok-pipe-in"
 BEFORE_URLS = {
-    "https://github.com/nigoh/pipe-in/blob/main/docs/guide/pipes.md",  # build・rules
-    "https://github.com/nigoh/pipe-in.git",  # build（入れ方）
-    "https://github.com/nigoh/pipe-in/blob/main/docs/research/harness-compare/README.md",  # rules
+    "https://github.com/nok-Inc-jp/nok-pipe-in/blob/main/docs/guide/pipes.md",  # build・rules
+    "https://github.com/nok-Inc-jp/nok-pipe-in.git",  # build（入れ方）
+    "https://github.com/nok-Inc-jp/nok-pipe-in/blob/main/docs/research/harness-compare/README.md",  # rules
     "https://code.claude.com/docs/en/tools-reference",  # live
     "https://code.claude.com/docs/en/artifacts",  # live
 }
@@ -1162,7 +1162,7 @@ def test_D0097_AC_09_検査そのものが新しいURLを見つける():
     """D0097-AC-09: URL の拾い方（全角のかっこ・空白・バッククォートで切り、末尾の . , ) を落とす）と前の集まりとの比べが、
     偽の文に足した URL を見つけ、前からある URL は見つけない。"""
     text = (
-        "見本（https://example.org/new-page）と `https://github.com/nigoh/pipe-in.git` と"
+        "見本（https://example.org/new-page）と `https://github.com/nok-Inc-jp/nok-pipe-in.git` と"
         " https://code.claude.com/docs/en/artifacts 、https://example.org/other."
     )
     assert urls_in(text) - BEFORE_URLS == {"https://example.org/new-page", "https://example.org/other"}

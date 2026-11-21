@@ -5,10 +5,10 @@
 このリポジトリは Claude Code のプラグインのマーケットプレイスにもなっています（`.claude-plugin/marketplace.json` → `plugin/`）。
 入れると、どのプロジェクトでも会話でパイプを作る・直すことができます。`pipe-in-gen` が使えること（`pip install -e .`）が前提です。PATH に `pipe-in-gen` が無いと、作る役 pipe-builder の絞りが効きません（くわしくは[安全のしくみ](safety.md#プラグインのフックが動かないとき)）。
 
-会話の中なら 1 行で入ります（Claude Code v2.1.275 以降。公式の文書による。実機は未確認）。新しいマーケットプレイスの確認と、入れる範囲（scope）の選択が出ます。シェルでは `claude plugin install pipe-in --marketplace nigoh/pipe-in`（v2.1.292 以降）です。それより前の版のシェルでは、`claude plugin marketplace add nigoh/pipe-in` のあと `claude plugin install pipe-in@pipe-in` です。
+会話の中なら 1 行で入ります（Claude Code v2.1.275 以降。公式の文書による。実機は未確認）。新しいマーケットプレイスの確認と、入れる範囲（scope）の選択が出ます。シェルでは `claude plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in`（v2.1.292 以降）です。それより前の版のシェルでは、`claude plugin marketplace add nok-Inc-jp/nok-pipe-in` のあと `claude plugin install pipe-in@pipe-in` です。
 
 ```
-/plugin install pipe-in --marketplace nigoh/pipe-in
+/plugin install pipe-in --marketplace nok-Inc-jp/nok-pipe-in
 ```
 
 claude.ai のチャットでは、スキルは読み込まれますが、エージェントとフックは無視されます。どのスキルも手元のコマンド（`pipe-in-gen` か `pipe-in`。`/pipe-in:pipe-eval` はどちらも使わない）に頼るので、ちゃんと使えるのは、それを入れた Claude Code です（[プラグインの README](../../plugin/README.md) の「使える場所」）。
@@ -16,7 +16,7 @@ claude.ai のチャットでは、スキルは読み込まれますが、エー�
 前からの2段の形も使えます。手元のフォルダから入れるときも、こちらです。
 
 ```
-/plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nigoh/pipe-in>
+/plugin marketplace add <pipe-in のリポジトリのフォルダか GitHub の nok-Inc-jp/nok-pipe-in>
 /plugin install pipe-in@pipe-in
 ```
 
@@ -191,7 +191,7 @@ Anthropic のディレクトリ（claude.ai/directory）にこのプラグイン
 ポータルは https://claude.ai/directory/manage です。
 
 1. Submit new を押し、Plugin bundle を選ぶ。
-2. Source：Repository に `nigoh/pipe-in`、Plugin path に `plugin` を入れる。Branch or tag は空で、既定の枝になる。
+2. Source：Repository に `nok-Inc-jp/nok-pipe-in`、Plugin path に `plugin` を入れる。Branch or tag は空で、既定の枝になる。
 3. Validate を押す。Blocks が出たら直して push し、Re-validate を押す。ローカルの `claude plugin validate` が通っても、ポータルの Validate はもっと多くを見る。
 4. Listing details：`plugin.json` と README から読み込まれる。変えたいときはリポジトリを直して Validate し直す。
 5. Data handling：4つの問いに答える（下の下書き）。
@@ -265,7 +265,7 @@ claude plugin validate --strict .
 
 - **手元のフォルダからマーケットプレイスを足した人**（`/plugin marketplace add ./`）：プラグインはその場から読まれるので、pipe-in のフォルダで `git pull` をしたあと、次の会話を始めるか `/reload-plugins` をすれば効きます。
 - **GitHub からマーケットプレイスを足した人**：版が変わったときだけ入れ直されます。会話の中なら `/plugin marketplace update pipe-in`、シェルなら `claude plugin update pipe-in@pipe-in` で更新し、開いている会話には `/reload-plugins` で反映します。`/plugin` の Marketplaces で自動の更新（Enable auto-update）を入れておくと、自分で更新しなくても届きます。Anthropic の公式のマーケットプレイスのほかは、自動の更新は既定で切れています。
-- **1 行の形（`--marketplace nigoh/pipe-in`）で入れた人**：1 行の形も、GitHub のマーケットプレイスを足してから入れるので、GitHub からマーケットプレイスを足した人と同じです。
+- **1 行の形（`--marketplace nok-Inc-jp/nok-pipe-in`）で入れた人**：1 行の形も、GitHub のマーケットプレイスを足してから入れるので、GitHub からマーケットプレイスを足した人と同じです。
 
 あわせて、警告 W7・W6・W5 の例外・`pipe-in-gen quorum`・ひな形 `review-quorum` を使うには、pipe-in のフォルダで `git pull` して `pip install -e .` をやり直します（`pipe-in-gen` は本体にあります）。
 

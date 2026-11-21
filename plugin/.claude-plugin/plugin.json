@@ -8,10 +8,10 @@
     "name": "pipe-in",
     "url": "https://github.com/nigoh"
   },
-  "homepage": "https://github.com/nigoh/pipe-in",
-  "repository": "https://github.com/nigoh/pipe-in",
-  "documentationUrl": "https://github.com/nigoh/pipe-in/blob/main/docs/guide/plugin.md",
-  "supportUrl": "https://github.com/nigoh/pipe-in/issues",
+  "homepage": "https://github.com/nok-Inc-jp/nok-pipe-in",
+  "repository": "https://github.com/nok-Inc-jp/nok-pipe-in",
+  "documentationUrl": "https://github.com/nok-Inc-jp/nok-pipe-in/blob/main/docs/guide/plugin.md",
+  "supportUrl": "https://github.com/nok-Inc-jp/nok-pipe-in/issues",
   "license": "MIT",
   "keywords": ["pipe-in", "pipeline", "agents", "guard-hook", "eval"]
 }
